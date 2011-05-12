@@ -19,6 +19,23 @@ module Bitcoin
       Digest::SHA256.hexdigest( Digest::SHA256.digest(b) )[0...8]
     end
 
+    def address_checksum?(address)
+      a = base58_to_int(address).to_s(16)
+      Bitcoin.checksum( "00" + a[0...40] ) == a[-8..-1]
+    end
+
+    def valid_address?(address)
+      return false if address[0] != "1"
+      return false if !address_checksum?(address)
+      true
+    end
+
+    def hash160_from_address(address)
+      a = base58_to_int(address).to_s(16)
+      return nil if Bitcoin.checksum( "00" + a[0...40] ) != a[-8..-1]
+      a[0...40]
+    end
+
     def hash160_to_address(hex)
       "1" + encode_base58( "00" + hex + checksum("00" + hex) )
     end
@@ -42,6 +59,30 @@ module Bitcoin
       alpha[int_val,1] + base58_val
     end
 
+    def base58_to_int(base58_val)
+      alpha = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+      int_val, base = 0, alpha.size
+      base58_val.reverse.each_char.with_index do |char,index|
+        raise ArgumentError, 'Value not a valid Base58 String.' unless char_index = alpha.index(char)
+        int_val += char_index*(base**index)
+      end
+      int_val
+    end
+
+    # nonce compact bits to bignum hex
+    #  decode_compact_bits( "1b00b5ac".to_i(16) ).index(/[^0]/)
+    #  decode_compact_bits( "1b00b5ac".to_i(16) ).to_i(16) ==
+    #   "000000000000B5AC000000000000000000000000000000000000000000000000".to_i(16)
+    #
+    def decode_compact_bits(bits)
+      bytes = Array.new(size=((bits >> 24) & 255), 0)
+      bytes[0] = (bits >> 16) & 255 if size >= 1
+      bytes[1] = (bits >>  8) & 255 if size >= 2
+      bytes[2] =  bits        & 255 if size >= 3
+      bytes.map{|i| "%02x" % [i] }.join.rjust(64, '0')
+    end
+
+
     autoload :OpenSSL, 'openssl'
 
     def generate_key
@@ -52,18 +93,11 @@ module Bitcoin
     end
 
     def generate_address
-      pubkey, prvkey = generate_key
-      [
-        pubkey_to_address(pubkey),
-        *[pubkey, prvkey]
-          .map{|i| [unpack_hex(i)].pack('m').chomp } # bin base64
-          #.map{|i| int_to_base58(i.to_i(16)) } # base58
-          #.map{|i| [i].pack('m').chomp } # hex base64
-      ]
+      prvkey, pubkey = generate_key
+      [ pubkey_to_address(pubkey), prvkey, pubkey, hash160(pubkey) ]
     end
 
     def unpack_hex(hex); [hex].pack("H*"); end
-
 
     # big endian hex to little endian hex.
     def bl_hex(hex)
@@ -77,7 +111,6 @@ module Bitcoin
 
     def bitcoin_mrkl(a, b); bitcoin_hash(b + a); end
 
-    #def block_hash(nonce, bits, time, mrkl_root prev_block ver)
     def block_hash(prev_block, mrkl_root, time, bits, nonce, ver)
       h = "%08x%08x%08x%064s%064s%08x" %
             [nonce, bits, time, mrkl_root, prev_block, ver]
@@ -103,23 +136,62 @@ module Bitcoin
 end
 
 
-$mkrl_trees = [
-  # block 170 hash 00000000d1145790a8694403d4063f323d499e655c83426834d4ce2f8dd4a2ee
-  ["b1fea52486ce0c62bb442b530a3f0132b826c74e473d1f2c220bfa78111c5082",
-   "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
-   "7dac2c5666815c17a3b36427de37bb9d2e2c5ccec3f8633eb91a4205cb4c10ff"],
 
-  # block 181 hash 00000000dc55860c8a29c58d45209318fa9e9dc2c1833a7226d86bc465afc6e5
-  ["8347cee4a1cb5ad1bb0d92e86e6612dbf6cfc7649c9964f210d4069b426e720a",
-   "a16f3ce4dd5deb92d98ef5cf8afeaf0775ebca408f708b2146c4fb42b41e14be",
-   "ed92b1db0b3e998c0a4351ee3f825fd5ac6571ce50c050b4b45df015092a6c36"],
+require 'bacon'; Bacon.summary_on_exit
 
-  # block 182 hash 0000000054487811fc4ff7a95be738aa5ad9320c394c482b27c0da28b227ad5d
-  ["09e5c4a5a089928bbe368cd0f2b09abafb3ebf328cd0d262d06ec35bdda1077f",
-   "591e91f809d716912ca1d4a9295e70c3e78bab077683f79350f101da64588073",
-   "2f0f017f1991a1393798ff851bfc02ce7ba3f5e066815ed3104afb4bd3a0c230"],
-]
+describe 'Bitcoin Address/Hash160/PubKey' do
 
+  it 'bitcoin-hash160 from public key' do
+    # 65 bytes (8 bit version + 512 bits) pubkey in hex (130 bytes)
+    pubkey = "04324c6ebdcf079db6c9209a6b715b955622561262cde13a8a1df8ae0ef030eaa" +
+             "1552e31f8be90c385e27883a9d82780283d19507d7fa2e1e71a1d11bc3a52caf3"
+    Bitcoin.hash160(pubkey).should == "84120d16a5c1e239bd3c7e71732b85899ae395ca"
+  end
+
+  it 'bitcoin-address from bitcoin-hash160' do
+    # 20 bytes (160 bit) hash160 in hex (40 bytes)
+    Bitcoin.hash160_to_address("84120d16a5c1e239bd3c7e71732b85899ae395ca")
+      .should == "1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW"
+  end
+
+  it 'bitcoin-hash160 from bitcoin-address' do
+    Bitcoin.hash160_from_address("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW")
+      .should == "84120d16a5c1e239bd3c7e71732b85899ae395ca"
+  end
+
+  it 'validate bitcoin-address' do # TODO extend it.
+    Bitcoin.address_checksum?("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW").should == true
+    Bitcoin.valid_address?("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW").should == true
+    Bitcoin.valid_address?("2D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW").should == false
+    Bitcoin.valid_address?("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cX").should == false
+  end
+
+  it 'Bitcoin#checksum' do
+    Bitcoin.checksum(
+      "003892f1863b5a7729199dc8f9605805c0628a6fc8"
+    ).should == "8b6600fd"
+  end
+
+  it 'Bitcoin#hash160' do
+    Bitcoin.hash160(
+      "3892f1863b5a7729199dc8f9605805c0628a6fc8"
+    ).should == "8476080b0eed9b4f3bc7b12ed94950304dc7f30c"
+  end
+
+  it 'Bitcoin#hash160_to_address' do
+    Bitcoin.hash160_to_address(
+      "3892f1863b5a7729199dc8f9605805c0628a6fc8"
+    ).should == "16A8sZ4KJkhUYiRqUkCKBkKweGzKoiks56"
+
+    Bitcoin.hash160_to_address(
+      "15ede847c1f16fed1c1f92233fda80001c9ff2e2"
+    ).should == "12zxC7zZ5aodKoxDAToaxcQmMoC84aHddG"
+  end
+
+end
+
+
+__END__
 
 
 if $0 == __FILE__
@@ -288,7 +360,6 @@ if $0 == __FILE__
       #Bitcoin.hash_mrkl_tree(mrkl_tree[0...6]).should == mrkl_tree
     end
 
-
     it '#bitcoin_hash' do
       # block 170 is the first block that has a transaction.
       # hash 00000000d1145790a8694403d4063f323d499e655c83426834d4ce2f8dd4a2ee
@@ -298,35 +369,6 @@ if $0 == __FILE__
 
       Bitcoin.bitcoin_hash(b + a)    .should == c
       Bitcoin.bitcoin_mrkl(a, b)     .should == c
-
-      trees = $mkrl_trees
-
-      trees.each{|i| a,b,c = *i
-        Bitcoin.bitcoin_hash(b + a)  .should == c
-        Bitcoin.bitcoin_mrkl(a, b)   .should == c
-      }
-    end
-
-    it '#checksum' do
-      Bitcoin.checksum(
-        "003892f1863b5a7729199dc8f9605805c0628a6fc8"
-      ).should == "8b6600fd"
-    end
-
-    it '#hash160' do
-      Bitcoin.hash160(
-        "3892f1863b5a7729199dc8f9605805c0628a6fc8"
-      ).should == "8476080b0eed9b4f3bc7b12ed94950304dc7f30c"
-    end
-
-    it '#hash160_to_address' do
-      Bitcoin.hash160_to_address(
-        "3892f1863b5a7729199dc8f9605805c0628a6fc8"
-      ).should == "16A8sZ4KJkhUYiRqUkCKBkKweGzKoiks56"
-
-      Bitcoin.hash160_to_address(
-        "15ede847c1f16fed1c1f92233fda80001c9ff2e2"
-      ).should == "12zxC7zZ5aodKoxDAToaxcQmMoC84aHddG"
     end
   end
 
