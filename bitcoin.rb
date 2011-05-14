@@ -70,10 +70,6 @@ module Bitcoin
     end
 
     # nonce compact bits to bignum hex
-    #  decode_compact_bits( "1b00b5ac".to_i(16) ).index(/[^0]/)
-    #  decode_compact_bits( "1b00b5ac".to_i(16) ).to_i(16) ==
-    #   "000000000000B5AC000000000000000000000000000000000000000000000000".to_i(16)
-    #
     def decode_compact_bits(bits)
       bytes = Array.new(size=((bits >> 24) & 255), 0)
       bytes[0] = (bits >> 16) & 255 if size >= 1
@@ -83,11 +79,25 @@ module Bitcoin
     end
 
 
-    autoload :OpenSSL, 'openssl'
+    #autoload :OpenSSL, 'openssl'
+    require 'openssl'
+
+    module ::OpenSSL
+      class BN
+        def to_hex; self.to_i.to_s(16); end
+        def self.from_hex(hex); new(hex, 16); end
+      end
+      class PKey::EC::Point
+        def self.from_hex(group, hex)
+          new(group, BN.from_hex(hex))
+        end
+        def to_hex; to_bn.to_hex; end
+      end
+    end
 
     def generate_key
       # openssl ecparam -name secp256k1 -genkey
-      key = OpenSSL::PKey::EC.new("secp256k1").generate_key
+      key = ::OpenSSL::PKey::EC.new("secp256k1").generate_key
       [ key.private_key.to_i.to_s(16).rjust(64, '0'),
         key.public_key.to_bn.to_i.to_s(16).rjust(130, '0')]
     end
@@ -125,6 +135,26 @@ module Bitcoin
         }
       end
       chunks.flatten
+    end
+
+
+    def sign_data(key, data)
+      hash = ::OpenSSL::Digest::SHA1.digest(data)
+      [private_key.dsa_sign_asn1(hash)].pack("m0")
+    end
+
+    def verify_signature(data, signature, public_key)
+      hash = ::OpenSSL::Digest::SHA1.digest(data)
+      key  = ::OpenSSL::PKey::EC.new("secp256k1")
+      key.public_key = ::OpenSSL::PKey::EC::Point.from_hex(key.group, public_key)
+      key.dsa_verify_asn1(hash, signature.unpack("m0")[0])
+    end 
+
+    def open_key(private_key, public_key)
+      key = ::OpenSSL::PKey::EC.new("secp160k1")
+      key.private_key = ::OpenSSL::BN.from_hex(private_key)
+      key.public_key  = ::OpenSSL::PKey::EC::Point.from_hex(key.group, public_key)
+      key
     end
   end
 
@@ -351,6 +381,22 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     time, bits, nonce, ver = 1231731401, 486604799, 653436935, 1
     Bitcoin.block_hash(prev_block, mrkl_root, time, bits, nonce, ver).should ==
       "00000000c9ec538cab7f38ef9c67a95742f56ab07b0a37c5be6b02808dbfb4e0"
+  end
+
+  it 'generates openssl-secp256k1 private/public keypair' do
+    private_key, public_key = Bitcoin.generate_key
+
+    private_key.size  .should == 64   # bytes in hex
+    public_key.size   .should == 130  # bytes in hex
+  end
+
+  it 'generates new bitcoin-address' do
+    address, private_key, public_key, hash160 = Bitcoin.generate_address
+
+    private_key.size  .should == 64   # bytes in hex
+    public_key.size   .should == 130  # bytes in hex
+    Bitcoin.valid_address?(address).should == true
+    Bitcoin.hash160_to_address(Bitcoin.hash160(public_key)).should == address
   end
 
 end
