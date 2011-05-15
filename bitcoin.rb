@@ -165,7 +165,7 @@ module Bitcoin
 end
 
 
-
+if $0 == __FILE__
 require 'bacon'; Bacon.summary_on_exit
 
 describe 'Bitcoin Address/Hash160/PubKey' do
@@ -400,7 +400,7 @@ describe 'Bitcoin Address/Hash160/PubKey' do
   end
 
 end
-
+end
 
 __END__
 
