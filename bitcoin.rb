@@ -119,11 +119,19 @@ module Bitcoin
       def self.bn2mpi(bn_hex) BN.new(bn_hex, 16).to_mpi; end
     end
 
+    def bitcoin_elliptic_curve
+      ::OpenSSL::PKey::EC.new("secp256k1")
+    end
+
     def generate_key
       # openssl ecparam -name secp256k1 -genkey
-      key = ::OpenSSL::PKey::EC.new("secp256k1").generate_key
+      key = bitcoin_elliptic_curve.generate_key
+      inspect_key( key )
+    end
+
+    def inspect_key(key)
       [ key.private_key.to_i.to_s(16).rjust(64, '0'),
-        key.public_key.to_bn.to_i.to_s(16).rjust(130, '0')]
+        key.public_key.to_bn.to_i.to_s(16).rjust(130, '0') ]
     end
 
     def generate_address
@@ -169,13 +177,13 @@ module Bitcoin
 
     def verify_signature(data, signature, public_key)
       hash = ::OpenSSL::Digest::SHA1.digest(data)
-      key  = ::OpenSSL::PKey::EC.new("secp256k1")
+      key  = bitcoin_elliptic_curve
       key.public_key = ::OpenSSL::PKey::EC::Point.from_hex(key.group, public_key)
-      key.dsa_verify_asn1(hash, signature.unpack("m0")[0])
+      key.dsa_verify_asn1(hash, signature)
     end 
 
     def open_key(private_key, public_key)
-      key = ::OpenSSL::PKey::EC.new("secp160k1")
+      key  = bitcoin_elliptic_curve
       key.private_key = ::OpenSSL::BN.from_hex(private_key)
       key.public_key  = ::OpenSSL::PKey::EC::Point.from_hex(key.group, public_key)
       key
@@ -422,6 +430,9 @@ describe 'Bitcoin Address/Hash160/PubKey' do
 
     private_key.size  .should == 64   # bytes in hex
     public_key.size   .should == 130  # bytes in hex
+
+    key = Bitcoin.open_key(private_key, public_key)
+    Bitcoin.inspect_key( key ).should == [ private_key, public_key ]
   end
 
   it 'generates new bitcoin-address' do
