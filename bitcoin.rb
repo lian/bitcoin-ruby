@@ -74,19 +74,31 @@ module Bitcoin
       bytes = Array.new(size=((bits >> 24) & 255), 0)
       bytes[0] = (bits >> 16) & 255 if size >= 1
       bytes[1] = (bits >>  8) & 255 if size >= 2
-      bytes[2] =  bits        & 255 if size >= 3
+      bytes[2] = (bits      ) & 255 if size >= 3
       bytes.map{|i| "%02x" % [i] }.join.rjust(64, '0')
     end
 
     # target bignum hex to compact bits (int)
     def encode_compact_bits(target)
-      vch = OpenSSL::BN.new(target, 16).to_s(0).unpack("C*")
-      size = vch.size - 4
+      # bignum to bytes (bn2mpi) without OpenSSL::BN
+      mpi   = [ target.to_i(16).to_s(16) ].pack("H*").unpack("C*")
+      bytes = [ mpi.size+1, 0 ].pack("NC").unpack("C*") + mpi
+
+      size = bytes.size - 4
       nbits = size << 24
-      nbits |= (vch[4] << 16) if size >= 1
-      nbits |= (vch[5] <<  8) if size >= 2
-      nbits |= (vch[6] <<  0) if size >= 3
+      nbits |= (bytes[4] << 16) if size >= 1
+      nbits |= (bytes[5] <<  8) if size >= 2
+      nbits |= (bytes[6]      ) if size >= 3
       nbits
+    end
+
+    def decode_target(target_bits)
+      case target_bits
+      when Fixnum
+        [ decode_compact_bits(target_bits).to_i(16), target_bits ]
+      when String
+        [ target_bits.to_i(16), encode_compact_bits(target_bits) ]
+      end
     end
 
     #autoload :OpenSSL, 'openssl'
@@ -96,6 +108,7 @@ module Bitcoin
       class BN
         def to_hex; self.to_i.to_s(16); end
         def self.from_hex(hex); new(hex, 16); end
+        def self.to_mpi; to_s(0).unpack("C*"); end
       end
       class PKey::EC::Point
         def self.from_hex(group, hex)
@@ -103,6 +116,7 @@ module Bitcoin
         end
         def to_hex; to_bn.to_hex; end
       end
+      def self.bn2mpi(bn_hex) BN.new(bn_hex, 16).to_mpi; end
     end
 
     def generate_key
