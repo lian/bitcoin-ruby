@@ -172,7 +172,7 @@ module Bitcoin
 
     def sign_data(key, data)
       hash = ::OpenSSL::Digest::SHA1.digest(data)
-      [private_key.dsa_sign_asn1(hash)].pack("m0")
+      key.dsa_sign_asn1(hash)
     end
 
     def verify_signature(data, signature, public_key)
