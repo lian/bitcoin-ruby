@@ -2,7 +2,7 @@ module Bitcoin
   module Protocol
 
     class Block
-      attr_reader :hash
+      attr_reader :hash, :payload, :tx
 
       def initialize(data)
         parse_data(data) if data

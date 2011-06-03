@@ -45,12 +45,12 @@ module Bitcoin
       end
 
       def to_hash
-        {
+        h = {
           'hash' => @hash, 'ver' => @ver,
           'vin_sz' => @in_size, 'vout_sz' => @out_size,
           'lock_time' => @lock_time, 'size' => @payload.size,
           'in' => @in.map{|i|{
-            'prev_out'  => { 'hash' => i[0].reverse.unpack('H*')[0], 'n' => i[1] },
+            'prev_out'  => { 'hash' => hth(i[0]), 'n' => i[1] },
             'scriptSig' => script_signature_inspect(i[3])
           }},
           'out' => @out.map{|i|{
@@ -58,6 +58,17 @@ module Bitcoin
             'scriptPubKey' => pk_script_inspect(i[2])
           }}
         }
+        if (i=@in[0]) && i[1] == 4294967295 # coinbase tx
+          h['in'][0] = {
+            'prev_out'  => { 'hash' => hth(i[0]), 'n' => i[1] },
+            'coinbase' => i[3].unpack("H*")[0]
+          }
+        end
+        h
+      end
+
+      def hth(s)
+        s.reverse.unpack('H*')[0]
       end
 
       # generates rawblock json as seen in the block explorer.
