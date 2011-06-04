@@ -4,6 +4,7 @@
 
 require 'digest/sha2'
 require 'digest/rmd160'
+require 'openssl'
 
 module Bitcoin
   module Util
@@ -24,7 +25,7 @@ module Bitcoin
       Bitcoin.checksum( "00" + a[0...40] ) == a[-8..-1]
     end
 
-    def valid_address?(address)
+    def valid_address?(address) # TODO
       return false if address[0] != "1"
       return false if !address_checksum?(address)
       true
@@ -101,37 +102,18 @@ module Bitcoin
       end
     end
 
-    #autoload :OpenSSL, 'openssl'
-    require 'openssl'
-
-    module ::OpenSSL
-      class BN
-        def to_hex; self.to_i.to_s(16); end
-        def self.from_hex(hex); new(hex, 16); end
-        def self.to_mpi; to_s(0).unpack("C*"); end
-      end
-      class PKey::EC::Point
-        def self.from_hex(group, hex)
-          new(group, BN.from_hex(hex))
-        end
-        def to_hex; to_bn.to_hex; end
-      end
-      def self.bn2mpi(bn_hex) BN.new(bn_hex, 16).to_mpi; end
-    end
-
     def bitcoin_elliptic_curve
       ::OpenSSL::PKey::EC.new("secp256k1")
     end
 
     def generate_key
-      # openssl ecparam -name secp256k1 -genkey
       key = bitcoin_elliptic_curve.generate_key
       inspect_key( key )
     end
 
     def inspect_key(key)
-      [ key.private_key.to_i.to_s(16).rjust(64, '0'),
-        key.public_key.to_bn.to_i.to_s(16).rjust(130, '0') ]
+      [ key.private_key.to_hex.rjust(64, '0'),
+        key.public_key.to_hex.rjust(130, '0') ]
     end
 
     def generate_address
@@ -139,16 +121,10 @@ module Bitcoin
       [ pubkey_to_address(pubkey), prvkey, pubkey, hash160(pubkey) ]
     end
 
-    def unpack_hex(hex); [hex].pack("H*"); end
-
-    # big endian hex to little endian hex.
-    def bl_hex(hex)
-      hex.scan(/../).to_a.reverse.join
-    end
-
     def bitcoin_hash(hex)
-      b = [ bl_hex(hex) ].pack("H*") # unpack hex
-      bl_hex Digest::SHA256.hexdigest( Digest::SHA256.digest(b) )
+      Digest::SHA256.digest(
+        Digest::SHA256.digest( [hex].pack("H*").reverse )
+      ).reverse.unpack("H*")[0]
     end
 
     def bitcoin_mrkl(a, b); bitcoin_hash(b + a); end
@@ -190,6 +166,20 @@ module Bitcoin
     end
   end
 
+  module ::OpenSSL
+    class BN
+      def self.from_hex(hex); new(hex, 16); end
+      def to_hex; to_i.to_s(16); end
+      def to_mpi; to_s(0).unpack("C*"); end
+    end
+    class PKey::EC::Point
+      def self.from_hex(group, hex)
+        new(group, BN.from_hex(hex))
+      end
+      def to_hex; to_bn.to_hex; end
+      def self.bn2mpi(hex) BN.from_hex(hex).to_mpi; end
+    end
+  end
 
   Genesis_Block = "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"
 
