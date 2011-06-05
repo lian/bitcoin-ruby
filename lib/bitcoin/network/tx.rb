@@ -2,7 +2,7 @@ module Bitcoin
   module Protocol
 
     class Tx
-      attr_reader :hash
+      attr_reader :hash, :in, :out, :payload
 
       def ==(other)
         @hash == other.hash
@@ -13,20 +13,20 @@ module Bitcoin
       end
 
       def parse_data(data)
-        @ver, @in_size  = data.unpack("IC")
+        @ver, in_size  = data.unpack("IC")
         raise "unkown transaction version: #{@ver}" unless @ver == 1
         idx = 5
 
-        @in = (0...@in_size).map{
+        @in = (0...in_size).map{
           prev_out, prev_out_index, script_sig_length = data[idx...idx+=37].unpack("a32IC")
           script_sig = data[idx...idx+=script_sig_length]
           seq = data[idx...idx+=4]
           [ prev_out, prev_out_index, script_sig_length, script_sig, seq ]
         }
 
-        @out_size  = data[idx].unpack("C")[0]; idx+=1
+        out_size  = data[idx].unpack("C")[0]; idx+=1
 
-        @out = (0...@out_size).map{
+        @out = (0...out_size).map{
           value, pk_script_length = data[idx...idx+=9].unpack("QC")
           pk_script = data[idx...idx+=pk_script_length]
           [ value, pk_script_length, pk_script ]
@@ -44,11 +44,64 @@ module Bitcoin
         end
       end
 
+      def to_payload
+        pin = @in.map{|i|
+          buf =  [ i[0], i[1], i[2] ].pack("a32IC") # prev_out, prev_out_index, script_sig_length
+          p ['var_int', i] if i[2] > 253
+          buf << i[3] if i[2] > 0                   # script_sig
+          buf << "\xff\xff\xff\xff"                 # sequence
+        }.join
+
+        pout = @out.map{|i|
+          buf =  [ i[0], i[1] ].pack("QC")          # value, pk_script_length
+          buf << i[2] if i[1] > 0                   # pk_script
+          buf
+        }.join
+
+        [@ver, @in.size, pin, @out.size, pout, @lock_time].pack("ICa#{pin.bytesize}Ca#{pout.bytesize}I")
+      end
+
+
+      def signature_hash_for_input(input_idx, outpoint_tx)
+        # https://github.com/bitcoin/bitcoin/blob/e071a3f6c06f41068ad17134189a4ac3073ef76b/script.cpp#L834
+        # http://code.google.com/p/bitcoinj/source/browse/trunk/src/com/google/bitcoin/core/Script.java#318
+
+        pin  = @in.map.with_index{|i,idx|
+          if idx == input_idx
+            scriptPubKey = outpoint_tx.out[ i[1] ][2]
+            length = scriptPubKey.bytesize
+            [ i[0], i[1], length, scriptPubKey, "\xff\xff\xff\xff" ].pack("a32ICa#{length}a4")
+          else
+            [ i[0], i[1], 0, "\xff\xff\xff\xff" ].pack("a32ICa4")
+          end
+        }.join
+        pout = @out.map{|i| [ i[0], i[1], i[2] ].pack("QCa#{i[1]}") }.join
+
+        hash_type = 1 # 1: ALL, 2: NONE, 3: SINGLE
+
+        buf = [@ver, @in.size, pin, @out.size, pout, @lock_time].pack("ICa#{pin.bytesize}Ca#{pout.bytesize}I") +
+              [hash_type].pack("I")
+        Digest::SHA256.digest( Digest::SHA256.digest( buf ) )
+      end
+
+      def verify_input_signature(in_idx, outpoint_tx)
+        # get public key
+        out_idx    = @in[in_idx][1]
+        public_key = outpoint_tx.out[out_idx][2][1...-1].unpack("H*")[0] 
+
+        # get signature
+        signature  = @in[in_idx][3][1...-1]
+
+        hash = signature_hash_for_input(in_idx, outpoint_tx)
+        Bitcoin.verify_signature(hash, signature, public_key)
+      end
+
+
       def to_hash
         h = {
           'hash' => @hash, 'ver' => @ver,
-          'vin_sz' => @in_size, 'vout_sz' => @out_size,
-          'lock_time' => @lock_time, 'size' => @payload.size,
+          'vin_sz' => @in.size, 'vout_sz' => @out.size,
+          'lock_time' => @lock_time, 'size' => @payload.bytesize,
           'in' => @in.map{|i|{
             'prev_out'  => { 'hash' => hth(i[0]), 'n' => i[1] },
             'scriptSig' => script_signature_inspect(i[3])

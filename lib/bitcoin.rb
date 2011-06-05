@@ -151,8 +151,7 @@ module Bitcoin
       key.dsa_sign_asn1(hash)
     end
 
-    def verify_signature(data, signature, public_key)
-      hash = ::OpenSSL::Digest::SHA1.digest(data)
+    def verify_signature(hash, signature, public_key)
       key  = bitcoin_elliptic_curve
       key.public_key = ::OpenSSL::PKey::EC::Point.from_hex(key.group, public_key)
       key.dsa_verify_asn1(hash, signature)

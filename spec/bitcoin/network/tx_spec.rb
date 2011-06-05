@@ -44,6 +44,17 @@ describe 'Bitcoin::Protocol::Tx' do
     tx.hash.should == "6e9dd16625b62cfcd4bf02edb89ca1f5a8c30c4b1601507090fb28e59f2d02b4"
   end
 
+  it '#to_payload' do
+    tx = Bitcoin::Protocol::Tx.new( @payload[0] )
+    tx.to_payload.size.should == @payload[0].size
+    tx.to_payload.should      == @payload[0]
+  end
+
+  it '#to_hash' do
+    tx = Bitcoin::Protocol::Tx.new( @payload[0] )
+    tx.to_hash.keys.should == ["hash", "ver", "vin_sz", "vout_sz", "lock_time", "size", "in", "out"]
+  end
+
   it '#to_json' do
     tx = Bitcoin::Protocol::Tx.new( @payload[0] )
     tx.to_json.should == (<<-TEXT).chomp

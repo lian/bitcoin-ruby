@@ -38,8 +38,8 @@ module Bitcoin
 
     def on_block(block)
       p ['block', block.hash]
-      #p block.payload.each_byte.map{|i| "%02x" % [i] }.join(" ")
-      puts block.to_json
+      p block.payload.each_byte.map{|i| "%02x" % [i] }.join(" ")
+      #puts block.to_json
     end
 
     def on_version(payload)
@@ -50,7 +50,7 @@ module Bitcoin
     def on_handshake_complete
       p [@sockaddr, 'handshake complete']
       @connected = true
-      #query_blocks
+      query_blocks
     end
 
     def query_blocks
