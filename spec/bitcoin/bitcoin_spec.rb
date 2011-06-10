@@ -8,18 +8,18 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     # 65 bytes (8 bit version + 512 bits) pubkey in hex (130 bytes)
     pubkey = "04324c6ebdcf079db6c9209a6b715b955622561262cde13a8a1df8ae0ef030eaa" +
              "1552e31f8be90c385e27883a9d82780283d19507d7fa2e1e71a1d11bc3a52caf3"
-    Bitcoin.hash160(pubkey).should == "84120d16a5c1e239bd3c7e71732b85899ae395ca"
+    Bitcoin.hash160(pubkey).should == "9c212f789de098771d3870f1be7562e33637e808"
   end
 
   it 'bitcoin-address from bitcoin-hash160' do
     # 20 bytes (160 bit) hash160 in hex (40 bytes)
-    Bitcoin.hash160_to_address("84120d16a5c1e239bd3c7e71732b85899ae395ca")
-      .should == "1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW"
+    Bitcoin.hash160_to_address("9c212f789de098771d3870f1be7562e33637e808")
+      .should == "1FEYAh1x5jeKQMPPuv3bKnKvbgVAqXvqjW"
   end
 
   it 'bitcoin-hash160 from bitcoin-address' do
-    Bitcoin.hash160_from_address("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW")
-      .should == "84120d16a5c1e239bd3c7e71732b85899ae395ca"
+    Bitcoin.hash160_from_address("1FEYAh1x5jeKQMPPuv3bKnKvbgVAqXvqjW")
+      .should == "9c212f789de098771d3870f1be7562e33637e808"
   end
 
   it 'validate bitcoin-address' do # TODO extend it.
@@ -33,22 +33,6 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     Bitcoin.checksum(
       "003892f1863b5a7729199dc8f9605805c0628a6fc8"
     ).should == "8b6600fd"
-  end
-
-  it 'Bitcoin#hash160' do
-    Bitcoin.hash160(
-      "3892f1863b5a7729199dc8f9605805c0628a6fc8"
-    ).should == "8476080b0eed9b4f3bc7b12ed94950304dc7f30c"
-  end
-
-  it 'Bitcoin#hash160_to_address' do
-    Bitcoin.hash160_to_address(
-      "3892f1863b5a7729199dc8f9605805c0628a6fc8"
-    ).should == "16A8sZ4KJkhUYiRqUkCKBkKweGzKoiks56"
-
-    Bitcoin.hash160_to_address(
-      "15ede847c1f16fed1c1f92233fda80001c9ff2e2"
-    ).should == "12zxC7zZ5aodKoxDAToaxcQmMoC84aHddG"
   end
 
   it '#bitcoin_mrkl' do

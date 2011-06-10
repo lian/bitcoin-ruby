@@ -11,7 +11,8 @@ module Bitcoin
 
     # hash160 is a 20 bytes (160bits) rmd610-sha256 hexdigest.
     def hash160(hex)
-      Digest::RMD160.hexdigest Digest::SHA256.digest(hex)
+      bytes = [hex].pack("H*")
+      Digest::RMD160.hexdigest Digest::SHA256.digest(bytes)
     end
 
     # checksum is a 4 bytes sha256-sha256 hexdigest.
