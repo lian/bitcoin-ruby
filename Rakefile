@@ -1,5 +1,5 @@
 
-PROJECT_SPECS = FileList['spec/bitcoin/bitcoin_spec.rb'] +
+PROJECT_SPECS = FileList['spec/bitcoin/*_spec.rb'] +
                 FileList['spec/bitcoin/network/*_spec.rb']
 
 #

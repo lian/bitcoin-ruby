@@ -7,6 +7,7 @@ module Bitcoin
 
   module ConnectionHandler
     def hth(h); h.unpack("H*")[0]; end
+    def htb(h); [h].pack("H*"); end
 
     def on_inv_transaction(hash)
       p ['inv transaction', hth(hash)]
@@ -33,12 +34,12 @@ module Bitcoin
     end
 
     def on_tx(tx)
-      p ['tx', tx.to_hash]
+      p ['tx', tx.hash]
     end
 
     def on_block(block)
       p ['block', block.hash]
-      p block.payload.each_byte.map{|i| "%02x" % [i] }.join(" ")
+      #p block.payload.each_byte.map{|i| "%02x" % [i] }.join(" ")
       #puts block.to_json
     end
 
@@ -50,7 +51,7 @@ module Bitcoin
     def on_handshake_complete
       p [@sockaddr, 'handshake complete']
       @connected = true
-      query_blocks
+      #query_blocks
     end
 
     def query_blocks
@@ -99,7 +100,7 @@ module Bitcoin
     end
 
     def self.connect_random_from_dns(connections)
-      p host = `nslookup bitseed.xf2.org`.scan(/Address\: (.+)$/).flatten.sample
+      host = `nslookup bitseed.xf2.org`.scan(/Address\: (.+)$/).flatten.sample
       connect(host, 8333, connections)
     end
   end

@@ -1,3 +1,5 @@
+require 'bitcoin/script'
+
 module Bitcoin
   module Protocol
 
@@ -62,15 +64,15 @@ module Bitcoin
       end
 
 
-      def signature_hash_for_input(input_idx, outpoint_tx)
+      def signature_hash_for_input(input_idx, outpoint_tx, script_pubkey=nil)
         # https://github.com/bitcoin/bitcoin/blob/e071a3f6c06f41068ad17134189a4ac3073ef76b/script.cpp#L834
         # http://code.google.com/p/bitcoinj/source/browse/trunk/src/com/google/bitcoin/core/Script.java#318
 
         pin  = @in.map.with_index{|i,idx|
           if idx == input_idx
-            scriptPubKey = outpoint_tx.out[ i[1] ][2]
-            length = scriptPubKey.bytesize
-            [ i[0], i[1], length, scriptPubKey, "\xff\xff\xff\xff" ].pack("a32ICa#{length}a4")
+            script_pubkey ||= outpoint_tx.out[ i[1] ][2]
+            length = script_pubkey.bytesize
+            [ i[0], i[1], length, script_pubkey, "\xff\xff\xff\xff" ].pack("a32ICa#{length}a4")
           else
             [ i[0], i[1], 0, "\xff\xff\xff\xff" ].pack("a32ICa4")
           end
@@ -85,17 +87,19 @@ module Bitcoin
       end
 
       def verify_input_signature(in_idx, outpoint_tx)
-        # get public key
-        out_idx    = @in[in_idx][1]
-        public_key = outpoint_tx.out[out_idx][2][1...-1].unpack("H*")[0] 
+        outpoint_idx  = @in[in_idx][1]
+        script_sig    = @in[in_idx][3]
+        script_pubkey = outpoint_tx.out[outpoint_idx][2]
+        script        = script_sig + script_pubkey
 
-        # get signature
-        signature  = @in[in_idx][3][1...-1]
-
-        hash = signature_hash_for_input(in_idx, outpoint_tx)
-        Bitcoin.verify_signature(hash, signature, public_key)
+        Bitcoin::Script.new(script).run do |pubkey,sig,hash_type|
+          # this IS the checksig callback, must return true/false
+          #p ['checksig', pubkey, sig, hash_type]
+          #hash = signature_hash_for_input(in_idx, outpoint_tx)
+          hash = signature_hash_for_input(in_idx, nil, script_pubkey)
+          Bitcoin.verify_signature( hash, sig, pubkey.unpack("H*")[0] )
+        end
       end
-
 
       def to_hash
         h = {
@@ -104,11 +108,11 @@ module Bitcoin
           'lock_time' => @lock_time, 'size' => @payload.bytesize,
           'in' => @in.map{|i|{
             'prev_out'  => { 'hash' => hth(i[0]), 'n' => i[1] },
-            'scriptSig' => script_signature_inspect(i[3])
+            'scriptSig' => Bitcoin::Script.new(i[3]).to_string
           }},
           'out' => @out.map{|i|{
             'value' => "%.8f" % (i[0] / 100000000.0),
-            'scriptPubKey' => pk_script_inspect(i[2])
+            'scriptPubKey' => Bitcoin::Script.new(i[2]).to_string
           }}
         }
         if (i=@in[0]) && i[1] == 4294967295 # coinbase tx
@@ -126,19 +130,7 @@ module Bitcoin
 
       # generates rawblock json as seen in the block explorer.
       def to_json
-        JSON.pretty_generate( to_hash )
-      end
-
-      def script_signature_inspect(script_sig)
-        push_length, stack = script_sig.unpack("Ca*")
-        pub, stack = stack.unpack("a#{push_length}a*")
-        push_length, stack = stack.unpack("CA*")
-        sig, stack = stack.unpack("a#{push_length}a*")
-        [pub, sig].map{|i| i.unpack("H*") }.join(" ")
-      end
-
-      def pk_script_inspect(pk_script)
-        pk_script.unpack("H*")[0]
+        JSON.pretty_generate( to_hash, :space => '' )
       end
     end
 
