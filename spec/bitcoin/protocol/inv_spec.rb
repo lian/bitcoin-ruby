@@ -1,7 +1,5 @@
 require_relative '../spec_helper.rb'
 
-require 'bitcoin/network'
-
 describe 'Bitcoin::Protocol::Parser - Inventory Vectors' do
 
   class Test_Handler < Bitcoin::Protocol::Handler
