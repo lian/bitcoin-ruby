@@ -5,6 +5,12 @@
 require 'digest/sha2'
 require 'digest/rmd160'
 require 'openssl'
+require 'eventmachine'
+
+require 'bitcoin/connection'
+require 'bitcoin/script'
+require 'bitcoin/protocol'
+require 'bitcoin/version'
 
 module Bitcoin
   module Util

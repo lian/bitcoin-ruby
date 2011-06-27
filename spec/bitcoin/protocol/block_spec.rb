@@ -1,7 +1,5 @@
 require_relative '../spec_helper.rb'
 
-require 'bitcoin/network'
-
 describe 'Bitcoin::Protocol::Tx' do
 
   @blocks = {

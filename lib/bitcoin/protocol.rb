@@ -1,17 +1,16 @@
 require 'socket'
 require 'digest/sha2'
 require 'json'
-require 'bitcoin'
 
 module Bitcoin
   module Protocol
 
-    autoload :Tx,      'bitcoin/network/tx'
-    autoload :Block,   'bitcoin/network/block'
-    autoload :Addr,    'bitcoin/network/address'
+    autoload :Tx,      'bitcoin/protocol/tx'
+    autoload :Block,   'bitcoin/protocol/block'
+    autoload :Addr,    'bitcoin/protocol/address'
 
-    autoload :Handler, 'bitcoin/network/handler'
-    autoload :Parser,  'bitcoin/network/parser'
+    autoload :Handler, 'bitcoin/protocol/handler'
+    autoload :Parser,  'bitcoin/protocol/parser'
 
 
     MagicHead = "\xF9\xBE\xB4\xD9" # testnet: "\xFA\xBF\xB5\xDA"

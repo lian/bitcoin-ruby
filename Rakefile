@@ -1,6 +1,7 @@
+require 'bundler/gem_tasks'
 
 PROJECT_SPECS = FileList['spec/bitcoin/*_spec.rb'] +
-                FileList['spec/bitcoin/network/*_spec.rb']
+                FileList['spec/bitcoin/protocol/*_spec.rb']
 
 #
 # test runner
