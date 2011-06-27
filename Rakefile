@@ -1,4 +1,7 @@
-require 'bundler/gem_tasks'
+begin
+  require 'bundler/gem_tasks'
+rescue LoadError
+end
 
 PROJECT_SPECS = FileList['spec/bitcoin/*_spec.rb'] +
                 FileList['spec/bitcoin/protocol/*_spec.rb']
