@@ -123,5 +123,18 @@ module Bitcoin
     def get_pubkey_address
       Bitcoin.pubkey_to_address(get_pubkey)
     end
+
+    def self.to_address_script(address)
+      hash160 = Bitcoin.hash160_from_address(address)
+      #  DUP   HASH160  length  hash160    EQUALVERIFY  CHECKSIG
+      [ ["76", "a9",    "14",   hash160,   "88",        "ac"].join ].pack("H*")
+    end
+
+    def self.to_signature_pubkey_script(signature, pubkey)
+      hash_type = "\x01"
+      #pubkey = [pubkey].pack("H*") if pubkey.bytesize != 65
+      raise "pubkey is not in binary form" unless pubkey.bytesize == 65  && pubkey[0] == "\x04"
+      [ [signature.bytesize+1].pack("C"), signature, hash_type, [pubkey.bytesize].pack("C"), pubkey ].join
+    end
   end
 end

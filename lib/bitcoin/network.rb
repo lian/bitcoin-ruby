@@ -68,6 +68,17 @@ module Bitcoin
         hashes.map{|hash| [t].pack("I") + hash[0..32].reverse }.join)
     end
 
+    def self.inv_pkt(type, hashes)
+      return if hashes.size >= 256
+      t = case type
+          when :tx;    1
+          when :block; 2
+          else         0
+          end
+      pkt("inv", [hashes.size].pack("C") +
+        hashes.map{|hash| [t].pack("I") + hash[0..32].reverse }.join)
+    end
+
     def self.network_address(addr)
       host, port = addr.split(":")
       port = port ? port.to_i : 8333

@@ -10,9 +10,18 @@ module Bitcoin
         @hash == other.hash
       end
 
+      def binary_hash
+        [@hash].pack("H*").reverse
+      end
+
       def initialize(data)
+        @ver, @lock_time = 1, 0
+
         parse_data(data) if data
       end
+
+      def add_in(input); (@in ||= []) << input; end
+      def add_out(output); (@out ||= []) << output; end
 
       def parse_data(data)
         @ver, in_size  = data.unpack("IC")
