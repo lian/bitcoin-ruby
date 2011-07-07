@@ -1,4 +1,4 @@
-require 'bitcoin'
+require_relative '../bitcoin'
 
 module Bitcoin
   class Script

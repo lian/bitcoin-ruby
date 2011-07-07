@@ -6,7 +6,7 @@ module Bitcoin
         @h = handler || Handler.new
         @buf = ""
       end
-
+      
       # handles inv/getdata packets
       #
       def parse_inv(payload, type=:put)

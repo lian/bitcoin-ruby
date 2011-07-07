@@ -1,4 +1,4 @@
-require 'bitcoin/script'
+require_relative '/script'
 
 module Bitcoin
   module Protocol
