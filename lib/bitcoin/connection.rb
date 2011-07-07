@@ -1,4 +1,6 @@
 require 'socket'
+require 'eventmachine'
+require 'bitcoin'
 
 module Bitcoin
 

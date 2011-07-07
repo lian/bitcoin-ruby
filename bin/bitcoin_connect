@@ -1,12 +1,30 @@
 #!/usr/bin/env ruby
+$:.unshift( File.expand_path("../../lib", __FILE__) )
 
-require File.expand_path("../../lib/bitcoin.rb", __FILE__)
+require 'bitcoin/connection'
+
+
+class RawJSON_Connection < Bitcoin::Connection
+  def on_tx(tx)
+    p ['tx', tx.hash, Time.now]
+    puts tx.to_json
+  end
+
+  def on_block(block)
+    p ['block', block.hash, Time.now]
+    puts block.to_json
+  end
+end
 
 EM.run do
 
+  host = '127.0.0.1'
+  #host = '217.157.1.202'
+
   connections = []
-  Bitcoin::Connection.connect('127.0.0.1', 8333, connections)
-  # Bitcoin::Connection.connect('217.157.1.202', 8333, connections)
+  RawJSON_Connection.connect(host, 8333, connections)
+
+  #Bitcoin::Connection.connect(host, 8333, connections)
   #Bitcoin::Connection.connect_random_from_dns(connections)
 
 end

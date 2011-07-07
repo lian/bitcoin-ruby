@@ -5,14 +5,15 @@
 require 'digest/sha2'
 require 'digest/rmd160'
 require 'openssl'
-require 'eventmachine'
 
-require 'bitcoin/connection'
-require 'bitcoin/script'
-require 'bitcoin/protocol'
-require 'bitcoin/version'
 
 module Bitcoin
+
+  autoload :Connection, 'bitcoin/connection'
+  autoload :Protocol,   'bitcoin/protocol'
+  autoload :Script,     'bitcoin/script'
+  autoload :VERSION,    'bitcoin/version'
+
   module Util
 
     # hash160 is a 20 bytes (160bits) rmd610-sha256 hexdigest.
