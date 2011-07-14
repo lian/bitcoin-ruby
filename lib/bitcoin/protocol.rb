@@ -22,9 +22,9 @@ module Bitcoin
 
     def self.read_var_int(payload)
       case payload.unpack("C")[0]
-      when 0xfd; payload.unpack("xsa*") # n
-      when 0xfe; payload.unpack("xla*") # N
-      when 0xff; payload.unpack("xqa*") # Q
+      when 0xfd; payload.unpack("xSa*") # n
+      when 0xfe; payload.unpack("xLa*") # N
+      when 0xff; payload.unpack("xQa*") # Q
       else;      payload.unpack("Ca*")
       end
     end
