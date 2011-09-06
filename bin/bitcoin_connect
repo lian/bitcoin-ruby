@@ -22,9 +22,9 @@ EM.run do
   #host = '217.157.1.202'
 
   connections = []
-  RawJSON_Connection.connect(host, 8333, connections)
+  #RawJSON_Connection.connect(host, 8333, connections)
 
   #Bitcoin::Connection.connect(host, 8333, connections)
-  #Bitcoin::Connection.connect_random_from_dns(connections)
+  Bitcoin::Connection.connect_random_from_dns(connections)
 
 end

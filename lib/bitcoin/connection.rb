@@ -66,8 +66,9 @@ module Bitcoin
       from    = "127.0.0.1:8333"
       from_id = Bitcoin::Protocol::Uniq
       to      = @sockaddr.reverse.join(":")
+      p "==", from_id, from, to, block
       pkt = Protocol.version_pkt(from_id, from, to, block)
-      #p ['sending version pkt', pkt]
+      p ['sending version pkt', pkt]
       send_data(pkt)
     end
   end
@@ -112,8 +113,8 @@ if $0 == __FILE__
 
     connections = []
     #Bitcoin::Connection.connect('127.0.0.1', 8333, connections)
-    Bitcoin::Connection.connect('217.157.1.202', 8333, connections)
-    #Bitcoin::Connection.connect_random_from_dns(connections)
+    #Bitcoin::Connection.connect('217.157.1.202', 8333, connections)
+    Bitcoin::Connection.connect_random_from_dns(connections)
 
   end
 end
