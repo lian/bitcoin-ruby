@@ -66,7 +66,7 @@ module Bitcoin
       from    = "127.0.0.1:8333"
       from_id = Bitcoin::Protocol::Uniq
       to      = @sockaddr.reverse.join(":")
-      p "==", from_id, from, to, block
+      # p "==", from_id, from, to, block
       pkt = Protocol.version_pkt(from_id, from, to, block)
       p ['sending version pkt', pkt]
       send_data(pkt)
