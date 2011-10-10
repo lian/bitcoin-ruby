@@ -46,13 +46,17 @@ module Bitcoin
         @lock_time = data[idx...idx+=4].unpack("I")[0]
 
         @payload = data[0...idx]
-        @hash = Digest::SHA256.digest(Digest::SHA256.digest( @payload )).reverse.unpack("H*")[0]
+        @hash = generate_hash( @payload )
 
         if data[idx] == nil
           true          # reached the end.
         else
           data[idx..-1] # rest of buffer.
         end
+      end
+      
+      def generate_hash payload
+        Digest::SHA256.digest(Digest::SHA256.digest( payload )).reverse.unpack("H*")[0]
       end
 
       def to_payload
