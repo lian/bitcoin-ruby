@@ -82,7 +82,7 @@ module Bitcoin
       host, port = addr.split(":")
       port = port ? port.to_i : 8333
       sockaddr = Socket.pack_sockaddr_in(port, host)
-      raise "invalid IPv4 Address: #{addr}" unless sockaddr[0...2] == "\x02\x00"
+      #raise "invalid IPv4 Address: #{addr}" unless sockaddr[0...2] == "\x02\x00"
       port, host = sockaddr[2...4], sockaddr[4...8]
       [[1].pack("Q"), "\x00"*10, "\xFF\xFF",  host, port].join
     end
