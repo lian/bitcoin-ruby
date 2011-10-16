@@ -5,6 +5,7 @@ module Bitcoin
 
     class Tx
       attr_reader :hash, :in, :out, :payload
+      attr_accessor :ver, :lock_time
 
       def ==(other)
         @hash == other.hash
@@ -18,6 +19,10 @@ module Bitcoin
         @ver, @lock_time = 1, 0
 
         parse_data(data) if data
+      end
+
+      def hash_from_payload(payload) # tx hash in hex from payload
+        Digest::SHA256.digest(Digest::SHA256.digest( payload )).reverse.unpack("H*")[0]
       end
 
       def add_in(input); (@in ||= []) << input; end
@@ -46,7 +51,7 @@ module Bitcoin
         @lock_time = data[idx...idx+=4].unpack("I")[0]
 
         @payload = data[0...idx]
-        @hash = Digest::SHA256.digest(Digest::SHA256.digest( @payload )).reverse.unpack("H*")[0]
+        @hash = hash_from_payload(@payload)
 
         if data[idx] == nil
           true          # reached the end.
@@ -140,6 +145,34 @@ module Bitcoin
       # generates rawblock json as seen in the block explorer.
       def to_json
         JSON.pretty_generate( to_hash, :space => '' )
+      end
+
+      def self.from_hash(h)
+        tx = new(nil)
+        tx.ver, tx.lock_time = *h.values_at('ver', 'lock_time')
+        h['in'].each{|input|
+          if input['coinbase']
+            coinbase_data = [ input['coinbase'] ].pack("H*")
+            tx.add_in( [ htb(input['prev_out']['hash']), input['prev_out']['n'], coinbase_data.bytesize, coinbase_data ] )
+          else
+            script_data = Script.binary_from_string(input['scriptSig'])
+            tx.add_in( [ htb(input['prev_out']['hash']), input['prev_out']['n'], script_data.bytesize, script_data ] )
+          end
+        }
+        h['out'].each{|output|
+          script_data = Script.binary_from_string(output['scriptPubKey'])
+          tx.add_out( [ (output['value'].to_f * 100000000.0).to_i, script_data.bytesize, script_data ] )
+        }
+        tx.instance_eval{ @hash = hash_from_payload(@payload = to_payload) }
+        tx
+      end
+
+      def self.binary_from_hash(h); from_hash(h).to_payload; end
+      def self.from_json(json_string); from_hash( JSON.load(json_string) ); end
+      def self.binary_from_json(json_string); from_json(json_string).to_payload; end
+
+      def self.htb(s)
+        [s].pack('H*').reverse
       end
     end
 

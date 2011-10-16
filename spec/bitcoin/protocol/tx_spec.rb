@@ -56,6 +56,21 @@ describe 'Bitcoin::Protocol::Tx' do
     tx.to_hash.keys.should == ["hash", "ver", "vin_sz", "vout_sz", "lock_time", "size", "in", "out"]
   end
 
+  it 'Tx.from_hash' do
+    orig_tx = Bitcoin::Protocol::Tx.new( @payload[0] )
+    tx = Bitcoin::Protocol::Tx.from_hash( orig_tx.to_hash )
+    tx.to_payload.size.should == @payload[0].size
+    tx.to_payload.should      == @payload[0]
+    tx.to_hash.should == orig_tx.to_hash
+    Bitcoin::Protocol::Tx.binary_from_hash( orig_tx.to_hash ).should == @payload[0]
+  end
+
+  it 'Tx.binary_from_hash' do
+    orig_tx = Bitcoin::Protocol::Tx.new( @payload[0] )
+    Bitcoin::Protocol::Tx.binary_from_hash( orig_tx.to_hash ).size.should == @payload[0].size
+    Bitcoin::Protocol::Tx.binary_from_hash( orig_tx.to_hash ).should == @payload[0]
+  end
+
   it '#to_json' do
     tx = Bitcoin::Protocol::Tx.new( @payload[0] )
     tx.to_json.should == @json[0]
@@ -68,6 +83,16 @@ describe 'Bitcoin::Protocol::Tx' do
 
     tx = Bitcoin::Protocol::Tx.new( fixtures_file('rawtx-2f4a2717ec8c9f077a87dde6cbe0274d5238793a3f3f492b63c744837285e58a.bin') )
     tx.to_json.should == fixtures_file('rawtx-2f4a2717ec8c9f077a87dde6cbe0274d5238793a3f3f492b63c744837285e58a.json')
+  end
+
+  it 'Tx.from_json' do
+    tx = Bitcoin::Protocol::Tx.from_json( json_string = fixtures_file('rawtx-2f4a2717ec8c9f077a87dde6cbe0274d5238793a3f3f492b63c744837285e58a.json') )
+    tx.to_json.should == json_string
+  end
+
+  it 'Tx.binary_from_json' do
+    Bitcoin::Protocol::Tx.binary_from_json( fixtures_file('rawtx-2f4a2717ec8c9f077a87dde6cbe0274d5238793a3f3f492b63c744837285e58a.json') ).should ==
+      fixtures_file('rawtx-2f4a2717ec8c9f077a87dde6cbe0274d5238793a3f3f492b63c744837285e58a.bin')
   end
 
   it '#verify_input_signature' do

@@ -9,6 +9,9 @@ module Bitcoin
     OP_HASH160     = 169
     OP_EQUALVERIFY = 136
     OP_CHECKSIG    = 172
+    OP_CHECKSIGVERIFY      = 173
+    OP_CHECKMULTISIG       = 174
+    OP_CHECKMULTISIGVERIFY = 175
 
     def self.join(a, b)
     end
@@ -57,12 +60,47 @@ module Bitcoin
           when OP_HASH160;     "OP_HASH160"
           when OP_CHECKSIG;    "OP_CHECKSIG"
           when OP_EQUALVERIFY; "OP_EQUALVERIFY"
+          when OP_CHECKSIGVERIFY;      "OP_CHECKSIGVERIFY"
+          when OP_CHECKMULTISIG;       "OP_CHECKMULTISIG"
+          when OP_CHECKMULTISIGVERIFY; "OP_CHECKMULTISIGVERIFY"
           else "(opcode #{i})"
           end
         when String
           i.unpack("H*")[0]
         end
       }.join(" ")
+    end
+
+    def self.binary_from_string(script_string)
+      script_string.split(" ").map{|i|
+        case i
+          when "OP_DUP";         OP_DUP
+          when "OP_HASH160";     OP_HASH160
+          when "OP_CHECKSIG";    OP_CHECKSIG
+          when "OP_EQUALVERIFY"; OP_EQUALVERIFY
+          when "OP_CHECKSIGVERIFY";      OP_CHECKSIGVERIFY
+          when "OP_CHECKMULTISIG";       OP_CHECKMULTISIG
+          when "OP_CHECKMULTISIGVERIFY"; OP_CHECKMULTISIGVERIFY
+          when /\(opcode (\d+)\)/; $1.to_i
+          else 
+            data = [i].pack("H*")
+            size = data.bytesize
+
+            head = if size < OP_PUSHDATA1
+              [size].pack("C")
+            elsif size > OP_PUSHDATA1 && size <= 0xff
+              [OP_PUSHDATA1, size].pack("CC")
+            elsif size > 0xff && size <= 0xffff
+              [OP_PUSHDATA2, size].pack("Cn")
+            elsif size > 0xffff && size <= 0xffffffff
+              [OP_PUSHDATA4, size].pack("CN")
+            end
+
+            head + data
+        end
+      }.map{|i|
+        i.is_a?(Fixnum) ? [i].pack("C*") : i # TODO yikes, implement/pack 2 byte opcodes.
+      }.join
     end
 
     def run(&check_callback)
@@ -80,6 +118,12 @@ module Bitcoin
           when OP_EQUALVERIFY
             a, b = @stack.pop(2).reverse
             return :EQUALVERIFY_FAILED if a != b
+          when OP_CHECKSIGVERIFY
+            raise "opcode OP_CHECKSIGVERIFY not implemented yet."
+          when OP_CHECKMULTISIG
+            raise "opcode OP_CHECKMULTISIG not implemented yet."
+          when OP_CHECKMULTISIGVERIFY
+            raise "opcode OP_CHECKMULTISIGVERIFY not implemented yet."
           else raise "opcode #{i} unkown or not implemented"
           end
         when String
