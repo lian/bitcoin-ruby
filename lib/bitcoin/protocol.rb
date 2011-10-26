@@ -21,10 +21,10 @@ module Bitcoin
     Uniq = rand(0xffffffffffffffff)
 
     def self.read_var_int(payload)
-      case payload.unpack("C")[0]
-      when 0xfd; payload.unpack("xsa*") # n
-      when 0xfe; payload.unpack("xla*") # N
-      when 0xff; payload.unpack("xqa*") # Q
+      case payload.unpack("C")[0] # TODO add test cases
+      when 0xfd; payload.unpack("xva*")
+      when 0xfe; payload.unpack("xVa*")
+      when 0xff; payload.unpack("xQa*") # TODO add little-endian version of Q
       else;      payload.unpack("Ca*")
       end
     end
