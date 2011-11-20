@@ -16,6 +16,10 @@ module Bitcoin
 
   module Util
 
+    def address_version
+      Bitcoin::network[:address_version]
+    end
+
     # hash160 is a 20 bytes (160bits) rmd610-sha256 hexdigest.
     def hash160(hex)
       bytes = [hex].pack("H*")
@@ -30,23 +34,39 @@ module Bitcoin
 
     def address_checksum?(address)
       a = base58_to_int(address).to_s(16)
-      Bitcoin.checksum( "00" + a[0...40] ) == a[-8..-1]
+      if address_version == "00"
+        Bitcoin.checksum( address_version + a[0...40] ) == a[-8..-1]
+      else
+        Bitcoin.checksum( a[0...42] ) == a[-8..-1]
+      end
     end
 
     def valid_address?(address) # TODO
-      return false if address[0] != "1"
+      if address_version == "00"
+        return false if address[0] != "1"
+      else
+        a = base58_to_int(address).to_s(16)
+        return false if a[0..1] != address_version
+      end
       return false if !address_checksum?(address)
       true
     end
 
     def hash160_from_address(address)
+      return nil  unless address_checksum?(address)
       a = base58_to_int(address).to_s(16)
-      return nil if Bitcoin.checksum( "00" + a[0...40] ) != a[-8..-1]
-      a[0...40]
+      address_version == "00" ? a[0...40] : a[2...42]
+    end
+
+    def sha256(hex)
+      Digest::SHA256.hexdigest([hex].pack("H*"))
     end
 
     def hash160_to_address(hex)
-      "1" + encode_base58( "00" + hex + checksum("00" + hex) )
+      hex = address_version + hex
+      addr = encode_base58(hex + checksum(hex))
+      addr = "1" + addr  if address_version == "00"
+      addr
     end
 
     def pubkey_to_address(pubkey)

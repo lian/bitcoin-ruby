@@ -6,33 +6,73 @@ describe 'Bitcoin Address/Hash160/PubKey' do
 
   it 'bitcoin-hash160 from public key' do
     # 65 bytes (8 bit version + 512 bits) pubkey in hex (130 bytes)
-    pubkey = "04324c6ebdcf079db6c9209a6b715b955622561262cde13a8a1df8ae0ef030eaa" +
-             "1552e31f8be90c385e27883a9d82780283d19507d7fa2e1e71a1d11bc3a52caf3"
-    Bitcoin.hash160(pubkey).should == "9c212f789de098771d3870f1be7562e33637e808"
+    pubkey = "04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f"
+    Bitcoin.hash160(pubkey).should == "62e907b15cbf27d5425399ebf6f0fb50ebb88f18"
   end
 
   it 'bitcoin-address from bitcoin-hash160' do
     # 20 bytes (160 bit) hash160 in hex (40 bytes)
-    Bitcoin.hash160_to_address("9c212f789de098771d3870f1be7562e33637e808")
-      .should == "1FEYAh1x5jeKQMPPuv3bKnKvbgVAqXvqjW"
+
+    Bitcoin::network = :testnet
+    Bitcoin.hash160_to_address("62e907b15cbf27d5425399ebf6f0fb50ebb88f18")
+      .should == "mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt"
+
+    Bitcoin::network = :bitcoin
+    Bitcoin.hash160_to_address("62e907b15cbf27d5425399ebf6f0fb50ebb88f18")
+      .should == "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
   end
 
   it 'bitcoin-hash160 from bitcoin-address' do
-    Bitcoin.hash160_from_address("1FEYAh1x5jeKQMPPuv3bKnKvbgVAqXvqjW")
-      .should == "9c212f789de098771d3870f1be7562e33637e808"
+    Bitcoin::network = :testnet
+    Bitcoin.hash160_from_address("mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt")
+      .should == "62e907b15cbf27d5425399ebf6f0fb50ebb88f18"
+    
+    Bitcoin::network = :bitcoin
+    Bitcoin.hash160_from_address("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa")
+      .should == "62e907b15cbf27d5425399ebf6f0fb50ebb88f18"
+  end
+
+  it 'should survive rounds of hash160 <-> address' do
+    hex = "62e907b15cbf27d5425399ebf6f0fb50ebb88f18"
+
+    Bitcoin::network = :testnet
+    addr = "mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt"
+    Bitcoin.hash160_from_address(
+      Bitcoin.hash160_to_address(hex)).should == hex
+    Bitcoin.hash160_to_address(
+      Bitcoin.hash160_from_address(addr)).should == addr
+
+    Bitcoin::network = :bitcoin
+    addr = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+    Bitcoin.hash160_from_address(
+      Bitcoin.hash160_to_address(hex)).should == hex
+    Bitcoin.hash160_to_address(
+      Bitcoin.hash160_from_address(addr)).should == addr
   end
 
   it 'validate bitcoin-address' do # TODO extend it.
-    Bitcoin.address_checksum?("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW").should == true
+
+    Bitcoin::network = :testnet
+    Bitcoin.address_checksum?("mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt").should == true
+    Bitcoin.address_checksum?("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW").should == false
+
+    Bitcoin.valid_address?("mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt").should == true
+    Bitcoin.valid_address?("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW").should == false
+
+    Bitcoin::network = :bitcoin
+    Bitcoin.address_checksum?("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa").should == true
+    Bitcoin.address_checksum?("mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt").should == false
+
     Bitcoin.valid_address?("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW").should == true
+    Bitcoin.valid_address?("mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt").should == false
     Bitcoin.valid_address?("2D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW").should == false
     Bitcoin.valid_address?("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cX").should == false
   end
 
   it 'Bitcoin#checksum' do
     Bitcoin.checksum(
-      "003892f1863b5a7729199dc8f9605805c0628a6fc8"
-    ).should == "8b6600fd"
+      "0062e907b15cbf27d5425399ebf6f0fb50ebb88f18"
+    ).should == "c29b7d93"
   end
 
   it '#bitcoin_mrkl' do
