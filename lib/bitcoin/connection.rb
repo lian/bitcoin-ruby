@@ -42,8 +42,9 @@ module Bitcoin
       #puts block.to_json
     end
 
-    def on_version(payload)
-      p [@sockaddr, 'version']
+    def on_version(version, services, timestamp, block)
+      p [@sockaddr, 'version', {:version => version, :block => block,
+           :timediff => timestamp - Time.now.to_i}]
       send_data( Protocol.verack_pkt )
     end
 
