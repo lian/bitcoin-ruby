@@ -66,7 +66,7 @@ module Bitcoin
       end
 
       def parse_buffer
-        head_magic = "\xF9\xBE\xB4\xD9"
+        head_magic = Bitcoin::network[:magic_head]
         head_size  = 24
         return false if @buf.size <= head_size
 
@@ -75,6 +75,7 @@ module Bitcoin
 
         unless magic == head_magic
           handle_error(:close, "head_magic not found")
+          @buf = ''
         else
 
           if ['version', 'verack'].include?(cmd)

@@ -187,7 +187,32 @@ module Bitcoin
     end
   end
 
-  Genesis_Block = "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"
+  @network = :testnet
 
+  def self.network
+    NETWORKS[@network]
+  end
+
+  def self.network= name
+    @network = name.to_sym
+  end
+    
+  NETWORKS = {
+    :bitcoin => {
+      :magic_head => "\xF9\xBE\xB4\xD9",
+      :address_version => "00",
+      :default_port => 8333,
+      :dns_seeds => ["bitseed.xf2.org", "bitseed.bitcoin.org.uk" ],
+      :genesis_block => "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"
+    },
+    :testnet => {
+      :magic_head => "\xFA\xBF\xB5\xDA",
+      :address_version => "6f",
+      :default_port => 18333,
+      :dns_seeds => [],
+      :genesis_block => "00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008"
+    }
+  }.freeze
+  
   extend Util
 end

@@ -7,4 +7,6 @@ def fixtures_file(relative_path)
   File.open(File.join( basedir, relative_path ), 'rb'){|f| f.read }
 end
 
+Bitcoin::network = :bitcoin
+
 require 'bacon'; Bacon.summary_on_exit
