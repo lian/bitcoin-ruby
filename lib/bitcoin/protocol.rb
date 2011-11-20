@@ -12,9 +12,6 @@ module Bitcoin
     autoload :Handler, 'bitcoin/protocol/handler'
     autoload :Parser,  'bitcoin/protocol/parser'
 
-
-    MagicHead = "\xF9\xBE\xB4\xD9" # testnet: "\xFA\xBF\xB5\xDA"
-
     VERSION = 31900
 
     DNS_Seed = [ "bitseed.xf2.org", "bitseed.bitcoin.org.uk" ]
@@ -35,7 +32,7 @@ module Bitcoin
       checksum = ['version', 'verack'].include?(command) ?
         "" : Digest::SHA256.digest(Digest::SHA256.digest(payload))[0...4]
 
-      [MagicHead, cmd, length, checksum, payload].join
+      [Bitcoin::network[:magic_head], cmd, length, checksum, payload].join
     end
 
     def self.version_pkt(from_id, from, to, last_block=nil, time=nil)
