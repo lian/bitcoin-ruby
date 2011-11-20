@@ -56,7 +56,15 @@ module Bitcoin
       end
 
       def parse_version(payload)
-        @h.on_version(payload)
+        idx = 0
+        version = payload[idx...idx+=4].unpack("I*")[0]
+        services = payload[idx...idx+=8]
+        timestamp = payload[idx...idx+=8].unpack("I*")[0]
+        to = payload[idx...idx+=26] #.unpack("I*")
+        from = payload[idx...idx+=26] #.unpack("I*")
+        block = payload[-4..-1].unpack("I*")[0]
+
+        @h.on_version(version, services, timestamp, block)
       end
 
       def parse(buf)
@@ -79,6 +87,7 @@ module Bitcoin
 
           if ['version', 'verack'].include?(cmd)
             head_size -= 4
+            payload = @buf[head_size...head_size+length]
           else
             if Digest::SHA256.digest(Digest::SHA256.digest( payload ))[0...4] != checksum
               if (length < 50000) && (payload.size < length)
