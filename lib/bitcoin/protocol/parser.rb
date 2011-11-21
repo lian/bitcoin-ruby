@@ -56,15 +56,8 @@ module Bitcoin
       end
 
       def parse_version(payload)
-        idx = 0
-        version = payload[idx...idx+=4].unpack("I*")[0]
-        services = payload[idx...idx+=8]
-        timestamp = payload[idx...idx+=8].unpack("I*")[0]
-        to = payload[idx...idx+=26] #.unpack("I*")
-        from = payload[idx...idx+=26] #.unpack("I*")
-        block = payload[-4..-1].unpack("I*")[0]
-
-        @h.on_version(version, services, timestamp, block)
+        version = Bitcoin::Protocol::VersionPkt.parse(payload)
+        @h.on_version(version)
       end
 
       def parse(buf)

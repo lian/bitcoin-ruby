@@ -8,20 +8,22 @@ describe 'Bitcoin::Protocol::Parser (version)' do
       .split(" ").join].pack("H*")
 
     class Version_Handler < Bitcoin::Protocol::Handler
-      attr_reader :version, :services, :timestamp, :block
-      def on_version(version, services, timestamp, block)
-        @version, @services, @timestamp, @block =
-          version, services, timestamp, block
+      attr_reader :pkt
+      def on_version(pkt)
+        @pkt = pkt
       end
     end
 
     parser = Bitcoin::Protocol::Parser.new( handler = Version_Handler.new )
     parser.parse(pkt + "AAAA").should == "AAAA"
 
-    handler.version.should == 40000
-    handler.services.should == ["01 00 00 00 00 00 00 00".split(' ').join].pack("H*")
-    handler.timestamp.should == 1321812496
-    handler.block.should == 250
+    pkt = handler.pkt
+    pkt.version.should == 40000
+    pkt.services.should == ["01 00 00 00 00 00 00 00".split(' ').join].pack("H*")
+    pkt.timestamp.should == 1321812496
+    pkt.block.should == 250
+    pkt.from.should == { :service => 1, :ip => [127, 0, 0, 1], :port => 18333 }
+    pkt.to.should   == { :service => 1, :ip => [127, 0, 0, 1], :port => 1234 }
   end
 
 end
