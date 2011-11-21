@@ -94,6 +94,7 @@ module Bitcoin
 
     def unbind
       p ['disconnected', @sockaddr]
+      self.class.connect_random_from_dns(@connections)
     end
 
     def self.connect(host, port, connections)
@@ -101,8 +102,13 @@ module Bitcoin
     end
 
     def self.connect_random_from_dns(connections)
-      host = `nslookup bitseed.xf2.org`.scan(/Address\: (.+)$/).flatten.sample
-      connect(host, 8333, connections)
+      seeds = Bitcoin::network[:dns_seeds]
+      if seeds.any?
+        host = `nslookup #{seeds[rand(seeds.size)]}`.scan(/Address\: (.+)$/).flatten.sample
+        connect(host, Bitcoin::network[:default_port], connections)
+      else
+        raise "No DNS seeds available. Provide IP, configure seeds, or use different network."
+      end
     end
   end
 end
