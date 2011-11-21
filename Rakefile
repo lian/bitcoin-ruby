@@ -6,6 +6,8 @@ end
 PROJECT_SPECS = FileList['spec/bitcoin/*_spec.rb'] +
                 FileList['spec/bitcoin/protocol/*_spec.rb']
 
+RUBY = 'ruby' unless defined?(RUBY)
+
 #
 # test runner
 #
