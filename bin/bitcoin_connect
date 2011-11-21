@@ -3,6 +3,7 @@ $:.unshift( File.expand_path("../../lib", __FILE__) )
 
 require 'bitcoin/connection'
 
+Bitcoin::network = :bitcoin
 
 class RawJSON_Connection < Bitcoin::Connection
   def on_tx(tx)
