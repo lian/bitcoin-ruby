@@ -207,7 +207,7 @@ module Bitcoin
     end
   end
 
-  @network = :testnet
+  @network = :bitcoin
 
   def self.network
     NETWORKS[@network]
