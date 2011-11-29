@@ -103,19 +103,24 @@ module Bitcoin
       }.join
     end
 
-    def run(&check_callback)
+    def run(debug = [], &check_callback)
       @chunks.each{|chunk|
+        debug << @stack.map{|i| i.unpack("H*")}
         case chunk
         when Fixnum
           case chunk
           when OP_DUP
+            debug << "OP_DUP"
             @stack << @stack[-1].dup
           when OP_HASH160
+            debug << "OP_HASH160"
             buf = @stack.pop
             @stack << Digest::RMD160.digest(Digest::SHA256.digest(buf))
           when OP_CHECKSIG
+            debug << "OP_CHECKSIG"
             op_checksig(check_callback)
           when OP_EQUALVERIFY
+            debug << "OP_EQUALVERIFY"
             a, b = @stack.pop(2).reverse
             return :EQUALVERIFY_FAILED if a != b
           when OP_CHECKSIGVERIFY
@@ -127,13 +132,17 @@ module Bitcoin
           else raise "opcode #{i} unkown or not implemented"
           end
         when String
+          debug << "PUSH DATA #{chunk.unpack("H*")[0]}"
           @stack << chunk
         end
       }
+      debug << @stack.map{|i| i.unpack("H*") rescue i}
+      debug << "RESULT"
       @stack.pop == true
     end
 
     def op_checksig(check_callback)
+      p "skipping OP_CHECKSIG"
       return nil if @stack.size < 2
       pubkey = @stack.pop
       sig_and_hash_type = @stack.pop
