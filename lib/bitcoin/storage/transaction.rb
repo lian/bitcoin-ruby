@@ -13,7 +13,7 @@ module Bitcoin::Storage
       Transaction.where("transaction_hash = decode(?, 'hex')", hash).first rescue nil
     end
 
-    def total_value
+    def output_value
       connection.query("SELECT sum(value) FROM outputs WHERE transaction_id = '#{transaction_id}'")[0][0]
     end
 
