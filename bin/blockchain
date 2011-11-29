@@ -1,0 +1,15 @@
+$:.unshift( File.expand_path("../../lib", __FILE__) )
+
+require 'bitcoin'
+require 'log4r'
+network = ARGV[0] || :testnet
+Bitcoin::network = network
+
+Bitcoin::Storage.connect YAML::load(File.read("db/database.yml"))[network.to_s]
+
+Bitcoin::Storage.log.level = 2
+#Bitcoin::Network.log.level = 2
+ActiveRecord::Base.logger.level = 3
+
+node = Bitcoin::Network::Node.new
+node.run

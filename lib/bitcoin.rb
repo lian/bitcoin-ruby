@@ -14,6 +14,7 @@ module Bitcoin
   autoload :Protocol,   'bitcoin/protocol'
   autoload :Script,     'bitcoin/script'
   autoload :VERSION,    'bitcoin/version'
+  autoload :Network,    'bitcoin/network'
   autoload :Storage,    'bitcoin/storage'
   autoload :Logger,     'bitcoin/logger'
 

@@ -72,12 +72,15 @@ module Bitcoin::Storage
           block.transactions_parents << parent
         rescue
           log.error { "ERROR ADDING TX: #{tx.hash}" }
-          File.open("./errors/block-#{blk.hash}-tx-#{idx}", 'w') do |f|
-            f.puts($!.inspect)
-            $!.backtrace.each {|l| f.puts(l)}
-            f.puts; f.puts; f.puts; f.puts
-            f.write(blk.payload)
-          end
+          #p $!
+          #p *$@
+
+          # File.open("./tmp/errors/block-#{blk.hash}-tx-#{idx}", 'w') do |f|
+          #   f.puts($!.inspect)
+          #   $!.backtrace.each {|l| f.puts(l)}
+          #   f.puts; f.puts; f.puts; f.puts
+          #   f.write(blk.payload)
+          # end
         end
       end
 

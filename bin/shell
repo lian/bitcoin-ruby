@@ -1,0 +1,13 @@
+require './lib/bitcoin'
+require 'irb'
+
+include Bitcoin::Util
+include Bitcoin::Storage
+
+networ = (ARGV.shift || :testnet).to_sym
+
+Bitcoin::network = networ
+
+ActiveRecord::Base.establish_connection YAML::load(File.read("db/database.yml"))[networ.to_s]
+
+IRB.start
