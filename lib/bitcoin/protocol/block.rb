@@ -2,7 +2,7 @@ module Bitcoin
   module Protocol
 
     class Block
-      attr_reader :hash, :payload, :tx
+      attr_reader :hash, :payload, :tx, :ver, :prev_block, :mrkl_root, :time, :bits, :nonce
 
       def initialize(data)
         @tx = []
