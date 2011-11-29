@@ -4,10 +4,10 @@ require 'irb'
 include Bitcoin::Util
 include Bitcoin::Storage
 
-networ = (ARGV.shift || :testnet).to_sym
+network = (ARGV.shift || :testnet).to_sym
 
-Bitcoin::network = networ
+Bitcoin::network = network
 
-ActiveRecord::Base.establish_connection YAML::load(File.read("db/database.yml"))[networ.to_s]
+ActiveRecord::Base.establish_connection YAML::load(File.read("db/database.yml"))[network.to_s]
 
 IRB.start
