@@ -34,7 +34,7 @@ module Bitcoin
         idx = 4
         in_size, tmp = Protocol.unpack_var_int(data[idx..-1])
         idx += data[idx..-1].bytesize-tmp.bytesize
-        raise "unkown transaction version: #{@ver}" unless @ver == 1
+        # raise "unkown transaction version: #{@ver}" unless @ver == 1
 
         @in = (0...in_size).map{
           prev_out, prev_out_index = data[idx...idx+=36].unpack("a32I")
@@ -66,6 +66,9 @@ module Bitcoin
         else
           data[idx..-1] # rest of buffer.
         end
+      rescue
+        p $!
+        nil
       end
 
       def to_payload
