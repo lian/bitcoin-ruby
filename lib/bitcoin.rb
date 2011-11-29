@@ -3,6 +3,9 @@
 require 'digest/sha2'
 require 'digest/rmd160'
 require 'openssl'
+require 'log4r'
+
+$:.unshift( File.dirname(__FILE__) )
 
 
 module Bitcoin
@@ -11,8 +14,21 @@ module Bitcoin
   autoload :Protocol,   'bitcoin/protocol'
   autoload :Script,     'bitcoin/script'
   autoload :VERSION,    'bitcoin/version'
+  autoload :Storage,    'bitcoin/storage'
+  autoload :Logger,     'bitcoin/logger'
 
   module Util
+
+    def hth(h); h.unpack("H*")[0]; end
+    def htb(h); [h].pack("H*"); end
+
+    def pretty_hex(hex)
+      out = ''
+      0.upto(hex.size/2).each do |i|
+        out << "#{hex[(i*2)..(i*2+1)]} "
+      end
+      out.strip
+    end
 
     def address_version
       Bitcoin::network[:address_version]
