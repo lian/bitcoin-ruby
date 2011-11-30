@@ -36,13 +36,13 @@ module Bitcoin
           len = opcode
           chunks << program.shift(len).pack("C*")
         elsif (opcode == OP_PUSHDATA1)
-          len = progam.shift(1)[0]
+          len = program.shift(1)[0]
           chunks << program.shift(len).pack("C*")
         elsif (opcode == OP_PUSHDATA2)
-          len = progam.shift(2).pack("C*").unpack("n")[0]
+          len = program.shift(2).pack("C*").unpack("n")[0]
           chunks << program.shift(len).pack("C*")
         elsif (opcode == OP_PUSHDATA4)
-          len = progam.shift(4).pack("C*").unpack("N")[0]
+          len = program.shift(4).pack("C*").unpack("N")[0]
           chunks << program.shift(len).pack("C*")
         else
           chunks << opcode

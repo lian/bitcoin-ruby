@@ -30,9 +30,11 @@ module Bitcoin
       def add_out(output); (@out ||= []) << output; end
 
       def parse_data(data)
-        @ver, in_size  = data.unpack("IC")
+        @ver = data.unpack("I")[0]
+        idx = 4
+        in_size, tmp = Protocol.read_var_int(data[idx..-1])
+        idx += data[idx..-1].bytesize-tmp.bytesize
         raise "unkown transaction version: #{@ver}" unless @ver == 1
-        idx = 5
 
         @in = (0...in_size).map{
           prev_out, prev_out_index, script_sig_length = data[idx...idx+=37].unpack("a32IC")
@@ -41,7 +43,8 @@ module Bitcoin
           [ prev_out, prev_out_index, script_sig_length, script_sig, seq ]
         }
 
-        out_size  = data[idx].unpack("C")[0]; idx+=1
+        out_size, tmp = Protocol.read_var_int(data[idx..-1])
+        idx += data[idx..-1].bytesize-tmp.bytesize
 
         @out = (0...out_size).map{
           value, pk_script_length = data[idx...idx+=9].unpack("QC")
@@ -75,6 +78,7 @@ module Bitcoin
           buf
         }.join
 
+        # TODO: use var_int for input/output size here.
         [@ver, @in.size, pin, @out.size, pout, @lock_time].pack("ICa#{pin.bytesize}Ca#{pout.bytesize}I")
       end
 
