@@ -37,7 +37,9 @@ module Bitcoin
         raise "unkown transaction version: #{@ver}" unless @ver == 1
 
         @in = (0...in_size).map{
-          prev_out, prev_out_index, script_sig_length = data[idx...idx+=37].unpack("a32IC")
+          prev_out, prev_out_index = data[idx...idx+=36].unpack("a32I")
+          script_sig_length, tmp = Protocol.read_var_int(data[idx..-1])
+          idx += data[idx..-1].bytesize-tmp.bytesize
           script_sig = data[idx...idx+=script_sig_length]
           seq = data[idx...idx+=4]
           [ prev_out, prev_out_index, script_sig_length, script_sig, seq ]
@@ -47,7 +49,9 @@ module Bitcoin
         idx += data[idx..-1].bytesize-tmp.bytesize
 
         @out = (0...out_size).map{
-          value, pk_script_length = data[idx...idx+=9].unpack("QC")
+          value = data[idx...idx+=8].unpack("Q")[0]
+          pk_script_length, tmp = Protocol.read_var_int(data[idx..-1])
+          idx += data[idx..-1].bytesize-tmp.bytesize
           pk_script = data[idx...idx+=pk_script_length]
           [ value, pk_script_length, pk_script ]
         }
@@ -67,13 +71,13 @@ module Bitcoin
       def to_payload
         pin = @in.map{|i|
           buf =  [ i[0], i[1], i[2] ].pack("a32IC") # prev_out, prev_out_index, script_sig_length
-          p ['var_int', i] if i[2] > 253
+          p ['var_int', i] if i[2] > 253            # TODO: var_int for script_sig_length
           buf << i[3] if i[2] > 0                   # script_sig
           buf << "\xff\xff\xff\xff"                 # sequence
         }.join
 
         pout = @out.map{|i|
-          buf =  [ i[0], i[1] ].pack("QC")          # value, pk_script_length
+          buf =  [ i[0], i[1] ].pack("QC")          # value, pk_script_length # TODO: var_int for pk_script_length
           buf << i[2] if i[1] > 0                   # pk_script
           buf
         }.join

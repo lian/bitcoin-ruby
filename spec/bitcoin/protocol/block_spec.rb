@@ -13,6 +13,8 @@ describe 'Bitcoin::Protocol::Tx' do
     '170' => fixtures_file('rawblock-170.bin'),
     # block 131025:  00000000000007d938dbdd433c5ae12a782de74abf7f566518bc2b2d0a1df145
     '131025' => fixtures_file('rawblock-131025.bin'),
+    # block 26478:  000000000214a3f06ee99a033a7f2252762d6a18d27c3cd8c8fe2278190da9f3
+    'testnet-26478' => fixtures_file('rawblock-testnet-26478.bin'),
   }
 
 
@@ -44,6 +46,7 @@ describe 'Bitcoin::Protocol::Tx' do
   it '#to_json' do
     @block.to_json.should == fixtures_file('rawblock-0.json')
     Bitcoin::Protocol::Block.new( @blocks['1'] ).to_json.should == fixtures_file('rawblock-1.json')
-    Bitcoin::Protocol::Block.new( @blocks['131025'][0..-2] ).to_json.should == fixtures_file('rawblock-131025.json')
+    Bitcoin::Protocol::Block.new( @blocks['131025'] ).to_json.should == fixtures_file('rawblock-131025.json')
+    Bitcoin::Protocol::Block.new( @blocks['testnet-26478'] ).to_json.should == fixtures_file('rawblock-testnet-26478.json')
   end
 end
