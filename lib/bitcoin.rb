@@ -1,6 +1,4 @@
 # Bitcoin Utils and Network Protocol in Ruby.
-#   author: meta.rb@gmail.com
-#  address: 16A8sZ4KJkhUYiRqUkCKBkKweGzKoiks56
 
 require 'digest/sha2'
 require 'digest/rmd160'
