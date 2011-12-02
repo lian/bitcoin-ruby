@@ -17,12 +17,21 @@ module Bitcoin
     DNS_Seed = [ "bitseed.xf2.org", "bitseed.bitcoin.org.uk" ]
     Uniq = rand(0xffffffffffffffff)
 
-    def self.read_var_int(payload)
+    def self.unpack_var_int(payload)
       case payload.unpack("C")[0] # TODO add test cases
       when 0xfd; payload.unpack("xva*")
       when 0xfe; payload.unpack("xVa*")
       when 0xff; payload.unpack("xQa*") # TODO add little-endian version of Q
       else;      payload.unpack("Ca*")
+      end
+    end
+
+    def self.pack_var_int(i)
+      if    i <  0xfd;                [      i].pack("C")
+      elsif i <= 0xffff;              [0xfd, i].pack("Cv")
+      elsif i <= 0xffffffff;          [0xfe, i].pack("CV")
+      elsif i <= 0xffffffffffffffff;  [0xff, i].pack("CQ")
+      else raise "int(#{i}) too large!"
       end
     end
 

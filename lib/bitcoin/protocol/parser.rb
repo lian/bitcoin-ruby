@@ -10,7 +10,7 @@ module Bitcoin
       # handles inv/getdata packets
       #
       def parse_inv(payload, type=:put)
-        count, payload = Protocol.read_var_int(payload)
+        count, payload = Protocol.unpack_var_int(payload)
         payload.each_byte.each_slice(36){|i|
           hash = i[4..-1].reverse.pack("C32")
           case i[0]
@@ -35,7 +35,7 @@ module Bitcoin
       def hth(h); h.unpack("H*")[0]; end
 
       def parse_addr(payload)
-        count, payload = Protocol.read_var_int(payload)
+        count, payload = Protocol.unpack_var_int(payload)
         payload.each_byte.each_slice(30){|i|
           @h.on_addr( Addr.new(i.pack("C*")) )
         }

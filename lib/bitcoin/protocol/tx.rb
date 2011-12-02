@@ -32,25 +32,25 @@ module Bitcoin
       def parse_data(data)
         @ver = data.unpack("I")[0]
         idx = 4
-        in_size, tmp = Protocol.read_var_int(data[idx..-1])
+        in_size, tmp = Protocol.unpack_var_int(data[idx..-1])
         idx += data[idx..-1].bytesize-tmp.bytesize
         raise "unkown transaction version: #{@ver}" unless @ver == 1
 
         @in = (0...in_size).map{
           prev_out, prev_out_index = data[idx...idx+=36].unpack("a32I")
-          script_sig_length, tmp = Protocol.read_var_int(data[idx..-1])
+          script_sig_length, tmp = Protocol.unpack_var_int(data[idx..-1])
           idx += data[idx..-1].bytesize-tmp.bytesize
           script_sig = data[idx...idx+=script_sig_length]
           seq = data[idx...idx+=4]
           [ prev_out, prev_out_index, script_sig_length, script_sig, seq ]
         }
 
-        out_size, tmp = Protocol.read_var_int(data[idx..-1])
+        out_size, tmp = Protocol.unpack_var_int(data[idx..-1])
         idx += data[idx..-1].bytesize-tmp.bytesize
 
         @out = (0...out_size).map{
           value = data[idx...idx+=8].unpack("Q")[0]
-          pk_script_length, tmp = Protocol.read_var_int(data[idx..-1])
+          pk_script_length, tmp = Protocol.unpack_var_int(data[idx..-1])
           idx += data[idx..-1].bytesize-tmp.bytesize
           pk_script = data[idx...idx+=pk_script_length]
           [ value, pk_script_length, pk_script ]
@@ -70,20 +70,21 @@ module Bitcoin
 
       def to_payload
         pin = @in.map{|i|
-          buf =  [ i[0], i[1], i[2] ].pack("a32IC") # prev_out, prev_out_index, script_sig_length
-          p ['var_int', i] if i[2] > 253            # TODO: var_int for script_sig_length
+          buf =  [ i[0], i[1] ].pack("a32I")        # prev_out, prev_out_index
+          buf << Protocol.pack_var_int(i[2])        # script_sig_length
           buf << i[3] if i[2] > 0                   # script_sig
           buf << "\xff\xff\xff\xff"                 # sequence
         }.join
 
         pout = @out.map{|i|
-          buf =  [ i[0], i[1] ].pack("QC")          # value, pk_script_length # TODO: var_int for pk_script_length
+          buf =  [ i[0] ].pack("Q")                 # value (btc)
+          buf << Protocol.pack_var_int(i[1])        # pk_script_length
           buf << i[2] if i[1] > 0                   # pk_script
           buf
         }.join
 
-        # TODO: use var_int for input/output size here.
-        [@ver, @in.size, pin, @out.size, pout, @lock_time].pack("ICa#{pin.bytesize}Ca#{pout.bytesize}I")
+        in_size, out_size = Protocol.pack_var_int(@in.size), Protocol.pack_var_int(@out.size)
+        [[@ver].pack("I"), in_size, pin, out_size, pout, [@lock_time].pack("I")].join
       end
 
 

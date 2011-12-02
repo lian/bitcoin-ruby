@@ -14,7 +14,7 @@ module Bitcoin
         @hash = Bitcoin.block_hash(hth(@prev_block), hth(@mrkl_root), @time, @bits, @nonce, @ver)
         @tx = []
 
-        tx_size, payload = Protocol.read_var_int(payload)
+        tx_size, payload = Protocol.unpack_var_int(payload)
         (0...tx_size).each{  break if payload == true
           t = Tx.new(nil)
           payload = t.parse_data(payload)
