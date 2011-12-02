@@ -1,6 +1,6 @@
 require_relative '../spec_helper.rb'
 
-describe 'Bitcoin::Protocol::Tx' do
+describe 'Bitcoin::Protocol::Block' do
 
   @blocks = {
     # block 0:  00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048
@@ -48,5 +48,24 @@ describe 'Bitcoin::Protocol::Tx' do
     Bitcoin::Protocol::Block.new( @blocks['1'] ).to_json.should == fixtures_file('rawblock-1.json')
     Bitcoin::Protocol::Block.new( @blocks['131025'] ).to_json.should == fixtures_file('rawblock-131025.json')
     Bitcoin::Protocol::Block.new( @blocks['testnet-26478'] ).to_json.should == fixtures_file('rawblock-testnet-26478.json')
+  end
+
+  it '#to_payload' do
+    @block.to_payload.should == @block.payload
+    Bitcoin::Protocol::Block.new( @block.to_payload ).to_payload.should == @block.payload
+    Bitcoin::Protocol::Block.new( @blocks['1'] ).to_payload.should == @blocks['1']
+    Bitcoin::Protocol::Block.new( @blocks['131025'] ).to_payload.should == @blocks['131025']
+    Bitcoin::Protocol::Block.new( @blocks['testnet-26478'] ).to_payload.should == @blocks['testnet-26478']
+  end
+
+  it '#from_json' do
+    Bitcoin::Protocol::Block.from_json(fixtures_file('rawblock-0.json')).to_payload.should == @blocks['0']
+    Bitcoin::Protocol::Block.from_json(fixtures_file('rawblock-1.json')).to_payload.should == @blocks['1']
+
+    Bitcoin::Protocol::Block.from_json(fixtures_file('rawblock-131025.json'))
+      .to_payload.should == @blocks['131025']
+
+    Bitcoin::Protocol::Block.from_json(fixtures_file('rawblock-testnet-26478.json'))
+      .to_payload.should == @blocks['testnet-26478']
   end
 end
