@@ -129,7 +129,7 @@ module Bitcoin
         h = {
           'hash' => @hash, 'ver' => @ver,
           'vin_sz' => @in.size, 'vout_sz' => @out.size,
-          'lock_time' => @lock_time, 'size' => @payload.bytesize,
+          'lock_time' => @lock_time, 'size' => (@payload ||= to_payload).bytesize,
           'in' => @in.map{|i|{
             'prev_out'  => { 'hash' => hth(i[0]), 'n' => i[1] },
             'scriptSig' => Bitcoin::Script.new(i[3]).to_string
