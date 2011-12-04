@@ -1,0 +1,123 @@
+= Bitcoin-ruby
+
+This is a ruby library for interacting with the bitcoin protocol/network.
+It can parse and generate protocol messages, run basic scripts,
+connect to other peers and download and store the blockchain (WITHOUT verification yet!).
+
+
+== Installation
+
+We assume you already have a ruby 1.9 compatible interpreter and rubygems environment.
+
+ gem install bitcoin-ruby
+
+Or if you want to use a development version
+
+ rake install
+
+Note that some aspects of the library (such as networking, or storage) may need
+additional dependencies which are not specified in the gemspec.
+You'll find out what's missing once it fails when you try to use it ;)
+
+
+== Demos
+
+There are a few demo scripts you can run to try things out:
+
+=== bin/bitcoin_connect
+
+Connect to a network node and chat a little.
+
+=== bin/blockchain
+
+Connect to a node and download the whole blockchain into storage.
+
+=== bin/shell
+
+Launches an irb session with bitcoin loaded where you can try stuff out.
+
+
+== Library Usage
+
+There are different aspects to the library which can be used separately or in combination.
+Here are some examples of what you could do.
+
+
+=== Keys / Addresses
+
+Generate a key:
+
+ key = Bitcoin::generate_key
+ key #=> [<privkey>, <pubkey>]
+
+Get the address from a public key
+
+ address = Bitcoin::pubkey_to_address(key[1])
+ address #=> <bitcoin address>
+
+Check if an address is valid
+
+ Bitcoin::valid_address?(address) #=> true
+
+
+=== Blocks / Transactions parsing
+
+Parse a block
+
+ raw_block = File.open('spec/bitcoin/fixtures/rawblock-0.bin', 'rb') {|f| f.read}
+ blk = Bitcoin::Protocol::Block.new(raw_block)
+ blk.hash #=> 00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048
+ blk.tx.count #=> 1
+ blk.to_hash #=> ...
+ 
+Parse a transaction
+
+ raw_tx = File.open('spec/bitcoin/fixtures/rawtx-01.bin', 'rb') {|f| f.read}
+ tx = Bitcoin::Protocol::Tx.new(raw_tx)
+ tx.hash #=> 6e9dd16625b62cfcd4bf02edb89ca1f5a8c30c4b1601507090fb28e59f2d02b4
+ tx.in.size #=> 1
+ tx.out.size #=> 2
+ 
+ Bitcoin::Script.new(tx.out[0][2]).to_string
+ #=> "OP_DUP OP_HASH160 b2e21c1db922e3bdc529de7b38b4c401399e9afd OP_EQUALVERIFY OP_CHECKSIG"
+
+=== Scripts
+
+# TODO
+
+
+=== Node / Network connections
+
+The networking part is still work in progress. For now, you'll probably want to roll
+your own; see connection.rb or network/node.rb for examples.
+
+
+=== Storage / Database backends
+
+There are multiple database backends available, currently an in-memory dummy and 
+and activerecord/postgres backend.
+
+ store = Bitcoin::Storage::Backends::Dummy.new
+ store.store_block(Bitcoin.network[:genesis_block])
+ store.get_block(Bitcoin.network[:genesis_hash])
+ store.get_head #=> Bitcoin.network[:genesis_hash]
+
+== Documentation
+
+Still needs some love, but you can generate RDoc documentation
+
+ rake rdoc
+
+The specs are also a good place to see how something works.
+
+== Specs
+
+The specs can be run with
+
+ rake bacon
+
+or, if you want to run a single spec
+
+ ruby spec/bitcoin/bitcoin_spec.rb
+
+If you make changes to the code or add functionality, please also add specs.
