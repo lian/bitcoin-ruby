@@ -77,3 +77,10 @@ task :bacon do
   puts(total_color % (spec_format % totals.to_a))
   exit 1 if some_failed
 end
+
+
+desc 'Generate RDoc documentation'
+task :rdoc do
+  `rm -rf rdoc`
+  system("rdoc -o rdoc -m README lib/ README COPYING")
+end
