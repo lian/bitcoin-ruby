@@ -1,6 +1,8 @@
-module Bitcoin::Storage
+module Bitcoin::Storage::Backends::ActiverecordStore
 
   class TransactionsParent < ActiveRecord::Base
+
+    include Base
     
     belongs_to :block
     belongs_to :transaction

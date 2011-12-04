@@ -64,14 +64,11 @@ module Bitcoin::Network
     end
 
     def on_tx(tx)
-      log.info { ">> tx: #{tx.hash} (#{tx.payload.size} bytes)xs" }
+      log.info { ">> tx: #{tx.hash} (#{tx.payload.size} bytes)" }
     end
 
     def on_block(blk)
       log.info { ">> block: #{blk.hash} (#{blk.payload.size} bytes)" }
-      #log.info { block.payload.each_byte.map{|i| "%02x" % [i] }.join(" ")
-#      puts block.to_json
-#      block = Block.from_protocol(blk)
       @node.queue << blk
     end
 
@@ -98,20 +95,28 @@ module Bitcoin::Network
     end
 
     def query_blocks
-      locator = BlockChain.locator
+#      return get_genesis_block
+      locator = @node.store.get_locator
+#      return get_genesis_block  unless locator
       pkt = Protocol.pkt("getblocks", [Bitcoin::network[:magic_head],
           locator.size.chr, *locator.map{|l| htb(l).reverse}, "\x00"*32].join)
       log.info { "<< getblocks: #{locator.first}" }
       send_data(pkt)
     end
 
+    def get_genesis_block
+      log.info { "Asking for genesis block" }
+      pkt = Protocol.getdata_pkt(:block, [htb(Bitcoin::network[:genesis_hash])])
+      send_data(pkt)
+    end
+
     def on_handshake_begin
       @state = :handshake
-      block   = Bitcoin::Storage::BlockChain.depth
+      block   = @node.store.get_depth
       from    = "127.0.0.1:8333"
       from_id = Bitcoin::Protocol::Uniq
       to      = "#{@node.host}:#{@node.port}"
-      # p "==", from_id, from, to, block
+
       pkt = Protocol.version_pkt(from_id, from, to, block)
       log.info { "<< version (#{Bitcoin::Protocol::VERSION})" }
       send_data(pkt)

@@ -1,7 +1,9 @@
 require 'pry'
-module Bitcoin::Storage
+module Bitcoin::Storage::Backends::ActiverecordStore
 
   class Block < ActiveRecord::Base
+
+    include Base
 
     set_primary_key :block_id
     
@@ -37,20 +39,38 @@ module Bitcoin::Storage
     end
 
 
+    def to_hash
+      {
+        "ver" => version,
+        "time" => when_created.to_i,
+        "bits" => ((bits_head << 24) | bits_body),
+        "nonce" => nonce,
+        "prev_block" => Bitcoin::hth(prev_block_hash),
+        "mrkl_root" => Bitcoin::hth(merkle),
+        "tx" => transactions.map(&:to_hash)
+      }
+    end
+
+    def to_protocol
+      Bitcoin::Protocol::Block.from_hash(to_hash)
+    end
+
     def self.from_protocol blk
 
       prev_block = get(hth(blk.prev_block.reverse))
-      unless prev_block # || hth(blk.prev_block).reverse == Bitcoin::network[:genesis_block]
-        log.warn { "INVALID BLOCK: #{blk.hash}" }
-        return nil
+      unless prev_block # || 
+        unless blk.hash == Bitcoin::network[:genesis_hash]
+          log.warn { "INVALID BLOCK: #{blk.hash}" }
+          return nil
+        end
       end
 
       block = new({
         :block_hash => blk.hash,
         :space => 0,
-        :depth => prev_block.depth + 1,
+        :depth => (prev_block.depth + 1 rescue 0),
         :version => blk.ver,
-        :prev_block_hash => hth(prev_block.block_hash),
+        :prev_block_hash => (hth(prev_block.block_hash) rescue hth("\x00"*32)),
         :merkle => hth(blk.mrkl_root.reverse),
         :when_created => Time.at(blk.time),
         :when_found => Time.now,
@@ -72,15 +92,15 @@ module Bitcoin::Storage
           block.transactions_parents << parent
         rescue
           log.error { "ERROR ADDING TX: #{tx.hash}" }
-          #p $!
-          #p *$@
-
-          # File.open("./tmp/errors/block-#{blk.hash}-tx-#{idx}", 'w') do |f|
-          #   f.puts($!.inspect)
-          #   $!.backtrace.each {|l| f.puts(l)}
-          #   f.puts; f.puts; f.puts; f.puts
-          #   f.write(blk.payload)
-          # end
+          p $!
+          p *$@
+          binding.pry
+          File.open("./errors/#{Time.now.strftime("%H-%M-%S-")}-block-#{blk.hash}-tx-#{idx}", 'w') do |f|
+            f.puts($!.inspect)
+            $!.backtrace.each {|l| f.puts(l)}
+            f.puts; f.puts; f.puts; f.puts
+            f.write(blk.payload)
+          end
         end
       end
 
@@ -131,5 +151,7 @@ module Bitcoin::Storage
       res[0][0]
     end
   end
+
+
 
 end

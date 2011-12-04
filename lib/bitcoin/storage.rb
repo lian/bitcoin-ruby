@@ -1,45 +1,97 @@
-require 'active_record'
+require 'pry'
 
-require_relative 'storage/block_chain'
-require_relative 'storage/block'
-require_relative 'storage/transactions_parent'
-require_relative 'storage/transaction'
-require_relative 'storage/input'
-require_relative 'storage/output'
+$:.unshift( File.dirname(__FILE__) )
 
 module Bitcoin::Storage
 
-  def self.connect config
-    ActiveRecord::Base.establish_connection config
-  end
-
-  @log = Bitcoin::Logger.create(:storage)
+  @@log = Bitcoin::Logger.create("storage")
 
   def self.log
-    @log
+    @@log
   end
 
-  module StorageModel
+  module Backends
 
-#    include Bitcoin::Util
-
-    def log
-      Bitcoin::Storage::log
+    # autoload all available backends
+    Dir.entries(File.join(File.dirname(__FILE__), "storage/backends")).each do |e|
+      next unless e =~ /(.*?).rb/
+      name = $1
+      next  if name =~ /^\.|#/
+      autoload name.capitalize.to_sym, "storage/backends/#{name}"
     end
 
-    def hth(h); h.unpack("H*")[0]; end
-    def htb(h); [h].pack("H*"); end
-    
-    def bts data
-      connection.escape_bytea(data)
+    class Base
+
+      def initialize config = {}
+        @config = config
+        inject_genesis
+      end
+
+      # get the storage logger
+      def log
+        Bitcoin::Storage.log
+      end
+
+      # inject the genesis block into storage
+      def inject_genesis
+        return  if get_block_by_hash(Bitcoin.network[:genesis_hash])
+        genesis = Bitcoin.network[:genesis_block]
+        store_block(genesis)
+      end
+
+      # get the hash of the leading block
+      def get_head
+        raise "Not implemented"
+      end
+
+      # return depth of the head block
+      def get_depth
+        raise "Not implemented"
+      end
+
+      # compute blockchain locator
+      def get_locator
+        return [Bitcoin::hth("\x00"*32)]  if get_depth == -1
+        locator = []
+        pointer = get_head
+        step = 1
+        while pointer && pointer != Bitcoin::network[:genesis_hash]
+          locator << pointer
+          depth = get_block_depth(pointer) - step
+          break unless depth > 0
+          prev_block = get_block_by_depth(depth) # TODO
+          break unless prev_block
+          pointer = prev_block.hash
+          step *= 2  if locator.size > 10
+        end
+        locator << Bitcoin::network[:genesis_hash]
+        locator
+      end
+
+      # store given block
+      def store_block(blk)
+        raise "Not implemented"
+      end
+
+      # get block with given hash
+      def get_block(blk_hash)
+        raise "Not implemented"
+      end
+
+      # store given tx
+      def store_tx(tx)
+        raise "Not implemented"
+      end
+
+      # get tx with given hash
+      def get_tx(tx_hash)
+        raise "Not implemented"
+      end
+
     end
 
-  end
-  self.constants.each do |c|
-    const = const_get(c)
-    const.extend(StorageModel)
   end
 
 end
 
-ActiveRecord::Base.logger = Bitcoin::Logger.create(:database)
+

@@ -46,7 +46,7 @@ module Bitcoin
           'hash' => @hash, 'ver' => @ver,
           'prev_block' => hth(@prev_block), 'mrkl_root' => hth(@mrkl_root),
           'time' => @time, 'bits' => @bits, 'nonce' => @nonce,
-          'n_tx' => @tx.size, 'size' => @payload.bytesize,
+          'n_tx' => @tx.size, 'size' => (@payload||to_payload).bytesize,
           'tx' => @tx.map{|i| i.to_hash },
           'mrkl_tree' => Bitcoin.hash_mrkl_tree( @tx.map{|i| i.hash } )
         }

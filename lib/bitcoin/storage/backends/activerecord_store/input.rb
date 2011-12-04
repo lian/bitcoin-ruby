@@ -1,7 +1,9 @@
-module Bitcoin::Storage
+module Bitcoin::Storage::Backends::ActiverecordStore
 
   class Input < ActiveRecord::Base
     
+    include Base
+
     set_primary_key :input_id
     
     belongs_to :transaction

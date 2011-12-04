@@ -1,7 +1,9 @@
-module Bitcoin::Storage
+module Bitcoin::Storage::Backends::ActiverecordStore
 
   class Output < ActiveRecord::Base
     
+    include Base
+
     set_primary_key :output_id
 
     belongs_to :transaction
@@ -14,7 +16,7 @@ module Bitcoin::Storage
     end
 
     def value
-      (attributes['value'] * 1e8).to_i
+      attributes['value']
     end
 
     def self.from_protocol txout

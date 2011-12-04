@@ -6,7 +6,7 @@ describe 'Bitcoin::network' do
     net = Bitcoin::network
     net[:magic_head].should == "\xF9\xBE\xB4\xD9"
     net[:address_version].should == "00"
-    net[:genesis_block].should == "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"
+    net[:genesis_hash].should == "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"
   end
   
   it 'can be set to main net' do
