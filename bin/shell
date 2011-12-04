@@ -8,6 +8,4 @@ network = (ARGV.shift || :testnet).to_sym
 
 Bitcoin::network = network
 
-ActiveRecord::Base.establish_connection YAML::load(File.read("db/database.yml"))[network.to_s]
-
 IRB.start
