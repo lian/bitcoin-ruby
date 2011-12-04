@@ -3,7 +3,6 @@
 require 'digest/sha2'
 require 'digest/rmd160'
 require 'openssl'
-require 'log4r'
 
 $:.unshift( File.dirname(__FILE__) )
 

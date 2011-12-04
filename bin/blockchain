@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 $:.unshift( File.expand_path("../../lib", __FILE__) )
 
+#require 'log4r'
 require 'bitcoin'
 
 network = ARGV[0] || :testnet

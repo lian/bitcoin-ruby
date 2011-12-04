@@ -1,4 +1,3 @@
-require 'log4r'
 require 'eventmachine'
 
 module Bitcoin::Network
@@ -9,9 +8,8 @@ module Bitcoin::Network
     attr_accessor :block
     
     def initialize
-      @log = Log4r::Logger.new("network")
-      @log.outputters << Log4r::Outputter.stdout
-      @log.level = 2
+      @log = Bitcoin::Logger.create("network")
+      @log.level = :debug
       @connections = []
       @queue = []
       @block = 0 # temp hack to store block depth of connected node
@@ -61,6 +59,9 @@ module Bitcoin::Network
         log.debug { "Processing queue item #{block.hash} (#{block.payload.size} bytes)" }
 
         @store.store_block(block)
+        if @store.get_depth > 5000
+          binding.pry
+        end
       end
       check_query_blocks
       log.info { "Queue empty" }

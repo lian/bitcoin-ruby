@@ -1,46 +1,42 @@
-
-
-    class Time
-    def log_format_time
-"#{Time.now.strftime('%H:%M:%S')}.#{Time.now.usec}".ljust(16)
-    end
-  end
-
-
-
 module Bitcoin
-
 
   module Logger
 
-    class CustomFormatter < Log4r::DefaultFormatter
+    class Logger
 
-      def format event
-        color = ["\e[34m", "\e[32m", "\e[33m", "\e[1m\e[31m"][event.level-1]
-        level = ["DEBUG", "INFO ", "WARN ", "ERROR", "FATAL"][event.level-1]
-        "#{color}" + #{Time.now.strftime('%H:%M:%S')}.#{Time.now.usec}".ljust(16) +
-          "#{event.name.ljust(8)} #{level} #{event.data}\e[0m\n"
+      LEVELS = [:debug, :info, :warn, :error, :fatal]
+
+      attr_accessor :level
+
+      def initialize(name)
+        @name = name
+        @level = :info
+      end
+
+      def level= level
+        @level = level.is_a?(Fixnum) ? LEVELS[level] : level.to_sym
+      end
+
+      LEVELS.each do |level|
+        define_method(level) do |*msg, &block|
+          return  if LEVELS.index(level.to_sym) < LEVELS.index(@level.to_sym)
+          msg = block ? block.call : msg.join
+          puts "#{@name} #{level}: #{msg}"
+        end
       end
 
     end
 
-    
-    DEFAULTS = {
-      :storage => [
-                   [:stdout, :level => 0],
-                  ]
-    }
 
     def self.create name
-      @log = Log4r::Logger.new(name.to_s)
-      @log.level = 0
-      
-      pattern = "#{Time.now}\e[31m%d %c %l %m \e[0m"
-      format = CustomFormatter.new
-      sout = Log4r::Outputter.stdout
-      sout.formatter = format
-      @log.outputters << sout
-      @log.outputters << Log4r::FileOutputter.new("fout", :filename => "log/#{name}.log")
+      if defined?(Log4r)
+        @log = Log4r::Logger.new(name.to_s)
+        @log.level = 0
+        @log.outputters << Log4r::Outputter.stdout
+        @log.outputters << Log4r::FileOutputter.new("fout", :filename => "log/#{name}.log")
+      else
+        @log = Bitcoin::Logger::Logger.new(name)
+      end
       @log
     end
 
