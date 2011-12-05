@@ -97,10 +97,12 @@ Then simply ask the transaction to verify an input
 
 Or, if you want to control the script yourself
 
- script_pubkey = tx2.out[tx1.in[0][1]][2]
- script = Bitcoin::Script.new(tx1.in[0][3] + script_pubkey)
+ txin = tx1.in.first
+ txout = tx2.out[txin.prev_out_index]
+ script = Bitcoin::Script.new(txin.script_sig + txout.pk_script)
+ 
  result = script.run do |pubkey, sig, hash_type|
-   hash = tx1.signature_hash_for_input(0, nil, script_pubkey)
+   hash = tx1.signature_hash_for_input(0, nil, txout.pk_script)
    Bitcoin.verify_signature(hash, sig, pubkey.unpack("H*")[0])
  end
  result #=> true

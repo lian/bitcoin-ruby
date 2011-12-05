@@ -5,6 +5,8 @@ require 'json'
 module Bitcoin
   module Protocol
 
+    autoload :TxIn,    'bitcoin/protocol/txin'
+    autoload :TxOut,   'bitcoin/protocol/txout'
     autoload :Tx,      'bitcoin/protocol/tx'
     autoload :Block,   'bitcoin/protocol/block'
     autoload :Addr,    'bitcoin/protocol/address'
