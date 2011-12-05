@@ -5,7 +5,7 @@ module Bitcoin::Storage
 
   module Backends
     autoload :Dummy,        "bitcoin/storage/backends/dummy"
-    autoload :ActiveRecord, "bitcoin/storage/backends/activerecord"
+    autoload :Activerecord, "bitcoin/storage/backends/activerecord"
 
     class Base
 

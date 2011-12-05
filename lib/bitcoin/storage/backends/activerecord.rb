@@ -24,8 +24,10 @@ module Bitcoin::Storage::Backends
     def connect
       # TODO: load schema if not already there
       ActiveRecord::Base.establish_connection @config
-      ActiveRecord::Base.logger = Bitcoin::Logger.create(:database)
-      ActiveRecord::Base.logger.level = 2
+      if defined?(Log4r)
+        ActiveRecord::Base.logger = Bitcoin::Logger.create(:database)
+        ActiveRecord::Base.logger.level = 2
+      end
     end
 
     def reset
