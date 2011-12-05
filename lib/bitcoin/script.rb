@@ -142,7 +142,6 @@ module Bitcoin
     end
 
     def op_checksig(check_callback)
-      p "skipping OP_CHECKSIG"
       return nil if @stack.size < 2
       pubkey = @stack.pop
       sig_and_hash_type = @stack.pop

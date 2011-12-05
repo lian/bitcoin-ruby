@@ -59,9 +59,6 @@ module Bitcoin::Network
         log.debug { "Processing queue item #{block.hash} (#{block.payload.size} bytes)" }
 
         @store.store_block(block)
-        if @store.get_depth > 5000
-          binding.pry
-        end
       end
       check_query_blocks
       log.info { "Queue empty" }

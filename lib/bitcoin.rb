@@ -4,8 +4,6 @@ require 'digest/sha2'
 require 'digest/rmd160'
 require 'openssl'
 
-$:.unshift( File.dirname(__FILE__) )
-
 
 module Bitcoin
 
@@ -13,22 +11,18 @@ module Bitcoin
   autoload :Protocol,   'bitcoin/protocol'
   autoload :Script,     'bitcoin/script'
   autoload :VERSION,    'bitcoin/version'
-  autoload :Network,    'bitcoin/network'
-  autoload :Storage,    'bitcoin/storage'
-  autoload :Logger,     'bitcoin/logger'
+  autoload :Storage,    'bitcoin/storage/storage'
+
+  module Network
+    autoload :Handler,  'bitcoin/network/handler'
+    autoload :Node,     'bitcoin/network/node'
+  end
+
 
   module Util
 
     def hth(h); h.unpack("H*")[0]; end
     def htb(h); [h].pack("H*"); end
-
-    def pretty_hex(hex)
-      out = ''
-      0.upto(hex.size/2).each do |i|
-        out << "#{hex[(i*2)..(i*2+1)]} "
-      end
-      out.strip
-    end
 
     def address_version
       Bitcoin::network[:address_version]
@@ -239,18 +233,14 @@ module Bitcoin
       :address_version => "00",
       :default_port => 8333,
       :dns_seeds => ["bitseed.xf2.org", "bitseed.bitcoin.org.uk" ],
-      :genesis_hash => "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
-      :genesis_block => Protocol::Block.new(htb("0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c0101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73ffffffff0100f2052a01000000434104678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac00000000")),
+      :genesis_hash => "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"
     },
     :testnet => {
       :magic_head => "\xFA\xBF\xB5\xDA",
       :address_version => "6f",
       :default_port => 18333,
       :dns_seeds => [],
-
-      :genesis_hash => "00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008",
-      :genesis_block => Protocol::Block.new(htb("0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4adae5494df8ff071dff0bec160101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73ffffffff0100f2052a01000000434104678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac00000000")),
-
+      :genesis_hash => "00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008"
     }
   }
   

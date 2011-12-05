@@ -1,17 +1,18 @@
-require_relative './spec_helper.rb'
+require_relative 'spec_helper'
 
-{
-  'Dummy' => {},
-  'Activerecord' => {'adapter' => 'postgresql', 'database' => 'bitcoin_test'},
-}.each do |backend, configuration|
 
-  describe "Bitcoin::Storage::Backends::#{backend}" do
+[
+  { 'name' => 'Dummy' },
+  #{ 'name' => 'Activerecord', 'adapter' => 'postgresql', 'database' => 'bitcoin_test'},
+].each do |configuration|
+
+  describe "Bitcoin::Storage::Backends::#{configuration['name']}" do
 
     before do
       Bitcoin::network = :testnet
       Bitcoin::Storage.log.level = 3
       
-      klass = Bitcoin::Storage::Backends.const_get(backend)
+      klass = Bitcoin::Storage::Backends.const_get(configuration['name'])
       @store = klass.new(configuration)
       @store.reset
       
@@ -95,5 +96,4 @@ require_relative './spec_helper.rb'
     end
 
   end
-  
 end

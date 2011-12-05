@@ -1,9 +1,7 @@
 module Bitcoin
-
   module Logger
 
     class Logger
-
       LEVELS = [:debug, :info, :warn, :error, :fatal]
 
       attr_accessor :level
@@ -24,9 +22,7 @@ module Bitcoin
           puts "#{@name} #{level}: #{msg}"
         end
       end
-
     end
-
 
     def self.create name
       if defined?(Log4r)
@@ -41,5 +37,4 @@ module Bitcoin
     end
 
   end
-
 end

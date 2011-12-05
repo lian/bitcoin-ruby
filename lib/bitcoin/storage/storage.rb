@@ -1,36 +1,22 @@
-require 'pry'
-
-$:.unshift( File.dirname(__FILE__) )
-
 module Bitcoin::Storage
 
-  @@log = Bitcoin::Logger.create("storage")
-
-  def self.log
-    @@log
-  end
+  @log = Logger.create("storage")
+  def self.log; @log; end
 
   module Backends
-
-    # autoload all available backends
-    Dir.entries(File.join(File.dirname(__FILE__), "storage/backends")).each do |e|
-      next unless e =~ /(.*?).rb/
-      name = $1
-      next  if name =~ /^\.|#/
-      autoload name.capitalize.to_sym, "storage/backends/#{name}"
-    end
+    autoload :Dummy,        "bitcoin/storage/backends/dummy"
+    autoload :ActiveRecord, "bitcoin/storage/backends/activerecord"
 
     class Base
 
-      def initialize config = {}
+      def initialize(config = {})
         @config = config
+        @log    = config[:log] || Bitcoin::Storage.log
         inject_genesis
       end
 
       # get the storage logger
-      def log
-        Bitcoin::Storage.log
-      end
+      def log; @log; end
 
       # inject the genesis block into storage
       def inject_genesis
@@ -89,9 +75,5 @@ module Bitcoin::Storage
       end
 
     end
-
   end
-
 end
-
-

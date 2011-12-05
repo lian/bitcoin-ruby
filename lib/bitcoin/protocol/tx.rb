@@ -66,9 +66,6 @@ module Bitcoin
         else
           data[idx..-1] # rest of buffer.
         end
-      rescue
-        p $!
-        nil
       end
 
       def to_payload

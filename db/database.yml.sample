@@ -1,8 +1,0 @@
-bitcoin:
-  adapter: sqlite3
-  database: db/bitcoin.sqlite3
-
-testnet:
-  adapter: sqlite3
-  database: db/testnet.sqlite3
-

@@ -4,14 +4,12 @@ module Bitcoin::Storage::Backends
     attr_accessor :blk, :tx
     
     def initialize *args
-      @blk = []
-      @tx = {}
-      super *args
+      reset
+      super(*args)
     end
     
     def reset
-      @blk = []
-      @tx = {}
+      @blk, @tx = [], {}
     end
 
     def get_depth
@@ -41,7 +39,6 @@ module Bitcoin::Storage::Backends
       blk.tx.each {|tx| store_tx(tx) }
       @blk << blk
 
-      
       log.info { "NEW HEAD: #{blk.hash} DEPTH: #{get_depth}" }
       
       get_depth
@@ -69,5 +66,4 @@ module Bitcoin::Storage::Backends
     end
     
   end
-  
 end
