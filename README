@@ -9,11 +9,9 @@ connect to other peers and download and store the blockchain (WITHOUT verificati
 
 We assume you already have a ruby 1.9 compatible interpreter and rubygems environment.
 
- gem install bitcoin-ruby
+ git clone https://github.com/lian/bitcoin-ruby.git; cd bitcoin-ruby
+ ruby -Ilib bin/bitcoin_connect
 
-Or if you want to use a development version
-
- rake install
 
 Note that some aspects of the library (such as networking, or storage) may need
 additional dependencies which are not specified in the gemspec.
@@ -69,6 +67,7 @@ Parse a block
  blk.hash #=> 00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048
  blk.tx.count #=> 1
  blk.to_hash #=> ...
+ Bitcoin::Protocol::Block.from_json( blk.to_json )
  
 Parse a transaction
 
@@ -77,6 +76,8 @@ Parse a transaction
  tx.hash #=> 6e9dd16625b62cfcd4bf02edb89ca1f5a8c30c4b1601507090fb28e59f2d02b4
  tx.in.size #=> 1
  tx.out.size #=> 2
+ tx.to_hash #=> ...
+ Bitcoin::Protocol::Tx.from_json( tx.to_json )
  
  Bitcoin::Script.new(tx.out[0][2]).to_string
  #=> "OP_DUP OP_HASH160 b2e21c1db922e3bdc529de7b38b4c401399e9afd OP_EQUALVERIFY OP_CHECKSIG"

@@ -25,7 +25,6 @@ EM.run do
   connections = []
   #RawJSON_Connection.connect(host, 8333, connections)
 
-  #Bitcoin::Connection.connect(host, 8333, connections)
-  Bitcoin::Connection.connect_random_from_dns(connections)
+  RawJSON_Connection.connect_random_from_dns(connections)
 
 end

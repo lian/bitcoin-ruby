@@ -102,9 +102,9 @@ module Bitcoin
     end
 
     def self.connect_random_from_dns(connections)
-      seeds = Bitcoin::network[:dns_seeds]
+      seeds = Bitcoin.network[:dns_seeds]
       if seeds.any?
-        host = `nslookup #{seeds[rand(seeds.size)]}`.scan(/Address\: (.+)$/).flatten.sample
+        host = `nslookup #{seeds.sample}`.scan(/Address\: (.+)$/).flatten.sample
         connect(host, Bitcoin::network[:default_port], connections)
       else
         raise "No DNS seeds available. Provide IP, configure seeds, or use different network."

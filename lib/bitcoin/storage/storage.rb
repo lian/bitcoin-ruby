@@ -1,6 +1,6 @@
 module Bitcoin::Storage
 
-  @log = Logger.create("storage")
+  @log = Bitcoin::Logger.create("storage")
   def self.log; @log; end
 
   module Backends

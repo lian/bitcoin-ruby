@@ -12,6 +12,7 @@ module Bitcoin
   autoload :Script,     'bitcoin/script'
   autoload :VERSION,    'bitcoin/version'
   autoload :Storage,    'bitcoin/storage/storage'
+  autoload :Logger,     'bitcoin/logger'
 
   module Network
     autoload :Handler,  'bitcoin/network/handler'
