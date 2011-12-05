@@ -7,28 +7,36 @@ module Bitcoin
       attr_reader :hash, :in, :out, :payload
       attr_accessor :ver, :lock_time
 
+      # compare to another tx
       def ==(other)
         @hash == other.hash
       end
 
+      # return the tx hash in binary format
       def binary_hash
         [@hash].pack("H*").reverse
       end
 
+      # create tx from raw binary +data+
       def initialize(data)
         @ver, @lock_time = 1, 0
 
         parse_data(data) if data
       end
 
-      def hash_from_payload(payload) # tx hash in hex from payload
+      # generate the tx hash for given +payload+ in hex format
+      def hash_from_payload(payload)
         Digest::SHA256.digest(Digest::SHA256.digest( payload )).reverse.unpack("H*")[0]
       end
       alias generate_hash hash_from_payload
 
+      # add an input
       def add_in(input); (@in ||= []) << input; end
+
+      # add an output
       def add_out(output); (@out ||= []) << output; end
 
+      # parse raw binary data
       def parse_data(data)
         @ver = data.unpack("I")[0]
         idx = 4
@@ -68,6 +76,7 @@ module Bitcoin
         end
       end
 
+      # output transaction in raw binary format
       def to_payload
         pin = @in.map{|i|
           buf =  [ i[0], i[1] ].pack("a32I")        # prev_out, prev_out_index
@@ -87,11 +96,11 @@ module Bitcoin
         [[@ver].pack("I"), in_size, pin, out_size, pout, [@lock_time].pack("I")].join
       end
 
-
+      # generate a signature hash for input +input_idx+.
+      # either pass the +outpoint_tx+ or the +script_pubkey+ directly.
       def signature_hash_for_input(input_idx, outpoint_tx, script_pubkey=nil)
         # https://github.com/bitcoin/bitcoin/blob/e071a3f6c06f41068ad17134189a4ac3073ef76b/script.cpp#L834
         # http://code.google.com/p/bitcoinj/source/browse/trunk/src/com/google/bitcoin/core/Script.java#318
-
         pin  = @in.map.with_index{|i,idx|
           if idx == input_idx
             script_pubkey ||= outpoint_tx.out[ i[1] ][2]
@@ -110,6 +119,8 @@ module Bitcoin
         Digest::SHA256.digest( Digest::SHA256.digest( buf ) )
       end
 
+      # verify input signature +in_idx+ against the corresponding
+      # output in +outpoint_tx+
       def verify_input_signature(in_idx, outpoint_tx)
         outpoint_idx  = @in[in_idx][1]
         script_sig    = @in[in_idx][3]
@@ -119,12 +130,13 @@ module Bitcoin
         Bitcoin::Script.new(script).run do |pubkey,sig,hash_type|
           # this IS the checksig callback, must return true/false
           #p ['checksig', pubkey, sig, hash_type]
-          #hash = signature_hash_for_input(in_idx, outpoint_tx)
-          hash = signature_hash_for_input(in_idx, nil, script_pubkey)
+          hash = signature_hash_for_input(in_idx, outpoint_tx)
+          #hash = signature_hash_for_input(in_idx, nil, script_pubkey)
           Bitcoin.verify_signature( hash, sig, pubkey.unpack("H*")[0] )
         end
       end
 
+      # convert to ruby hash (see also #from_hash)
       def to_hash
         h = {
           'hash' => @hash, 'ver' => @ver,
@@ -157,6 +169,7 @@ module Bitcoin
         JSON.pretty_generate( to_hash, :space => '' )
       end
 
+      # parse ruby hash (see also #to_hash)
       def self.from_hash(h)
         tx = new(nil)
         tx.ver, tx.lock_time = *h.values_at('ver', 'lock_time')
@@ -177,8 +190,13 @@ module Bitcoin
         tx
       end
 
+      # convert ruby hash to raw binary
       def self.binary_from_hash(h); from_hash(h).to_payload; end
+
+      # parse json representation
       def self.from_json(json_string); from_hash( JSON.load(json_string) ); end
+
+      # convert json representation to raw binary
       def self.binary_from_json(json_string); from_json(json_string).to_payload; end
 
       def self.htb(s)

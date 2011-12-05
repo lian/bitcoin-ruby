@@ -82,10 +82,28 @@ Parse a transaction
  Bitcoin::Script.new(tx.out[0][2]).to_string
  #=> "OP_DUP OP_HASH160 b2e21c1db922e3bdc529de7b38b4c401399e9afd OP_EQUALVERIFY OP_CHECKSIG"
 
-=== Scripts
+=== Transaction verification / Scripts
 
-# TODO
+Get the matching transactions (in this example tx1 is the spending transaction)
 
+ rawtx1 = File.open("spec/bitcoin/fixtures/rawtx-f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16.bin", 'rb') {|f| f.read}
+ rawtx2 = File.open("spec/bitcoin/fixtures/rawtx-0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9.bin", 'rb') {|f| f.read}
+ tx1 = Bitcoin::Protocol::Tx.new(rawtx1)
+ tx2 = Bitcoin::Protocol::Tx.new(rawtx2)
+
+Then simply ask the transaction to verify an input
+
+ tx1.verify_input_signature(0, tx2) #=> true
+
+Or, if you want to control the script yourself
+
+ script_pubkey = tx2.out[tx1.in[0][1]][2]
+ script = Bitcoin::Script.new(tx1.in[0][3] + script_pubkey)
+ result = script.run do |pubkey, sig, hash_type|
+   hash = tx1.signature_hash_for_input(0, nil, script_pubkey)
+   Bitcoin.verify_signature(hash, sig, pubkey.unpack("H*")[0])
+ end
+ result #=> true
 
 === Node / Network connections
 

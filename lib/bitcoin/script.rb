@@ -13,16 +13,15 @@ module Bitcoin
     OP_CHECKMULTISIG       = 174
     OP_CHECKMULTISIGVERIFY = 175
 
-    def self.join(a, b)
-    end
-
     attr_reader :raw, :chunks
 
+    # create a new script. +bytes+ is typically input_script + output_script
     def initialize(bytes, offset=0)
       @stack, @raw = [], bytes
       @chunks = parse(bytes, offset)
     end
 
+    # parse raw script
     def parse(bytes, offset=0)
       program = bytes.unpack("C*")
       chunks = []
@@ -51,6 +50,7 @@ module Bitcoin
       chunks
     end
 
+    # string representation of the script
     def to_string
       @chunks.map{|i|
         case i
@@ -71,6 +71,7 @@ module Bitcoin
       }.join(" ")
     end
 
+    # binary script of a string representation
     def self.binary_from_string(script_string)
       script_string.split(" ").map{|i|
         case i
@@ -103,6 +104,7 @@ module Bitcoin
       }.join
     end
 
+    # run the script. +check_callback+ is called for OP_CHECKSIG operations
     def run(debug = [], &check_callback)
       @chunks.each{|chunk|
         debug << @stack.map{|i| i.unpack("H*")}
@@ -141,6 +143,9 @@ module Bitcoin
       @stack.pop == true
     end
 
+    # do a CHECKSIG operation on the current stack,
+    # asking +check_callback+ to do the actual signature verification.
+    # This is used by Protocol::Tx#verify_input_signature
     def op_checksig(check_callback)
       return nil if @stack.size < 2
       pubkey = @stack.pop
@@ -156,11 +161,13 @@ module Bitcoin
       end
     end
 
+    # is this a send-to-ip tx
     def is_send_to_ip?
       return false if @chunks.size != 2
       (@chunks[1] == OP_CHECKSIG) && @chunks[0].size > 1
     end
 
+    # get the public key for this script
     def get_pubkey
       return @chunks[0].unpack("H*")[0] if @chunks.size == 1
       if @chunks.size != 2
@@ -172,10 +179,12 @@ module Bitcoin
       @chunks[0].unpack("H*")[0]
     end
 
+    # get the address for the public key
     def get_pubkey_address
       Bitcoin.pubkey_to_address(get_pubkey)
     end
 
+    # generate standard transaction script for given +address+
     def self.to_address_script(address)
       hash160 = Bitcoin.hash160_from_address(address)
       #  DUP   HASH160  length  hash160    EQUALVERIFY  CHECKSIG
