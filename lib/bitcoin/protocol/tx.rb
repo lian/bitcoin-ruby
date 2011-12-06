@@ -114,8 +114,8 @@ module Bitcoin
 
         hash_type = 1 # 1: ALL, 2: NONE, 3: SINGLE
 
-        buf = [@ver, @in.size, pin, @out.size, pout, @lock_time].pack("ICa#{pin.bytesize}Ca#{pout.bytesize}I") +
-              [hash_type].pack("I")
+        in_size, out_size = Protocol.pack_var_int(@in.size), Protocol.pack_var_int(@out.size)
+        buf = [[@ver].pack("I"), in_size, pin, out_size, pout, [@lock_time].pack("I")].join + [hash_type].pack("I")
         Digest::SHA256.digest( Digest::SHA256.digest( buf ) )
       end
 
