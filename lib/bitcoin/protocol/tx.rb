@@ -46,11 +46,7 @@ module Bitcoin
 
         @in = (0...in_size).map{
           txin = TxIn.new
-          txin.prev_out, txin.prev_out_index = data[idx...idx+=36].unpack("a32I")
-          txin.script_sig_length, tmp = Protocol.unpack_var_int(data[idx..-1])
-          idx += data[idx..-1].bytesize-tmp.bytesize
-          txin.script_sig = data[idx...idx+=txin.script_sig_length]
-          txin.sequence = data[idx...idx+=4]
+          idx += txin.parse_data(data[idx..-1])
           txin
         }
 
@@ -59,10 +55,7 @@ module Bitcoin
 
         @out = (0...out_size).map{
           txout = TxOut.new
-          txout.value = data[idx...idx+=8].unpack("Q")[0]
-          txout.pk_script_length, tmp = Protocol.unpack_var_int(data[idx..-1])
-          idx += data[idx..-1].bytesize-tmp.bytesize
-          txout.pk_script = data[idx...idx+=txout.pk_script_length]
+          idx += txout.parse_data(data[idx..-1])
           txout
         }
 
