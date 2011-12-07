@@ -26,11 +26,11 @@ There are a few demo scripts you can run to try things out:
 
 Connect to a network node and chat a little.
 
-=== bin/blockchain
+=== bin/bitcoin_blockchain
 
 Connect to a node and download the whole blockchain into storage.
 
-=== bin/shell
+=== bin/bitcoin_shell
 
 Launches an irb session with bitcoin loaded where you can try stuff out.
 
@@ -79,7 +79,7 @@ Parse a transaction
  tx.to_hash #=> ...
  Bitcoin::Protocol::Tx.from_json( tx.to_json )
  
- Bitcoin::Script.new(tx.out[0][2]).to_string
+ Bitcoin::Script.new(tx.out[0].pk_script).to_string
  #=> "OP_DUP OP_HASH160 b2e21c1db922e3bdc529de7b38b4c401399e9afd OP_EQUALVERIFY OP_CHECKSIG"
 
 === Transaction verification / Scripts
