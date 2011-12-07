@@ -135,26 +135,24 @@ module Bitcoin
 
       # convert to ruby hash (see also #from_hash)
       def to_hash
-        h = {
+        {
           'hash' => @hash, 'ver' => @ver,
           'vin_sz' => @in.size, 'vout_sz' => @out.size,
           'lock_time' => @lock_time, 'size' => (@payload ||= to_payload).bytesize,
-          'in' => @in.map{|i|{
-            'prev_out'  => { 'hash' => hth(i.prev_out), 'n' => i.prev_out_index },
-            'scriptSig' => Bitcoin::Script.new(i.script_sig).to_string
-          }},
+          'in' => @in.map.with_index{|i,idx|
+            t = { 'prev_out'  => { 'hash' => hth(i.prev_out), 'n' => i.prev_out_index } }
+            unless (idx == 0) && i.prev_out_index == 4294967295
+              t['scriptSig'] = Bitcoin::Script.new(i.script_sig).to_string
+            else # coinbase tx
+              t['coinbase']  = i.script_sig.unpack("H*")[0]
+            end
+            t
+          },
           'out' => @out.map{|o|{
             'value' => "%.8f" % (o.value / 100000000.0),
             'scriptPubKey' => Bitcoin::Script.new(o.pk_script).to_string
           }}
         }
-        if (i=@in[0]) && i.prev_out_index == 4294967295 # coinbase tx
-          h['in'][0] = {
-            'prev_out'  => { 'hash' => hth(i.prev_out), 'n' => i.prev_out_index },
-            'coinbase' => i.script_sig.unpack("H*")[0]
-          }
-        end
-        h
       end
 
       def hth(s)

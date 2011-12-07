@@ -88,6 +88,9 @@ describe 'Bitcoin::Protocol::Tx' do
   it 'Tx.from_json' do
     tx = Bitcoin::Protocol::Tx.from_json( json_string = fixtures_file('rawtx-2f4a2717ec8c9f077a87dde6cbe0274d5238793a3f3f492b63c744837285e58a.json') )
     tx.to_json.should == json_string
+
+    tx = Bitcoin::Protocol::Tx.from_json( json_string = fixtures_file('rawtx-testnet-a220adf1902c46a39db25a24bc4178b6a88440f977a7e2cabfdd8b5c1dd35cfb.json') )
+    tx.to_json.should == json_string
   end
 
   it 'Tx.binary_from_json' do

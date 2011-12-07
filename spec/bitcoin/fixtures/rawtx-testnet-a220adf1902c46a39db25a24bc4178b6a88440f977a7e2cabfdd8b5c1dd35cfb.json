@@ -1,0 +1,27 @@
+{
+  "hash":"a220adf1902c46a39db25a24bc4178b6a88440f977a7e2cabfdd8b5c1dd35cfb",
+  "ver":1,
+  "vin_sz":1,
+  "vout_sz":2,
+  "lock_time":0,
+  "size":295,
+  "in":[
+    {
+      "prev_out":{
+        "hash":"0000000000000000000000000000000000000000000000000000000000000000",
+        "n":4294967295
+      },
+      "coinbase":"b713e387dc308380489f496835dbb7c8a764924bea50842983f6e14d710d70092d10400300000000eb02534c805d49b09676fc1947152834e21cc574a25bbb683d19e3460000000000f2052a0100000000000000f559065821baa74c"
+    }
+  ],
+  "out":[
+    {
+      "value":"49.21875000",
+      "scriptPubKey":"044868e50c8454c1dd51f824bf81a944c6aaed24fb348f7c44aaea4a2630fd8e0d1b5590c2402494d8f80bc6ffd4d4bc4f336b1a84fa2f07e4f4498d4f77ff315f OP_CHECKSIG"
+    },
+    {
+      "value":"0.78125000",
+      "scriptPubKey":"0489175c7658845fd7c33d61029ebf4042e8386443ff6e6628fdb5ac938c31072dc61cee691ae1e8355c3a87cb4813cc9bf036fdb09078d35eacf9e9ab52374ebe OP_CHECKSIG"
+    }
+  ]
+}
