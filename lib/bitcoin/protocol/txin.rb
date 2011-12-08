@@ -47,7 +47,7 @@ module Bitcoin
       end
 
       def coinbase?
-        @prev_out_index == 4294967295
+        (@prev_out_index == 4294967295) && (@prev_out == "\x00"*32)
       end
 
     end
