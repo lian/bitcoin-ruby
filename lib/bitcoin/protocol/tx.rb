@@ -141,7 +141,7 @@ module Bitcoin
           'lock_time' => @lock_time, 'size' => (@payload ||= to_payload).bytesize,
           'in' => @in.map.with_index{|i,idx|
             t = { 'prev_out'  => { 'hash' => hth(i.prev_out), 'n' => i.prev_out_index } }
-            unless (idx == 0) && i.prev_out_index == 4294967295
+            unless (idx == 0) && i.coinbase?
               t['scriptSig'] = Bitcoin::Script.new(i.script_sig).to_string
             else # coinbase tx
               t['coinbase']  = i.script_sig.unpack("H*")[0]

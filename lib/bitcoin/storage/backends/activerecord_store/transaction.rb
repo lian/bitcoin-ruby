@@ -42,7 +42,7 @@ module Bitcoin::Storage::Backends::ActiverecordStore
             "scriptPubKey" => Bitcoin::Script.new(o.script).to_string}
         }
       }
-      if (i=inputs[0]) && i.previous_output_index == 4294967295 # coinbase tx
+      if (i=inputs[0]) && i.coinbase?
         h["in"][0] = {
           "prev_out" => {
             'hash' => Bitcoin::hth(i.previous_output_hash),
