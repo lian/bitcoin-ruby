@@ -30,6 +30,13 @@ Connect to a network node and chat a little.
 
 Connect to a node and download the whole blockchain into storage.
 
+=== bin/bbe_verify_tx
+
+Fetch a transaction and all its prev_outs from blockexplorer.com
+and verify the signatures.
+
+ ./bin/bbe_verify_tx <tx_hash> [testnet]
+
 === bin/bitcoin_shell
 
 Launches an irb session with bitcoin loaded where you can try stuff out.

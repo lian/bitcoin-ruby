@@ -1,0 +1,38 @@
+#!/usr/bin/env ruby
+$:.unshift("./lib")
+
+require 'bitcoin'
+require 'open-uri'
+
+$tx_hash = ARGV[0]
+$testnet = ARGV[1]
+
+def get_tx(hash)
+  json = open("http://blockexplorer.com/#{$testnet ? 'testnet/' : ''}rawtx/#{hash}").read
+  Bitcoin::Protocol::Tx.from_json(json)
+rescue Exception
+  nil
+end
+
+tx1 = get_tx($tx_hash)
+
+unless tx1
+  puts "Tx #{$tx_hash} not found."
+  exit
+end
+
+tx1.in.each_with_index do |txin, idx|
+  prev_tx = get_tx(txin.prev_out.reverse.unpack("H*")[0])
+  unless prev_tx
+    puts "Missing prev_out tx for input #{idx} of tx #{$tx_hash}!"
+    exit
+  end
+
+  result = tx1.verify_input_signature(idx, prev_tx)
+  unless result
+    puts "Input #{idx} of tx #{$tx_hash} is invalid!"
+    exit
+  end
+end
+
+puts "Tx #{$tx_hash} is valid."
