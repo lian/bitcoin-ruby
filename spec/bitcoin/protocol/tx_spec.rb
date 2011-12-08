@@ -91,6 +91,10 @@ describe 'Bitcoin::Protocol::Tx' do
 
     tx = Bitcoin::Protocol::Tx.from_json( json_string = fixtures_file('rawtx-testnet-a220adf1902c46a39db25a24bc4178b6a88440f977a7e2cabfdd8b5c1dd35cfb.json') )
     tx.to_json.should == json_string
+
+    tx = Bitcoin::Protocol::Tx.from_json( json_string = fixtures_file('rawtx-testnet-e232e0055dbdca88bbaa79458683195a0b7c17c5b6c524a8d146721d4d4d652f.json') )
+    tx.to_payload.should == fixtures_file('rawtx-testnet-e232e0055dbdca88bbaa79458683195a0b7c17c5b6c524a8d146721d4d4d652f.bin')
+    tx.to_json.should    == json_string
   end
 
   it 'Tx.binary_from_json' do

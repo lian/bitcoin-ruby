@@ -24,6 +24,9 @@ describe 'Bitcoin::Script' do
     Bitcoin::Script.binary_from_string(str).unpack("H*")[0].should == @script[1].unpack("H*")[0]
     Bitcoin::Script.new(Bitcoin::Script.binary_from_string(str)).to_string.should == str
     # TODO make tests for OP_PUSHDATA1, OP_PUSHDATA2, OP_PUSHDATA4 cases
+
+    string = "2 OP_TOALTSTACK 0 OP_TOALTSTACK OP_TUCK OP_CHECKSIG OP_SWAP OP_HASH160 3cd1def404e12a85ead2b4d3f5f9f817fb0d46ef OP_EQUAL OP_BOOLAND OP_FROMALTSTACK OP_ADD"
+    Bitcoin::Script.new(Bitcoin::Script.binary_from_string(string)).to_string.should == string
   end
 
   it '#get_pubkey' do

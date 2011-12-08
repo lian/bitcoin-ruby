@@ -2,22 +2,37 @@ require 'bitcoin'
 
 module Bitcoin
   class Script
+    OP_TRUE        = 81
+    OP_1           = 81
+    OP_FALSE       = 0
+    OP_0           = 0
+    OP_2_16        = (82..96).to_a
     OP_PUSHDATA1   = 76
     OP_PUSHDATA2   = 77
     OP_PUSHDATA4   = 78
     OP_DUP         = 118
     OP_HASH160     = 169
+    OP_EQUAL       = 135
     OP_EQUALVERIFY = 136
     OP_CHECKSIG    = 172
     OP_CHECKSIGVERIFY      = 173
     OP_CHECKMULTISIG       = 174
     OP_CHECKMULTISIGVERIFY = 175
+    OP_TOALTSTACK   = 107
+    OP_FROMALTSTACK = 108
+    OP_TUCK         = 125
+    OP_SWAP         = 124
+    OP_BOOLAND      = 154
+    OP_ADD          = 147
+    OP_SUB          = 148
+    OP_GREATERTHANOREQUAL = 162
 
     attr_reader :raw, :chunks
 
     # create a new script. +bytes+ is typically input_script + output_script
     def initialize(bytes, offset=0)
-      @stack, @raw = [], bytes
+      @raw = bytes
+      @stack, @stack_alt = [], []
       @chunks = parse(bytes, offset)
     end
 
@@ -59,10 +74,22 @@ module Bitcoin
           when OP_DUP;         "OP_DUP"
           when OP_HASH160;     "OP_HASH160"
           when OP_CHECKSIG;    "OP_CHECKSIG"
+          when OP_EQUAL;       "OP_EQUAL"
           when OP_EQUALVERIFY; "OP_EQUALVERIFY"
           when OP_CHECKSIGVERIFY;      "OP_CHECKSIGVERIFY"
           when OP_CHECKMULTISIG;       "OP_CHECKMULTISIG"
           when OP_CHECKMULTISIGVERIFY; "OP_CHECKMULTISIGVERIFY"
+          when OP_TOALTSTACK;          "OP_TOALTSTACK"
+          when OP_FROMALTSTACK;        "OP_FROMALTSTACK"
+          when OP_TUCK;                "OP_TUCK"
+          when OP_SWAP;                "OP_SWAP"
+          when OP_BOOLAND;             "OP_BOOLAND"
+          when OP_ADD;                 "OP_ADD"
+          when OP_SUB;                 "OP_SUB"
+          when OP_GREATERTHANOREQUAL;  "OP_GREATERTHANOREQUAL"
+          when OP_0;                   "0"
+          when OP_1;                   "1"
+          when *OP_2_16;               (OP_2_16.index(i)+2).to_s
           else "(opcode #{i})"
           end
         when String
@@ -78,10 +105,24 @@ module Bitcoin
           when "OP_DUP";         OP_DUP
           when "OP_HASH160";     OP_HASH160
           when "OP_CHECKSIG";    OP_CHECKSIG
+          when "OP_EQUAL";       OP_EQUAL
           when "OP_EQUALVERIFY"; OP_EQUALVERIFY
           when "OP_CHECKSIGVERIFY";      OP_CHECKSIGVERIFY
           when "OP_CHECKMULTISIG";       OP_CHECKMULTISIG
           when "OP_CHECKMULTISIGVERIFY"; OP_CHECKMULTISIGVERIFY
+          when "OP_TOALTSTACK";          OP_TOALTSTACK
+          when "OP_FROMALTSTACK";        OP_FROMALTSTACK
+          when "OP_TUCK";                OP_TUCK
+          when "OP_SWAP";                OP_SWAP
+          when "OP_BOOLAND";             OP_BOOLAND
+          when "OP_ADD";                 OP_ADD
+          when "OP_SUB";                 OP_SUB
+          when "OP_GREATERTHANOREQUAL";  OP_GREATERTHANOREQUAL
+          when "0";                      OP_0
+          when "OP_FALSE";               OP_0
+          when "1";                      OP_1
+          when "OP_TRUE";                OP_1
+          when /^([2-9]$|1[0-7])$/;      OP_2_16[$1.to_i-2]
           when /\(opcode (\d+)\)/; $1.to_i
           else 
             data = [i].pack("H*")
@@ -131,6 +172,37 @@ module Bitcoin
             raise "opcode OP_CHECKMULTISIG not implemented yet."
           when OP_CHECKMULTISIGVERIFY
             raise "opcode OP_CHECKMULTISIGVERIFY not implemented yet."
+          when OP_TOALTSTACK
+            # Puts the input onto the top of the alt stack. Removes it from the main stack.
+            @stack_alt << @stack.pop(1)
+          when OP_FROMALTSTACK
+            # Puts the input onto the top of the main stack. Removes it from the alt stack.
+            @stack << @stack_alt.pop(1)
+          when OP_TUCK
+            # The item at the top of the stack is copied and inserted before the second-to-top item.
+            @stack[-2..-1] = [ @stack[-1], *@stack[-2..-1] ]
+          when OP_SWAP
+            @stack[-2..-1] = @stack[-2..-1].reverse
+          when OP_BOOLAND
+            # If both a and b are not 0, the output is 1. Otherwise 0.
+            a, b = @stack.pop(2)
+            @stack << ![a,b].any?{|n| n == 0 } ? 1 : 0
+          when OP_ADD
+            a, b = @stack.pop(2).reverse
+            @stack << a + b
+          when OP_SUB
+            a, b = @stack.pop(2).reverse
+            @stack << a - b
+          when OP_GREATERTHANOREQUAL
+            a, b = @stack.pop(2).reverse
+            @stack << (a >= b) ? 1 : 0
+          when OP_0
+            # An empty array of bytes is pushed onto the stack.
+            @stack << "" # []
+          when OP_1
+            @stack << 1
+          when OP_2_16
+            @stack << OP_2_16.index(chunk)+2
           else raise "opcode #{i} unkown or not implemented"
           end
         when String
@@ -141,6 +213,10 @@ module Bitcoin
       debug << @stack.map{|i| i.unpack("H*") rescue i}
       debug << "RESULT"
       @stack.pop == true
+    end
+
+    def is_standard? # TODO: add
+      # https://github.com/bitcoin/bitcoin/blob/master/src/script.cpp#L967
     end
 
     # do a CHECKSIG operation on the current stack,
