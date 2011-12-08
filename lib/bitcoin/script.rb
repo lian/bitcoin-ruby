@@ -98,7 +98,12 @@ module Bitcoin
       }.join(" ")
     end
 
-    # binary script of a string representation
+    # script object of a string representation
+    def self.from_string(script_string)
+      new(binary_from_string(script_string))
+    end
+
+    # raw script binary of a string representation
     def self.binary_from_string(script_string)
       script_string.split(" ").map{|i|
         case i
