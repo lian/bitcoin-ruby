@@ -16,6 +16,11 @@ module Bitcoin::Storage::Backends::ActiverecordStore
         AND index_in_parent = '#{previous_output_index}'").first
     end
 
+    def coinbase?
+      previous_output_index == 4294967295 &&
+        previous_output_hash == "\x00"*32
+    end
+
     # def verify
     #   return nil  if transaction.coinbase
     #   unless previous_output.transaction.coinbase
@@ -49,7 +54,7 @@ module Bitcoin::Storage::Backends::ActiverecordStore
         RETURNING input_id")
       res[0]
     end
-    
+
   end
 
 end

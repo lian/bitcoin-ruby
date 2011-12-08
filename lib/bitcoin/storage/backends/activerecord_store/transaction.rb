@@ -63,7 +63,7 @@ module Bitcoin::Storage::Backends::ActiverecordStore
         :transaction_hash => tx.hash,
         :version => tx.ver,
         :locktime => tx.lock_time,
-        :coinbase => (tx.in.size == 1 && tx.in[0][0] == ("\x00"*32)),
+        :coinbase => (tx.in.size == 1 && tx.in[0].coinbase?),
         :when_found => Time.now,
         :transaction_size => tx.payload.size,
       })
