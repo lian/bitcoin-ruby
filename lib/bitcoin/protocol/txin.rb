@@ -30,6 +30,7 @@ module Bitcoin
         end
       end
 
+      # parse raw binary data for transaction input
       def parse_data(data)
         idx = 0
         @prev_out, @prev_out_index = data[idx...idx+=36].unpack("a32I")
@@ -38,6 +39,15 @@ module Bitcoin
         @script_sig = data[idx...idx+=@script_sig_length]
         @sequence = data[idx...idx+=4]
         idx
+      end
+
+      # previous output in hex
+      def previous_output
+        @prev_out.reverse.unpack("H*")[0]
+      end
+
+      def coinbase?
+        @prev_out_index == 4294967295
       end
 
     end

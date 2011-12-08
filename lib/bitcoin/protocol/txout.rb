@@ -25,6 +25,7 @@ module Bitcoin
         end
       end
 
+      # parse raw binary data for transaction output
       def parse_data(data)
         idx = 0
         @value = data[idx...idx+=8].unpack("Q")[0]

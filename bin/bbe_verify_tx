@@ -1,38 +1,49 @@
 #!/usr/bin/env ruby
-$:.unshift("./lib")
+$:.unshift(File.dirname(__FILE__) + "/../lib")
 
 require 'bitcoin'
 require 'open-uri'
 
-$tx_hash = ARGV[0]
+tx_hash = ARGV[0]
 $testnet = ARGV[1]
 
 def get_tx(hash)
-  json = open("http://blockexplorer.com/#{$testnet ? 'testnet/' : ''}rawtx/#{hash}").read
+  url = "http://blockexplorer.com/%srawtx/%s" % [$testnet ? 'testnet/' : '',  hash]
+  #puts "fetching %s .." % [url]
+  json = open(url).read
   Bitcoin::Protocol::Tx.from_json(json)
 rescue Exception
   nil
 end
 
-tx1 = get_tx($tx_hash)
+tx1 = get_tx(tx_hash)
 
 unless tx1
-  puts "Tx #{$tx_hash} not found."
+  puts "Tx #{tx_hash} not found."
+  exit
+end
+
+if tx1.in.all?{|txin| txin.coinbase? }
+  puts "Tx #{tx_hash} is a coinbase transaction. Check the block instead."
   exit
 end
 
 tx1.in.each_with_index do |txin, idx|
-  prev_tx = get_tx(txin.prev_out.reverse.unpack("H*")[0])
+  if txin.coinbase?
+    puts "skipping coinbase transaction input.."; next
+  end
+
+  prev_tx = get_tx(txin.previous_output)
   unless prev_tx
-    puts "Missing prev_out tx for input #{idx} of tx #{$tx_hash}!"
+    puts "Missing prev_out tx for input #{idx} of tx #{tx_hash}!"
     exit
   end
 
   result = tx1.verify_input_signature(idx, prev_tx)
   unless result
-    puts "Input #{idx} of tx #{$tx_hash} is invalid!"
+    puts "Input #{idx} of tx #{tx_hash} is invalid!"
     exit
   end
 end
 
-puts "Tx #{$tx_hash} is valid."
+puts "Tx #{tx_hash} is valid."
