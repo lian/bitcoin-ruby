@@ -65,14 +65,14 @@ require_relative 'spec_helper'
     end
     
     it "should get block by hash" do
-      @store.get_block_by_hash(
+      @store.get_block(
           "00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008").to_hash
         .should == Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_0.bin')).to_hash
       
-      @store.get_block_by_hash(
+      @store.get_block(
           "000000033cc282bc1fa9dcae7a533263fd7fe66490f550d80076433340831604").to_hash
         .should == Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_1.bin')).to_hash
-      @store.get_block_by_hash(
+      @store.get_block(
           "000000037b21cac5d30fc6fda2581cf7b2612908aed2abbcc429c45b0557a15f").to_hash
         .should == Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_2.bin')).to_hash
     end

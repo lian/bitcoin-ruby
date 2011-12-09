@@ -23,11 +23,11 @@ module Bitcoin::Storage::Backends
     def store_block(blk)
       return nil  unless blk
       
-      if block = get_block_by_hash(blk.hash)
+      if block = get_block(blk.hash)
         log.info { "ALREADY STORED" }
       end
       
-      prev_block = get_block_by_hash(Bitcoin::hth(blk.prev_block.reverse))
+      prev_block = get_block(Bitcoin::hth(blk.prev_block.reverse))
       
       unless prev_block
         unless blk.hash == Bitcoin.network[:genesis_hash]
@@ -48,12 +48,12 @@ module Bitcoin::Storage::Backends
       @blk[depth]
     end
     
-    def get_block_by_hash(blk_hash)
+    def get_block(blk_hash)
       @blk.find {|blk| blk.hash == blk_hash}
     end
 
     def get_block_depth(blk_hash)
-      @blk.index(get_block_by_hash(blk_hash)) || -1
+      @blk.index(get_block(blk_hash)) || -1
     end
     
     def store_tx(tx)

@@ -12,17 +12,14 @@ module Bitcoin::Storage
       def initialize(config = {})
         @config = config
         @log    = config[:log] || Bitcoin::Storage.log
-        inject_genesis
       end
 
       # get the storage logger
       def log; @log; end
 
-      # inject the genesis block into storage
-      def inject_genesis
-        return  if get_block_by_hash(Bitcoin.network[:genesis_hash])
-        genesis = Bitcoin.network[:genesis_block]
-        store_block(genesis)
+      # reset the store; delete all data
+      def reset
+        raise "Not implemented"
       end
 
       # get the hash of the leading block
@@ -54,22 +51,32 @@ module Bitcoin::Storage
         locator
       end
 
-      # store given block
+      # store given +block+
       def store_block(blk)
         raise "Not implemented"
       end
 
-      # get block with given hash
+      # get block with given +blk_hash+
       def get_block(blk_hash)
         raise "Not implemented"
       end
 
-      # store given tx
+      # get block with given +depth+ from main chain
+      def get_block_by_depth(depth)
+        raise "Not implemented"
+      end
+
+      # get depth for block with given +blk_hash+
+      def get_block_depth(blk_hash)
+        raise "not implemented"
+      end
+
+      # store given +tx+
       def store_tx(tx)
         raise "Not implemented"
       end
 
-      # get tx with given hash
+      # get tx with given +tx_hash+
       def get_tx(tx_hash)
         raise "Not implemented"
       end
