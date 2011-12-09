@@ -3,7 +3,8 @@ require_relative 'spec_helper'
 
 [
   { 'name' => 'Dummy' },
-  #{ 'name' => 'Activerecord', 'adapter' => 'postgresql', 'database' => 'bitcoin_test'},
+#  { 'name' => 'SequelStore', :db => 'postgres://localhost/bitcoin_test' },
+#  { 'name' => 'Activerecord', 'adapter' => 'postgresql', 'database' => 'bitcoin_test' },
 ].each do |configuration|
 
   describe "Bitcoin::Storage::Backends::#{configuration['name']}" do
@@ -87,7 +88,7 @@ require_relative 'spec_helper'
     end
 
     it "should store tx" do
-      @store.store_tx(@tx).should == true
+      @store.store_tx(@tx).should != false
     end
 
     it "should get tx" do
