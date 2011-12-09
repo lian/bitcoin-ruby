@@ -9,3 +9,4 @@ db/database.yml
 tmp/
 log/
 rdoc/
+coverage/

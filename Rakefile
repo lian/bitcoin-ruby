@@ -3,8 +3,9 @@ begin
 rescue LoadError
 end
 
-PROJECT_SPECS = FileList['spec/bitcoin/*_spec.rb'] +
-                FileList['spec/bitcoin/protocol/*_spec.rb']
+
+PROJECT_SPECS = FileList['spec/bitcoin/protocol/*_spec.rb'] +
+                FileList['spec/bitcoin/*_spec.rb']
 
 RUBY = 'ruby' unless defined?(RUBY)
 
@@ -84,4 +85,16 @@ desc 'Generate RDoc documentation'
 task :rdoc do
   `rm -rf rdoc`
   system("rdoc -o rdoc -m README lib/ README COPYING")
+end
+
+
+desc 'Generate test coverage report'
+task :coverage do
+  begin
+    require 'simplecov'
+  rescue LoadError
+    puts "Simplecov not found. Run `gem install simplecov` to install it."
+    exit
+  end
+  system "bacon #{PROJECT_SPECS.join(' ')}"
 end
