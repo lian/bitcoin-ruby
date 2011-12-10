@@ -9,6 +9,11 @@ module Bitcoin
         @value, @pk_script_length, @pk_script = *args
       end
 
+      # compare to another txout
+      def ==(other)
+        @value == other.value && @pk_script == other.pk_script
+      end
+
       def [] idx
         case idx
         when 0 then @value

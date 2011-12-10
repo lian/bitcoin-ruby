@@ -4,6 +4,11 @@ module Bitcoin
     class Block
       attr_reader :hash, :payload, :tx, :ver, :prev_block, :mrkl_root, :time, :bits, :nonce
 
+      # compare to another block
+      def ==(other)
+        @hash == other.hash
+      end
+
       # create block from raw binary +data+
       def initialize(data)
         @tx = []

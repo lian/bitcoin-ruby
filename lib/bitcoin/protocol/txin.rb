@@ -10,6 +10,14 @@ module Bitcoin
         @script_sig, @sequence = *args
       end
 
+      # compare to another txout
+      def ==(other)
+        @prev_out == other.prev_out &&
+          @prev_out_index == other.prev_out_index &&
+          @script_sig == other.script_sig &&
+          @sequence == other.sequence
+      end
+
       def [] idx
         case idx
         when 0 then @prev_out
