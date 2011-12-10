@@ -1,5 +1,5 @@
 module Bitcoin::Storage::Backends
-  class Dummy < Base
+  class DummyStore < StoreBase
     
     attr_accessor :blk, :tx
     

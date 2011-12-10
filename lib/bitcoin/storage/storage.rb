@@ -3,12 +3,20 @@ module Bitcoin::Storage
   @log = Bitcoin::Logger.create("storage")
   def self.log; @log; end
 
-  module Backends
-    autoload :Dummy,        "bitcoin/storage/backends/dummy"
-    autoload :SequelStore,  "bitcoin/storage/backends/sequel"
-    autoload :Activerecord, "bitcoin/storage/backends/activerecord"
+  BACKENDS = [:dummy, :sequel, :activerecord]
+  BACKENDS.each do |name|
+    module_eval <<-EOS
+      def self.#{name} config
+        Backends.const_get("#{name.capitalize}Store").new(config)
+      end
+    EOS
+  end
 
-    class Base
+  module Backends
+
+    BACKENDS.each {|b| autoload("#{b.to_s.capitalize}Store", "bitcoin/storage/#{b}") }
+
+    class StoreBase
 
       def initialize(config = {})
         @config = config

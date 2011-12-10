@@ -1,6 +1,6 @@
 require 'pry'
 require 'sequel'
-require File.join(File.dirname(__FILE__), 'sequel_migrations.rb')
+require File.join(File.dirname(__FILE__), 'sequel_store/sequel_migrations.rb')
 
 module Bitcoin::Storage::Backends
 
@@ -52,7 +52,7 @@ module Bitcoin::Storage::Backends
     end
   end
 
-  class SequelStore < Base
+  class SequelStore < StoreBase
 
     attr_accessor :db
 

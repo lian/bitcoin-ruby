@@ -4,7 +4,7 @@ $:.unshift( File.dirname(__FILE__) )
 
 module Bitcoin::Storage::Backends
 
-  class Activerecord < Base
+  class ActiverecordStore < StoreBase
     
     require_relative 'activerecord_store/base'
     require_relative 'activerecord_store/block'

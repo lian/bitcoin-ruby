@@ -2,19 +2,16 @@ require_relative 'spec_helper'
 
 
 [
-  { 'name' => 'Dummy' },
-#  { 'name' => 'SequelStore', :db => 'postgres://localhost/bitcoin_test' },
-#  { 'name' => 'Activerecord', 'adapter' => 'postgresql', 'database' => 'bitcoin_test' },
+#  { :name => :dummy },
+  { :name => :sequel, :db => 'postgres://localhost/bitcoin_test' },
+#  { 'name' => :activerecord, 'adapter' => 'postgresql', 'database' => 'bitcoin_test' },
 ].each do |configuration|
-
-  describe "Bitcoin::Storage::Backends::#{configuration['name']}" do
+  describe "Bitcoin::Storage::Backends::#{configuration[:name]}" do
 
     before do
       Bitcoin::network = :testnet
       Bitcoin::Storage.log.level = 3
-      
-      klass = Bitcoin::Storage::Backends.const_get(configuration['name'])
-      @store = klass.new(configuration)
+      @store = Bitcoin::Storage.send(configuration[:name], configuration)
       @store.reset
       
       @store.store_block(Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_0.bin')))

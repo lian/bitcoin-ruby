@@ -125,7 +125,8 @@ your own; see connection.rb or network/node.rb for examples.
 There are multiple database backends available, currently an in-memory dummy and 
 and activerecord/postgres backend.
 
- store = Bitcoin::Storage::Backends::Dummy.new
+ store = Bitcoin::Storage.dummy  # or:
+ store = Bitcoin::Storage.sequel(:db => "postgres:///bitcoin")
  store.store_block(Bitcoin.network[:genesis_block])
  store.get_block(Bitcoin.network[:genesis_hash])
  store.get_head #=> Bitcoin.network[:genesis_hash]
