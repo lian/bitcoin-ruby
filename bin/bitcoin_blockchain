@@ -9,6 +9,7 @@ options = {
   :listen => "0.0.0.0:18332",
   :connect => "",
   :storage => "dummy",
+  :dns => true,
   :max_connections => 32,
   :max_addr => 1024,
   :max_queue => 512,
@@ -39,6 +40,13 @@ optparse = OptionParser.new do|opts|
     options[:storage] = storage
   end
 
+  opts.on("-d", "--dns", "Use DNS seeds (default)") do
+    options[:dns] = true
+  end
+
+  opts.on("--nd", "--no-dns", "Don't use DNS seeds") do
+    options[:dns] = false
+  end
 
   opts.on("--mc", "--max-connections [COUNT]",
           "Max connections (default: #{options[:max_connections]})") do |count|

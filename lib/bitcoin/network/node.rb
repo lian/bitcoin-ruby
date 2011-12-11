@@ -74,6 +74,8 @@ module Bitcoin::Network
             end
           end
         end
+
+        connect_dns  if @config[:dns]
       end
       log.info { "Bye" }
     end
@@ -83,6 +85,34 @@ module Bitcoin::Network
       EM.connect(host, port.to_i, Handler, self, host, port.to_i)
     rescue
       p $!; puts $@; exit
+    end
+
+    def connect_dns
+      begin
+        require 'em/dns_resolver'
+      rescue LoadError
+        log.warn { "DNS resolver not installed. Either install it or disable DNS seeds with --nd." }
+        log.info { "To install DNS resolver run: `gem install em-dns`" }
+        exit  if @config[:dns]
+      end
+
+      seed = Bitcoin.network[:dns_seeds].sample
+      unless seed
+        log.warn { "No DNS seed nodes available" }
+        return
+      end
+
+      log.debug { "Connecting peers from DNS seed: #{seed}" }
+      dns = EM::DnsResolver.resolve(seed)
+      dns.callback do |addrs|
+        log.debug { "DNS returned addrs: #{addrs.inspect}" }
+        addrs.sample(@config[:max_connections] / 2).each do |addr|
+          connect_peer(addr, Bitcoin.network[:default_port])
+        end
+      end
+      dns.errback do |*a|
+        log.error { "Cannot resolve DNS seed #{host}: #{a.inspect}" }
+      end
     end
 
     def work_connect
@@ -97,6 +127,8 @@ module Bitcoin::Network
         addrs.sample(desired).each do |addr|
           connect_peer(addr.ip, addr.port)
         end
+      elsif @config[:dns]
+        connect_dns
       end
     rescue
       log.error { "Error during connect" }
