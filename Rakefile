@@ -19,7 +19,7 @@ task :bacon do
   require 'matrix'
 
   specs = PROJECT_SPECS
-  specs.delete_if{|i| File.basename(i) == 'storage_spec.rb' } # skip for now
+  #specs.delete_if{|i| File.basename(i) == 'storage_spec.rb' } # skip for now
 
   some_failed = false
   specs_size = specs.size

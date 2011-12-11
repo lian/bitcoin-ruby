@@ -1,6 +1,5 @@
-require 'pry'
 require 'sequel'
-require File.join(File.dirname(__FILE__), 'sequel_store/sequel_migrations.rb')
+require 'bitcoin/storage/sequel_store/sequel_migrations'
 
 module Bitcoin::Storage::Backends
 
@@ -32,7 +31,7 @@ module Bitcoin::Storage::Backends
         @store.get_tx(tx[:hash].unpack("H*")[0])
       end
       def get_prev_out
-        prev_tx = @db[:tx][:hash => @prev_out.reverse]
+        prev_tx = @db[:tx][:hash => @prev_out.reverse.to_sequel_blob]
         @store.get_tx(prev_tx[:hash].unpack("H*")[0]).out[@prev_out_index]
       end
     end
@@ -92,7 +91,7 @@ module Bitcoin::Storage::Backends
         return nil
       end
       if prev_block
-        depth = get_block_depth(prev_block.hash) + 1 rescue binding.pry
+        depth = get_block_depth(prev_block.hash) + 1
       else
         depth = 0
       end
@@ -152,7 +151,7 @@ module Bitcoin::Storage::Backends
     end
 
     def get_block_by_depth(depth)
-      get_block(@db[:blk][:depth => depth][:hash].unpack("H*")[0]) rescue nil
+      get_block( hth(@db[:blk][:depth => depth][:hash]) ) rescue nil
     end
 
     def get_block_depth(blk_hash)
