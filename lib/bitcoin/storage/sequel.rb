@@ -44,7 +44,7 @@ module Bitcoin::Storage::Backends
       def get_next_in
         tx = @db[:tx][:id => @tx_id]
         tx_hash = tx[:hash].reverse.to_sequel_blob
-        next_in = @db[:txin][:prev_out => tx_hash]
+        next_in = @db[:txin][:prev_out => tx_hash, :prev_out_index => @tx_idx]
         return nil  unless next_in
         @store.get_txin(next_in)
       end
@@ -258,14 +258,13 @@ module Bitcoin::Storage::Backends
         @db = db; @store = store
         @id = output[:id]
         @tx_id = output[:tx_id]
+        @tx_idx = output[:tx_idx]
       end
       txout
     end
 
-    def get_txouts_for_hash160(hash160)
-      string = "OP_DUP OP_HASH160 #{hash160} OP_EQUALVERIFY OP_CHECKSIG"
-      script = Bitcoin::Script.from_string(string)
-      txouts = @db[:txout].filter(:pk_script => script.raw.to_sequel_blob).order(:id)
+    def get_txouts_for_pk_script(script)
+      txouts = @db[:txout].filter(:pk_script => script.to_sequel_blob).order(:id)
       txouts.map{|txout| get_txout(txout)}
     end
 

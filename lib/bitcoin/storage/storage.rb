@@ -90,6 +90,28 @@ module Bitcoin::Storage
         raise "Not implemented"
       end
 
+      # collect all txouts containing the
+      # given +script+
+      def get_txouts_for_pk_script(script)
+        raise "Not implemented"
+      end
+
+      # collect all txouts containing a
+      # standard tx to given +address+
+      def get_txouts_for_address(address)
+        script = Bitcoin::Script.to_address_script(address)
+        get_txouts_for_pk_script(script)
+      end
+
+      # get balance for given +address+
+      def get_balance(address)
+        txouts = get_txouts_for_address(address)
+        unspent = txouts.select {|o| o.get_next_in.nil?}
+        unspent.map(&:value).inject {|a,b| a+=b; a} || 0
+      rescue
+        nil
+      end
+
     end
   end
 end

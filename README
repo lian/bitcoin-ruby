@@ -51,6 +51,12 @@ all its prev_outs from blockexplorer.com and verifies the signatures.
 
  ./bin/bbe_verify_tx <tx_hash> [testnet]
 
+=== bin/bitcoin_balance
+
+Collect transactions and display balance for an address.
+
+ ./bin/bitcoin_balance -s sequel::postgres:///bitcoin -l moz14kFmgHPszRvS6rvhfEVYmx4RbcNMfH
+
 === bin/bitcoin_shell
 
 Launches an irb session with bitcoin loaded where you can try stuff out.
