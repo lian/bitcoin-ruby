@@ -45,24 +45,32 @@ module Bitcoin::Network
         end
 
         EM.next_tick do
-          begin
-            host, port = *@config[:listen]
-            EM.start_server host, port.to_i, Handler, self, host, port.to_i
-            log.info { "Listening on #{host}:#{port}" }
-          rescue
-            p $!
-            exit 1
+          if @config[:command]
+            Thread.start do
+              begin
+                host, port = *@config[:command]
+                EM.start_server host, port, DebugServer, self
+                log.info { "Command socket listening on #{host}:#{port}" }
+              rescue
+                p $!; puts $@; exit
+              end
+            end
           end
 
-          @config[:connect].each do |connect|
+          if @config[:listen]
             begin
-              log.info { "Attempting to connect to #{connect.join(':')}" }
-              host, port = *connect
-              EM.connect(host, port.to_i, Handler, self, host, port.to_i)
-            rescue Exception
-              log.error { $!.inspect }
-              puts $@
-              exit 1
+              return unless @config[:listen]
+              host, port = *@config[:listen]
+              EM.start_server host, port.to_i, Handler, self, host, port.to_i
+              log.info { "Server socket listening on #{host}:#{port}" }
+            rescue
+              p $!; puts $@; exit
+            end
+          end
+
+          if @config[:connect].any?
+            @config[:connect].each do |connect|
+              connect_peer(*connect)
             end
           end
         end
@@ -70,15 +78,28 @@ module Bitcoin::Network
       log.info { "Bye" }
     end
 
+    def connect_peer host, port
+      log.info { "Attempting to connect to #{host}:#{port}" }
+      EM.connect(host, port.to_i, Handler, self, host, port.to_i)
+    rescue
+      p $!; puts $@; exit
+    end
+
     def work_connect
+      log.debug { "Connect worker running" }
       desired = @config[:max_connections] - @connections.size
       return  if desired <= 0
+      desired = 32  if desired > 32 # connect to max 32 peers at once
       addrs = @addrs.reject do |addr|
         @connections.map{|c| [c.host, c.port]}.include?([addr.ip, addr.port])
       end
-      addrs.sample(desired).each do |addr|
-        EM.connect(addr.ip, addr.port, Handler, self, addr.ip, addr.port)
+      if addrs.any?
+        addrs.sample(desired).each do |addr|
+          connect_peer(addr.ip, addr.port)
+        end
       end
+    rescue
+      log.error { "Error during connect" }
     end
 
     def work_getblocks
@@ -105,16 +126,16 @@ module Bitcoin::Network
     def work_queue
       @log.debug { "queue worker running" }
       return  if @queue_thread && @queue_thread.alive?
-      @queue_thread = Thread.start do
-        begin
-          EM.next_tick do
+      EM.next_tick do
+        @queue_thread = Thread.start do
+          begin
             while obj = @queue.shift
               @log.debug { "storing #{obj[0]} #{obj[1].hash} (#{obj[1].payload.bytesize})" }
               @store.send("store_#{obj[0]}", obj[1])
             end
+          rescue
+            log.error { "Error in queue worker: #{$!}" }
           end
-        rescue
-          log.error { "Error in queue worker: #{$!}" }
         end
       end
     end
