@@ -35,7 +35,11 @@ module Bitcoin::Network
     end
 
     def run
-      EM.run do
+      EM.add_shutdown_hook{
+        log.info { "Bye" }
+      }
+
+      EM.run{
         {
           :work_queue => 5,
           :work_inv_queue => 5,
@@ -44,45 +48,27 @@ module Bitcoin::Network
           :work_connect => 15,
           :work_cleanup_addrs => 15,
         }.each do |timer, interval|
-          @timers[timer] = EM.add_periodic_timer(interval) do
-            send(timer)
-          end
+          @timers[timer] = EM.add_periodic_timer(interval, method(:timer))
         end
 
-        EM.next_tick do
-          if @config[:command]
-            Thread.start do
-              begin
-                host, port = *@config[:command]
-                EM.start_server host, port, CommandHandler, self
-                log.info { "Command socket listening on #{host}:#{port}" }
-              rescue
-                p $!; puts $@; exit
-              end
-            end
-          end
+        if @config[:command]
+          host, port = @config[:command]
+          EM.start_server(host, port, CommandHandler, self)
+          log.info { "Command socket listening on #{host}:#{port}" }
+        end
 
-          if @config[:listen]
-            begin
-              return unless @config[:listen]
-              host, port = *@config[:listen]
-              EM.start_server host, port.to_i, ConnectionHandler, self, host, port.to_i
-              log.info { "Server socket listening on #{host}:#{port}" }
-            rescue
-              p $!; puts $@; exit
-            end
-          end
+        if @config[:listen]
+          host, port = @config[:listen]
+          EM.start_server(host, port.to_i, ConnectionHandler, self, host, port.to_i)
+          log.info { "Server socket listening on #{host}:#{port}" }
+        end
 
-          if @config[:connect].any?
-            @config[:connect].each do |connect|
-              connect_peer(*connect)
-            end
-          end
+        if @config[:connect].any?
+          @config[:connect].each{|host| connect_peer(*host) }
         end
 
         connect_dns  if @config[:dns]
-      end
-      log.info { "Bye" }
+      }
     end
 
     def connect_peer host, port
@@ -129,9 +115,7 @@ module Bitcoin::Network
         @connections.map{|c| [c.host, c.port]}.include?([addr.ip, addr.port])
       end
       if addrs.any?
-        addrs.sample(desired).each do |addr|
-          connect_peer(addr.ip, addr.port)
-        end
+        addrs.sample(desired).each{|addr| connect_peer(addr.ip, addr.port) }
       elsif @config[:dns]
         connect_dns
       end
@@ -195,9 +179,7 @@ module Bitcoin::Network
     def work_cleanup_addrs
       return  if @addrs.size < @config[:max_addr]
       log.info { "Cleaning up addrs" }
-      @addrs.each do |addr|
-        @addrs.delete(addr)  unless addr.alive?
-      end
+      @addrs.delete_if{|addr| !attr.alive? }
     end
 
   end

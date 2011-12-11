@@ -7,8 +7,7 @@ module Bitcoin
       attr_accessor :level
 
       def initialize(name)
-        @name = name
-        @level = :info
+        @name, @level = name, :info
       end
 
       def level= level

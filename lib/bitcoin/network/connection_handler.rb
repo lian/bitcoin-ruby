@@ -14,9 +14,10 @@ module Bitcoin::Network
 
     def log
       log = @node.log
-      [:debug, :info, :warn, :error, :fatal].each do |level|
-        log.instance_eval "def #{level}; super {'#{@host}:#{@port} ' + yield}; end"
-      end
+      # why redefine methods on every call and on the instance of node.log?!
+      #[:debug, :info, :warn, :error, :fatal].each do |level|
+      #  log.instance_eval "def #{level}; super {'#{@host}:#{@port} ' + yield}; end"
+      #end
       log
     end
 
@@ -98,7 +99,7 @@ module Bitcoin::Network
       @version = version
       log.info { "<< verack" }
       send_data( Protocol.verack_pkt )
-      on_handshake_complete
+      #on_handshake_complete
     end
 
     def on_verack
@@ -109,7 +110,7 @@ module Bitcoin::Network
     def on_handshake_complete
       log.debug { "handshake complete" }
       @state = :connected
-#      send_getaddr
+      #send_getaddr
     end
 
 
