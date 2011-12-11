@@ -1,10 +1,52 @@
 #!/usr/bin/env ruby
 $:.unshift( File.expand_path("../../lib", __FILE__) )
 
-#require 'log4r'
 require 'bitcoin'
+require 'optparse'
 
-Bitcoin.network = ARGV[0] || :testnet
+options = {
+  :network => "testnet",
+  :listen => "0.0.0.0:18332",
+  :max_connections => 32,
+  :connect => "127.0.0.1:8333",
+  :storage => :dummy,
+}
+optparse = OptionParser.new do|opts|
+  opts.banner = "Usage: bitcoin_node [options]"
 
-node = Bitcoin::Network::Node.new
+  opts.on("-n", "--network [NETWORK]", "User Network (default: testnet)") do |network|
+    options[:network] = network
+  end
+
+  opts.on("-l", "--listen [HOST:PORT]", "Specify listen address/port (default: 0.0.0.0:18333)") do |listen|
+    options[:listen] = listen
+  end
+
+  opts.on("-m", "--max-connections [COUNT]", "Set max connections (default: 32)") do |count|
+    options[:max_connections] = count
+  end
+
+  opts.on("-c", "--connect [HOST:PORT[,HOST:PORT[...]]]", "Set hosts to connect to (default: '')") do |connect|
+    options[:connect] = connect
+  end
+
+  opts.on("-s", "--storage [BACKEND::CONFIG]", "Use storage backend (default: 'dummy')") do |storage|
+    options[:storage] = storage
+  end
+
+  opts.on( '-h', '--help', 'Display this screen' ) do
+    puts opts
+    exit
+  end
+end
+
+optparse.parse!
+
+Bitcoin.network = options[:network]
+options[:listen] = options[:listen].split(':')
+options[:connect] = options[:connect].split(',').map{|h| h.split(':')}
+backend, config = options[:storage].split('::')
+options[:storage] = Bitcoin::Storage.send(backend, {:db => config})
+
+node = Bitcoin::Network::Node.new(options)
 node.run

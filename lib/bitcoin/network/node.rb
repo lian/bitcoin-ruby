@@ -4,69 +4,131 @@ module Bitcoin::Network
 
   class Node
 
-    attr_reader :host, :port, :log, :connections, :queue, :store
+    attr_reader :config, :log, :connections, :queue, :inv_queue, :store, :addrs
     attr_accessor :block
     
-    def initialize
+    DEFAULT_CONFIG = {
+      :listen => ["0.0.0.0", Bitcoin.network[:default_port]],
+      :storage => Bitcoin::Storage.dummy({}),
+      :max_connections => 8,
+      :connect => [],
+    }
+
+    def initialize config = {}
+      @config = DEFAULT_CONFIG.merge(config)
       @log = Bitcoin::Logger.create("network")
-      @log.level = :debug
+      @log.level = 0
       @connections = []
       @queue = []
-      @block = 0 # temp hack to store block depth of connected node
-      @store = Bitcoin::Storage::Backends::Dummy.new
+      @queue_thread = nil
+      @inv_queue = []
+      @inv_queue_thread = nil
+      @store = @config.delete(:storage)
+      @store.log.level = 0
+      @addrs = []
+      @timers = {}
     end
 
     def run
       EM.run do
-        EventMachine::add_periodic_timer(10) { check_query_blocks }
-        EventMachine::add_periodic_timer(0.5) { check_queue }
-        begin
-          log.info { "Attempting to connect to #{@host}:#{@port}" }
-          h, p = "127.0.0.1", Bitcoin::network[:default_port]
-          EM.connect(h, p, Handler, self, h, p)
-        rescue Exception
-          log.error { $!.inspect }
-          puts $@
-          exit 1
-        end
-        Signal.trap("INT") do
-          log.info { "Shutting down..." }
-          Signal.trap("INT") do
-            log.warn { "Force Exit" }
-            exit 1
+        {
+          :work_queue => 5,
+          :work_inv_queue => 5,
+          :work_getblocks => 5,
+          :work_query_addrs => 30,
+          :work_connect => 15
+        }.each do |timer, interval|
+          @timers[timer] = EM.add_periodic_timer(interval) do
+            send(timer)
           end
-          EM.stop_event_loop
         end
 
+        EM.next_tick do
+          begin
+            host, port = *@config[:listen]
+            EM.start_server host, port.to_i, Handler, self, host, port.to_i
+            log.info { "Listening on #{host}:#{port}" }
+          rescue
+            p $!
+            exit 1
+          end
+
+          @config[:connect].each do |connect|
+            begin
+              log.info { "Attempting to connect to #{connect.join(':')}" }
+              host, port = *connect
+              EM.connect(host, port.to_i, Handler, self, host, port.to_i)
+            rescue Exception
+              log.error { $!.inspect }
+              puts $@
+              exit 1
+            end
+          end
+        end
       end
       log.info { "Bye" }
     end
 
-    def check_query_blocks
-      log.debug { "Checking queue" }
+    def work_connect
+      desired = @config[:max_connections] - @connections.size
+      return  if desired <= 0
+      addrs = @addrs.reject do |addr|
+        @connections.map{|c| [c.host, c.port]}.include?([addr.ip, addr.port])
+      end
+      addrs.sample(desired).each do |addr|
+        EM.connect(addr.ip, addr.port, Handler, self, addr.ip, addr.port)
+      end
+    end
+
+    def work_getblocks
       return  unless @connections.any?
+      blocks = @connections.map(&:version).compact.map(&:block)
+      return  unless blocks.any?
+      if @store.get_depth >= blocks.inject{|a,b| a+=b;a} / blocks.size
+        @timers[:work_getblocks].interval = 30
+      end
+
       log.info { "Querying blocks" }
       if @queue.size < 128
-        @connections[rand(@connections.size)].query_blocks
+        @connections.sample.send_getblocks
       end
     end
 
-    def check_queue
-      log.debug { "Checking queue" }
-      return unless @queue.any?
-      while block = @queue.shift
-        next  unless block
-        log.debug { "Processing queue item #{block.hash} (#{block.payload.size} bytes)" }
-
-        @store.store_block(block)
-      end
-      check_query_blocks
-      log.info { "Queue empty" }
-    rescue Exception
-      p $!
-      puts *$@
-      exit 1
+    def work_query_addrs
+      return  if !@connections.any? || @config[:max_connections] <= @connections.size
+      @connections.sample.send_getaddr
     end
+
+    def work_queue
+      @log.debug { "queue worker running" }
+      return  if @queue_thread && @queue_thread.alive?
+      @queue_thread = Thread.start do
+        begin
+          EM.next_tick do
+            while obj = @queue.shift
+              @log.debug { "storing #{obj[0]} #{obj[1].hash} (#{obj[1].payload.bytesize})" }
+              @store.send("store_#{obj[0]}", obj[1])
+            end
+          end
+        rescue
+          log.error { "Error in queue worker: #{$!}" }
+        end
+      end
+    end
+
+    def work_inv_queue
+      @log.debug { "inv_queue worker running" }
+      return  if @inv_queue_thread && @inv_queue_thread.alive?
+      @inv_queue_thread = Thread.start do
+        begin
+          while inv = @inv_queue.shift
+            inv[2].send("send_getdata_#{inv[0]}", inv[1])
+          end
+        rescue
+          log.error { "Error in inv_queue worker: #{$!}" }
+        end
+      end
+    end
+
   end
-  
 end
