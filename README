@@ -34,10 +34,20 @@ Connect to a node and download the whole blockchain into storage.
  ./bin/bitcoin_blockchain -n bitcoin -s sequel::postgres///bitcoin
  ./bin/bitcoin_blockchain -h
 
+=== bin/bitcoin_verify_tx
+
+Fetch a transaction and all its prev_outs from local storage
+and verify the signatures.
+
+ ./bin/bitcoin_verify_tx [options] <tx_hash>
+ ./bin/bitcoin_verify_tx -s sequel::postgres:///bitcoin 0f6741210a02e196ca5f5ad17f684968623546c1accdbcb701a668a51a7ba9fd
+
+Note: For this to work, you obviously need to have the transactions in your storage.
+
 === bin/bbe_verify_tx
 
-Fetch a transaction and all its prev_outs from blockexplorer.com
-and verify the signatures.
+In case you don't have a local storage, this script fetches a transaction and
+all its prev_outs from blockexplorer.com and verifies the signatures.
 
  ./bin/bbe_verify_tx <tx_hash> [testnet]
 
@@ -53,7 +63,7 @@ a string containing the backend name and a configuration string.
 The default backend is always 'dummy' which needs no configuration
 
  dummy
- sequel::sqlite://tmp/bitcoin.db
+ sequel::sqlite:///tmp/bitcoin.db
  sequel::postgres:///bitcoin
  sequel::postgres://user:pass@host/database
 
