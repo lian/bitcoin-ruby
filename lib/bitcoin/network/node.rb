@@ -37,6 +37,7 @@ module Bitcoin::Network
           :work_getblocks => 5,
           :work_query_addrs => 30,
           :work_connect => 15
+          :work_cleanup_addrs => 15,
         }.each do |timer, interval|
           @timers[timer] = EM.add_periodic_timer(interval) do
             send(timer)
@@ -89,14 +90,16 @@ module Bitcoin::Network
       end
 
       log.info { "Querying blocks" }
-      if @queue.size < 128
+      if @inv_queue.size < @config[:max_inv]
         @connections.sample.send_getblocks
       end
     end
 
     def work_query_addrs
       return  if !@connections.any? || @config[:max_connections] <= @connections.size
-      @connections.sample.send_getaddr
+      connections = @connections.select{|c| c.state == :connected}
+      return  unless connections.any?
+      connections.sample.send_getaddr
     end
 
     def work_queue
@@ -117,8 +120,9 @@ module Bitcoin::Network
     end
 
     def work_inv_queue
-      @log.debug { "inv_queue worker running" }
+      return  if @queue.size >= @config[:max_queue]
       return  if @inv_queue_thread && @inv_queue_thread.alive?
+      @log.debug { "inv_queue worker running" }
       @inv_queue_thread = Thread.start do
         begin
           while inv = @inv_queue.shift
@@ -127,6 +131,14 @@ module Bitcoin::Network
         rescue
           log.error { "Error in inv_queue worker: #{$!}" }
         end
+      end
+    end
+
+    def work_cleanup_addrs
+      return  if @addrs.size < @config[:max_addr]
+      log.info { "Cleaning up addrs" }
+      @addrs.each do |addr|
+        @addrs.delete(addr)  unless addr.alive?
       end
     end
 

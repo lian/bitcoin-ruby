@@ -7,33 +7,58 @@ require 'optparse'
 options = {
   :network => "testnet",
   :listen => "0.0.0.0:18332",
+  :connect => "",
+  :storage => "dummy",
   :max_connections => 32,
-  :connect => "127.0.0.1:8333",
-  :storage => :dummy,
+  :max_addr => 1024,
+  :max_queue => 512,
+  :max_inv => 512,
 }
 optparse = OptionParser.new do|opts|
   opts.banner = "Usage: bitcoin_node [options]"
 
-  opts.on("-n", "--network [NETWORK]", "User Network (default: testnet)") do |network|
+  opts.on("-n", "--network [NETWORK]",
+          "User Network (default: #{options[:network]})") do |network|
     options[:network] = network
   end
 
-  opts.on("-l", "--listen [HOST:PORT]", "Specify listen address/port (default: 0.0.0.0:18333)") do |listen|
+  end
+
+  opts.on("-l", "--listen [HOST:PORT]",
+          "Listen address/port (default: #{options[:listen]})") do |listen|
     options[:listen] = listen
   end
 
-  opts.on("-m", "--max-connections [COUNT]", "Set max connections (default: 32)") do |count|
-    options[:max_connections] = count
-  end
-
-  opts.on("-c", "--connect [HOST:PORT[,HOST:PORT[...]]]", "Set hosts to connect to (default: '')") do |connect|
+  opts.on("-c", "--connect [HOST:PORT[,HOST:PORT[...]]]",
+          "Hosts to connect to (default: #{options[:connect]})") do |connect|
     options[:connect] = connect
   end
 
-  opts.on("-s", "--storage [BACKEND::CONFIG]", "Use storage backend (default: 'dummy')") do |storage|
+  opts.on("-s", "--storage [BACKEND::CONFIG]",
+          "Use storage backend (default: #{options[:storage]})") do |storage|
     options[:storage] = storage
   end
 
+
+  opts.on("--mc", "--max-connections [COUNT]",
+          "Max connections (default: #{options[:max_connections]})") do |count|
+    options[:max_connections] = count.to_i
+  end
+
+  opts.on("--ma", "--max-addr [COUNT]",
+          "Max size of addr queue (default: #{options[:max_addr]})") do |count|
+    options[:max_addr] = count.to_i
+  end
+
+  opts.on("--mq", "--max_queue [COUNT]",
+          "Max size of download/storage queue (default: #{options[:max_queue]})") do |count|
+    options[:max_queue] = count.to_i
+  end
+
+  opts.on("--mi", "--max_inv [COUNT]",
+          "Max size of inv queue (default: #{options[:max_inv]})") do |count|
+    options[:max_inv] = count.to_i
+  end
   opts.on( '-h', '--help', 'Display this screen' ) do
     puts opts
     exit
@@ -43,8 +68,8 @@ end
 optparse.parse!
 
 Bitcoin.network = options[:network]
-options[:listen] = options[:listen].split(':')
-options[:connect] = options[:connect].split(',').map{|h| h.split(':')}
+options[:listen] = options[:listen] == "" ? nil : options[:listen].split(':')
+options[:connect] = options[:connect] == "" ? [] : options[:connect].split(',').map{|h| h.split(':')}
 backend, config = options[:storage].split('::')
 options[:storage] = Bitcoin::Storage.send(backend, {:db => config})
 
