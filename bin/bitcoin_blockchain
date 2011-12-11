@@ -6,6 +6,7 @@ require 'optparse'
 
 options = {
   :network => "testnet",
+  :command => "127.0.0.1:9999",
   :listen => "0.0.0.0:18332",
   :connect => "",
   :storage => "dummy",
@@ -23,6 +24,9 @@ optparse = OptionParser.new do|opts|
     options[:network] = network
   end
 
+  opts.on("--command [HOST:PORT]",
+          "Command socket (default: #{options[:command]})") do |command|
+    options[:command] = command
   end
 
   opts.on("-l", "--listen [HOST:PORT]",
@@ -67,6 +71,7 @@ optparse = OptionParser.new do|opts|
           "Max size of inv queue (default: #{options[:max_inv]})") do |count|
     options[:max_inv] = count.to_i
   end
+
   opts.on( '-h', '--help', 'Display this screen' ) do
     puts opts
     exit
@@ -76,6 +81,7 @@ end
 optparse.parse!
 
 Bitcoin.network = options[:network]
+options[:command] = options[:command] == "" ? nil : options[:command].split(':')
 options[:listen] = options[:listen] == "" ? nil : options[:listen].split(':')
 options[:connect] = options[:connect] == "" ? [] : options[:connect].split(',').map{|h| h.split(':')}
 backend, config = options[:storage].split('::')

@@ -29,6 +29,11 @@ module Bitcoin::Network
       @timers = {}
     end
 
+    def stop
+      log.info { "Shutting down..." }
+      EM.stop
+    end
+
     def run
       EM.run do
         {
@@ -36,7 +41,7 @@ module Bitcoin::Network
           :work_inv_queue => 5,
           :work_getblocks => 5,
           :work_query_addrs => 30,
-          :work_connect => 15
+          :work_connect => 15,
           :work_cleanup_addrs => 15,
         }.each do |timer, interval|
           @timers[timer] = EM.add_periodic_timer(interval) do
@@ -49,7 +54,7 @@ module Bitcoin::Network
             Thread.start do
               begin
                 host, port = *@config[:command]
-                EM.start_server host, port, DebugServer, self
+                EM.start_server host, port, CommandHandler, self
                 log.info { "Command socket listening on #{host}:#{port}" }
               rescue
                 p $!; puts $@; exit
@@ -61,7 +66,7 @@ module Bitcoin::Network
             begin
               return unless @config[:listen]
               host, port = *@config[:listen]
-              EM.start_server host, port.to_i, Handler, self, host, port.to_i
+              EM.start_server host, port.to_i, ConnectionHandler, self, host, port.to_i
               log.info { "Server socket listening on #{host}:#{port}" }
             rescue
               p $!; puts $@; exit
@@ -82,7 +87,7 @@ module Bitcoin::Network
 
     def connect_peer host, port
       log.info { "Attempting to connect to #{host}:#{port}" }
-      EM.connect(host, port.to_i, Handler, self, host, port.to_i)
+      EM.connect(host, port.to_i, ConnectionHandler, self, host, port.to_i)
     rescue
       p $!; puts $@; exit
     end
@@ -144,13 +149,13 @@ module Bitcoin::Network
 
       log.info { "Querying blocks" }
       if @inv_queue.size < @config[:max_inv]
-        @connections.sample.send_getblocks
+        @connections.select(&:connected?).sample.send_getblocks
       end
     end
 
     def work_query_addrs
       return  if !@connections.any? || @config[:max_connections] <= @connections.size
-      connections = @connections.select{|c| c.state == :connected}
+      connections = @connections.select(&:connected?)
       return  unless connections.any?
       connections.sample.send_getaddr
     end

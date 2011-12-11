@@ -2,7 +2,7 @@ require 'eventmachine'
 
 module Bitcoin::Network
 
-  class Handler < EM::Connection
+  class ConnectionHandler < EM::Connection
 
     include Bitcoin
     include Bitcoin::Storage
@@ -81,8 +81,6 @@ module Bitcoin::Network
     def on_addr(addr)
       log.info { ">> addr: #{addr.ip}:#{addr.port} alive: #{addr.alive?}, service: #{addr.service}" }
       @node.addrs << addr
-
-    end
     end
 
     def on_tx(tx)
@@ -111,7 +109,7 @@ module Bitcoin::Network
     def on_handshake_complete
       log.debug { "handshake complete" }
       @state = :connected
-      send_getaddr
+#      send_getaddr
     end
 
 
@@ -157,6 +155,10 @@ module Bitcoin::Network
       pkt = Protocol.version_pkt(from_id, from, to, block)
       log.info { "<< version (#{Bitcoin::Protocol::VERSION})" }
       send_data(pkt)
+    end
+
+    [:new, :handshake, :connected].each do |state|
+      define_method("#{state}?") { @state == state }
     end
 
   end

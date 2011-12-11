@@ -15,8 +15,9 @@ module Bitcoin
   autoload :Logger,     'bitcoin/logger'
 
   module Network
-    autoload :Handler,  'bitcoin/network/handler'
-    autoload :Node,     'bitcoin/network/node'
+    autoload :ConnectionHandler,  'bitcoin/network/connection_handler'
+    autoload :CommandHandler,     'bitcoin/network/command_handler'
+    autoload :Node,               'bitcoin/network/node'
   end
 
 
@@ -227,7 +228,7 @@ module Bitcoin
   def self.network= name
     @network = name.to_sym
   end
-    
+
   NETWORKS = {
     :bitcoin => {
       :magic_head => "\xF9\xBE\xB4\xD9",
@@ -245,5 +246,4 @@ module Bitcoin
     }
   }
   
-
 end
