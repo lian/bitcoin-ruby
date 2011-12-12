@@ -99,7 +99,7 @@ module Bitcoin::Network
       @version = version
       log.info { "<< verack" }
       send_data( Protocol.verack_pkt )
-      #on_handshake_complete
+      on_handshake_complete
     end
 
     def on_verack
