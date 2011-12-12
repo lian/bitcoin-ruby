@@ -67,6 +67,10 @@ class CommandHandler < EM::Connection
     {:state => "Sending getaddr..."}
   end
 
+  def handle_addrs count = 32
+    @node.addrs.select(&:alive?).sample(count.to_i).map{|a| [a.ip, a.port]}
+  end
+
   def handle_stop
     Thread.start { sleep 0.1; @node.stop }
     {:state => "Stopping..."}
