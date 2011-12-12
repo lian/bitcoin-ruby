@@ -234,7 +234,7 @@ module Bitcoin
       :magic_head => "\xF9\xBE\xB4\xD9",
       :address_version => "00",
       :default_port => 8333,
-      :dns_seeds => ["bitseed.xf2.org", "bitseed.bitcoin.org.uk" ],
+      :dns_seeds => ["bitseed.xf2.org", "dnsseed.bluematt.me"],
       :genesis_hash => "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"
     },
     :testnet => {
