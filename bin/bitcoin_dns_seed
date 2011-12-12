@@ -79,7 +79,8 @@ RubyDNS::run_server do
   end
 
   match(DNS_OPTS[:domain], :A) do |transaction|
-    @addrs.select{|a| a[1] == DNS_OPTS[:port]}.sample(DNS_OPTS[:send]).each do |addr|
+    @addrs.select{|a| a[1] == DNS_OPTS[:port]}
+      .uniq.sample(DNS_OPTS[:send]).each do |addr|
       transaction.respond!(addr[0], :ttl => DNS_OPTS[:ttl])
     end
   end
