@@ -1,7 +1,7 @@
 require_relative 'spec_helper'
 
 [
-#  { :name => :dummy },
+  { :name => :dummy },
   { :name => :sequel, :db => 'sqlite:/' }, # in memory
 #  { :name => :sequel, :db => 'sqlite:///tmp/bitcoin_test.db' },
 #  { :name => :sequel, :db => 'postgres://localhost/bitcoin_test' },
@@ -39,7 +39,7 @@ require_relative 'spec_helper'
     
     it "should get head" do
       @store.get_head
-        .should == "0000000098932356a236718829dd9e3eb0f9143317ab921333b1a203de336de4"
+        .should == @store.get_block("0000000098932356a236718829dd9e3eb0f9143317ab921333b1a203de336de4")
     end
 
     it "should get locator" do
@@ -50,12 +50,27 @@ require_relative 'spec_helper'
          "00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008"]
     end
     
-    # it "should get balance"
-    
     it "should store block" do
       @store.store_block(@blk).should == 4
       @store.get_depth.should == 4
       @store.get_tx(@blk.tx[0].hash).should == @blk.tx[0]
+    end
+
+    it "should return depth if block is already stored" do
+      @store.store_block(@blk).should == 4
+      @store.store_block(@blk).should == 4
+    end
+
+    it "should not store if there is no prev block" do
+      @store.reset
+      @store.store_block(@blk).should == nil
+      @store.get_depth.should == -1
+    end
+
+    it "should check whether block is already stored" do
+      @store.has_block(@blk.hash).should == false
+      @store.store_block(@blk)
+      @store.has_block(@blk.hash).should == true
     end
     
     it "should get block by depth" do
@@ -69,31 +84,29 @@ require_relative 'spec_helper'
     
     it "should get block by hash" do
       @store.get_block(
-          "00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008").to_hash
+        "00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008").to_hash
         .should == Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_0.bin')).to_hash
       
       @store.get_block(
-          "000000033cc282bc1fa9dcae7a533263fd7fe66490f550d80076433340831604").to_hash
+        "000000033cc282bc1fa9dcae7a533263fd7fe66490f550d80076433340831604").to_hash
         .should == Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_1.bin')).to_hash
       @store.get_block(
-          "000000037b21cac5d30fc6fda2581cf7b2612908aed2abbcc429c45b0557a15f").to_hash
+        "000000037b21cac5d30fc6fda2581cf7b2612908aed2abbcc429c45b0557a15f").to_hash
         .should == Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_2.bin')).to_hash
+    end
+
+    it "should not get block" do
+      @store.get_block("nonexistant").should == nil
     end
     
     it "should get block depth" do
-      @store.get_block_depth(
-          "00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008").should == 0
-      @store.get_block_depth(
-          "000000033cc282bc1fa9dcae7a533263fd7fe66490f550d80076433340831604").should == 1
-      @store.get_block_depth(
-          "000000037b21cac5d30fc6fda2581cf7b2612908aed2abbcc429c45b0557a15f").should == 2
-    end
-
-    it "should have depth attribute" do
       @store.get_block("00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008")
         .depth.should == 0
+      @store.get_block("000000033cc282bc1fa9dcae7a533263fd7fe66490f550d80076433340831604")
+        .depth.should == 1
+      @store.get_block("000000037b21cac5d30fc6fda2581cf7b2612908aed2abbcc429c45b0557a15f")
+        .depth.should == 2
     end
-
 
     it "should get prev block" do
       @store.get_block("00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008")
@@ -111,13 +124,41 @@ require_relative 'spec_helper'
         @store.get_block("000000033cc282bc1fa9dcae7a533263fd7fe66490f550d80076433340831604")
     end
 
+    it "should get block for tx" do
+      @store.store_block(@blk)
+      @store.get_block_by_tx(@blk.tx[0].hash).should == @blk
+    end
+
     it "should store tx" do
       @store.store_tx(@tx).should != false
+    end
+
+    it "should not store tx if already stored" do
+      id = @store.store_tx(@tx)
+      @store.store_tx(@tx).should == id
+    end
+
+    it "should check if tx is already stored" do
+      @store.has_tx(@tx.hash).should == false
+      @store.store_tx(@tx)
+      @store.has_tx(@tx.hash).should == true
     end
 
     it "should get tx" do
       @store.store_tx(@tx)
       @store.get_tx(@tx.hash).should == @tx
+    end
+
+    it "should not get tx" do
+      @store.get_tx("nonexistant").should == nil
+    end
+
+
+    it "should get txouts for pk script" do
+      @store.store_block(@blk)
+      script = @blk.tx[0].out[0].pk_script
+      @store.get_txouts_for_pk_script(script)
+        .should == [@blk.tx[0].out[0]]
     end
 
     it "should get block for tx" do
@@ -154,6 +195,16 @@ require_relative 'spec_helper'
       @store.get_tx(outpoint_tx.hash).out[0].get_next_in.should == tx.in[0]
     end
 
+    it "should get txouts for address" do
+      @store.store_tx(@tx)
+      @store.get_txouts_for_address("mjzuXYR2fncbPzn9nR5Ee5gBgYk9UQx36x")
+        .should == [@tx.out[0]]
+    end
+
+    it "should get balance for address" do
+      @store.store_tx(@tx)
+      @store.get_balance("mjzuXYR2fncbPzn9nR5Ee5gBgYk9UQx36x").should == 1000000
+    end
 
   end
 end

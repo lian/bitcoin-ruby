@@ -3,54 +3,6 @@ require 'bitcoin/storage/sequel_store/sequel_migrations'
 
 module Bitcoin::Storage::Backends
 
-  module SequelModels
-
-    module Block
-      attr_reader :db, :depth
-      def get_prev_block
-        @store.get_block(hth(@prev_block))
-      end
-      def get_next_block
-        block = @db[:blk][:prev_hash => htb(@hash).reverse.to_sequel_blob]
-        return nil  unless block
-        @store.get_block(hth(block[:hash].reverse))
-      end
-    end
-
-    module Tx
-      def get_block
-        parent = @db[:blk_tx][:tx_id => @id]
-        block = @db[:blk][:id => parent[:blk_id]]
-        @store.get_block(hth(block[:hash].reverse))
-      end
-    end
-
-    module TxIn
-      def get_tx
-        tx = @db[:tx][:id => @tx_id]
-        @store.get_tx(tx[:hash].unpack("H*")[0])
-      end
-      def get_prev_out
-        prev_tx = @db[:tx][:hash => @prev_out.reverse.to_sequel_blob]
-        @store.get_tx(prev_tx[:hash].unpack("H*")[0]).out[@prev_out_index]
-      end
-    end
-
-    module TxOut
-      def get_tx
-        tx = @db[:tx][:id => @tx_id]
-        @store.get_tx(tx[:hash].unpack("H*")[0])
-      end
-      def get_next_in
-        tx = @db[:tx][:id => @tx_id]
-        tx_hash = tx[:hash].reverse.to_sequel_blob
-        next_in = @db[:txin][:prev_out => tx_hash, :prev_out_index => @tx_idx]
-        return nil  unless next_in
-        @store.get_txin(next_in)
-      end
-    end
-  end
-
   class SequelStore < StoreBase
 
     attr_accessor :db
@@ -72,18 +24,9 @@ module Bitcoin::Storage::Backends
       [:blk, :blk_tx, :tx, :txin, :txout].each {|table| @db[table].delete}
     end
 
-    def get_head
-      hth(@db[:blk].order(:depth).last[:hash])
-    end
-
-    def get_depth
-      return -1  if @db[:blk].count == 0
-      @db[:blk][:hash => htb(get_head).to_sequel_blob][:depth]
-    end
-
     def store_block(blk)
       block = @db[:blk][:hash => htb(blk.hash).to_sequel_blob]
-      return block[:id]  if block
+      return block[:depth]  if block
 
       prev_block = get_block(hth(blk.prev_block.reverse))
       if !prev_block && blk.hash != Bitcoin::network[:genesis_hash]
@@ -91,79 +34,32 @@ module Bitcoin::Storage::Backends
         return nil
       end
       if prev_block
-        depth = get_block_depth(prev_block.hash) + 1
+        depth = prev_block.depth + 1
       else
         depth = 0
       end
       block_id = @db[:blk].insert({
-        :hash => htb(blk.hash).to_sequel_blob,
-        :depth => depth,
-        :version => blk.ver,
-        :prev_hash => blk.prev_block.reverse.to_sequel_blob,
-        :mrkl_root => blk.mrkl_root.reverse.to_sequel_blob,
-        :time => blk.time,
-        :bits => blk.bits,
-        :nonce => blk.nonce,
-        :blk_size => blk.payload.bytesize,
-#        :space => 0,
-#        :span_left => 0,
-#        :span_right => 0,
-      })
+          :hash => htb(blk.hash).to_sequel_blob,
+          :depth => depth,
+          :version => blk.ver,
+          :prev_hash => blk.prev_block.reverse.to_sequel_blob,
+          :mrkl_root => blk.mrkl_root.reverse.to_sequel_blob,
+          :time => blk.time,
+          :bits => blk.bits,
+          :nonce => blk.nonce,
+          :blk_size => blk.payload.bytesize,
+        })
       blk.tx.each_with_index do |tx, idx|
         tx_id = store_tx(tx)
         @db[:blk_tx].insert({
-          :blk_id => block_id,
-          :tx_id => tx_id,
-          :idx => idx,
-        })
+            :blk_id => block_id,
+            :tx_id => tx_id,
+            :idx => idx,
+          })
       end
 
       log.info { "new head #{blk.hash} - #{get_depth}" }
       depth
-    end
-
-    def get_block(blk_hash)
-      block = @db[:blk][:hash => htb(blk_hash).to_sequel_blob]
-      return nil  unless block
-      blk = Bitcoin::Protocol::Block.new(nil)
-      db = @db; store = self
-      blk.instance_eval do
-        extend SequelModels::Block
-        @db = db; @store = store
-        @block_id = block[:id]
-        @depth = block[:depth]
-
-        @ver = block[:version]
-        @prev_block = block[:prev_hash].reverse
-        @mrkl_root = block[:mrkl_root].reverse
-        @time = block[:time].to_i
-        @bits = block[:bits]
-        @nonce = block[:nonce]
-        parents = db[:blk_tx].filter(:blk_id => block[:id])
-          .order(:idx) rescue []
-        parents.each do |parent|
-          transaction = db[:tx][:id => parent[:tx_id]]
-          @tx << store.get_tx(transaction[:hash].unpack("H*")[0])
-        end
-        recalc_block_hash
-      end
-      blk
-    end
-
-    def get_block_by_depth(depth)
-      get_block( hth(@db[:blk][:depth => depth][:hash]) ) rescue nil
-    end
-
-    def get_block_depth(blk_hash)
-      @db[:blk][:hash => htb(blk_hash).to_sequel_blob][:depth]
-    end
-
-    def has_block(blk_hash)
-      @db[:blk].where(:hash => htb(blk_hash).to_sequel_blob).exists == true
-    end
-
-    def has_tx(tx_hash)
-      @db[:tx].where(:hash => htb(tx_hash).to_sequel_blob).exists == true
     end
 
     def store_tx(tx)
@@ -171,12 +67,12 @@ module Bitcoin::Storage::Backends
       return transaction[:id]  if transaction
 
       tx_id = @db[:tx].insert({
-        :hash => htb(tx.hash).to_sequel_blob,
-        :version => tx.ver,
-        :lock_time => tx.lock_time,
-        :coinbase => tx.in.size==1 && tx.in[0].coinbase?,
-        :tx_size => tx.payload.bytesize,
-      })
+          :hash => htb(tx.hash).to_sequel_blob,
+          :version => tx.ver,
+          :lock_time => tx.lock_time,
+          :coinbase => tx.in.size==1 && tx.in[0].coinbase?,
+          :tx_size => tx.payload.bytesize,
+        })
       tx.in.each_with_index {|i, idx| store_txin(tx_id, i, idx)}
       tx.out.each_with_index {|o, idx| store_txout(tx_id, o, idx)}
       tx_id
@@ -184,89 +80,150 @@ module Bitcoin::Storage::Backends
 
     def store_txin(tx_id, txin, idx)
       @db[:txin].insert({
-        :tx_id => tx_id,
-        :tx_idx => idx,
-        :script_sig => txin.script_sig.to_sequel_blob,
-        :prev_out => txin.prev_out.to_sequel_blob,
-        :prev_out_index => txin.prev_out_index,
-        :sequence => txin.sequence.unpack("I")[0],
-      })
+          :tx_id => tx_id,
+          :tx_idx => idx,
+          :script_sig => txin.script_sig.to_sequel_blob,
+          :prev_out => txin.prev_out.to_sequel_blob,
+          :prev_out_index => txin.prev_out_index,
+          :sequence => txin.sequence.unpack("I")[0],
+        })
     end
 
     def store_txout(tx_id, txout, idx)
       @db[:txout].insert({
-        :tx_id => tx_id,
-        :tx_idx => idx,
-        :pk_script => txout.pk_script.to_sequel_blob,
-        :value => txout.value,
-      })
+          :tx_id => tx_id,
+          :tx_idx => idx,
+          :pk_script => txout.pk_script.to_sequel_blob,
+          :value => txout.value,
+        })
+    end
+
+
+    def has_block(blk_hash)
+      !!@db[:blk].where(:hash => htb(blk_hash).to_sequel_blob).get(1)
+    end
+
+    def has_tx(tx_hash)
+      !!@db[:tx].where(:hash => htb(tx_hash).to_sequel_blob).get(1)
+    end
+
+    def get_head
+      wrap_block(@db[:blk].order(:depth).last)
+    end
+
+    def get_depth
+      return -1  if @db[:blk].count == 0
+      @db[:blk][:hash => htb(get_head.hash).to_sequel_blob][:depth]
+    end
+
+    def get_block(blk_hash)
+      wrap_block(@db[:blk][:hash => htb(blk_hash).to_sequel_blob])
+    end
+
+    def get_block_by_depth(depth)
+      wrap_block(@db[:blk][:depth => depth])
+    end
+
+    def get_block_by_prev_hash(prev_hash)
+      wrap_block(@db[:blk][:prev_hash => htb(prev_hash).to_sequel_blob])
+    end
+
+    def get_block_by_tx(tx_hash)
+      tx = @db[:tx][:hash => htb(tx_hash).to_sequel_blob]
+      return nil  unless tx
+      parent = @db[:blk_tx][:tx_id => tx[:id]]
+      return nil  unless parent
+      wrap_block(@db[:blk][:id => parent[:blk_id]])
+    end
+
+    def get_block_by_id(block_id)
+      wrap_block(@db[:blk][:id => block_id])
     end
 
     def get_tx(tx_hash)
-      transaction = @db[:tx][:hash => htb(tx_hash).to_sequel_blob]
-      return nil  unless transaction
-      tx = Bitcoin::Protocol::Tx.new(nil)
-      db = @db; store = self
-      tx.instance_eval do
-        extend SequelModels::Tx
-        @db = db; @store = store
-        @id = transaction[:id]
+      wrap_tx(@db[:tx][:hash => htb(tx_hash).to_sequel_blob])
+    end
 
-        inputs = db[:txin].filter(:tx_id => transaction[:id])
-          .order(:tx_idx)
-        inputs.each do |input|
-          add_in(@store.get_txin(input))
-        end
+    def get_tx_by_id(tx_id)
+      wrap_tx(@db[:tx][:id => tx_id])
+    end
 
-        outputs = db[:txout].filter(:tx_id => transaction[:id])
-          .order(:tx_idx)
-        outputs.each do |output|
-          add_out(@store.get_txout(output))
-        end
-        @ver = transaction[:version]
-        @lock_time = transaction[:lock_time]
-        @hash = hash_from_payload(@payload = to_payload)
+    def get_txin_for_txout(tx_hash, txout_idx)
+      tx_hash = htb(tx_hash).reverse.to_sequel_blob
+      wrap_txin(@db[:txin][:prev_out => tx_hash, :prev_out_index => txout_idx])
+    end
+
+    def get_txouts_for_pk_script(script)
+      txouts = @db[:txout].filter(:pk_script => script.to_sequel_blob).order(:id)
+      txouts.map{|txout| wrap_txout(txout)}
+    end
+
+
+    def wrap_block(block)
+      return nil  unless block
+
+      data = {:id => block[:id], :depth => block[:depth]}
+      blk = Bitcoin::Storage::Models::Block.new(self, data)
+
+      blk.ver = block[:version]
+      blk.prev_block = block[:prev_hash].reverse
+      blk.mrkl_root = block[:mrkl_root].reverse
+      blk.time = block[:time].to_i
+      blk.bits = block[:bits]
+      blk.nonce = block[:nonce]
+      parents = db[:blk_tx].filter(:blk_id => block[:id])
+        .order(:idx) rescue []
+      parents.each do |parent|
+        transaction = db[:tx][:id => parent[:tx_id]]
+        blk.tx << wrap_tx(transaction)
       end
+
+      blk.recalc_block_hash
+      blk
+    end
+
+    def wrap_tx(transaction)
+      return nil  unless transaction
+
+      parent = @db[:blk_tx][:tx_id => transaction[:id]]
+      block_id = parent ? parent[:blk_id] : nil
+      data = {:id => transaction[:id], :blk_id => block_id}
+      tx = Bitcoin::Storage::Models::Tx.new(self, data)
+
+      inputs = db[:txin].filter(:tx_id => transaction[:id]).order(:tx_idx)
+
+      inputs.each { |i| tx.add_in(wrap_txin(i)) }
+
+      outputs = db[:txout].filter(:tx_id => transaction[:id]).order(:tx_idx)
+      outputs.each { |o| tx.add_out(wrap_txout(o)) }
+      tx.ver = transaction[:version]
+      tx.lock_time = transaction[:lock_time]
+      tx.hash = tx.hash_from_payload(tx.to_payload)
       tx
     end
 
-    def get_txin(input)
-      txin = Bitcoin::Protocol::TxIn.new
+    def wrap_txin(input)
+      return nil  unless input
+      data = {:id => input[:id], :tx_id => input[:tx_id], :tx_idx => input[:tx_idx]}
+      txin = Bitcoin::Storage::Models::TxIn.new(self, data)
       txin.prev_out = input[:prev_out]
       txin.prev_out_index = input[:prev_out_index]
       txin.script_sig_length = input[:script_sig].bytesize
       txin.script_sig = input[:script_sig]
       txin.sequence = [input[:sequence]].pack("I")
-      db = @db; store = self
-      txin.instance_eval do
-        extend SequelModels::TxIn
-        @db = db; @store = store
-        @id = input[:id]
-        @tx_id = input[:tx_id]
-      end
       txin
     end
 
-    def get_txout(output)
-      txout = Bitcoin::Protocol::TxOut.new
+    def wrap_txout(output)
+      return nil  unless output
+      data = {:id => output[:id], :tx_id => output[:tx_id], :tx_idx => output[:tx_idx]}
+      txout = Bitcoin::Storage::Models::TxOut.new(self, data)
       txout.value = output[:value]
       txout.pk_script_length = output[:pk_script].bytesize
       txout.pk_script = output[:pk_script]
-      db = @db; store = self
-      txout.instance_eval do
-        extend SequelModels::TxOut
-        @db = db; @store = store
-        @id = output[:id]
-        @tx_id = output[:tx_id]
-        @tx_idx = output[:tx_idx]
-      end
       txout
     end
 
-    def get_txouts_for_pk_script(script)
-      txouts = @db[:txout].filter(:pk_script => script.to_sequel_blob).order(:id)
-      txouts.map{|txout| get_txout(txout)}
-    end
 
     def hth(bin); bin.unpack("H*")[0]; end
     def htb(hex); [hex].pack("H*"); end

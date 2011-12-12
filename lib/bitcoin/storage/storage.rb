@@ -1,5 +1,7 @@
 module Bitcoin::Storage
 
+  autoload :Models, 'bitcoin/storage/models'
+
   @log = Bitcoin::Logger.create("storage")
   def self.log; @log; end
 
@@ -16,6 +18,11 @@ module Bitcoin::Storage
 
     BACKENDS.each {|b| autoload("#{b.to_s.capitalize}Store", "bitcoin/storage/#{b}") }
 
+    # Base class for storage backends.
+    # Every backend must overwrite the "Not implemented" methods
+    # and provide an implementation specific to the storage.
+    # Also, before returning the objects, they should be wrapped
+    # inside the appropriate Bitcoin::Storage::Models class.
     class StoreBase
 
       def initialize(config = {})
@@ -28,6 +35,26 @@ module Bitcoin::Storage
 
       # reset the store; delete all data
       def reset
+        raise "Not implemented"
+      end
+
+      # store given +block+
+      def store_block(blk)
+        raise "Not implemented"
+      end
+
+      # store given +tx+
+      def store_tx(tx)
+        raise "Not implemented"
+      end
+
+      # check if block with given +blk_hash+ is already stored
+      def has_block(blk_hash)
+        raise "Not implemented"
+      end
+
+      # check if tx with given +tx_hash+ is already stored
+      def has_tx(tx_hash)
         raise "Not implemented"
       end
 
@@ -47,22 +74,17 @@ module Bitcoin::Storage
         locator = []
         pointer = get_head
         step = 1
-        while pointer && pointer != Bitcoin::network[:genesis_hash]
-          locator << pointer
-          depth = get_block_depth(pointer) - step
+        while pointer && pointer.hash != Bitcoin::network[:genesis_hash]
+          locator << pointer.hash
+          depth = pointer.depth - step
           break unless depth > 0
           prev_block = get_block_by_depth(depth) # TODO
           break unless prev_block
-          pointer = prev_block.hash
+          pointer = prev_block
           step *= 2  if locator.size > 10
         end
         locator << Bitcoin::network[:genesis_hash]
         locator
-      end
-
-      # store given +block+
-      def store_block(blk)
-        raise "Not implemented"
       end
 
       # get block with given +blk_hash+
@@ -75,18 +97,34 @@ module Bitcoin::Storage
         raise "Not implemented"
       end
 
-      # get depth for block with given +blk_hash+
-      def get_block_depth(blk_hash)
-        raise "not implemented"
+      # get block with given +prev_hash+
+      def get_block_by_prev_hash(prev_hash)
+        raise "Not implemented"
       end
 
-      # store given +tx+
-      def store_tx(tx)
+      # get block that includes tx with given +tx_hash+
+      def get_block_by_tx(tx_hash)
+        raise "Not implemented"
+      end
+
+      # get block by given +block_id+
+      def get_block_by_id(block_id)
+        raise "Not implemented"
+      end
+
+      # get corresponding txin for the txout in
+      # transaction +tx_hash+ with index +txout_idx+
+      def get_txin_for_txout(tx_hash, txout_idx)
         raise "Not implemented"
       end
 
       # get tx with given +tx_hash+
       def get_tx(tx_hash)
+        raise "Not implemented"
+      end
+
+      # get tx with given +tx_id+
+      def get_tx_by_id(tx_id)
         raise "Not implemented"
       end
 
