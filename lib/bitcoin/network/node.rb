@@ -48,7 +48,7 @@ module Bitcoin::Network
           :work_connect => 15,
           :work_cleanup_addrs => 15,
         }.each do |timer, interval|
-          @timers[timer] = EM.add_periodic_timer(interval, method(:timer))
+          @timers[timer] = EM.add_periodic_timer(interval, method(timer))
         end
 
         if @config[:command]
@@ -124,7 +124,7 @@ module Bitcoin::Network
     end
 
     def work_getblocks
-      return  unless @connections.any?
+      return  unless @connections.select(&:connected?).any?
       blocks = @connections.map(&:version).compact.map(&:block)
       return  unless blocks.any?
       if @store.get_depth >= blocks.inject{|a,b| a+=b;a} / blocks.size
@@ -179,7 +179,7 @@ module Bitcoin::Network
     def work_cleanup_addrs
       return  if @addrs.size < @config[:max_addr]
       log.info { "Cleaning up addrs" }
-      @addrs.delete_if{|addr| !attr.alive? }
+      @addrs.delete_if{|addr| !addr.alive? }
     end
 
   end
