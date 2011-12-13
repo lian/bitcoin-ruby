@@ -30,6 +30,7 @@ module Bitcoin
             p ['parse_inv error', i]
           end
         }
+        @h.query_blocks
       end
 
       def hth(h); h.unpack("H*")[0]; end
