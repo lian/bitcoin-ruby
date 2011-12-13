@@ -13,12 +13,7 @@ module Bitcoin::Network
     def htb(h); [h].pack("H*"); end
 
     def log
-      log = @node.log
-      # why redefine methods on every call and on the instance of node.log?!
-      #[:debug, :info, :warn, :error, :fatal].each do |level|
-      #  log.instance_eval "def #{level}; super {'#{@host}:#{@port} ' + yield}; end"
-      #end
-      log
+      @log ||= Logger::LogWrapper.new("#@host:#@port", @node.log)
     end
 
     def initialize node, host, port

@@ -17,14 +17,14 @@ module Bitcoin::Network
     def initialize config = {}
       @config = DEFAULT_CONFIG.merge(config)
       @log = Bitcoin::Logger.create("network")
-      @log.level = 0
+      @log.level = :info
       @connections = []
       @queue = []
       @queue_thread = nil
       @inv_queue = []
       @inv_queue_thread = nil
       @store = @config.delete(:storage)
-      @store.log.level = 0
+      @store.log.level = :info
       @addrs = []
       @timers = {}
     end
