@@ -6,7 +6,8 @@ class CommandHandler < EM::Connection
     @node = node
   end
 
-  def post_init
+  def log
+    @log ||= Bitcoin::Logger::LogWrapper.new("command:", @node.log)
   end
 
   def respond(data)
@@ -16,7 +17,7 @@ class CommandHandler < EM::Connection
   def receive_data line
     return  if line == "\n"
     cmd, *args = line.split(" ")
-    @node.log.debug { "debug cmd: #{line}" }
+    log.debug { line.chomp }
     if respond_to?("handle_#{cmd}")
       respond(send("handle_#{cmd}", *args))
     else

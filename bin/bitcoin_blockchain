@@ -11,36 +11,49 @@ options = {
   :connect => "",
   :storage => "dummy",
   :dns => true,
-  :max_connections => 32,
-  :max_addr => 1024,
-  :max_queue => 512,
-  :max_inv => 512,
+  :log => {
+    :network => :info,
+    :storage => :info,
+  },
+  :max => {
+    :connections => 32,
+    :addr => 1024,
+    :queue => 512,
+    :inv => 512,
+  },
+  :intervals => {
+    :queue => 5,
+    :inv_queue => 5,
+    :blocks => 5,
+    :addrs => 5,
+    :connect => 15,
+  },
 }
 optparse = OptionParser.new do|opts|
   opts.banner = "Usage: bitcoin_node [options]"
 
   opts.on("-n", "--network [NETWORK]",
-          "User Network (default: #{options[:network]})") do |network|
+    "User Network (default: #{options[:network]})") do |network|
     options[:network] = network
   end
 
   opts.on("--command [HOST:PORT]",
-          "Command socket (default: #{options[:command]})") do |command|
+    "Command socket (default: #{options[:command]})") do |command|
     options[:command] = command
   end
 
   opts.on("-l", "--listen [HOST:PORT]",
-          "Listen address/port (default: #{options[:listen]})") do |listen|
+    "Listen address/port (default: #{options[:listen]})") do |listen|
     options[:listen] = listen
   end
 
   opts.on("-c", "--connect [HOST:PORT[,HOST:PORT[...]]]",
-          "Hosts to connect to (default: #{options[:connect]})") do |connect|
+    "Hosts to connect to (default: #{options[:connect]})") do |connect|
     options[:connect] = connect
   end
 
   opts.on("-s", "--storage [BACKEND::CONFIG]",
-          "Use storage backend (default: #{options[:storage]})") do |storage|
+    "Use storage backend (default: #{options[:storage]})") do |storage|
     options[:storage] = storage
   end
 
@@ -52,24 +65,33 @@ optparse = OptionParser.new do|opts|
     options[:dns] = false
   end
 
-  opts.on("--mc", "--max-connections [COUNT]",
-          "Max connections (default: #{options[:max_connections]})") do |count|
-    options[:max_connections] = count.to_i
+  [:connections, :addr, :queue, :inv].each do |name|
+    opts.on("--m#{name[0]}", "--max-#{name} [COUNT]",
+      "Max #{name} (default: #{options[:max][name]})") do |count|
+      options[:max][name] = count.to_i
+    end
   end
 
-  opts.on("--ma", "--max-addr [COUNT]",
-          "Max size of addr queue (default: #{options[:max_addr]})") do |count|
-    options[:max_addr] = count.to_i
+  [:queue, :inv_queue, :blocks, :addrs, :connect].each do |name|
+    opts.on("--i#{name[0]}", "--interval-#{name} [SECONDS]",
+      "Interval for #{name} worker (default: #{options[:intervals][name]})") do |sec|
+      options[:intervals][name] = sec.to_i
+    end
   end
 
-  opts.on("--mq", "--max_queue [COUNT]",
-          "Max size of download/storage queue (default: #{options[:max_queue]})") do |count|
-    options[:max_queue] = count.to_i
+  [:network, :storage].each do |name|
+    opts.on("--l#{name[0]}", "--log-#{name} [LEVEL]",
+      "Log level for #{name} (default: #{options[:log][name]})") do |level|
+      options[:log][name] = level.to_sym
+    end
   end
 
-  opts.on("--mi", "--max_inv [COUNT]",
-          "Max size of inv queue (default: #{options[:max_inv]})") do |count|
-    options[:max_inv] = count.to_i
+  opts.on("-v", "--verbose", "Set all loggers to debug") do
+    options[:log].each_key {|k| options[:log][k] = :debug }
+  end
+
+  opts.on("-q", "--quiet", "Set all loggers to warn") do
+    options[:log].each_key {|k| options[:log][k] = :warn }
   end
 
   opts.on( '-h', '--help', 'Display this screen' ) do
