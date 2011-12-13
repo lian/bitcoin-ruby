@@ -40,9 +40,14 @@ module Bitcoin::Network
       @queue_thread = nil
       @inv_queue = []
       @inv_queue_thread = nil
-      @store = @config.delete(:storage)
+      set_store
       @addrs = []
       @timers = {}
+    end
+
+    def set_store
+      backend, config = @config[:storage].split('::')
+      @store = Bitcoin::Storage.send(backend, {:db => config})
     end
 
     def stop
@@ -50,7 +55,12 @@ module Bitcoin::Network
       EM.stop
     end
 
+    def uptime
+      (Time.now - @started).to_i
+    end
+
     def run
+      @started = Time.now
       @log.level = @config[:log][:network]
       @store.log.level = @config[:log][:storage]
 

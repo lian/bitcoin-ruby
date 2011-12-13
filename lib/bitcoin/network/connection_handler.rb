@@ -16,11 +16,16 @@ module Bitcoin::Network
       @log ||= Logger::LogWrapper.new("#@host:#@port", @node.log)
     end
 
+    def uptime
+      @started ? (Time.now - @started).to_i : nil
+    end
+
     def initialize node, host, port
       @node, @host, @port = node, host, port
       @parser = Bitcoin::Protocol::Parser.new(self)
       @state = :new
       @version = nil
+      @started = nil
     rescue Exception
       log.fatal { "Error in #initialize" }
       p $!; puts $@; exit
@@ -105,6 +110,7 @@ module Bitcoin::Network
     def on_handshake_complete
       log.debug { "handshake complete" }
       @state = :connected
+      @started = Time.now
       #send_getaddr
     end
 

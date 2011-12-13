@@ -33,6 +33,10 @@ class CommandHandler < EM::Connection
       :connections => "#{@node.connections.select{|c| c.state == :connected}.size} (#{@node.connections.size})",
       :queue => @node.queue.size,
       :inv_queue => @node.inv_queue.size,
+      :network => @node.config[:network],
+      :storage => @node.config[:storage],
+      :version => Bitcoin::Protocol::VERSION,
+      :uptime => Time.at(@node.uptime).utc.strftime("%H:%M:%S"),
     }
   end
 
@@ -42,8 +46,10 @@ class CommandHandler < EM::Connection
 
   def handle_connections
     @node.connections.sort{|x,y| x.host <=> y.host}.map{|c|
-      "#{c.host.rjust(15)}:#{c.port} - #{c.state} - " +
-      "#{c.version.version rescue '?'} - #{c.version.block rescue '?'}"}
+      "#{c.host.rjust(15)}:#{c.port} [state: #{c.state}, " +
+      "version: #{c.version.version rescue '?'}, " +
+      "block: #{c.version.block rescue '?'}, " +
+      "uptime: #{Time.at(c.uptime).utc.strftime("%H:%M:%S") rescue 0}]" }
   end
 
   def handle_connect *args

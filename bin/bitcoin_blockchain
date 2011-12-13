@@ -106,8 +106,6 @@ Bitcoin.network = options[:network]
 options[:command] = options[:command] == "" ? nil : options[:command].split(':')
 options[:listen] = options[:listen] == "" ? nil : options[:listen].split(':')
 options[:connect] = options[:connect] == "" ? [] : options[:connect].split(',').map{|h| h.split(':')}
-backend, config = options[:storage].split('::')
-options[:storage] = Bitcoin::Storage.send(backend, {:db => config})
 
 node = Bitcoin::Network::Node.new(options)
 node.run
