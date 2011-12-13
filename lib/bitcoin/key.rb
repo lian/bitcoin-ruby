@@ -84,7 +84,13 @@ module Bitcoin
 
     # get the public key (in hex)
     def pub
-      return nil  unless @key.public_key
+      unless @key.public_key
+        if @key.private_key
+          set_pub(Bitcoin::OpenSSL_EC.regenerate_key(priv)[1])
+        else
+          return nil
+        end
+      end
       @key.public_key.to_hex.rjust(130, '0')
     end
 

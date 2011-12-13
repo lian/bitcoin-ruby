@@ -32,7 +32,7 @@ describe "Bitcoin::Key" do
   it "should create key from only priv" do
     k = Bitcoin::Key.new(@key_data[:priv])
     k.priv.should == @key_data[:priv]
-    # k.pub.should == @key_data[:pub]
+    k.pub.should == @key_data[:pub]
   end
 
   it "should create key from only pub" do
@@ -50,7 +50,7 @@ describe "Bitcoin::Key" do
     k = Bitcoin::Key.new
     k.priv = @key_data[:priv]
     k.priv.should == @key_data[:priv]
-    #    k.pub.should == @key_data[:pub]
+    k.pub.should == @key_data[:pub]
   end
 
   it "should get addr" do
