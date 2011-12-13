@@ -217,6 +217,9 @@ module Bitcoin
     end
   end
 
+  autoload :OpenSSL_EC, "bitcoin/ffi/openssl"
+
+
   extend Util
 
   @network = :bitcoin
