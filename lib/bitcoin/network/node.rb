@@ -69,8 +69,7 @@ module Bitcoin::Network
       end
 
       EM.run do
-        [:queue, :inv_queue, :blocks, :getaddrs,
-         :connect].each do |name|
+        [:queue, :inv_queue, :blocks, :addrs, :connect].each do |name|
           interval = @config[:intervals][name]
           next  if !interval || interval == 0
           @timers[name] = EM.add_periodic_timer(interval, method("work_#{name}"))
@@ -171,10 +170,12 @@ module Bitcoin::Network
     # check if the addr store is full and request new addrs
     # from a random peer if it isn't
     def work_addrs
+      log.debug { "addr worker running" }
       @addrs.delete_if{|addr| !addr.alive? }  if @addrs.size >= @config[:max][:addr]
       return  if !@connections.any? || @config[:max][:connections] <= @connections.size
       connections = @connections.select(&:connected?)
       return  unless connections.any?
+      log.info { "requesting addrs" }
       connections.sample.send_getaddr
     end
 
