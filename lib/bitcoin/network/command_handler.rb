@@ -68,7 +68,11 @@ class CommandHandler < EM::Connection
   end
 
   def handle_addrs count = 32
-    @node.addrs.select(&:alive?).sample(count.to_i).map{|a| [a.ip, a.port]}
+    @node.addrs.weighted_sample(count.to_i) do |addr|
+      Time.now.tv_sec + 7200 - addr.time
+    end.map do |addr|
+      [addr.ip, addr.port, Time.now.tv_sec - addr.time] rescue nil
+    end.compact
   end
 
   def handle_stop

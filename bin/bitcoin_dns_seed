@@ -14,7 +14,7 @@ DNS_OPTS = {
   :cache => 1024,
   :send => 16,
   :interval => 10,
-  :ttl => 60,
+  :ttl => nil,
 }
 optparse = OptionParser.new do|opts|
   opts.banner = "Usage: bitcoin_dns_seed [options] <domain>"
@@ -41,7 +41,7 @@ optparse = OptionParser.new do|opts|
     DNS_OPTS[:interval] = s.to_i
   end
 
-  opts.on("-t", "--ttl [SECONDS]", "TTL to set on served records (default: 10)") do |t|
+  opts.on("-t", "--ttl [SECONDS]", "TTL to set on served records (default: relative to addr age)") do |t|
     DNS_OPTS[:ttl] = t.to_i
   end
 
@@ -79,9 +79,21 @@ RubyDNS::run_server do
   end
 
   match(DNS_OPTS[:domain], :A) do |transaction|
-    @addrs.select{|a| a[1] == DNS_OPTS[:port]}
-      .uniq.sample(DNS_OPTS[:send]).each do |addr|
-      transaction.respond!(addr[0], :ttl => DNS_OPTS[:ttl])
+    begin
+      @addrs.select{|a| a[1] == DNS_OPTS[:port]}
+        .weighted_sample(DNS_OPTS[:send]) do |addr|
+        10800 - addr[2]
+      end.uniq.each do |addr|
+        begin
+          ttl = DNS_OPTS[:ttl] || ((10800 - addr[2]) / 30)
+          transaction.respond!(addr[0], :ttl => ttl)
+        rescue
+          # ignore faulty addrs ("localhost" etc)
+        end
+      end
+    rescue
+      @logger.error { "Error answering request: #{$!.inspect}" }
+      p *$@
     end
   end
 end

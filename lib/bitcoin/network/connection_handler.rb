@@ -104,16 +104,8 @@ module Bitcoin::Network
 
     def on_verack
       log.info { ">> verack" }
-      on_handshake_complete  if @state == :handshake
+      on_handshake_complete  if handshake?
     end
-
-    def on_handshake_complete
-      log.debug { "handshake complete" }
-      @state = :connected
-      @started = Time.now
-      #send_getaddr
-    end
-
 
     def send_getdata_tx(hash)
       pkt = Protocol.getdata_pkt(:tx, [hash])
@@ -145,6 +137,18 @@ module Bitcoin::Network
       log.info { "Asking for genesis block" }
       pkt = Protocol.getdata_pkt(:block, [htb(Bitcoin::network[:genesis_hash])])
       send_data(pkt)
+    end
+
+    def on_handshake_complete
+      return  unless handshake?
+      log.debug { "handshake complete" }
+      @state = :connected
+      @started = Time.now
+      addr = Bitcoin::Protocol::Addr.new
+      addr.time, addr.service, addr.ip, addr.port =
+        Time.now.tv_sec, @version.services, @host, @port
+      @node.addrs << addr
+      #send_getaddr
     end
 
     def on_handshake_begin

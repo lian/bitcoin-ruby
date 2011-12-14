@@ -4,9 +4,11 @@ module Bitcoin
     class Addr < Struct.new(:time, :service, :ip, :port)
 
       # create addr from raw binary +data+
-      def initialize(data)
-        self[:time], self[:service], self[:ip], self[:port] = data.unpack("IQx12a4n")
-        self[:ip] = ip.unpack("C*").join(".")
+      def initialize(data = nil)
+        if data
+          self[:time], self[:service], self[:ip], self[:port] = data.unpack("IQx12a4n")
+          self[:ip] = ip.unpack("C*").join(".")
+        end
       end
 
       # is this address alive?

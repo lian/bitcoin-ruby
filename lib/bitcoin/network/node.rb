@@ -97,6 +97,7 @@ module Bitcoin::Network
 
     # connect to peer at given +hosh+ / +port+
     def connect_peer host, port
+      return  if @connections.map{|c| [c.host, c.port]}.include?([host, port])
       log.info { "Attempting to connect to #{host}:#{port}" }
       EM.connect(host, port.to_i, ConnectionHandler, self, host, port.to_i)
     rescue
@@ -128,7 +129,7 @@ module Bitcoin::Network
         end
       end
       dns.errback do |*a|
-        log.error { "Cannot resolve DNS seed #{host}: #{a.inspect}" }
+        log.error { "Cannot resolve DNS seed #{seed}: #{a.inspect}" }
       end
     end
 
@@ -143,12 +144,17 @@ module Bitcoin::Network
         @connections.map{|c| [c.host, c.port]}.include?([addr.ip, addr.port])
       end
       if addrs.any?
-        addrs.sample(desired).each{|addr| connect_peer(addr.ip, addr.port) }
+        a = addrs.weighted_sample(desired) do |addr|
+          Time.now.tv_sec + 10800 - addr.time
+        end
+          a.each do |addr|
+          connect_peer(addr.ip, addr.port)
+        end
       elsif @config[:dns]
         connect_dns
       end
     rescue
-      log.error { "Error during connect" }
+      log.error { "Error during connect: #{$!.inspect}" }
     end
 
     # check if the inv queue is running low and issue a
