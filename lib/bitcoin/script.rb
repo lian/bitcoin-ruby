@@ -220,10 +220,6 @@ module Bitcoin
       @stack.pop == true
     end
 
-    def is_standard? # TODO: add
-      # https://github.com/bitcoin/bitcoin/blob/master/src/script.cpp#L967
-    end
-
     # do a CHECKSIG operation on the current stack,
     # asking +check_callback+ to do the actual signature verification.
     # This is used by Protocol::Tx#verify_input_signature
@@ -242,27 +238,49 @@ module Bitcoin
       end
     end
 
-    # is this a send-to-ip tx
+    def is_standard? # TODO: add
+      # https://github.com/bitcoin/bitcoin/blob/master/src/script.cpp#L967
+    end
+
+    # is this a send-to-ip (pubkey) tx
     def is_send_to_ip?
       return false if @chunks.size != 2
       (@chunks[1] == OP_CHECKSIG) && @chunks[0].size > 1
     end
+    alias :is_pubkey? :is_send_to_ip?
 
-    # get the public key for this script
-    def get_pubkey
-      return @chunks[0].unpack("H*")[0] if @chunks.size == 1
-      if @chunks.size != 2
-        raise "Script not right size for scriptSig, expecting 2 but got #{@chunks.size}"
-      end
-      if !@chunks[1].is_a?(Fixnum) && @chunks[0].bytesize > 1
-        raise "Script not in the standard scriptSig form"
-      end
-      @chunks[0].unpack("H*")[0]
+    # is this a hash160 (address) tx
+    def is_hash160?
+      return false  if @chunks.size != 5
+      (@chunks[0..1] + @chunks[-2..-1]) ==
+        [OP_DUP, OP_HASH160, OP_EQUALVERIFY, OP_CHECKSIG]
     end
 
-    # get the address for the public key
+    # get the public key for this script (in generation scripts)
+    def get_pubkey
+      return @chunks[0].unpack("H*")[0] if @chunks.size == 1
+      is_pubkey? ? @chunks[0].unpack("H*")[0] : nil
+    end
+
+    # get the address for the public key (in generation scripts)
     def get_pubkey_address
       Bitcoin.pubkey_to_address(get_pubkey)
+    end
+
+    # get the hash160 for this script (in standard address scripts)
+    def get_hash160
+      is_hash160? ? @chunks[2..-3][0].unpack("H*")[0] : nil
+    end
+
+    # get the address for the script hash160 (in standard address scripts)
+    def get_hash160_address
+      Bitcoin.hash160_to_address(get_hash160)
+    end
+
+    # get address this script corresponds to (if possible)
+    def get_address
+      return get_pubkey_address  if is_pubkey?
+      return get_hash160_address if is_hash160?
     end
 
     # generate standard transaction script for given +address+
