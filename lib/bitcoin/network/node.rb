@@ -222,3 +222,34 @@ module Bitcoin::Network
 
   end
 end
+
+class Array
+  def random(weights=nil)
+    return random(map {|n| yield(n) })  if block_given?
+    return random(map {|n| n.send(weights) })  if weights.is_a? Symbol
+
+    weights ||= Array.new(length, 1.0)
+    total = weights.inject(0.0) {|t,w| t+w}
+    point = rand * total
+
+    zip(weights).each do |n,w|
+      return n if w >= point
+      point -= w
+    end
+  end
+
+  def weighted_sample(n, weights = nil)
+    src = dup
+    buf = []
+    n = src.size  if n > src.size
+    while buf.size < n
+      if block_given?
+        item = src.random {|n| yield(n) }
+      else
+        item = src.random(weights)
+      end
+      buf << item; src.delete(item)
+    end
+    buf
+  end
+end
