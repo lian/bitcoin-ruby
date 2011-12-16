@@ -10,6 +10,7 @@ options = {
   :listen => "0.0.0.0:18332",
   :connect => "",
   :storage => "dummy",
+  :headers_only => false,
   :dns => true,
   :log => {
     :network => :info,
@@ -55,6 +56,11 @@ optparse = OptionParser.new do|opts|
   opts.on("-s", "--storage [BACKEND::CONFIG]",
     "Use storage backend (default: #{options[:storage]})") do |storage|
     options[:storage] = storage
+  end
+
+  opts.on("--ho", "--headers-only",
+    "Download only block headers") do
+    options[:headers_only] = true
   end
 
   opts.on("-d", "--dns", "Use DNS seeds (default)") do

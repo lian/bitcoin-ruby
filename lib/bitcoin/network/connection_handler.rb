@@ -94,6 +94,11 @@ module Bitcoin::Network
       @node.queue.push([:block, blk])
     end
 
+    def on_headers(headers)
+      log.info { ">> headers: #{headers.size}" }
+      headers.each {|h| @node.queue.push([:block, h])}
+    end
+
     def on_version(version)
       log.info { ">> version: #{version.version}" }
       @version = version
@@ -125,6 +130,15 @@ module Bitcoin::Network
       pkt = Protocol.pkt("getblocks", [Bitcoin::network[:magic_head],
           locator.size.chr, *locator.map{|l| htb(l).reverse}, "\x00"*32].join)
       log.info { "<< getblocks: #{locator.first}" }
+      send_data(pkt)
+    end
+
+    def send_getheaders
+      return get_genesis_block  if @node.store.get_depth == -1
+      locator = @node.store.get_locator
+      pkt = Protocol.pkt("getheaders", [Bitcoin::network[:magic_head],
+          locator.size.chr, *locator.map{|l| htb(l).reverse}, "\x00"*32].join)
+      log.info { "<< getheaders: #{locator.first}" }
       send_data(pkt)
     end
 

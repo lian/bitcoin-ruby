@@ -12,6 +12,7 @@ module Bitcoin::Network
       :connect => [],
       :command => "",
       :storage => Bitcoin::Storage.dummy({}),
+      :headers_only => false,
       :dns => true,
       :log => {
         :network => :info,
@@ -188,8 +189,11 @@ module Bitcoin::Network
       end
 
       log.info { "Querying blocks" }
-      if @inv_queue.size < @config[:max][:inv]
-        @connections.select(&:connected?).sample.send_getblocks
+      client = @connections.select(&:connected?).sample
+      if @config[:headers_only]
+        client.send_getheaders  unless @queue.size >= @config[:max][:queue]
+      else
+        client.send_getblocks  unless @inv_queue.size >= @config[:max][:inv]
       end
     end
 
@@ -214,7 +218,9 @@ module Bitcoin::Network
           begin
             while obj = @queue.shift
               @log.debug { "storing #{obj[0]} #{obj[1].hash} (#{obj[1].payload.bytesize})" }
-              @store.send("store_#{obj[0]}", obj[1])
+              unless @config[:headers_only] && obj[0] == :tx && obj[1].tx.any?
+                @store.send("store_#{obj[0]}", obj[1])
+              end
             end
           rescue
             log.error { "Error in queue worker: #{$!}" }
