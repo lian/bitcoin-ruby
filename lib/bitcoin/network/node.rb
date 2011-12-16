@@ -33,8 +33,9 @@ module Bitcoin::Network
     }
 
     def initialize config = {}
-      @config = DEFAULT_CONFIG.merge(config)
+      @config = DEFAULT_CONFIG.deep_merge(config)
       @log = Bitcoin::Logger.create("network")
+      @log.level = @config[:log][:network]
       @connections = []
       @queue = []
       @queue_thread = nil
@@ -48,6 +49,7 @@ module Bitcoin::Network
     def set_store
       backend, config = @config[:storage].split('::')
       @store = Bitcoin::Storage.send(backend, {:db => config})
+      @store.log.level = @config[:log][:storage]
     end
 
     def stop
@@ -61,8 +63,6 @@ module Bitcoin::Network
 
     def run
       @started = Time.now
-      @log.level = @config[:log][:network]
-      @store.log.level = @config[:log][:storage]
 
       EM.add_shutdown_hook do
         log.info { "Bye" }
@@ -272,4 +272,19 @@ class Array
     end
     buf
   end
+
+  class ::Hash
+    def deep_merge(hash)
+      target = dup
+      hash.keys.each do |key|
+        if hash[key].is_a? Hash and self[key].is_a? Hash
+          target[key] = target[key].deep_merge(hash[key])
+          next
+        end
+        target[key] = hash[key]
+      end
+      target
+    end
+  end
+
 end
