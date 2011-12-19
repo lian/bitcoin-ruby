@@ -54,6 +54,8 @@ module Bitcoin::Storage::Backends::SequelMigrations
         column :tx_idx, :int, :null => false
         column :pk_script, :bytea, :null => false, :index => true
         column :value, :bigint
+        column :hash160, String
+        index :hash160
       end
     end
   end

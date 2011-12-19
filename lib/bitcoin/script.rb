@@ -269,7 +269,8 @@ module Bitcoin
 
     # get the hash160 for this script (in standard address scripts)
     def get_hash160
-      is_hash160? ? @chunks[2..-3][0].unpack("H*")[0] : nil
+      return @chunks[2..-3][0].unpack("H*")[0]  if is_hash160?
+      return Bitcoin.hash160(get_pubkey)  if is_pubkey?
     end
 
     # get the address for the script hash160 (in standard address scripts)

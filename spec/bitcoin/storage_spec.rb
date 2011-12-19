@@ -144,6 +144,12 @@ require_relative 'spec_helper'
       @store.has_tx(@tx.hash).should == true
     end
 
+    it "should store hash160 for txout" do
+      @store.store_tx(@tx)
+      @store.get_tx(@tx.hash).out[0].hash160
+        .should == "3129d7051d509424d23d533fa2d5258977e822e3"
+    end
+
     it "should get tx" do
       @store.store_tx(@tx)
       @store.get_tx(@tx.hash).should == @tx
@@ -193,6 +199,12 @@ require_relative 'spec_helper'
       @store.store_tx(tx)
 
       @store.get_tx(outpoint_tx.hash).out[0].get_next_in.should == tx.in[0]
+    end
+
+    it "should get txouts for hash160" do
+      @store.store_tx(@tx)
+      @store.get_txouts_for_hash160("3129d7051d509424d23d533fa2d5258977e822e3")
+        .should == [@tx.out[0]]
     end
 
     it "should get txouts for address" do

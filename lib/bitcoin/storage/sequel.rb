@@ -95,6 +95,7 @@ module Bitcoin::Storage::Backends
           :tx_idx => idx,
           :pk_script => txout.pk_script.to_sequel_blob,
           :value => txout.value,
+          :hash160 => Bitcoin::Script.new(txout.pk_script).get_hash160
         })
     end
 
@@ -158,6 +159,10 @@ module Bitcoin::Storage::Backends
       txouts.map{|txout| wrap_txout(txout)}
     end
 
+    def get_txouts_for_hash160(hash160)
+      @db[:txout].where(:hash160 => hash160).map{|o| wrap_txout(o) }
+    end
+
 
     def wrap_block(block)
       return nil  unless block
@@ -216,7 +221,8 @@ module Bitcoin::Storage::Backends
 
     def wrap_txout(output)
       return nil  unless output
-      data = {:id => output[:id], :tx_id => output[:tx_id], :tx_idx => output[:tx_idx]}
+      data = {:id => output[:id], :tx_id => output[:tx_id], :tx_idx => output[:tx_idx],
+        :hash160 => output[:hash160]}
       txout = Bitcoin::Storage::Models::TxOut.new(self, data)
       txout.value = output[:value]
       txout.pk_script_length = output[:pk_script].bytesize
