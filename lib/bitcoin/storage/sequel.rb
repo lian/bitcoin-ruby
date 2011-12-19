@@ -25,57 +25,61 @@ module Bitcoin::Storage::Backends
     end
 
     def store_block(blk)
-      block = @db[:blk][:hash => htb(blk.hash).to_sequel_blob]
-      return block[:depth]  if block
+      @db.transaction do
+        block = @db[:blk][:hash => htb(blk.hash).to_sequel_blob]
+        return block[:depth]  if block
 
-      prev_block = get_block(hth(blk.prev_block.reverse))
-      if !prev_block && blk.hash != Bitcoin::network[:genesis_hash]
-        log.warn { "Invalid Block: #{blk.hash} - prev_block not found" }
-        return nil
-      end
-      if prev_block
-        depth = prev_block.depth + 1
-      else
-        depth = 0
-      end
-      block_id = @db[:blk].insert({
-          :hash => htb(blk.hash).to_sequel_blob,
-          :depth => depth,
-          :version => blk.ver,
-          :prev_hash => blk.prev_block.reverse.to_sequel_blob,
-          :mrkl_root => blk.mrkl_root.reverse.to_sequel_blob,
-          :time => blk.time,
-          :bits => blk.bits,
-          :nonce => blk.nonce,
-          :blk_size => blk.payload.bytesize,
-        })
-      blk.tx.each_with_index do |tx, idx|
-        tx_id = store_tx(tx)
-        @db[:blk_tx].insert({
-            :blk_id => block_id,
-            :tx_id => tx_id,
-            :idx => idx,
+        prev_block = get_block(hth(blk.prev_block.reverse))
+        if !prev_block && blk.hash != Bitcoin::network[:genesis_hash]
+          log.warn { "Invalid Block: #{blk.hash} - prev_block not found" }
+          return nil
+        end
+        if prev_block
+          depth = prev_block.depth + 1
+        else
+          depth = 0
+        end
+        block_id = @db[:blk].insert({
+            :hash => htb(blk.hash).to_sequel_blob,
+            :depth => depth,
+            :version => blk.ver,
+            :prev_hash => blk.prev_block.reverse.to_sequel_blob,
+            :mrkl_root => blk.mrkl_root.reverse.to_sequel_blob,
+            :time => blk.time,
+            :bits => blk.bits,
+            :nonce => blk.nonce,
+            :blk_size => blk.payload.bytesize,
           })
-      end
+        blk.tx.each_with_index do |tx, idx|
+          tx_id = store_tx(tx)
+          @db[:blk_tx].insert({
+              :blk_id => block_id,
+              :tx_id => tx_id,
+              :idx => idx,
+            })
+        end
 
-      log.info { "new head #{blk.hash} - #{get_depth}" }
-      depth
+        log.info { "new head #{blk.hash} - #{get_depth}" }
+        depth
+      end
     end
 
     def store_tx(tx)
-      transaction = @db[:tx][:hash => htb(tx.hash).to_sequel_blob]
-      return transaction[:id]  if transaction
+      @db.transaction do
+        transaction = @db[:tx][:hash => htb(tx.hash).to_sequel_blob]
+        return transaction[:id]  if transaction
 
-      tx_id = @db[:tx].insert({
-          :hash => htb(tx.hash).to_sequel_blob,
-          :version => tx.ver,
-          :lock_time => tx.lock_time,
-          :coinbase => tx.in.size==1 && tx.in[0].coinbase?,
-          :tx_size => tx.payload.bytesize,
-        })
-      tx.in.each_with_index {|i, idx| store_txin(tx_id, i, idx)}
-      tx.out.each_with_index {|o, idx| store_txout(tx_id, o, idx)}
-      tx_id
+        tx_id = @db[:tx].insert({
+            :hash => htb(tx.hash).to_sequel_blob,
+            :version => tx.ver,
+            :lock_time => tx.lock_time,
+            :coinbase => tx.in.size==1 && tx.in[0].coinbase?,
+            :tx_size => tx.payload.bytesize,
+          })
+        tx.in.each_with_index {|i, idx| store_txin(tx_id, i, idx)}
+        tx.out.each_with_index {|o, idx| store_txout(tx_id, o, idx)}
+        tx_id
+      end
     end
 
     def store_txin(tx_id, txin, idx)
