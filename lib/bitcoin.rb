@@ -245,7 +245,7 @@ module Bitcoin
       :magic_head => "\xFA\xBF\xB5\xDA",
       :address_version => "6f",
       :default_port => 18333,
-      :dns_seeds => [],
+      :dns_seeds => ["testseed.bitcoin.interesthings.de"],
       :genesis_hash => "00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008"
     }
   }
