@@ -141,9 +141,9 @@ module Bitcoin::Storage
         get_txouts_for_pk_script(script)
       end
 
-      # get balance for given +address+
-      def get_balance(address)
-        txouts = get_txouts_for_address(address)
+      # get balance for given +hash160+
+      def get_balance(hash160)
+        txouts = get_txouts_for_hash160(hash160)
         unspent = txouts.select {|o| o.get_next_in.nil?}
         unspent.map(&:value).inject {|a,b| a+=b; a} || 0
       rescue

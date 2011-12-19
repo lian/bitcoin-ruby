@@ -215,7 +215,10 @@ require_relative 'spec_helper'
 
     it "should get balance for address" do
       @store.store_tx(@tx)
-      @store.get_balance("mjzuXYR2fncbPzn9nR5Ee5gBgYk9UQx36x").should == 1000000
+      @store.get_balance("3129d7051d509424d23d533fa2d5258977e822e3").should == 1000000
+
+      @store.get_balance("4580f1b3632948202655fd555fdaaf9b9ef5ac0d").should == 0
+      @store.get_balance("f3de26ff7d472d5365e3adafece9bbdcace915a0").should == 200000000
     end
 
   end
