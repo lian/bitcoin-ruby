@@ -253,7 +253,8 @@ module Bitcoin
     def is_hash160?
       return false  if @chunks.size != 5
       (@chunks[0..1] + @chunks[-2..-1]) ==
-        [OP_DUP, OP_HASH160, OP_EQUALVERIFY, OP_CHECKSIG]
+        [OP_DUP, OP_HASH160, OP_EQUALVERIFY, OP_CHECKSIG] &&
+        @chunks[2].is_a?(String) && @chunks[2].bytesize == 20
     end
 
     # get the public key for this script (in generation scripts)

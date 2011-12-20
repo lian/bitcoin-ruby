@@ -43,6 +43,8 @@ describe 'Bitcoin::Script' do
   it "#get_hash160" do
     Bitcoin::Script.new(@script[2]).get_hash160.should ==
       "17977bca1b6287a5e6559c57ef4b6525e9d7ded6"
+    Bitcoin::Script.from_string("OP_DUP OP_HASH160 0 OP_EQUALVERIFY OP_CHECKSIG")
+      .get_hash160.should == nil
   end
 
   it "#get_hash160_address" do
@@ -68,6 +70,8 @@ describe 'Bitcoin::Script' do
     Bitcoin::Script.new(@script[0]).is_hash160?.should == false
     Bitcoin::Script.new(@script[1]).is_send_to_ip?.should == false
     Bitcoin::Script.new(@script[2]).is_hash160?.should == true
+    Bitcoin::Script.from_string("OP_DUP OP_HASH160 0 OP_EQUALVERIFY OP_CHECKSIG")
+      .is_hash160?.should == false
   end
 
   it '#run' do
