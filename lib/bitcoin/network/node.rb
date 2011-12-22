@@ -98,7 +98,7 @@ module Bitcoin::Network
 
     # connect to peer at given +hosh+ / +port+
     def connect_peer host, port
-      return  if @connections.map{|c| [c.host, c.port]}.include?([host, port])
+      return  if @connections.map{|c| c.host}.include?(host)
       log.info { "Attempting to connect to #{host}:#{port}" }
       EM.connect(host, port.to_i, ConnectionHandler, self, host, port.to_i)
     rescue
@@ -161,14 +161,10 @@ module Bitcoin::Network
       desired = @config[:max][:connections] - @connections.size
       return  if desired <= 0
       desired = 32  if desired > 32 # connect to max 32 peers at once
-      addrs = @addrs.reject do |addr|
-        @connections.map{|c| [c.host, c.port]}.include?([addr.ip, addr.port])
-      end
       if addrs.any?
-        a = addrs.weighted_sample(desired) do |addr|
+        addrs.sample(desired) do |addr|
           Time.now.tv_sec + 10800 - addr.time
-        end
-          a.each do |addr|
+        end.each do |addr|
           connect_peer(addr.ip, addr.port)
         end
       elsif @config[:dns]
