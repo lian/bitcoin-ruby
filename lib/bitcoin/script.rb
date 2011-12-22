@@ -162,12 +162,12 @@ module Bitcoin
 
     # Puts the input onto the top of the alt stack. Removes it from the main stack.
     def op_toaltstack
-      @stack_alt << @stack.pop(1)
+      @stack_alt << @stack.pop
     end
 
     # Puts the input onto the top of the main stack. Removes it from the alt stack.
     def op_fromaltstack
-      @stack << @stack_alt.pop(1)
+      @stack << @stack_alt.pop
     end
 
     # The item at the top of the stack is copied and inserted before the second-to-top item.
@@ -183,7 +183,7 @@ module Bitcoin
     # If both a and b are not 0, the output is 1. Otherwise 0.
     def op_booland
       a, b = @stack.pop(2)
-      @stack << ![a,b].any?{|n| n == 0 } ? 1 : 0
+      @stack << (![a,b].any?{|n| n == 0 } ? 1 : 0)
     end
 
     # a is added to b.
@@ -201,12 +201,12 @@ module Bitcoin
     # Returns 1 if a is greater than or equal to b, 0 otherwise.
     def op_greaterthanorequal
       a, b = @stack.pop(2).reverse
-      @stack << (a >= b) ? 1 : 0
+      @stack << (a >= b ? 1 : 0)
     end
 
     # Removes the top stack item.
     def op_drop
-      @stack.pop(1)
+      @stack.pop
     end
 
     # Returns 1 if the inputs are exactly equal, 0 otherwise.
