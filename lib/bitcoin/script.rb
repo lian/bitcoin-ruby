@@ -355,6 +355,7 @@ module Bitcoin
     # generate standard transaction script for given +address+
     def self.to_address_script(address)
       hash160 = Bitcoin.hash160_from_address(address)
+      return nil  unless hash160
       #  DUP   HASH160  length  hash160    EQUALVERIFY  CHECKSIG
       [ ["76", "a9",    "14",   hash160,   "88",        "ac"].join ].pack("H*")
     end

@@ -14,6 +14,10 @@ describe 'Bitcoin::Script' do
 
     Bitcoin::Script.new(@script[1]).to_string.should ==
       "304402204e45e16932b8af514961a1d3a1a25fdf3f4f7732e9d624c6c61548ab5fb8cd410220181522ec8eca07de4860a4acdd12909d831cc56cbbac4622082221a8768d1d0901"
+
+    Bitcoin::Script.new([123].pack("C")).to_string.should == "(opcode 123)"
+    # Bitcoin::Script.from_string("(opcode 123)").to_string.should == "(opcode 123)"
+    # Bitcoin::Script.from_string("1 OP_DROP 2").to_string.should == "1 OP_DROP 2"
   end
 
   it 'Script#binary_from_string' do
@@ -77,6 +81,155 @@ describe 'Bitcoin::Script' do
   it '#run' do
     script = @script[1] + @script[0]
     Bitcoin::Script.new(script).run.should == true
-    # TODO test more scripts
+
+    Bitcoin::Script.from_string("1 OP_DUP OP_DROP 1 OP_EQUAL")
+      .run.should == true
+    Bitcoin::Script.from_string("1 OP_DUP OP_DROP 1 OP_EQUAL")
+      .run.should == true
+
+    -> { Bitcoin::Script.from_string("1 OP_DROP 2").run }.should.raise RuntimeError
   end
+
+  it "should generate address script" do
+    Bitcoin::Script.to_address_script('16Tc7znw2mfpWcqS84vBFfJ7PyoeHaXSz9')
+      .should == ["76a9143be0c2daaabbf3d53e47352c19d1e8f047e2f94188ac"].pack("H*")
+    Bitcoin::Script.to_address_script('mr1jU3Adw2pkvxTLvQA4MKpXB9Dynj9cXF')
+      .should == nil
+  end
+
+  it "should generate pubkey script" do
+    sig = ["3045022062437a8f60651cd968137355775fa8bdb83d4ca717fdbc08bf9868a051e0542f022100f5cd626c15ef0de0803ddf299e8895743e7ff484d6335874edfe086ee0a08fec"].pack("H*")
+    pub = ["04bc3e2b520d4be3e2651f2ba554392ea31edd69d2081186ab98acda3c4bf45e41a5f6e093277b774b5893347e38ffafce2b9e82226e6e0b378cf79b8c2eed983c"].pack("H*")
+    Bitcoin::Script.to_signature_pubkey_script(sig, pub)
+      .should == ["483045022062437a8f60651cd968137355775fa8bdb83d4ca717fdbc08bf9868a051e0542f022100f5cd626c15ef0de0803ddf299e8895743e7ff484d6335874edfe086ee0a08fec014104bc3e2b520d4be3e2651f2ba554392ea31edd69d2081186ab98acda3c4bf45e41a5f6e093277b774b5893347e38ffafce2b9e82226e6e0b378cf79b8c2eed983c"].pack("H*")
+  end
+
+
+  describe "Bitcoin::Script OPCODES" do
+
+    before do
+      @script = Bitcoin::Script.new("")
+      @script.class.instance_eval { attr_accessor :stack, :stack_alt }
+      @script.stack << "foobar"
+    end
+
+    def op(op, stack)
+      @script.stack = stack
+      @script.send("op_#{op}")
+      @script.stack
+    end
+
+    it "should do OP_DUP" do
+      @script.op_dup
+      @script.stack.should == ["foobar", "foobar"]
+    end
+
+    it "should do OP_SHA256" do
+      @script.op_sha256
+      @script.stack.should ==
+        [["c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2"].pack("H*")]
+    end
+
+    it "should do OP_SHA1" do
+      @script.op_sha1
+      @script.stack.should ==
+        [["8843d7f92416211de9ebb963ff4ce28125932878"].pack("H*")]
+    end
+
+    it "should do OP_HASH160" do
+      @script.op_hash160
+      @script.stack.should ==
+        [["f6c97547d73156abb300ae059905c4acaadd09dd"].pack("H*")]
+    end
+
+    it "should do OP_RIPEMD160" do
+      @script.op_ripemd160
+      @script.stack.should ==
+        [["a06e327ea7388c18e4740e350ed4e60f2e04fc41"].pack("H*")]
+    end
+
+    it "should do OP_HASH256" do
+      @script.op_hash256
+      @script.stack.should ==
+        [["3f2c7ccae98af81e44c0ec419659f50d8b7d48c681e5d57fc747d0461e42dda1"].pack("H*")]
+    end
+
+    it "should do OP_TOALTSTACK" do
+      @script.op_toaltstack
+      @script.stack.should == []
+      @script.stack_alt.should == ["foobar"]
+    end
+
+    it "should do OP_FROMALTSTACK" do
+      @script.instance_eval { @stack_alt << "barfoo" }
+      @script.op_fromaltstack
+      @script.stack.should == ["foobar", "barfoo"]
+      @script.stack_alt.should == []
+    end
+
+    it "should do OP_TUCK" do
+      @script.instance_eval { @stack += ["foo", "bar"] }
+      @script.op_tuck
+      @script.stack.should == ["foobar", "bar", "foo", "bar"]
+    end
+
+    it "should do OP_SWAP" do
+      @script.instance_eval { @stack << "barfoo" }
+      @script.op_swap
+      @script.stack.should == ["barfoo", "foobar"]
+    end
+
+    it "should do OP_BOOLAND" do
+      op(:booland, [0, 0]).should == [0]
+      op(:booland, [0, 1]).should == [0]
+      op(:booland, [1, 0]).should == [0]
+      op(:booland, [1, 1]).should == [1]
+    end
+
+    it "should do OP_ADD" do
+      op(:add, [0, 1]).should == [1]
+      op(:add, [3, 4]).should == [7]
+    end
+
+    it "should do OP_SUB" do
+      op(:sub, [2, 3]).should == [1]
+      op(:sub, [1, 9]).should == [8]
+    end
+
+    it "should do OP_GREATERTHANOREQUAL" do
+      op(:greaterthanorequal, [1, 2]).should == [1]
+    end
+
+    it "should do OP_DROP" do
+      @script.op_drop
+      @script.stack.should == []
+    end
+
+    it "should do OP_EQUAL" do
+      op(:equal, [1,2]).should == [0]
+      op(:equal, [1,1]).should == [1]
+    end
+
+    it "should do OP_VERIFY" do
+      op(:verify, [1]).should == []
+      op(:verify, [0]).should == [0]
+    end
+
+    it "should do OP_EQUALVERIFY" do
+      op(:equalverify, [1,2]).should == [0]
+      op(:equalverify, [1,1]).should == []
+    end
+
+    it "should do OP_0" do
+      @script.op_0
+      @script.stack.should == ["foobar", ""]
+    end
+
+    it "should do OP_1" do
+      @script.op_1
+      @script.stack.should == ["foobar", 1]
+    end
+
+  end
+
 end
