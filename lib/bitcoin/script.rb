@@ -183,7 +183,7 @@ module Bitcoin
     # If both a and b are not 0, the output is 1. Otherwise 0.
     def op_booland
       a, b = @stack.pop(2)
-      @stack << ![a,b].any?{|n| n == 0 } ? 1 : 0
+      @stack << (![a,b].any?{|n| n == 0 } ? 1 : 0)
     end
 
     # a is added to b.
@@ -201,7 +201,7 @@ module Bitcoin
     # Returns 1 if a is greater than or equal to b, 0 otherwise.
     def op_greaterthanorequal
       a, b = @stack.pop(2).reverse
-      @stack << (a >= b) ? 1 : 0
+      @stack << (a >= b ? 1 : 0)
     end
 
     # Removes the top stack item.
