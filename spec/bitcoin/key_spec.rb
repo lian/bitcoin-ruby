@@ -13,8 +13,7 @@ describe "Bitcoin::Key" do
     k = Bitcoin::Key.generate
     k.priv.size.should == 64
     k.pub.size.should == 130
-    p k.priv
-    p k.pub
+    #p k.priv, k.pub
   end
 
   it "should create empty key" do
@@ -58,7 +57,7 @@ describe "Bitcoin::Key" do
   end
 
   it "should sign data" do
-    @key.sign("foobar").size.should >= 70
+    @key.sign("foobar").size.should >= 69
   end
 
   it "should verify signature" do

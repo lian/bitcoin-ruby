@@ -43,7 +43,7 @@ module OpenSSL_EC
  
     init_ffi_ssl
     eckey = EC_KEY_new_by_curve_name(NID_secp256k1)
-    priv_key = BN_bin2bn(private_key, private_key.size, BN_new())
+    priv_key = BN_bin2bn(private_key, private_key.size-1, BN_new())
 
     group, order, ctx = EC_KEY_get0_group(eckey), BN_new(), BN_CTX_new()
     EC_GROUP_get_order(group, order, ctx)
