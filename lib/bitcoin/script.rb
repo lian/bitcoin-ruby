@@ -28,6 +28,9 @@ module Bitcoin
     OP_GREATERTHANOREQUAL = 162
     OP_DROP         = 117
     OP_HASH256      = 170
+    OP_SHA256       = 168
+    OP_SHA1         = 167
+    OP_RIPEMD160    = 166
 
     attr_reader :raw, :chunks
 
@@ -74,8 +77,12 @@ module Bitcoin
         when Fixnum
           case i
           when OP_DUP;         "OP_DUP"
+          when OP_SHA256;      "OP_SHA256"
           when OP_HASH160;     "OP_HASH160"
           when OP_HASH256;     "OP_HASH256"
+          when OP_SHA256;      "OP_SHA256"
+          when OP_SHA1;        "OP_SHA1"
+          when OP_RIPEMD160;   "OP_RIPEMD160"
           when OP_CHECKSIG;    "OP_CHECKSIG"
           when OP_EQUAL;       "OP_EQUAL"
           when OP_EQUALVERIFY; "OP_EQUALVERIFY"
@@ -112,8 +119,12 @@ module Bitcoin
       script_string.split(" ").map{|i|
         case i
           when "OP_DUP";         OP_DUP
+          when "OP_SHA256";      OP_SHA256
           when "OP_HASH160";     OP_HASH160
           when "OP_HASH256";     OP_HASH256
+          when "OP_SHA256";      OP_SHA256
+          when "OP_SHA1";        OP_SHA1
+          when "OP_RIPEMD160";   OP_RIPEMD160
           when "OP_CHECKSIG";    OP_CHECKSIG
           when "OP_EQUAL";       OP_EQUAL
           when "OP_EQUALVERIFY"; OP_EQUALVERIFY
@@ -166,6 +177,21 @@ module Bitcoin
           when OP_DUP
             debug << "OP_DUP"
             @stack << @stack[-1].dup
+          when OP_SHA256
+            # The input is hashed using SHA-256.
+            debug << "OP_SHA256"
+            buf = @stack.pop
+            @stack << Digest::SHA256.digest(buf)
+          when OP_SHA1
+            # The input is hashed using SHA-1.
+            debug << "OP_SHA1"
+            buf = @stack.pop
+            @stack << Digest::SHA1.digest(buf)
+          when OP_RIPEMD160
+            # The input is hashed using RIPEMD-160.
+            debug << "OP_RIPEMD160"
+            buf = @stack.pop
+            @stack << Digest::RMD160.digest(buf)
           when OP_HASH160
             # The input is hashed twice: first with SHA-256 and then with RIPEMD-160.
             debug << "OP_HASH160"
