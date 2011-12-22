@@ -13,6 +13,8 @@ module Bitcoin
   autoload :VERSION,    'bitcoin/version'
   autoload :Storage,    'bitcoin/storage/storage'
   autoload :Logger,     'bitcoin/logger'
+  autoload :Key,        'bitcoin/key'
+  autoload :KeyGenerator,        'bitcoin/key'
 
   module Network
     autoload :ConnectionHandler,  'bitcoin/network/connection_handler'
