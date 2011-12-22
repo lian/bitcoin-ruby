@@ -162,12 +162,12 @@ module Bitcoin
 
     # Puts the input onto the top of the alt stack. Removes it from the main stack.
     def op_toaltstack
-      @stack_alt << @stack.pop(1)
+      @stack_alt << @stack.pop
     end
 
     # Puts the input onto the top of the main stack. Removes it from the alt stack.
     def op_fromaltstack
-      @stack << @stack_alt.pop(1)
+      @stack << @stack_alt.pop
     end
 
     # The item at the top of the stack is copied and inserted before the second-to-top item.
@@ -206,7 +206,7 @@ module Bitcoin
 
     # Removes the top stack item.
     def op_drop
-      @stack.pop(1)
+      @stack.pop
     end
 
     # Returns 1 if the inputs are exactly equal, 0 otherwise.
