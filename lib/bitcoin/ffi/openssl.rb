@@ -37,8 +37,9 @@ module OpenSSL_EC
   def self.regenerate_key(private_key)
     private_key = [private_key].pack("H*") if private_key.bytesize >= (32*2)
 
-    private_key = FFI::MemoryPointer.new(:uint8, private_key.bytesize)
-                    .put_bytes(0, private_key, 0, private_key.bytesize)
+    #private_key = FFI::MemoryPointer.new(:uint8, private_key.bytesize)
+    #                .put_bytes(0, private_key, 0, private_key.bytesize)
+    private_key = FFI::MemoryPointer.from_string(private_key)
  
     init_ffi_ssl
     eckey = EC_KEY_new_by_curve_name(NID_secp256k1)

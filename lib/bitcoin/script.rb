@@ -26,6 +26,8 @@ module Bitcoin
     OP_ADD          = 147
     OP_SUB          = 148
     OP_GREATERTHANOREQUAL = 162
+    OP_DROP         = 117
+    OP_HASH256      = 170
 
     attr_reader :raw, :chunks
 
@@ -73,6 +75,7 @@ module Bitcoin
           case i
           when OP_DUP;         "OP_DUP"
           when OP_HASH160;     "OP_HASH160"
+          when OP_HASH256;     "OP_HASH256"
           when OP_CHECKSIG;    "OP_CHECKSIG"
           when OP_EQUAL;       "OP_EQUAL"
           when OP_EQUALVERIFY; "OP_EQUALVERIFY"
@@ -87,6 +90,7 @@ module Bitcoin
           when OP_ADD;                 "OP_ADD"
           when OP_SUB;                 "OP_SUB"
           when OP_GREATERTHANOREQUAL;  "OP_GREATERTHANOREQUAL"
+          when OP_DROP;                "OP_DROP"
           when OP_0;                   "0"
           when OP_1;                   "1"
           when *OP_2_16;               (OP_2_16.index(i)+2).to_s
@@ -109,6 +113,7 @@ module Bitcoin
         case i
           when "OP_DUP";         OP_DUP
           when "OP_HASH160";     OP_HASH160
+          when "OP_HASH256";     OP_HASH256
           when "OP_CHECKSIG";    OP_CHECKSIG
           when "OP_EQUAL";       OP_EQUAL
           when "OP_EQUALVERIFY"; OP_EQUALVERIFY
@@ -123,6 +128,7 @@ module Bitcoin
           when "OP_ADD";                 OP_ADD
           when "OP_SUB";                 OP_SUB
           when "OP_GREATERTHANOREQUAL";  OP_GREATERTHANOREQUAL
+          when "OP_DROP";                OP_DROP
           when "0";                      OP_0
           when "OP_FALSE";               OP_0
           when "1";                      OP_1
@@ -161,9 +167,15 @@ module Bitcoin
             debug << "OP_DUP"
             @stack << @stack[-1].dup
           when OP_HASH160
+            # The input is hashed twice: first with SHA-256 and then with RIPEMD-160.
             debug << "OP_HASH160"
             buf = @stack.pop
             @stack << Digest::RMD160.digest(Digest::SHA256.digest(buf))
+          when OP_HASH256
+            # The input is hashed two times with SHA-256.
+            debug << "OP_HASH256"
+            buf = @stack.pop
+            @stack << Digest::SHA256.digest(Digest::SHA256.digest(buf))
           when OP_CHECKSIG
             debug << "OP_CHECKSIG"
             op_checksig(check_callback)
@@ -201,6 +213,9 @@ module Bitcoin
           when OP_GREATERTHANOREQUAL
             a, b = @stack.pop(2).reverse
             @stack << (a >= b) ? 1 : 0
+          when OP_DROP
+            # Removes the top stack item.
+            @stack.pop(1)
           when OP_0
             # An empty array of bytes is pushed onto the stack.
             @stack << "" # []
