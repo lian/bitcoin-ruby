@@ -1,6 +1,6 @@
 require 'json'
 
-class CommandHandler < EM::Connection
+class Bitcoin::Network::CommandHandler < EM::Connection
 
   def initialize node
     @node = node
