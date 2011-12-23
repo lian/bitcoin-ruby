@@ -12,6 +12,9 @@ options = {
   :storage => "dummy",
   :headers_only => false,
   :dns => true,
+  :epoll => false,
+  :epoll_limit => 10000,
+  :epoll_user => nil,
   :log => {
     :network => :info,
     :storage => :info,
@@ -69,6 +72,20 @@ optparse = OptionParser.new do|opts|
 
   opts.on("--nd", "--no-dns", "Don't use DNS seeds") do
     options[:dns] = false
+  end
+
+  opts.on("--epoll", "Enable epoll support") do
+    options[:epoll] = true
+  end
+
+  opts.on("--epoll-limit [NUM]",
+    "Increase socket descriptor limit to NUM") do |num|
+    options[:epoll_limit] = num.to_i
+  end
+
+  opts.on("--epoll-user [NAME]",
+    "Set effective user after increasing socket descriptor limit") do |user|
+    options[:epoll_user] = user
   end
 
   [:connections, :addr, :queue, :inv].each do |name|
