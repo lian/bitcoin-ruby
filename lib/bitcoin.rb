@@ -242,7 +242,7 @@ module Bitcoin
       :address_version => "00",
       :default_port => 8333,
       :dns_seeds => ["bitseed.xf2.org", "dnsseed.bluematt.me",
-        "dnsseed.bitcoin.dashjr.org"],
+        "dnsseed.bitcoin.dashjr.org", "seed.bitcoin.sipa.be"],
       :genesis_hash => "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"
     },
     :testnet => {
