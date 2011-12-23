@@ -36,7 +36,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
       :network => @node.config[:network],
       :storage => @node.config[:storage],
       :version => Bitcoin::Protocol::VERSION,
-      :uptime => Time.at(@node.uptime).utc.strftime("%H:%M:%S"),
+      :uptime => format_uptime(@node.uptime),
     }
   end
 
@@ -49,7 +49,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
       "#{c.host.rjust(15)}:#{c.port} [state: #{c.state}, " +
       "version: #{c.version.version rescue '?'}, " +
       "block: #{c.version.block rescue '?'}, " +
-      "uptime: #{Time.at(c.uptime).utc.strftime("%H:%M:%S") rescue 0}]" }
+      "uptime: #{format_uptime(c.uptime) rescue 0}]" }
   end
 
   def handle_connect *args
@@ -82,6 +82,13 @@ class Bitcoin::Network::CommandHandler < EM::Connection
 
   def handle_help
     self.methods.grep(/^handle_(.*?)/).map {|m| m.to_s.sub(/^(.*?)_/, '')}
+  end
+
+  def format_uptime t
+    mm, ss = t.divmod(60)            #=> [4515, 21]
+    hh, mm = mm.divmod(60)           #=> [75, 15]
+    dd, hh = hh.divmod(24)           #=> [3, 3]
+    "%d:%d:%d:%d" % [dd, hh, mm, ss]
   end
 
 end
