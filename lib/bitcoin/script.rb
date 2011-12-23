@@ -124,6 +124,10 @@ module Bitcoin
       }.join
     end
 
+    def invalid?
+      @script_invalid ||= false
+    end
+
 
     # Duplicates the top stack item.
     def op_dup
@@ -221,6 +225,8 @@ module Bitcoin
       if res != 1
         @stack << res
         @script_invalid = true # raise 'transaction invalid' ?
+      else
+        @script_invalid = false
       end
     end
 
@@ -249,6 +255,7 @@ module Bitcoin
     def run(&check_callback)
       @debug = []
       @chunks.each{|chunk|
+        break if invalid?
         @debug << @stack.map{|i| i.unpack("H*")}
         case chunk
         when Fixnum

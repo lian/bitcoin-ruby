@@ -32,6 +32,8 @@ describe 'Bitcoin::Script' do
 
     string = "2 OP_TOALTSTACK 0 OP_TOALTSTACK OP_TUCK OP_CHECKSIG OP_SWAP OP_HASH160 3cd1def404e12a85ead2b4d3f5f9f817fb0d46ef OP_EQUAL OP_BOOLAND OP_FROMALTSTACK OP_ADD"
     Bitcoin::Script.from_string(string).to_string.should == string
+
+    Bitcoin::Script.from_string("0 OP_DROP 2 3 4").to_string.should == "0 OP_DROP 2 3 4"
   end
 
   it '#get_pubkey' do
@@ -86,6 +88,10 @@ describe 'Bitcoin::Script' do
       .run.should == true
     Bitcoin::Script.from_string("1 OP_DUP OP_DROP 1 OP_EQUAL")
       .run.should == true
+    Bitcoin::Script.from_string("foo OP_DUP OP_DROP foo OP_EQUAL")
+      .run.should == true
+    Bitcoin::Script.from_string("bar foo OP_DUP OP_DROP bar OP_EQUAL")
+      .run.should == false
 
     -> { Bitcoin::Script.from_string("1 OP_DROP 2").run }.should.raise RuntimeError
   end
@@ -189,15 +195,19 @@ describe 'Bitcoin::Script' do
     it "should do OP_ADD" do
       op(:add, [0, 1]).should == [1]
       op(:add, [3, 4]).should == [7]
+      op(:add, [5,-4]).should == [1]
     end
 
     it "should do OP_SUB" do
       op(:sub, [2, 3]).should == [1]
       op(:sub, [1, 9]).should == [8]
+      op(:sub, [3, 1]).should == [-2]
     end
 
     it "should do OP_GREATERTHANOREQUAL" do
       op(:greaterthanorequal, [1, 2]).should == [1]
+      op(:greaterthanorequal, [2, 2]).should == [1]
+      op(:greaterthanorequal, [2, 1]).should == [0]
     end
 
     it "should do OP_DROP" do
@@ -217,7 +227,9 @@ describe 'Bitcoin::Script' do
 
     it "should do OP_EQUALVERIFY" do
       op(:equalverify, [1,2]).should == [0]
+      @script.invalid?.should == true
       op(:equalverify, [1,1]).should == []
+      @script.invalid?.should == false
     end
 
     it "should do OP_0" do
@@ -228,6 +240,68 @@ describe 'Bitcoin::Script' do
     it "should do OP_1" do
       @script.op_1
       @script.stack.should == ["foobar", 1]
+    end
+
+    it "should do OP_CHECKSIG" do
+      @script.stack = ["bar", "foo"]
+      verify_callback = proc{|pubkey,signature,type|
+        pubkey   .should == "foo"
+        signature.should == "ba"
+        type     .should == "r".ord
+        true
+      }
+      @script.op_checksig(verify_callback).should == [1]
+
+      @script.stack = ["bar", "foo"]
+      verify_callback = proc{ true }
+      @script.op_checksig(verify_callback).should == [1]
+
+      @script.stack = ["bar", "foo"]
+      verify_callback = proc{ false }
+      @script.op_checksig(verify_callback).should == [0]
+
+      @script.stack = ["foo"]
+      verify_callback = proc{ false }
+      @script.op_checksig(verify_callback).should == nil
+
+
+      pubkey    = ["04324c6ebdcf079db6c9209a6b715b955622561262cde13a8a1df8ae0ef030eaa1552e31f8be90c385e27883a9d82780283d19507d7fa2e1e71a1d11bc3a52caf3"].pack("H*")
+      signature = ["304402202c2fb840b527326f9bbc7ce68c6c196a368a38864b5a47681352c4b2f416f7ed02205c4801cfa8aed205f26c7122ab5a5934fcf7a2f038fd130cdd8bcc56bdde0a00"].pack("H*")
+      signature_type = [1].pack("C")
+      signature_data = ["20245059adb84acaf1aa942b5d8a586da7ba76f17ecb5de4e7543e1ce1b94bc3"].pack("H*")
+
+      @script.stack = [signature + signature_type, pubkey]
+      verify_callback = proc{|pub,sig,sig_type|
+        pub     .should == pubkey
+        sig     .should == signature
+        sig_type.should == 1
+
+        hash = signature_data
+        Bitcoin.verify_signature( hash, sig, pub.unpack("H*")[0] )
+      }
+      @script.op_checksig(verify_callback).should == [1]
+
+
+      @script.stack = [signature + signature_type, pubkey]
+      verify_callback = proc{|pub,sig,sig_type|
+        hash = "foo" + signature_data
+        Bitcoin.verify_signature( hash, sig, pub.unpack("H*")[0] )
+      }
+      @script.op_checksig(verify_callback).should == [0]
+
+      @script.stack = [signature + signature_type, pubkey]
+      verify_callback = proc{|pub,sig,sig_type|
+        hash = signature_data
+        Bitcoin.verify_signature( hash, "foo", pub.unpack("H*")[0] )
+      }
+      @script.op_checksig(verify_callback).should == [0]
+
+      @script.stack = [signature + signature_type, pubkey]
+      verify_callback = proc{|pub,sig,sig_type|
+        hash = signature_data
+        Bitcoin.verify_signature( hash, sig, "foo" )
+      }
+      @script.op_checksig(verify_callback).should == [0]
     end
 
   end

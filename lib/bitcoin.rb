@@ -194,6 +194,8 @@ module Bitcoin
       key  = bitcoin_elliptic_curve
       key.public_key = ::OpenSSL::PKey::EC::Point.from_hex(key.group, public_key)
       key.dsa_verify_asn1(hash, signature)
+    rescue OpenSSL::PKey::ECError, OpenSSL::PKey::EC::Point::Error
+      false
     end 
 
     def open_key(private_key, public_key)
