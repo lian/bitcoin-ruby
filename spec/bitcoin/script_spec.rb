@@ -230,6 +230,18 @@ describe 'Bitcoin::Script' do
       @script.stack.should == ["foobar", 1]
     end
 
+    it "should do OP_CHECKSIG" do
+      k = Bitcoin::Key.new; k.generate
+      sig = (k.sign("foobar") + "\x01").unpack("H*")[0]
+      script = Bitcoin::Script.from_string("#{sig} #{k.pub} OP_CHECKSIG")
+      script.run do |pk, sig, hash_type|
+        k2 = Bitcoin::Key.new
+        k2.pub = pk.unpack("H*")[0]
+        k2.verify("foobar", sig)
+      end.should == true
+      script.stack.should == []
+    end
+
   end
 
 end
