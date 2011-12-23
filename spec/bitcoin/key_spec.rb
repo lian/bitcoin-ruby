@@ -70,37 +70,57 @@ end
 
 describe "Bitcoin::KeyGenerator" do
 
-  # it "should use random data if no seed given" do
-  #   g = Bitcoin::KeyGenerator.new
-  #   g.seed.size.should == 64
-  # end
+  @target = ("\x00\xff" + "\x00"*30).unpack("H*")[0].to_i(16)
+
+  it "should use random data if no seed given" do
+    g = Bitcoin::KeyGenerator.new(nil, nil, @target)
+    g.seed.size.should == 64
+  end
 
   it "should find the nonce if not given" do
     Bitcoin::KeyGenerator.new("etd").nonce.should == 622
-    # Bitcoin::KeyGenerator.new("foo").nonce.should == 2116
+    Bitcoin::KeyGenerator.new("foo").nonce.should == 2116
     # Bitcoin::KeyGenerator.new("bar").nonce.should == 72353
     # Bitcoin::KeyGenerator.new("baz").nonce.should == 385471
     # Bitcoin::KeyGenerator.new("qux").nonce.should == 29559
   end
 
+  it "should use given nonce" do
+    g = Bitcoin::KeyGenerator.new("foo", 2116)
+    g.nonce.should == 2116
+    g.get_key(0).addr.should == '1GjyUrY3XcR4BvfgL8HqoAJbNDEgxSJdm1'
+  end
+
+  it "should check nonce if given" do
+    -> { Bitcoin::KeyGenerator.new("foo", 42) }.should.raise ArgumentError
+  end
+
+  it "should use different target if given" do
+    g = Bitcoin::KeyGenerator.new("foo", nil, @target)
+    g.nonce.should == 127
+    g.get_key(0).addr.should == "13E68pPJyGycgQ4ZmV45xV9r9XEeyWqZdp"
+    g = Bitcoin::KeyGenerator.new("bar", nil, @target)
+    g.nonce.should == 40
+    g.get_key(0).addr.should == "12iQpWRRQBmWcHYkTZkpDFrykzc9xn5kAU"
+  end
+
   it "should find keys" do
     g = Bitcoin::KeyGenerator.new("foo")
     [
-     "\x05\"\x12\x11\xA9\xC3\xED\xB9\xBD\xF0\xC1 w\r\xC5\x8D#Y\t\x8Co\x16\xF6\xE2i\xF7\"\xF7\xDD\xA2|\xC9",
-     "\x7F'\xBB\f\xA0.U\x8CKKN&t\x17Cz\xDA\xC0\x14\x03\xE0\xD0\xBB\x9B\ay}\x1D\xBB\x1A\xDF\xD1",
-     "\xDAS\xDE\xC9\x91d\x06\xBB\x9AA+\xFD\xC8\x1A8\x92\xBB\xCB\x15`\xAB9L\xB9\xB9\xFC>\xE2\xA4\x11\x01\xFF",
-     "}c\xC8\x8D\n\xB0#\xDE4A\xFF&\x85H\xDC_Yb>\xFE8\xFD\xF4\x81\xBD\xEB\xC8\xBBPG\xC2\xF2",
-     "\xF5\x82\x83\x8D\xCB\xA2\xA1s\x93\aD\x84\x05\x90P(\xE30\xE2\xC9\xDE*\x8E\xC2N\xED\x16H\xB8\xBD\xDA\xA4",
-     "\xF48\xA3\xFF\x8E\xA0\xEED\"\xF8:Eo\xA6\xCA\xDF\x853\x81\xC0\x9AG4\xAE_\xBB\xAEalSZ\x91",
-     ":tB\xAAT\xF6j\xE1\xC8\xA0\xD3R4e\x87I\"i\xB7\xC8\x00\xA01\x9C\x97\x89\xA8\x16@T\xC5\x9E",
-     "R=vF\x7F\x9C\t\e\fr@\xDC\xC5\ty|\x89\x00\xD40;r\fj\xFD\xC4\xF2\x18\xB4:\x13)",
-     "\xA1\e\xFA@\xA0\xE9 \xBFD\x9E\xF0\xEC\x1D\x17\x05\x13\xC7\xC8-\xAA\xFD\x8CJ\xE3\xC0\xE3!\xDD\xF5\xFA\\\xCE",
-     "\x86\xA6\f\xBB\xAD*\xAD\xFB\xA9\x10\xF6=\xC5X\xDD\x87wua)x\x10gK\xEC\x02\x0F\x0F\x9F\x86\xF60",
-     "\xCD\x1F\xCA~\xC2\xBD\xDD\xDCW\xFAij\xEF\xA19\e\xF5\xEE\xEA3+y\xA1\xF2\x9C\xFC\xCF\xCC\xF0\x82\xA4t",
-    ].each_with_index do |key, i|
+     "05221211a9c3edb9bdf0c120770dc58d2359098c6f16f6e269f722f7dda27cc9",
+     "7f27bb0ca02e558c4b4b4e267417437adac01403e0d0bb9b07797d1dbb1adfd1",
+     "da53dec9916406bb9a412bfdc81a3892bbcb1560ab394cb9b9fc3ee2a41101ff",
+     "7d63c88d0ab023de3441ff268548dc5f59623efe38fdf481bdebc8bb5047c2f2",
+     "f582838dcba2a1739307448405905028e330e2c9de2a8ec24eed1648b8bddaa4",
+     "f438a3ff8ea0ee4422f83a456fa6cadf853381c09a4734ae5fbbae616c535a91",
+     "3a7442aa54f66ae1c8a0d352346587492269b7c800a0319c9789a8164054c59e",
+     "523d76467f9c091b0c7240dcc509797c8900d4303b720c6afdc4f218b43a1329",
+     "a11bfa40a0e920bf449ef0ec1d170513c7c82daafd8c4ae3c0e321ddf5fa5cce",
+     "86a60cbbad2aadfba910f63dc558dd87777561297810674bec020f0f9f86f630",
+     "cd1fca7ec2bddddc57fa696aefa1391bf5eeea332b79a1f29cfccfccf082a474",
+    ].map{|h| [h].pack("H*")}.each_with_index do |key, i|
       g.get_key(i).priv.should == key.unpack("H*")[0]
     end
-
   end
 
 end
