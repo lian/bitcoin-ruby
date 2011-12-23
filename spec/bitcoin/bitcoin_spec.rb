@@ -67,6 +67,11 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     Bitcoin.valid_address?("mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt").should == false
     Bitcoin.valid_address?("2D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW").should == false
     Bitcoin.valid_address?("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cX").should == false
+
+    Bitcoin::network = :bitcoin
+    Bitcoin.valid_address?("1ZQxJYBRmbb2rDNYPhd96x3eMbNnPD98q").should == true
+    Bitcoin.valid_address?("12KhCL8nGK3Luy7ehU3AxPs1mTocdessLM").should == true
+    Bitcoin.valid_address?("1AnNQgfaGgSKejzR6km74tyQPDGwZBBVT").should == true
   end
 
   it 'Bitcoin#checksum' do

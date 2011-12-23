@@ -45,7 +45,7 @@ module Bitcoin
     end
 
     def address_checksum?(address)
-      a = base58_to_int(address).to_s(16)
+      a = base58_to_hex(address)
       if address_version == "00"
         Bitcoin.checksum( address_version + a[0...40] ) == a[-8..-1]
       else
@@ -57,7 +57,7 @@ module Bitcoin
       if address_version == "00"
         return false if address[0] != "1"
       else
-        a = base58_to_int(address).to_s(16)
+        a = base58_to_hex(address)
         return false if a[0..1] != address_version
       end
       return false if !address_checksum?(address)
@@ -66,7 +66,7 @@ module Bitcoin
 
     def hash160_from_address(address)
       return nil  unless address_checksum?(address)
-      a = base58_to_int(address).to_s(16)
+      a = base58_to_hex(address)
       address_version == "00" ? a[0...40] : a[2...42]
     end
 
@@ -108,6 +108,11 @@ module Bitcoin
         int_val += char_index*(base**index)
       end
       int_val
+    end
+
+    def base58_to_hex(base58_val)
+      #[base58_to_int(base58_val).to_s(2).reverse].pack("b*").reverse.unpack("H*")[0]
+      s = base58_to_int(base58_val).to_s(16); s.bytesize.odd? ? '0'+s : s
     end
 
     # target compact bits (int) to bignum hex
