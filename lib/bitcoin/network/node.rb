@@ -14,6 +14,9 @@ module Bitcoin::Network
       :storage => Bitcoin::Storage.dummy({}),
       :headers_only => false,
       :dns => true,
+      :epoll => false,
+      :epoll_limit => 10000,
+      :epoll_user => nil,
       :log => {
         :network => :info,
         :storage => :info,
@@ -68,6 +71,8 @@ module Bitcoin::Network
       EM.add_shutdown_hook do
         log.info { "Bye" }
       end
+
+      init_epoll  if @config[:epoll]
 
       EM.run do
         [:queue, :inv_queue, :blocks, :addrs, :connect].each do |name|
@@ -240,6 +245,16 @@ module Bitcoin::Network
           log.error { "Error in inv_queue worker: #{$!}" }
         end
       end
+    end
+
+    def init_epoll
+      log.info { "EPOLL: Available file descriptors: " +
+        EM.set_descriptor_table_size(@config[:epoll_limit]).to_s }
+      if @config[:epoll_user]
+        EM.set_effective_user(@config[:epoll_user])
+        log.info { "EPOLL: Effective user set to: #{@config[:epoll_user]}" }
+      end
+      EM.epoll
     end
 
   end
