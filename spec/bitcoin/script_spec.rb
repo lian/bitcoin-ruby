@@ -267,14 +267,14 @@ describe 'Bitcoin::Script' do
 
       pubkey    = ["04324c6ebdcf079db6c9209a6b715b955622561262cde13a8a1df8ae0ef030eaa1552e31f8be90c385e27883a9d82780283d19507d7fa2e1e71a1d11bc3a52caf3"].pack("H*")
       signature = ["304402202c2fb840b527326f9bbc7ce68c6c196a368a38864b5a47681352c4b2f416f7ed02205c4801cfa8aed205f26c7122ab5a5934fcf7a2f038fd130cdd8bcc56bdde0a00"].pack("H*")
-      signature_type = [1].pack("C")
+      hash_type = [1].pack("C")
       signature_data = ["20245059adb84acaf1aa942b5d8a586da7ba76f17ecb5de4e7543e1ce1b94bc3"].pack("H*")
 
-      @script.stack = [signature + signature_type, pubkey]
-      verify_callback = proc{|pub,sig,sig_type|
+      @script.stack = [signature + hash_type, pubkey]
+      verify_callback = proc{|pub,sig,hash_type|
         pub     .should == pubkey
         sig     .should == signature
-        sig_type.should == 1
+        hash_type.should == 1
 
         hash = signature_data
         Bitcoin.verify_signature( hash, sig, pub.unpack("H*")[0] )
@@ -282,26 +282,37 @@ describe 'Bitcoin::Script' do
       @script.op_checksig(verify_callback).should == [1]
 
 
-      @script.stack = [signature + signature_type, pubkey]
-      verify_callback = proc{|pub,sig,sig_type|
+      @script.stack = [signature + hash_type, pubkey]
+      verify_callback = proc{|pub,sig,hash_type|
         hash = "foo" + signature_data
         Bitcoin.verify_signature( hash, sig, pub.unpack("H*")[0] )
       }
       @script.op_checksig(verify_callback).should == [0]
 
-      @script.stack = [signature + signature_type, pubkey]
-      verify_callback = proc{|pub,sig,sig_type|
+      @script.stack = [signature + hash_type, pubkey]
+      verify_callback = proc{|pub,sig,hash_type|
         hash = signature_data
         Bitcoin.verify_signature( hash, "foo", pub.unpack("H*")[0] )
       }
       @script.op_checksig(verify_callback).should == [0]
 
-      @script.stack = [signature + signature_type, pubkey]
-      verify_callback = proc{|pub,sig,sig_type|
+      @script.stack = [signature + hash_type, pubkey]
+      verify_callback = proc{|pub,sig,hash_type|
         hash = signature_data
         Bitcoin.verify_signature( hash, sig, "foo" )
       }
       @script.op_checksig(verify_callback).should == [0]
+
+      # Bitcoin::Key API
+      key = Bitcoin::Key.new; key.generate
+      sig = (key.sign("foobar") + "\x01").unpack("H*")[0]
+      script = Bitcoin::Script.from_string("#{sig} #{key.pub} OP_CHECKSIG")
+      script.run{|pk, sig, hash_type|
+        k = Bitcoin::Key.new
+        k.pub = pk.unpack("H*")[0]
+        k.verify("foobar", sig)
+      }.should == true
+      script.stack.should == []
     end
 
   end
