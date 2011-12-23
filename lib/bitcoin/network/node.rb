@@ -259,6 +259,13 @@ module Bitcoin::Network
       EM.epoll
     end
 
+    def relay_tx(tx)
+      @store.store_tx(tx)
+      @connections.sample((@connections.size / 2) + 1).each do |peer|
+        peer.send_inv(:tx, tx)
+      end
+    end
+
   end
 end
 

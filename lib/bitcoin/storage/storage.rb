@@ -137,8 +137,8 @@ module Bitcoin::Storage
       # collect all txouts containing a
       # standard tx to given +address+
       def get_txouts_for_address(address)
-        script = Bitcoin::Script.to_address_script(address)
-        get_txouts_for_pk_script(script)
+        hash160 = Bitcoin.hash160_from_address(address)
+        get_txouts_for_hash160(hash160)
       end
 
       # get balance for given +hash160+

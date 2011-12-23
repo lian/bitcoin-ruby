@@ -1,0 +1,211 @@
+#!/usr/bin/env ruby
+$:.unshift( File.expand_path("../../lib", __FILE__) )
+
+require 'bitcoin'
+require 'optparse'
+require 'yaml'
+
+options = {
+  :network => "testnet",
+  :storage => "dummy",
+  :keystore => "dummy",
+}
+
+["/etc/", "~/", "./"].each do |path|
+  file = File.join(path, "bitcoin-ruby.yml")
+  if File.exist?(file)
+    #    p "Using config file #{file}"
+    YAML.load_file(file).each {|k,v| options[k.to_sym] = v }
+  end
+end
+
+optparse = OptionParser.new do |opts|
+  opts.banner =
+    "Usage: bitcoin_wallet [options] <command> [<command options>]\n"
+
+  opts.separator("\nAvailable options:\n")
+  opts.on("-c", "--config [FILE]",
+    "Config file (default: non.)") do |file|
+    YAML.load_file(file).each {|k,v| options[k.to_sym] = v }
+  end
+
+  opts.on("-n", "--network [NETWORK]",
+    "User Network (default: #{options[:network]})") do |network|
+    options[:network] = network
+  end
+
+  opts.on("-s", "--storage [BACKEND::CONFIG]",
+    "Use storage backend (default: #{options[:storage]})") do |storage|
+    options[:storage] = storage
+  end
+
+  opts.on("-k", "--keystore [backend::<config>]",
+    "Key store (default: #{options[:store]})") do |store|
+    options[:keystore] = store
+  end
+
+  opts.separator "\nAvailable commands:\n" +
+    " balance [<addr>] - display balance for given addr or whole wallet\n" +
+    " list <addr> - list transaction history for address\n" +
+    " send <addr>:<amount>[,<addr>:<amount>...] [<fee>] - send transaction\n" +
+    " new - generate new key and add to keystore\n" +
+    " import <base58> - import key in base58 format\n" +
+    " export <addr> - export key to base58 format\n"
+
+end
+
+optparse.parse!
+
+cmd = ARGV.shift
+cmdopts = ARGV
+unless cmd
+  puts optparse; exit
+end
+
+
+backend, config = options[:keystore].split("::")
+config = Hash[config.split(",").map{|c| c.split("=")}]
+keystore = Bitcoin::Wallet.const_get("#{backend.capitalize}KeyStore").new(config)
+if backend == "deterministic" && !config["nonce"]
+  puts "nonce: #{keystore.generator.nonce}"
+end
+#puts *keystore.get_keys.map(&:addr)
+backend, config = options[:storage].split("::")
+storage = Bitcoin::Storage.send(backend, :db => config)
+
+
+wallet = Bitcoin::Wallet::Wallet.new(storage, keystore, Bitcoin::Wallet::SimpleCoinSelector)
+
+
+def str_val(val, pre='')
+  ("#{pre}%.8f" % (val / 1e8)).rjust(15)
+end
+
+def val_str(str)
+  (str.to_f * 1e8).to_i
+end
+
+case cmd
+when "balance"
+  if cmdopts && cmdopts.size == 1
+    addr = cmdopts[0]
+    balance = storage.get_balance(Bitcoin.hash160_from_address(addr))
+    puts "#{addr} balance: #{str_val balance}"
+  else
+    puts "Total balance: #{str_val wallet.get_balance}"
+  end
+
+when "new"
+  puts "Generated new key with address: #{wallet.get_new_addr}"
+
+when "import"
+  if wallet.keystore.respond_to?(:import)
+    addr = wallet.keystore.import(cmdopts[0])
+    puts "Key for #{addr} imported."
+  else
+    puts "Keystore doesn't support importing."
+  end
+
+when "export"
+  base58 = wallet.keystore.export(cmdopts[0])
+  puts "Base58 encoded private key for #{cmdopts[0]}:"
+  puts base58
+
+when "list"
+  if cmdopts && cmdopts.size == 1
+    unless Bitcoin.valid_address?(cmdopts[0])
+      puts "#{cmdopts[0]} - not a valid bitcoin address"; exit
+    end
+    depth = storage.get_depth
+    total = 0
+    storage.get_txouts_for_address(cmdopts[0]).each do |txout|
+      total += txout.value
+      tx = txout.get_tx
+      blocks = depth - tx.get_block.depth rescue 0
+      puts "#{tx.hash} | #{str_val txout.value, '+ '} | " +
+        "#{str_val total} | #{blocks}"
+      tx.in.map(&:get_prev_out).each do |prev_out|
+        if prev_out
+          puts "  <- #{prev_out.get_address}"
+        else
+          puts "  <- generation"
+        end
+      end
+      puts
+
+      if txin = txout.get_next_in
+        tx = txin.get_tx
+        total -= txout.value
+        blocks = depth - tx.get_block.depth rescue 0
+        puts "#{tx.hash} | #{str_val txout.value, '- '} | " +
+          "#{str_val total} | #{blocks}"
+        txin.get_tx.out.each do |out|
+          puts "  -> #{out.get_address}"
+        end
+        puts
+      end
+    end
+    puts "Total balance: #{str_val total}"
+  else
+    puts "Wallet addresses:"
+    total = 0
+    wallet.list.each do |addr, balance|
+      total += balance
+      puts "  #{addr.ljust(34)} - #{("%.8f" % (balance / 1e8)).rjust(15)}"
+    end
+    puts "Total balance: #{str_val total}"
+  end
+
+when "send"
+  to = cmdopts[0].split(',').map do |pair|
+    addr, value = pair.split(":")
+    value = val_str(value)
+    [addr, value]
+  end
+  fee = val_str(cmdopts[1]) || 0
+  value = val_str value
+
+  unless wallet.get_balance >= (to.map{|t|t[1]}.inject{|a,b|a+=b;a} + fee)
+    puts "Insufficient funds."; exit
+  end
+
+  tx = wallet.tx(to, fee)
+
+  unless tx
+    puts "Error creating tx."; exit
+  end
+
+  total = 0
+  puts "Hash: #{tx.hash}"
+  puts "inputs:"
+  tx.in.each do |txin|
+    prev_out = storage.get_txout_for_txin(txin)
+    total += prev_out.value
+    puts " #{prev_out.get_address} - #{str_val prev_out.value}"
+  end
+
+  puts "outputs:"
+  tx.out.each do |txout|
+    total -= txout.value
+    address = Bitcoin::Script.new(txout.pk_script).get_address
+    puts " #{address} - #{str_val txout.value}"
+  end
+  puts "Fee: #{str_val total}"
+
+  $stdout.sync = true
+  print "Really send transaction? (y/N) " and $stdout.flush
+  unless $stdin.gets.chomp.downcase == 'y'
+    puts "Aborted."; exit
+  end
+
+
+  s = TCPSocket.new("127.0.0.1", 9999)
+  s.puts "relay_tx " + tx.to_payload.unpack("H*")[0]
+
+  res = s.readline
+  puts JSON::pretty_generate(JSON::parse(res))
+  puts "Transaction sent."
+
+else
+  puts "Unknown command."
+end

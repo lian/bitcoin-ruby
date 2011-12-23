@@ -15,7 +15,6 @@ module Bitcoin
   autoload :Storage,    'bitcoin/storage/storage'
   autoload :Logger,     'bitcoin/logger'
   autoload :Key,        'bitcoin/key'
-  autoload :KeyGenerator,        'bitcoin/key'
 
   module Network
     autoload :ConnectionHandler,  'bitcoin/network/connection_handler'
@@ -23,6 +22,13 @@ module Bitcoin
     autoload :Node,               'bitcoin/network/node'
   end
 
+  module Wallet
+    autoload :KeyGenerator,          'bitcoin/wallet/keygenerator'
+    autoload :SimpleKeyStore,        'bitcoin/wallet/keystore'
+    autoload :DeterministicKeyStore, 'bitcoin/wallet/keystore'
+    autoload :SimpleCoinSelector,    'bitcoin/wallet/coinselector'
+    autoload :Wallet,                'bitcoin/wallet/wallet'
+  end
 
   module Util
 

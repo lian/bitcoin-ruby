@@ -169,6 +169,12 @@ module Bitcoin::Storage::Backends
       wrap_txin(@db[:txin][:prev_out => tx_hash, :prev_out_index => txout_idx])
     end
 
+    def get_txout_for_txin(txin)
+      tx = @db[:tx][:hash => txin.prev_out.reverse.to_sequel_blob]
+      return nil  unless tx
+      wrap_txout(@db[:txout][:tx_idx => txin.prev_out_index, :tx_id => tx[:id]])
+    end
+
     def get_txouts_for_pk_script(script)
       txouts = @db[:txout].filter(:pk_script => script.to_sequel_blob).order(:id)
       txouts.map{|txout| wrap_txout(txout)}

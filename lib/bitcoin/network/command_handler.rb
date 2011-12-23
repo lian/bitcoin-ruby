@@ -92,6 +92,12 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     end.compact
   end
 
+  def handle_relay_tx data
+    tx = Bitcoin::Protocol::Tx.new([data].pack("H*"))
+    @node.relay_tx(tx)
+    tx.to_hash
+  end
+
   def handle_stop
     Thread.start { sleep 0.1; @node.stop }
     {:state => "Stopping..."}

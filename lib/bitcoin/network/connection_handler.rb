@@ -69,11 +69,22 @@ module Bitcoin::Network
     end
 
     def on_get_transaction(hash)
-      log.info { ">> get transaction: #{hth(hash)}" }
+      log.info { ">> get transaction: #{hash.unpack("H*")[0]}" }
+      tx = @node.store.get_tx(hash.unpack("H*")[0])
+      return  unless tx
+      pkt = Bitcoin::Protocol.pkt("tx", tx.to_payload)
+      log.info { "<< tx: #{tx.hash}" }
+      send_data pkt
     end
 
     def on_get_block(hash)
       log.info { ">> get block: #{hth(hash)}" }
+    end
+
+    def send_inv type, obj
+      pkt = Protocol.inv_pkt(type, [[obj.hash].pack("H*")])
+      log.info { "<< inv #{type}: #{obj.hash}" }
+      send_data(pkt)
     end
 
     def on_addr(addr)
