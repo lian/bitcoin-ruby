@@ -16,7 +16,7 @@ module Bitcoin
     def self.from_base58(str)
       hex = Bitcoin.base58_to_hex(str)
       version, key, checksum = hex.unpack("a2a64a8")
-      raise "Invalid version"  unless version == "80"
+      raise "Invalid version"  unless version == Bitcoin.network[:privkey_version]
       raise "Invalid checksum"  unless Bitcoin.checksum(version + key) == checksum
       new(key)
     end
@@ -93,7 +93,8 @@ module Bitcoin
     # Export private key to base58 format.
     # See also Key.from_base58
     def to_base58
-      Bitcoin.encode_base58("80" + priv + Bitcoin.checksum("80" + priv))
+      data = Bitcoin.network[:privkey_version] + priv
+      Bitcoin.encode_base58(data + Bitcoin.checksum(data))
     end
 
     protected

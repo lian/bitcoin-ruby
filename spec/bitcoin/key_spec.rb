@@ -67,14 +67,25 @@ describe "Bitcoin::Key" do
   end
 
   it "should export private key in base58 format" do
+    Bitcoin.network = :bitcoin
     str = Bitcoin::Key.new("e9873d79c6d87dc0fb6a5778633389f4453213303da61f20bd67fc233aa33262").to_base58
     str.should == "5Kb8kLf9zgWQnogidDA76MzPL6TsZZY36hWXMssSzNydYXYB9KF"
+    Bitcoin.network = :testnet
+    str = Bitcoin::Key.new("d21fa2c7ad710ffcd9bcc22a9f96357bda1a2521ca7181dd610140ecea2cecd8").to_base58
+    str.should == "93BTVFoqffueSaC5fqjLjLyn29S41JzvAZm2hC35SYMoYDXT1bY"
+    Bitcoin.network = :bitcoin
   end
 
   it "should import private key in base58 format" do
+    Bitcoin.network = :bitcoin
     key = Bitcoin::Key.from_base58("5Kb8kLf9zgWQnogidDA76MzPL6TsZZY36hWXMssSzNydYXYB9KF")
     key.priv.should == "e9873d79c6d87dc0fb6a5778633389f4453213303da61f20bd67fc233aa33262"
     key.addr.should == "1CC3X2gu58d6wXUWMffpuzN9JAfTUWu4Kj"
+    Bitcoin.network = :testnet
+    key = Bitcoin::Key.from_base58("93BTVFoqffueSaC5fqjLjLyn29S41JzvAZm2hC35SYMoYDXT1bY")
+    key.priv.should == "d21fa2c7ad710ffcd9bcc22a9f96357bda1a2521ca7181dd610140ecea2cecd8"
+    key.addr.should == "n3eH91H14mSnGx4Va2ngtLFCeLPRyYymRg"
+    Bitcoin.network = :bitcoin
   end
 
 end
