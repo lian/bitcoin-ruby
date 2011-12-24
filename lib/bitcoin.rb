@@ -86,7 +86,7 @@ module Bitcoin
     end
 
     def encode_base58(hex)
-      int_to_base58( hex[0...64].to_i(16) )
+      int_to_base58( hex.to_i(16) )
     end
 
     def int_to_base58(int_val)

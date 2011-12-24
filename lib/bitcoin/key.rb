@@ -9,6 +9,18 @@ module Bitcoin
       k = new; k.generate; k
     end
 
+    # Import private key from base58 fromat as described in
+    # https://en.bitcoin.it/wiki/Private_key#Base_58_Wallet_Import_format and
+    # https://en.bitcoin.it/wiki/Base58Check_encoding#Encoding_a_private_key.
+    # See also #to_base58
+    def self.from_base58(str)
+      hex = Bitcoin.base58_to_hex(str)
+      version = hex[0..1]; key = hex[2..65]; checksum = hex[66..73]
+      raise "Invalid version"  unless version == "80"
+      raise "Invalid checksum"  unless Bitcoin.checksum(version + key) == checksum
+      new(key)
+    end
+
     # Create a new key with given +privkey+ and +pubkey+.
     #  Bitcoin::Key.new
     #  Bitcoin::Key.new(privkey)
@@ -76,6 +88,12 @@ module Bitcoin
     #  key2.verify("some data", sig)
     def verify(data, sig)
       @key.dsa_verify_asn1(data, sig)
+    end
+
+    # Export private key to base58 format.
+    # See also Key.from_base58
+    def to_base58
+      Bitcoin.encode_base58("80" + priv + Bitcoin.checksum("80" + priv))
     end
 
     protected

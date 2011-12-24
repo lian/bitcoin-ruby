@@ -66,6 +66,17 @@ describe "Bitcoin::Key" do
     @key.verify("foobar", sig).should == true
   end
 
+  it "should export private key in base58 format" do
+    str = Bitcoin::Key.new("e9873d79c6d87dc0fb6a5778633389f4453213303da61f20bd67fc233aa33262").to_base58
+    str.should == "5Kb8kLf9zgWQnogidDA76MzPL6TsZZY36hWXMssSzNydYXYB9KF"
+  end
+
+  it "should import private key in base58 format" do
+    key = Bitcoin::Key.from_base58("5Kb8kLf9zgWQnogidDA76MzPL6TsZZY36hWXMssSzNydYXYB9KF")
+    key.priv.should == "e9873d79c6d87dc0fb6a5778633389f4453213303da61f20bd67fc233aa33262"
+    key.addr.should == "1CC3X2gu58d6wXUWMffpuzN9JAfTUWu4Kj"
+  end
+
 end
 
 describe "Bitcoin::KeyGenerator" do
