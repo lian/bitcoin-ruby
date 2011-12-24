@@ -15,7 +15,7 @@ module Bitcoin
     # See also #to_base58
     def self.from_base58(str)
       hex = Bitcoin.base58_to_hex(str)
-      version = hex[0..1]; key = hex[2..65]; checksum = hex[66..73]
+      version, key, checksum = hex.unpack("a2a64a8")
       raise "Invalid version"  unless version == "80"
       raise "Invalid checksum"  unless Bitcoin.checksum(version + key) == checksum
       new(key)
