@@ -58,6 +58,13 @@ module Bitcoin::Storage::Backends::SequelMigrations
         index :hash160
       end
     end
+
+    unless @db.views.include?(:unconfirmed)
+      @db.create_view(:unconfirmed,
+        "SELECT * FROM tx WHERE NOT EXISTS " +
+        "(SELECT 1 FROM blk_tx WHERE blk_tx.tx_id = tx.id)" +
+        "ORDER BY tx.id DESC")
+    end
   end
 
 end

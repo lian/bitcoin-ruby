@@ -167,6 +167,9 @@ module Bitcoin::Storage::Backends
       @db[:txout].where(:hash160 => hash160).map{|o| wrap_txout(o) }
     end
 
+    def get_unconfirmed_tx
+      @db[:unconfirmed].map{|t| wrap_tx(t)}
+    end
 
     def wrap_block(block)
       return nil  unless block
