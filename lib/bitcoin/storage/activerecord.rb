@@ -4,7 +4,7 @@ $:.unshift( File.dirname(__FILE__) )
 
 module Bitcoin::Storage::Backends
 
-  class Activerecord < Base
+  class ActiverecordStore < StoreBase
     
     require_relative 'activerecord_store/base'
     require_relative 'activerecord_store/block'
@@ -55,7 +55,7 @@ module Bitcoin::Storage::Backends
     def store_block(blk)
       return nil  unless blk
 
-      if block = get_block_by_hash(blk.hash)
+      if block = get_block(blk.hash)
         log.debug { "Block #{blk.hash} already stored" }
       end
 
@@ -78,7 +78,7 @@ module Bitcoin::Storage::Backends
 
     end
 
-    def get_block_by_hash(blk_hash)
+    def get_block(blk_hash)
       Block.where("block_hash = decode(?, 'hex')", blk_hash).first.to_protocol rescue nil
     end
 

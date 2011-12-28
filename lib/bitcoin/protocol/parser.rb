@@ -41,10 +41,21 @@ module Bitcoin
         }
       end
 
+      def parse_headers(payload)
+        count, payload = Protocol.unpack_var_int(payload)
+        idx = 0
+        headers = []
+        count.times do
+          headers << Block.new(payload[idx..idx+=81])
+        end
+        @h.on_headers(headers)
+      end
+
       def process_pkt(command, payload)
         case command
         when 'tx';       @h.on_tx( Tx.new(payload) )
         when 'block';    @h.on_block( Block.new(payload) )
+        when 'headers';  parse_headers(payload)
         when 'inv';      parse_inv(payload, :put)
         when 'getdata';  parse_inv(payload, :get)
         when 'addr';     parse_addr(payload)

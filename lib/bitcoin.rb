@@ -13,10 +13,13 @@ module Bitcoin
   autoload :VERSION,    'bitcoin/version'
   autoload :Storage,    'bitcoin/storage/storage'
   autoload :Logger,     'bitcoin/logger'
+  autoload :Key,        'bitcoin/key'
+  autoload :KeyGenerator,        'bitcoin/key'
 
   module Network
-    autoload :Handler,  'bitcoin/network/handler'
-    autoload :Node,     'bitcoin/network/node'
+    autoload :ConnectionHandler,  'bitcoin/network/connection_handler'
+    autoload :CommandHandler,     'bitcoin/network/command_handler'
+    autoload :Node,               'bitcoin/network/node'
   end
 
 
@@ -42,7 +45,7 @@ module Bitcoin
     end
 
     def address_checksum?(address)
-      a = base58_to_int(address).to_s(16)
+      a = base58_to_hex(address)
       if address_version == "00"
         Bitcoin.checksum( address_version + a[0...40] ) == a[-8..-1]
       else
@@ -54,7 +57,7 @@ module Bitcoin
       if address_version == "00"
         return false if address[0] != "1"
       else
-        a = base58_to_int(address).to_s(16)
+        a = base58_to_hex(address)
         return false if a[0..1] != address_version
       end
       return false if !address_checksum?(address)
@@ -63,7 +66,7 @@ module Bitcoin
 
     def hash160_from_address(address)
       return nil  unless address_checksum?(address)
-      a = base58_to_int(address).to_s(16)
+      a = base58_to_hex(address)
       address_version == "00" ? a[0...40] : a[2...42]
     end
 
@@ -83,7 +86,7 @@ module Bitcoin
     end
 
     def encode_base58(hex)
-      int_to_base58( hex[0...64].to_i(16) )
+      int_to_base58( hex.to_i(16) )
     end
 
     def int_to_base58(int_val)
@@ -105,6 +108,11 @@ module Bitcoin
         int_val += char_index*(base**index)
       end
       int_val
+    end
+
+    def base58_to_hex(base58_val)
+      #[base58_to_int(base58_val).to_s(2).reverse].pack("b*").reverse.unpack("H*")[0]
+      s = base58_to_int(base58_val).to_s(16); s.bytesize.odd? ? '0'+s : s
     end
 
     # target compact bits (int) to bignum hex
@@ -191,6 +199,8 @@ module Bitcoin
       key  = bitcoin_elliptic_curve
       key.public_key = ::OpenSSL::PKey::EC::Point.from_hex(key.group, public_key)
       key.dsa_verify_asn1(hash, signature)
+    rescue OpenSSL::PKey::ECError, OpenSSL::PKey::EC::Point::Error
+      false
     end 
 
     def open_key(private_key, public_key)
@@ -216,6 +226,9 @@ module Bitcoin
     end
   end
 
+  autoload :OpenSSL_EC, "bitcoin/ffi/openssl"
+
+
   extend Util
 
   @network = :bitcoin
@@ -227,23 +240,25 @@ module Bitcoin
   def self.network= name
     @network = name.to_sym
   end
-    
+
   NETWORKS = {
     :bitcoin => {
       :magic_head => "\xF9\xBE\xB4\xD9",
       :address_version => "00",
+      :privkey_version => "80",
       :default_port => 8333,
-      :dns_seeds => ["bitseed.xf2.org", "bitseed.bitcoin.org.uk" ],
+      :dns_seeds => ["bitseed.xf2.org", "dnsseed.bluematt.me",
+        "dnsseed.bitcoin.dashjr.org", "seed.bitcoin.sipa.be"],
       :genesis_hash => "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"
     },
     :testnet => {
       :magic_head => "\xFA\xBF\xB5\xDA",
       :address_version => "6f",
+      :privkey_version => "ef",
       :default_port => 18333,
-      :dns_seeds => [],
+      :dns_seeds => ["testseed.bitcoin.interesthings.de"],
       :genesis_hash => "00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008"
     }
   }
   
-
 end

@@ -1,0 +1,101 @@
+#!/usr/bin/env ruby
+$:.unshift(File.dirname(__FILE__) + "/../lib")
+
+require 'bitcoin'
+require 'socket'
+require 'json'
+require 'rubydns'
+require 'optparse'
+
+Bitcoin::Network::Node # autoload to include Array#weighted_sample
+
+DNS_OPTS = {
+  :name => nil,
+  :connect => "127.0.0.1:9999",
+  :port => 8333,
+  :cache => 1024,
+  :send => 16,
+  :interval => 10,
+  :ttl => nil,
+}
+optparse = OptionParser.new do|opts|
+  opts.banner = "Usage: bitcoin_dns_seed [options] <domain>"
+
+  opts.on("-c", "--connect [HOST:PORT]",
+    "Connect to server (default: 127.0.0.1:9999)") do |connect|
+    DNS_OPTS[:connect] = connect
+  end
+
+  opts.on("-p", "--port [PORT]",
+    "Network default port each addr must match (default: 8333)") do |port|
+    DNS_OPTS[:port] = port.to_i
+  end
+
+  opts.on("-c", "--cache [SIZE]", "Cache addresses (default: 1024)") do |size|
+    DNS_OPTS[:cache] = size.to_i
+  end
+
+  opts.on("-s", "--send [SIZE]", "Send addresses (default: 16)") do |size|
+    DNS_OPTS[:send] = size.to_i
+  end
+
+  opts.on("-i", "--interval [SECONDS]", "Refresh addresses (default: 10)") do |s|
+    DNS_OPTS[:interval] = s.to_i
+  end
+
+  opts.on("-t", "--ttl [SECONDS]", "TTL to set on served records (default: relative to addr age)") do |t|
+    DNS_OPTS[:ttl] = t.to_i
+  end
+
+  opts.on( '-h', '--help', 'Display this screen' ) do
+    puts opts
+    exit
+  end
+end
+optparse.parse!
+
+DNS_OPTS[:domain] = ARGV.shift
+unless DNS_OPTS[:domain]
+  puts optparse
+  exit
+end
+
+
+RubyDNS::run_server do
+  @addrs = []
+
+  Thread.start do
+    loop do
+      begin
+        s = TCPSocket.new(*DNS_OPTS[:connect].split(":"))
+        s.puts("addrs #{DNS_OPTS[:cache]}")
+        @addrs = JSON::parse(s.readline)
+        @logger.info { "Refreshed addrs (#{@addrs.size})" }
+        s.close
+      rescue
+        @logger.error { "Error refreshing addrs: #{$!.inspect}" }
+      ensure
+        sleep DNS_OPTS[:interval]
+      end
+    end
+  end
+
+  match(DNS_OPTS[:domain], :A) do |transaction|
+    begin
+      @addrs.select{|a| a[1] == DNS_OPTS[:port]}
+        .weighted_sample(DNS_OPTS[:send]) do |addr|
+        10800 - addr[2]
+      end.uniq.each do |addr|
+        begin
+          ttl = DNS_OPTS[:ttl] || ((10800 - addr[2]) / 30)
+          transaction.respond!(addr[0], :ttl => ttl)
+        rescue
+          # ignore faulty addrs ("localhost" etc)
+        end
+      end
+    rescue
+      @logger.error { "Error answering request: #{$!.inspect}" }
+      p *$@
+    end
+  end
+end

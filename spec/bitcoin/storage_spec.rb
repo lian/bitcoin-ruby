@@ -1,19 +1,18 @@
 require_relative 'spec_helper'
 
-
 [
-  { 'name' => 'Dummy' },
-  #{ 'name' => 'Activerecord', 'adapter' => 'postgresql', 'database' => 'bitcoin_test'},
+  { :name => :dummy },
+  { :name => :sequel, :db => 'sqlite:/' }, # in memory
+#  { :name => :sequel, :db => 'sqlite:///tmp/bitcoin_test.db' },
+#  { :name => :sequel, :db => 'postgres://localhost/bitcoin_test' },
+#  { 'name' => :activerecord, 'adapter' => 'postgresql', 'database' => 'bitcoin_test' },
 ].each do |configuration|
-
-  describe "Bitcoin::Storage::Backends::#{configuration['name']}" do
+  describe "Bitcoin::Storage::Backends::#{configuration[:name].capitalize}Store" do
 
     before do
       Bitcoin::network = :testnet
       Bitcoin::Storage.log.level = 3
-      
-      klass = Bitcoin::Storage::Backends.const_get(configuration['name'])
-      @store = klass.new(configuration)
+      @store = Bitcoin::Storage.send(configuration[:name], configuration)
       @store.reset
       
       @store.store_block(Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_0.bin')))
@@ -21,8 +20,12 @@ require_relative 'spec_helper'
       @store.store_block(Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_2.bin')))
       @store.store_block(Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_3.bin')))
       
+      @store.store_tx(Bitcoin::Protocol::Tx.new(fixtures_file('rawtx-01.bin')))
+      @store.store_tx(Bitcoin::Protocol::Tx.new(fixtures_file('rawtx-02.bin')))
+
+
       @blk = Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_4.bin'))
-      @tx = Bitcoin::Protocol::Tx.new(fixtures_file('rawtx-01.bin'))
+      @tx = Bitcoin::Protocol::Tx.new(fixtures_file('rawtx-03.bin'))
     end
 
     it "should get depth" do
@@ -36,7 +39,7 @@ require_relative 'spec_helper'
     
     it "should get head" do
       @store.get_head
-        .should == "0000000098932356a236718829dd9e3eb0f9143317ab921333b1a203de336de4"
+        .should == @store.get_block("0000000098932356a236718829dd9e3eb0f9143317ab921333b1a203de336de4")
     end
 
     it "should get locator" do
@@ -47,12 +50,27 @@ require_relative 'spec_helper'
          "00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008"]
     end
     
-    # it "should get balance"
-    
     it "should store block" do
       @store.store_block(@blk).should == 4
       @store.get_depth.should == 4
       @store.get_tx(@blk.tx[0].hash).should == @blk.tx[0]
+    end
+
+    it "should return depth if block is already stored" do
+      @store.store_block(@blk).should == 4
+      @store.store_block(@blk).should == 4
+    end
+
+    it "should not store if there is no prev block" do
+      @store.reset
+      @store.store_block(@blk).should == nil
+      @store.get_depth.should == -1
+    end
+
+    it "should check whether block is already stored" do
+      @store.has_block(@blk.hash).should == false
+      @store.store_block(@blk)
+      @store.has_block(@blk.hash).should == true
     end
     
     it "should get block by depth" do
@@ -65,34 +83,142 @@ require_relative 'spec_helper'
     end
     
     it "should get block by hash" do
-      @store.get_block_by_hash(
-          "00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008").to_hash
+      @store.get_block(
+        "00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008").to_hash
         .should == Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_0.bin')).to_hash
       
-      @store.get_block_by_hash(
-          "000000033cc282bc1fa9dcae7a533263fd7fe66490f550d80076433340831604").to_hash
+      @store.get_block(
+        "000000033cc282bc1fa9dcae7a533263fd7fe66490f550d80076433340831604").to_hash
         .should == Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_1.bin')).to_hash
-      @store.get_block_by_hash(
-          "000000037b21cac5d30fc6fda2581cf7b2612908aed2abbcc429c45b0557a15f").to_hash
+      @store.get_block(
+        "000000037b21cac5d30fc6fda2581cf7b2612908aed2abbcc429c45b0557a15f").to_hash
         .should == Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_2.bin')).to_hash
+    end
+
+    it "should not get block" do
+      @store.get_block("nonexistant").should == nil
     end
     
     it "should get block depth" do
-      @store.get_block_depth(
-          "00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008").should == 0
-      @store.get_block_depth(
-          "000000033cc282bc1fa9dcae7a533263fd7fe66490f550d80076433340831604").should == 1
-      @store.get_block_depth(
-          "000000037b21cac5d30fc6fda2581cf7b2612908aed2abbcc429c45b0557a15f").should == 2
+      @store.get_block("00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008")
+        .depth.should == 0
+      @store.get_block("000000033cc282bc1fa9dcae7a533263fd7fe66490f550d80076433340831604")
+        .depth.should == 1
+      @store.get_block("000000037b21cac5d30fc6fda2581cf7b2612908aed2abbcc429c45b0557a15f")
+        .depth.should == 2
+    end
+
+    it "should get prev block" do
+      @store.get_block("00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008")
+        .get_prev_block.should == nil
+      @store.get_block("000000033cc282bc1fa9dcae7a533263fd7fe66490f550d80076433340831604")
+        .get_prev_block.should == 
+        @store.get_block("00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008")
+    end
+
+    it "should get next block" do
+      @store.get_block("0000000098932356a236718829dd9e3eb0f9143317ab921333b1a203de336de4")
+        .get_next_block.should == nil
+      @store.get_block("00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008")
+        .get_next_block.should == 
+        @store.get_block("000000033cc282bc1fa9dcae7a533263fd7fe66490f550d80076433340831604")
+    end
+
+    it "should get block for tx" do
+      @store.store_block(@blk)
+      @store.get_block_by_tx(@blk.tx[0].hash).should == @blk
     end
 
     it "should store tx" do
-      @store.store_tx(@tx).should == true
+      @store.store_tx(@tx).should != false
+    end
+
+    it "should not store tx if already stored" do
+      id = @store.store_tx(@tx)
+      @store.store_tx(@tx).should == id
+    end
+
+    it "should check if tx is already stored" do
+      @store.has_tx(@tx.hash).should == false
+      @store.store_tx(@tx)
+      @store.has_tx(@tx.hash).should == true
+    end
+
+    it "should store hash160 for txout" do
+      @store.store_tx(@tx)
+      @store.get_tx(@tx.hash).out[0].hash160
+        .should == "3129d7051d509424d23d533fa2d5258977e822e3"
     end
 
     it "should get tx" do
       @store.store_tx(@tx)
       @store.get_tx(@tx.hash).should == @tx
+    end
+
+    it "should not get tx" do
+      @store.get_tx("nonexistant").should == nil
+    end
+
+
+    it "should get txouts for pk script" do
+      @store.store_block(@blk)
+      script = @blk.tx[0].out[0].pk_script
+      @store.get_txouts_for_pk_script(script)
+        .should == [@blk.tx[0].out[0]]
+    end
+
+    it "should get block for tx" do
+      @store.store_block(@blk)
+      tx = @blk.tx[0]
+      @store.get_tx(tx.hash).get_block.should == @blk
+    end
+
+    it "should get tx for txin" do
+      @store.store_tx(@tx)
+      @store.get_tx(@tx.hash).in[0].get_tx.should == @tx
+    end
+
+    it "should get prev out for txin" do
+      tx = Bitcoin::Protocol::Tx.new(fixtures_file('rawtx-f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16.bin'))
+      outpoint_tx = Bitcoin::Protocol::Tx.new(fixtures_file('rawtx-0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9.bin'))
+      @store.store_tx(outpoint_tx)
+      @store.store_tx(tx)
+
+      @store.get_tx(tx.hash).in[0].get_prev_out.should == outpoint_tx.out[0]
+    end
+
+    it "should get tx for txout" do
+      @store.store_tx(@tx)
+      @store.get_tx(@tx.hash).out[0].get_tx.should == @tx
+    end
+
+    it "should get next in for txin" do
+      tx = Bitcoin::Protocol::Tx.new(fixtures_file('rawtx-f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16.bin'))
+      outpoint_tx = Bitcoin::Protocol::Tx.new(fixtures_file('rawtx-0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9.bin'))
+      @store.store_tx(outpoint_tx)
+      @store.store_tx(tx)
+
+      @store.get_tx(outpoint_tx.hash).out[0].get_next_in.should == tx.in[0]
+    end
+
+    it "should get txouts for hash160" do
+      @store.store_tx(@tx)
+      @store.get_txouts_for_hash160("3129d7051d509424d23d533fa2d5258977e822e3")
+        .should == [@tx.out[0]]
+    end
+
+    it "should get txouts for address" do
+      @store.store_tx(@tx)
+      @store.get_txouts_for_address("mjzuXYR2fncbPzn9nR5Ee5gBgYk9UQx36x")
+        .should == [@tx.out[0]]
+    end
+
+    it "should get balance for address" do
+      @store.store_tx(@tx)
+      @store.get_balance("3129d7051d509424d23d533fa2d5258977e822e3").should == 1000000
+
+      @store.get_balance("4580f1b3632948202655fd555fdaaf9b9ef5ac0d").should == 0
+      @store.get_balance("f3de26ff7d472d5365e3adafece9bbdcace915a0").should == 200000000
     end
 
   end

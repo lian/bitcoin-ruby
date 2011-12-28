@@ -1,28 +1,61 @@
 module Bitcoin::Storage
 
+  autoload :Models, 'bitcoin/storage/models'
+
   @log = Bitcoin::Logger.create("storage")
   def self.log; @log; end
 
-  module Backends
-    autoload :Dummy,        "bitcoin/storage/backends/dummy"
-    autoload :Activerecord, "bitcoin/storage/backends/activerecord"
+  BACKENDS = [:dummy, :sequel, :activerecord]
+  BACKENDS.each do |name|
+    module_eval <<-EOS
+      def self.#{name} config
+        Backends.const_get("#{name.capitalize}Store").new(config)
+      end
+    EOS
+  end
 
-    class Base
+  module Backends
+
+    BACKENDS.each {|b| autoload("#{b.to_s.capitalize}Store", "bitcoin/storage/#{b}") }
+
+    # Base class for storage backends.
+    # Every backend must overwrite the "Not implemented" methods
+    # and provide an implementation specific to the storage.
+    # Also, before returning the objects, they should be wrapped
+    # inside the appropriate Bitcoin::Storage::Models class.
+    class StoreBase
 
       def initialize(config = {})
         @config = config
         @log    = config[:log] || Bitcoin::Storage.log
-        inject_genesis
       end
 
       # get the storage logger
       def log; @log; end
 
-      # inject the genesis block into storage
-      def inject_genesis
-        return  if get_block_by_hash(Bitcoin.network[:genesis_hash])
-        genesis = Bitcoin.network[:genesis_block]
-        store_block(genesis)
+      # reset the store; delete all data
+      def reset
+        raise "Not implemented"
+      end
+
+      # store given +block+
+      def store_block(blk)
+        raise "Not implemented"
+      end
+
+      # store given +tx+
+      def store_tx(tx)
+        raise "Not implemented"
+      end
+
+      # check if block with given +blk_hash+ is already stored
+      def has_block(blk_hash)
+        raise "Not implemented"
+      end
+
+      # check if tx with given +tx_hash+ is already stored
+      def has_tx(tx_hash)
+        raise "Not implemented"
       end
 
       # get the hash of the leading block
@@ -41,37 +74,80 @@ module Bitcoin::Storage
         locator = []
         pointer = get_head
         step = 1
-        while pointer && pointer != Bitcoin::network[:genesis_hash]
-          locator << pointer
-          depth = get_block_depth(pointer) - step
+        while pointer && pointer.hash != Bitcoin::network[:genesis_hash]
+          locator << pointer.hash
+          depth = pointer.depth - step
           break unless depth > 0
           prev_block = get_block_by_depth(depth) # TODO
           break unless prev_block
-          pointer = prev_block.hash
+          pointer = prev_block
           step *= 2  if locator.size > 10
         end
         locator << Bitcoin::network[:genesis_hash]
         locator
       end
 
-      # store given block
-      def store_block(blk)
-        raise "Not implemented"
-      end
-
-      # get block with given hash
+      # get block with given +blk_hash+
       def get_block(blk_hash)
         raise "Not implemented"
       end
 
-      # store given tx
-      def store_tx(tx)
+      # get block with given +depth+ from main chain
+      def get_block_by_depth(depth)
         raise "Not implemented"
       end
 
-      # get tx with given hash
+      # get block with given +prev_hash+
+      def get_block_by_prev_hash(prev_hash)
+        raise "Not implemented"
+      end
+
+      # get block that includes tx with given +tx_hash+
+      def get_block_by_tx(tx_hash)
+        raise "Not implemented"
+      end
+
+      # get block by given +block_id+
+      def get_block_by_id(block_id)
+        raise "Not implemented"
+      end
+
+      # get corresponding txin for the txout in
+      # transaction +tx_hash+ with index +txout_idx+
+      def get_txin_for_txout(tx_hash, txout_idx)
+        raise "Not implemented"
+      end
+
+      # get tx with given +tx_hash+
       def get_tx(tx_hash)
         raise "Not implemented"
+      end
+
+      # get tx with given +tx_id+
+      def get_tx_by_id(tx_id)
+        raise "Not implemented"
+      end
+
+      # collect all txouts containing the
+      # given +script+
+      def get_txouts_for_pk_script(script)
+        raise "Not implemented"
+      end
+
+      # collect all txouts containing a
+      # standard tx to given +address+
+      def get_txouts_for_address(address)
+        script = Bitcoin::Script.to_address_script(address)
+        get_txouts_for_pk_script(script)
+      end
+
+      # get balance for given +hash160+
+      def get_balance(hash160)
+        txouts = get_txouts_for_hash160(hash160)
+        unspent = txouts.select {|o| o.get_next_in.nil?}
+        unspent.map(&:value).inject {|a,b| a+=b; a} || 0
+      rescue
+        nil
       end
 
     end

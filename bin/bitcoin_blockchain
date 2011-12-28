@@ -1,10 +1,134 @@
 #!/usr/bin/env ruby
 $:.unshift( File.expand_path("../../lib", __FILE__) )
 
-#require 'log4r'
 require 'bitcoin'
+require 'optparse'
 
-Bitcoin.network = ARGV[0] || :testnet
+options = {
+  :network => "testnet",
+  :command => "127.0.0.1:9999",
+  :listen => "0.0.0.0:18332",
+  :connect => "",
+  :storage => "dummy",
+  :headers_only => false,
+  :dns => true,
+  :epoll => false,
+  :epoll_limit => 10000,
+  :epoll_user => nil,
+  :log => {
+    :network => :info,
+    :storage => :info,
+  },
+  :max => {
+    :connections => 32,
+    :addr => 1024,
+    :queue => 512,
+    :inv => 512,
+  },
+  :intervals => {
+    :queue => 5,
+    :inv_queue => 5,
+    :blocks => 5,
+    :addrs => 5,
+    :connect => 15,
+  },
+}
+optparse = OptionParser.new do|opts|
+  opts.banner = "Usage: bitcoin_node [options]"
 
-node = Bitcoin::Network::Node.new
+  opts.on("-n", "--network [NETWORK]",
+    "User Network (default: #{options[:network]})") do |network|
+    options[:network] = network
+  end
+
+  opts.on("--command [HOST:PORT]",
+    "Command socket (default: #{options[:command]})") do |command|
+    options[:command] = command
+  end
+
+  opts.on("-l", "--listen [HOST:PORT]",
+    "Listen address/port (default: #{options[:listen]})") do |listen|
+    options[:listen] = listen
+  end
+
+  opts.on("-c", "--connect [HOST:PORT[,HOST:PORT[...]]]",
+    "Hosts to connect to (default: #{options[:connect]})") do |connect|
+    options[:connect] = connect
+  end
+
+  opts.on("-s", "--storage [BACKEND::CONFIG]",
+    "Use storage backend (default: #{options[:storage]})") do |storage|
+    options[:storage] = storage
+  end
+
+  opts.on("--ho", "--headers-only",
+    "Download only block headers") do
+    options[:headers_only] = true
+  end
+
+  opts.on("-d", "--dns", "Use DNS seeds (default)") do
+    options[:dns] = true
+  end
+
+  opts.on("--nd", "--no-dns", "Don't use DNS seeds") do
+    options[:dns] = false
+  end
+
+  opts.on("--epoll", "Enable epoll support") do
+    options[:epoll] = true
+  end
+
+  opts.on("--epoll-limit [NUM]",
+    "Increase socket descriptor limit to NUM") do |num|
+    options[:epoll_limit] = num.to_i
+  end
+
+  opts.on("--epoll-user [NAME]",
+    "Set effective user after increasing socket descriptor limit") do |user|
+    options[:epoll_user] = user
+  end
+
+  [:connections, :addr, :queue, :inv].each do |name|
+    opts.on("--m#{name[0]}", "--max-#{name} [COUNT]",
+      "Max #{name} (default: #{options[:max][name]})") do |count|
+      options[:max][name] = count.to_i
+    end
+  end
+
+  [:queue, :inv_queue, :blocks, :addrs, :connect].each do |name|
+    opts.on("--i#{name[0]}", "--interval-#{name} [SECONDS]",
+      "Interval for #{name} worker (default: #{options[:intervals][name]})") do |sec|
+      options[:intervals][name] = sec.to_i
+    end
+  end
+
+  [:network, :storage].each do |name|
+    opts.on("--l#{name[0]}", "--log-#{name} [LEVEL]",
+      "Log level for #{name} (default: #{options[:log][name]})") do |level|
+      options[:log][name] = level.to_sym
+    end
+  end
+
+  opts.on("-v", "--verbose", "Set all loggers to debug") do
+    options[:log].each_key {|k| options[:log][k] = :debug }
+  end
+
+  opts.on("-q", "--quiet", "Set all loggers to warn") do
+    options[:log].each_key {|k| options[:log][k] = :warn }
+  end
+
+  opts.on( '-h', '--help', 'Display this screen' ) do
+    puts opts
+    exit
+  end
+end
+
+optparse.parse!
+
+Bitcoin.network = options[:network]
+options[:command] = options[:command] == "" ? nil : options[:command].split(':')
+options[:listen] = options[:listen] == "" ? nil : options[:listen].split(':')
+options[:connect] = options[:connect] == "" ? [] : options[:connect].split(',').map{|h| h.split(':')}
+
+node = Bitcoin::Network::Node.new(options)
 node.run

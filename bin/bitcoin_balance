@@ -1,0 +1,92 @@
+#!/usr/bin/env ruby
+$:.unshift( File.expand_path("../../lib", __FILE__) )
+
+require 'bitcoin'
+require 'optparse'
+
+options = {
+  :network => "testnet",
+  :storage => "Dummy",
+  :list => false,
+}
+optparse = OptionParser.new do|opts|
+  opts.banner = "Usage: bitcoin_balance [options] <address>"
+
+  opts.on("-n", "--network [NETWORK]", "User Network (default: testnet)") do |network|
+    options[:network] = network
+  end
+
+  opts.on("-s", "--storage [BACKEND::CONFIG]", "Use storage backend (default: 'dummy')") do |storage|
+    options[:storage] = storage
+  end
+
+  opts.on("-l", "--list", "List transactions") do |list|
+    options[:list] = true
+  end
+
+  opts.on( '-h', '--help', 'Display this screen' ) do
+    puts opts
+    exit
+  end
+end
+optparse.parse!
+
+Bitcoin.network = options[:network]
+puts "Using network #{options[:network]}"
+backend, config = options[:storage].split('::')
+store = Bitcoin::Storage.send(backend, :db => config)
+puts "Using #{backend} store #{config}"
+
+address = ARGV.shift
+
+unless Bitcoin.valid_address?(address)
+  puts "Address #{address} is invalid."
+  exit 1
+end
+
+def txout_address(txout)
+  pk_script = txout.pk_script
+  if pk_script[0...3] == ["76a914"].pack("H*") &&
+      pk_script[-2..-1] == ["88ac"].pack("H*")
+    hash = pk_script[3..-3].unpack("H*")[0]
+    return Bitcoin.hash160_to_address(hash)
+  end
+end
+
+script = Bitcoin::Script.to_address_script(address)
+txouts = store.get_txouts_for_pk_script(script)
+unless txouts.any?
+  puts "Address not seen."
+  exit
+end
+
+def str_val(val, pre = "")
+  ("#{pre}#{"%.8f" % (val / 1e8)}").rjust(20)
+end
+
+if options[:list]
+  total = 0
+  txouts.each do |txout|
+    tx = txout.get_tx
+    total += txout.value
+    puts "#{tx.hash} |#{str_val(txout.value, '+ ')}  |=> #{str_val(total)}"
+
+    txout.get_tx.in.map(&:get_prev_out).each do |prev_out|
+      puts "  <- #{txout_address(prev_out)}"
+    end
+    puts
+
+    if txin = txout.get_next_in
+      tx = txin.get_tx
+      total -= txout.value
+      puts "#{tx.hash} |#{str_val(txout.value, '- ')}  |=> #{str_val(total)}"
+      txin.get_tx.out.each do |out|
+        puts "  -> #{txout_address(out)}"
+      end
+      puts
+    end
+  end
+end
+
+balance = store.get_balance(address)
+puts "Balance: %.8f" % (balance / 1e8)
