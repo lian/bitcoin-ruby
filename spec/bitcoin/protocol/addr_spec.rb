@@ -24,3 +24,46 @@ describe 'Bitcoin::Protocol::Parser (addr)' do
   end
 
 end
+
+describe 'Bitcoin::Protocol::Addr' do
+
+  before do
+    @pkt = [
+      "2b dd d7 4d 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ff ff 52 53 de 04 20 8d"
+      .split(" ").join].pack("H*")
+  end
+
+  it 'parse addr payload' do
+    addr = Bitcoin::Protocol::Addr.new(@pkt)
+    addr.values.should == [1305992491, 1, "82.83.222.4", 8333]
+  end
+
+  it 'initalize time, service and port' do
+    addr = Bitcoin::Protocol::Addr.new(nil)
+    t = Time.now.to_i; (t-10..t+10).include?(addr[:time]).should == true
+    addr[:service]  .should == 1
+    addr[:port]     .should == Bitcoin.network[:default_port]
+    addr[:ip]       .should == "127.0.0.1"
+  end
+
+  it 'addr payload' do
+    addr = Bitcoin::Protocol::Addr.new
+    addr[:time] = 1305992491
+    addr[:service] = 1
+    addr[:ip] = "82.83.222.4"
+    addr[:port] = 8333
+    addr.to_payload.should == @pkt
+    addr.to_payload.bytesize.should == 30
+  end
+
+
+  it 'pack addr packet' do
+    addr = Bitcoin::Protocol::Addr.new
+    addr[:time] = 1305992491
+    addr[:service] = 1
+    addr[:ip] = "82.83.222.4"
+    addr[:port] = 8333
+    Bitcoin::Protocol::Addr.pkt(addr).should ==
+      Bitcoin::Protocol.pkt("addr", "\x01" + addr.to_payload)
+  end
+end
