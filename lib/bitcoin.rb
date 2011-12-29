@@ -46,7 +46,8 @@ module Bitcoin
     end
 
     def address_checksum?(address)
-      a = base58_to_hex(address)
+      a = base58_to_hex(address) rescue nil
+      return false  unless a
       if address_version == "00"
         Bitcoin.checksum( address_version + a[0...40] ) == a[-8..-1]
       else
@@ -58,8 +59,8 @@ module Bitcoin
       if address_version == "00"
         return false if address[0] != "1"
       else
-        a = base58_to_hex(address)
-        return false if a[0..1] != address_version
+        a = base58_to_hex(address) rescue nil
+        return false unless a && a[0..1] == address_version
       end
       address_checksum?(address)
     end
