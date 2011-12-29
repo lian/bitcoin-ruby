@@ -9,7 +9,7 @@ module Bitcoin
           self[:time], self[:service], self[:ip], self[:port] = data.unpack("IQx12a4n")
           self[:ip] = ip.unpack("C*").join(".")
         else
-          self[:time], self[:service], self[:port] = Time.now.to_i, 1
+          self[:time], self[:service] = Time.now.to_i, 1
           self[:ip], self[:port] = "127.0.0.1", Bitcoin.network[:default_port]
         end
       end
