@@ -126,10 +126,7 @@ module Bitcoin
 
     # target bignum hex to compact bits (int)
     def encode_compact_bits(target)
-      # bignum to bytes (bn2mpi) without OpenSSL::BN
-      mpi   = [ target.to_i(16).to_s(16) ].pack("H*").unpack("C*")
-      bytes = [ mpi.size+1, 0 ].pack("NC").unpack("C*") + mpi
-
+      bytes = OpenSSL::BN.new(target, 16).to_s(0).unpack("C*")
       size = bytes.size - 4
       nbits = size << 24
       nbits |= (bytes[4] << 16) if size >= 1

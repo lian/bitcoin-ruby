@@ -199,6 +199,7 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     Bitcoin.decode_compact_bits( "1b00b5ac".to_i(16) ).to_i(16).should ==
       "000000000000b5ac000000000000000000000000000000000000000000000000".to_i(16)
 
+
     target = 453031340
     Bitcoin.decode_compact_bits( target ).should ==
       "000000000000b5ac000000000000000000000000000000000000000000000000"
@@ -207,6 +208,11 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     target = 486604799
     Bitcoin.decode_compact_bits( target ).should ==
       "00000000ffff0000000000000000000000000000000000000000000000000000"
+    Bitcoin.encode_compact_bits( Bitcoin.decode_compact_bits( target ) ).should == target
+
+    target = 476399191 # from block 40,320
+    Bitcoin.decode_compact_bits(target).should ==
+      "0000000065465700000000000000000000000000000000000000000000000000"
     Bitcoin.encode_compact_bits( Bitcoin.decode_compact_bits( target ) ).should == target
   end
 

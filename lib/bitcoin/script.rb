@@ -31,9 +31,12 @@ module Bitcoin
     OP_SHA256       = 168
     OP_SHA1         = 167
     OP_RIPEMD160    = 166
+    OP_EVAL         = 176
 
     OPCODES = Hash[*constants.grep(/^OP_/).map{|i| [const_get(i), i.to_s] }.flatten]
     OPCODES[0] = "0"
+
+    OPCODES_ALIAS = { "OP_NOP1" => OP_EVAL }
 
     OP_2_16 = (82..96).to_a
 
@@ -101,6 +104,7 @@ module Bitcoin
       script_string.split(" ").map{|i|
         case i
           when *OPCODES.values;          OPCODES.find{|k,v| v == i }.first
+          when *OPCODES_ALIAS.keys;      OPCODES_ALIAS.find{|k,v| k == i }.last
           when /^([2-9]$|1[0-7])$/;      OP_2_16[$1.to_i-2]
           when /\(opcode (\d+)\)/;       $1.to_i
           else 
