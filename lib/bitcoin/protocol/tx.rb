@@ -77,7 +77,7 @@ module Bitcoin
           buf =  [ i.prev_out, i.prev_out_index ].pack("a32I")
           buf << Protocol.pack_var_int(i.script_sig_length)
           buf << i.script_sig if i.script_sig_length > 0
-          buf << "\xff\xff\xff\xff" # sequence
+          buf << (i.sequence || "\xff\xff\xff\xff")
         }.join
 
         pout = @out.map{|o|
@@ -93,23 +93,23 @@ module Bitcoin
 
       # generate a signature hash for input +input_idx+.
       # either pass the +outpoint_tx+ or the +script_pubkey+ directly.
-      def signature_hash_for_input(input_idx, outpoint_tx, script_pubkey=nil)
+      def signature_hash_for_input(input_idx, outpoint_tx, script_pubkey=nil, hash_type=nil)
         # https://github.com/bitcoin/bitcoin/blob/e071a3f6c06f41068ad17134189a4ac3073ef76b/script.cpp#L834
         # http://code.google.com/p/bitcoinj/source/browse/trunk/src/com/google/bitcoin/core/Script.java#318
         pin  = @in.map.with_index{|i,idx|
           if idx == input_idx
             script_pubkey ||= outpoint_tx.out[ i.prev_out_index ].pk_script
             length = script_pubkey.bytesize
-            [ i.prev_out, i.prev_out_index, length, script_pubkey, "\xff\xff\xff\xff" ].pack("a32ICa#{length}a4")
+            [ i.prev_out, i.prev_out_index, length, script_pubkey, i.sequence || "\xff\xff\xff\xff" ].pack("a32ICa#{length}a4")
           else
-            [ i.prev_out, i.prev_out_index, 0, "\xff\xff\xff\xff" ].pack("a32ICa4")
+            [ i.prev_out, i.prev_out_index, 0, i.sequence || "\xff\xff\xff\xff" ].pack("a32ICa4")
           end
         }.join
         pout = @out.map{|o|
           [ o.value, o.pk_script_length, o.pk_script ].pack("QCa#{o.pk_script_length}")
         }.join
 
-        hash_type = 1 # 1: ALL, 2: NONE, 3: SINGLE
+        hash_type ||= 1 # 1: ALL, 2: NONE, 3: SINGLE
 
         in_size, out_size = Protocol.pack_var_int(@in.size), Protocol.pack_var_int(@out.size)
         buf = [[@ver].pack("I"), in_size, pin, out_size, pout, [@lock_time].pack("I")].join + [hash_type].pack("I")
@@ -127,8 +127,8 @@ module Bitcoin
         Bitcoin::Script.new(script).run do |pubkey,sig,hash_type|
           # this IS the checksig callback, must return true/false
           #p ['checksig', pubkey, sig, hash_type]
-          hash = signature_hash_for_input(in_idx, outpoint_tx)
-          #hash = signature_hash_for_input(in_idx, nil, script_pubkey)
+          hash = signature_hash_for_input(in_idx, outpoint_tx, nil, hash_type)
+          #hash = signature_hash_for_input(in_idx, nil, script_pubkey, hash_type)
           Bitcoin.verify_signature( hash, sig, pubkey.unpack("H*")[0] )
         end
       end
@@ -143,6 +143,7 @@ module Bitcoin
             t = { 'prev_out'  => { 'hash' => hth(i.prev_out), 'n' => i.prev_out_index } }
             unless (idx == 0) && i.coinbase?
               t['scriptSig'] = Bitcoin::Script.new(i.script_sig).to_string
+              t['sequence']  = i.sequence.unpack("I")[0] unless i.sequence == "\xff\xff\xff\xff"
             else # coinbase tx
               t['coinbase']  = i.script_sig.unpack("H*")[0]
             end
@@ -179,6 +180,7 @@ module Bitcoin
             script_data = Script.binary_from_string(input['scriptSig'])
             txin.script_sig_length = script_data.bytesize
             txin.script_sig = script_data
+            txin.sequence = [ input['sequence'] || 0xffffffff ].pack("I")
           end
           txin.sequence = input['sequence']
           tx.add_in(txin)

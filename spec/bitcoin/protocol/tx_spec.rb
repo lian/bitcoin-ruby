@@ -112,6 +112,15 @@ describe 'Bitcoin::Protocol::Tx' do
     outpoint_tx.hash.should == "0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9"
 
     tx.verify_input_signature(0, outpoint_tx).should == true
+
+
+    tx = Bitcoin::Protocol::Tx.from_json( fixtures_file('rawtx-c99c49da4c38af669dea436d3e73780dfdb6c1ecf9958baa52960e8baee30e73.json') )
+    tx.hash.should == 'c99c49da4c38af669dea436d3e73780dfdb6c1ecf9958baa52960e8baee30e73'
+
+    outpoint_tx = Bitcoin::Protocol::Tx.from_json( fixtures_file('rawtx-406b2b06bcd34d3c8733e6b79f7a394c8a431fbf4ff5ac705c93f4076bb77602.json') )
+    outpoint_tx.hash.should == '406b2b06bcd34d3c8733e6b79f7a394c8a431fbf4ff5ac705c93f4076bb77602'
+
+    tx.verify_input_signature(0, outpoint_tx).should == true
   end
 
   it '#sign_input_signature' do
