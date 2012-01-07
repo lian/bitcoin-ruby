@@ -180,7 +180,7 @@ module Bitcoin
             txin.script_sig_length = script_data.bytesize
             txin.script_sig = script_data
           end
-          # txin.sequence = ??
+          txin.sequence = input['sequence']
           tx.add_in(txin)
         }
         h['out'].each{|output|
