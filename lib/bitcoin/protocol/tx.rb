@@ -182,7 +182,6 @@ module Bitcoin
             txin.script_sig = script_data
             txin.sequence = [ input['sequence'] || 0xffffffff ].pack("I")
           end
-          txin.sequence = input['sequence']
           tx.add_in(txin)
         }
         h['out'].each{|output|
