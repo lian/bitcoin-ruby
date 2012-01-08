@@ -9,6 +9,7 @@ options = {
   :network => "testnet",
   :storage => "dummy",
   :keystore => "dummy",
+  :node => "127.0.0.1:9999"
 }
 
 ["/etc/", "~/", "./"].each do |path|
@@ -32,6 +33,11 @@ optparse = OptionParser.new do |opts|
   opts.on("-n", "--network [NETWORK]",
     "User Network (default: #{options[:network]})") do |network|
     options[:network] = network
+  end
+
+  opts.on("--node [HOST:PORT]",
+          "Node command socket (default: #{options[:node]})") do |node|
+    options[:node] = node
   end
 
   opts.on("-s", "--storage [BACKEND::CONFIG]",
@@ -198,8 +204,8 @@ when "send"
     puts "Aborted."; exit
   end
 
-
-  s = TCPSocket.new("127.0.0.1", 9999)
+  host, port = *options[:node].split(":")
+  s = TCPSocket.new(host, port.to_i)
   s.puts "relay_tx " + tx.to_payload.unpack("H*")[0]
 
   res = s.readline
