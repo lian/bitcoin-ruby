@@ -16,7 +16,7 @@ module Bitcoin::Wallet
 
     def get_balance
       values = get_txouts.select{|o| !o.get_next_in}.map(&:value)
-      ([0] + values).inject() {|a,b| a+=b;a}
+      ([0] + values).inject(:+)
     end
 
     def addrs
@@ -39,13 +39,13 @@ module Bitcoin::Wallet
 
     # outputs = [<addr>, <value>]
     def tx outputs, fee = 0, change_policy = :back
-      prev_outs = get_selector.select(outputs.map{|o| o[1]}.inject{|a,b|a+=b;a})
+      prev_outs = get_selector.select(outputs.map{|o| o[1]}.inject(:+))
       return nil  if !prev_outs
 
       tx = Bitcoin::Protocol::Tx.new(nil)
 
-      input_value = prev_outs.map(&:value).inject{|a,b|a+=b;a}
-      output_value = outputs.map{|o|o[1]}.inject{|a,b|a+=b;a}
+      input_value = prev_outs.map(&:value).inject(:+)
+      output_value = outputs.map{|o|o[1]}.inject(:+)
       return nil  unless input_value >= (output_value + fee)
 
       outputs.each do |addr, value|

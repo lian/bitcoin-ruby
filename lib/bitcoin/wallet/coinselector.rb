@@ -14,7 +14,7 @@ module Bitcoin::Wallet
           next  unless txout.get_address
           # next  unless txout.get_tx.get_block
           txouts << txout
-          return txouts  if txouts.map(&:value).inject{|a,b|a+=b;a} >= value
+          return txouts  if txouts.map(&:value).inject(:+) >= value
         rescue
           p $!
         end
