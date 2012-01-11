@@ -270,6 +270,9 @@ describe 'Bitcoin Address/Hash160/PubKey' do
 
     key = Bitcoin.open_key(private_key, public_key)
     Bitcoin.inspect_key( key ).should == [ private_key, public_key ]
+
+    key = Bitcoin.open_key(private_key)
+    [ key.private_key_hex, key.public_key_hex ].should == [ private_key, public_key ]
   end
 
   it 'generates new bitcoin-address' do

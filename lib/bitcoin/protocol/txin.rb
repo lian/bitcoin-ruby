@@ -58,6 +58,11 @@ module Bitcoin
         (@prev_out_index == 4294967295) && (@prev_out == "\x00"*32)
       end
 
+      def script_sig=(script_sig)
+        @script_sig_length = script_sig.bytesize
+        @script_sig = script_sig
+      end
+
     end
 
   end

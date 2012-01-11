@@ -119,4 +119,6 @@ module Bitcoin
     end
 
   end
+
+  P = Protocol
 end

@@ -18,7 +18,7 @@ module Bitcoin
       end
 
       # create tx from raw binary +data+
-      def initialize(data)
+      def initialize(data=nil)
         @ver, @lock_time = 1, 0
 
         parse_data(data) if data

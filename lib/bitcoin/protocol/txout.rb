@@ -40,6 +40,11 @@ module Bitcoin
         idx
       end
 
+      def self.value_to_address(value, address)
+        pk_script = Bitcoin::Script.to_address_script(address)
+        new(value, pk_script.bytesize, pk_script)
+      end
+
     end
 
   end

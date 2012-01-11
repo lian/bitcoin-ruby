@@ -9,6 +9,7 @@ module Bitcoin
 
   autoload :Connection, 'bitcoin/connection'
   autoload :Protocol,   'bitcoin/protocol'
+  autoload :P,          'bitcoin/protocol'
   autoload :Script,     'bitcoin/script'
   autoload :VERSION,    'bitcoin/version'
   autoload :Storage,    'bitcoin/storage/storage'
@@ -53,15 +54,14 @@ module Bitcoin
       end
     end
 
-    def valid_address?(address) # TODO
+    def valid_address?(address)
       if address_version == "00"
         return false if address[0] != "1"
       else
         a = base58_to_hex(address)
         return false if a[0..1] != address_version
       end
-      return false if !address_checksum?(address)
-      true
+      address_checksum?(address)
     end
 
     def hash160_from_address(address)
@@ -126,7 +126,7 @@ module Bitcoin
 
     # target bignum hex to compact bits (int)
     def encode_compact_bits(target)
-      bytes = OpenSSL::BN.new(target, 16).to_s(0).unpack("C*")
+      bytes = OpenSSL::BN.new(target, 16).to_mpi
       size = bytes.size - 4
       nbits = size << 24
       nbits |= (bytes[4] << 16) if size >= 1
@@ -154,8 +154,7 @@ module Bitcoin
     end
 
     def inspect_key(key)
-      [ key.private_key.to_hex.rjust(64, '0'),
-        key.public_key.to_hex.rjust(130, '0') ]
+      [ key.private_key_hex, key.public_key_hex ]
     end
 
     def generate_address
@@ -200,11 +199,16 @@ module Bitcoin
       false
     end 
 
-    def open_key(private_key, public_key)
+    def open_key(private_key, public_key=nil)
       key  = bitcoin_elliptic_curve
       key.private_key = ::OpenSSL::BN.from_hex(private_key)
+      public_key = regenerate_public_key(private_key) unless public_key
       key.public_key  = ::OpenSSL::PKey::EC::Point.from_hex(key.group, public_key)
       key
+    end
+
+    def regenerate_public_key(private_key)
+      Bitcoin::OpenSSL_EC.regenerate_key(private_key)[1]
     end
   end
 
@@ -213,6 +217,10 @@ module Bitcoin
       def self.from_hex(hex); new(hex, 16); end
       def to_hex; to_i.to_s(16); end
       def to_mpi; to_s(0).unpack("C*"); end
+    end
+    class PKey::EC
+      def private_key_hex; private_key.to_hex.rjust(64, '0'); end
+      def public_key_hex;  public_key.to_hex.rjust(130, '0'); end
     end
     class PKey::EC::Point
       def self.from_hex(group, hex)

@@ -44,10 +44,7 @@ module Bitcoin
       def parse_headers(payload)
         count, payload = Protocol.unpack_var_int(payload)
         idx = 0
-        headers = []
-        count.times do
-          headers << Block.new(payload[idx..idx+=81])
-        end
+        headers = count.times.map{ Block.new(payload[idx..idx+=81]) }
         @h.on_headers(headers)
       end
 
