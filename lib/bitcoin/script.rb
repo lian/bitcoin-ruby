@@ -9,6 +9,7 @@ module Bitcoin
     OP_PUSHDATA1   = 76
     OP_PUSHDATA2   = 77
     OP_PUSHDATA4   = 78
+    OP_NOP         = 97
     OP_DUP         = 118
     OP_HASH160     = 169
     OP_EQUAL       = 135
@@ -132,6 +133,10 @@ module Bitcoin
       @script_invalid ||= false
     end
 
+    # Does nothing
+    def op_nop
+      @stack.pop
+    end
 
     # Duplicates the top stack item.
     def op_dup
