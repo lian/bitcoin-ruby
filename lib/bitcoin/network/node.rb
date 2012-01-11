@@ -239,6 +239,7 @@ module Bitcoin::Network
       @inv_queue_thread = Thread.start do
         begin
           while inv = @inv_queue.shift
+            next  if @store.send("has_#{inv[0]}", inv[1])
             inv[2].send("send_getdata_#{inv[0]}", inv[1])
           end
         rescue
