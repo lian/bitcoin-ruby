@@ -17,7 +17,6 @@ module Bitcoin
 
       # parse raw binary data
       def parse_data(data)
-        @payload, @size = data, data.size
         @ver, @prev_block, @mrkl_root, @time, @bits, @nonce, payload = data.unpack("Ia32a32IIIa*")
         recalc_block_hash
 
@@ -27,8 +26,9 @@ module Bitcoin
           payload = t.parse_data(payload)
           @tx << t
         }
-        #p header_info
-        #p @tx.map{|i| i.hash }
+
+        @payload = to_payload
+        payload
       end
 
       # recalculate the block hash
@@ -39,7 +39,7 @@ module Bitcoin
       # get the block header info
       # [<version>, <prev_block>, <merkle_root>, <time>, <bits>, <nonce>, <txcount>, <size>]
       def header_info
-        [@ver, hth(@prev_block), hth(@mrkl_root), Time.at(@time), @bits, @nonce, @tx.size, @size]
+        [@ver, hth(@prev_block), hth(@mrkl_root), Time.at(@time), @bits, @nonce, @tx.size, @payload.size]
       end
 
       def hth(h); h.reverse.unpack("H*")[0]; end

@@ -27,6 +27,16 @@ describe 'Bitcoin::Protocol::Block' do
     proc{
       Bitcoin::Protocol::Block.new( @blocks['0'][0..20] )
     }.should.raise Exception
+
+    block = Bitcoin::Protocol::Block.new(nil)
+    block.parse_data(@blocks['0']).should == true
+    block.header_info[7].should == 215
+    block.to_payload.should == @blocks['0']
+
+    block = Bitcoin::Protocol::Block.new(nil)
+    block.parse_data(@blocks['0'] + "AAAA").should == "AAAA"
+    block.header_info[7].should == 215
+    block.to_payload.should == @blocks['0']
   end
 
   it '#hash' do
