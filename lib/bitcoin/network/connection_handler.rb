@@ -32,6 +32,7 @@ module Bitcoin::Network
     end
 
     def post_init
+      return close_connection  if @node.connections.size >= @node.config[:max][:connections]
       log.info { "Connected to #{@host}:#{@port}" }
       @state = :established
       @node.connections << self
