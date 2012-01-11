@@ -39,6 +39,7 @@ describe 'Bitcoin::Script' do
 
     Bitcoin::Script.from_string("OP_EVAL").to_string.should == "OP_EVAL"
     Bitcoin::Script.from_string("OP_NOP1").to_string.should == "OP_EVAL" # test opcodes_alias table
+    Bitcoin::Script.from_string("OP_NOP").to_string.should == "OP_NOP"
   end
 
   it '#get_pubkey' do
@@ -128,6 +129,11 @@ describe 'Bitcoin::Script' do
       @script.stack = stack
       @script.send("op_#{op}")
       @script.stack
+    end
+
+    it "should do OP_NOP" do
+      @script.op_nop
+      @script.stack.should == []
     end
 
     it "should do OP_DUP" do
