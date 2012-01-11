@@ -101,7 +101,7 @@ module Bitcoin::Network
       end
     end
 
-    # connect to peer at given +hosh+ / +port+
+    # connect to peer at given +host+ / +port+
     def connect_peer host, port
       return  if @connections.map{|c| c.host}.include?(host)
       log.info { "Attempting to connect to #{host}:#{port}" }
