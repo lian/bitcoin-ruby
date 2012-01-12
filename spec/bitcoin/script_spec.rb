@@ -99,7 +99,7 @@ describe 'Bitcoin::Script' do
     Bitcoin::Script.from_string("bar foo OP_DUP OP_DROP bar OP_EQUAL")
       .run.should == false
 
-    -> { Bitcoin::Script.from_string("1 OP_DROP 2").run }.should.raise RuntimeError
+    Bitcoin::Script.from_string("1 OP_DROP 2").run.should == false
   end
 
   it "should generate address script" do
@@ -319,11 +319,57 @@ describe 'Bitcoin::Script' do
       sig = (key.sign("foobar") + "\x01").unpack("H*")[0]
       script = Bitcoin::Script.from_string("#{sig} #{key.pub} OP_CHECKSIG")
       script.run{|pk, sig, hash_type|
-        k = Bitcoin::Key.new
-        k.pub = pk.unpack("H*")[0]
+        k = Bitcoin::Key.new nil, pk.unpack("H*")[0]
         k.verify("foobar", sig)
       }.should == true
       script.stack.should == []
+    end
+
+
+    def run_script(string, hash)
+      script = Bitcoin::Script.from_string(string)
+      script.run do |pk, sig, hash_type|
+        k = Bitcoin::Key.new nil, pk.unpack("H*")[0]
+        k.verify(hash, sig) rescue false
+      end
+    end
+
+    it "should do OP_CHECKMULTISIG" do
+      k1 = Bitcoin::Key.new; k1.generate
+      k2 = Bitcoin::Key.new; k2.generate
+      k3 = Bitcoin::Key.new; k3.generate
+      sig1 = (k1.sign("foobar") + "\x01").unpack("H*")[0]
+      sig2 = (k2.sign("foobar") + "\x01").unpack("H*")[0]
+      sig3 = (k3.sign("foobar") + "\x01").unpack("H*")[0]
+
+      script = "0 #{sig1} #{sig2} 2 #{k1.pub} #{k2.pub} 2 OP_CHECKMULTISIG"
+      run_script(script, "foobar").should == true
+
+      script = "0 #{sig1} #{sig2} 2 #{k1.pub} #{k2.pub} #{k3.pub} 3 OP_CHECKMULTISIG"
+      run_script(script, "foobar").should == true
+
+      script = "0 #{sig2} #{sig3} 2 #{k1.pub} #{k2.pub} #{k3.pub} 3 OP_CHECKMULTISIG"
+      run_script(script, "foobar").should == true
+
+      script = "0 #{sig1} #{sig2} #{sig3} 3 #{k1.pub} #{k2.pub} #{k3.pub} 3 OP_CHECKMULTISIG"
+      run_script(script, "foobar").should == true
+
+      script = "0 #{sig2} f0f0f0f0 2 #{k1.pub} #{k2.pub} 2 OP_CHECKMULTISIG"
+      run_script(script, "foobar").should == false
+
+      script = "0 afafafaf #{sig2} 2 #{k1.pub} #{k2.pub} #{k3.pub} 3 OP_CHECKMULTISIG"
+      run_script(script, "foobar").should == false
+
+      script = "0 #{sig1} f0f0f0f0 #{sig3} 3 #{k1.pub} #{k2.pub} #{k3.pub} 3 OP_CHECKMULTISIG"
+      run_script(script, "foobar").should == false
+
+      # # TODO: check signature order; these assertions should fail:
+      # script = "0 #{sig2} #{sig1} 2 #{k1.pub} #{k2.pub} #{k3.pub} 3 OP_CHECKMULTISIG"
+      # run_script(script, "foobar").should == false
+      # script = "0 #{sig3} #{sig2} 2 #{k1.pub} #{k2.pub} #{k3.pub} 3 OP_CHECKMULTISIG"
+      # run_script(script, "foobar").should == false
+      # script = "0 #{sig1} #{sig3} #{sig2} 3 #{k1.pub} #{k2.pub} #{k3.pub} 3 OP_CHECKMULTISIG"
+      # run_script(script, "foobar").should == false
     end
 
   end

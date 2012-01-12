@@ -265,7 +265,7 @@ module Bitcoin
       @debug = []
       @chunks.each{|chunk|
         break if invalid?
-        @debug << @stack.map{|i| i.unpack("H*")}
+        @debug << @stack.map{|i| i.unpack("H*") rescue i}
         case chunk
         when Fixnum
           case chunk
@@ -275,12 +275,16 @@ module Bitcoin
             @debug << m.to_s.upcase
             send(m) # invoke opcode method
 
+          when *OP_2_16
+            @stack << OP_2_16.index(chunk) + 2
+
           when OP_CHECKSIG
             @debug << "OP_CHECKSIG"
             op_checksig(check_callback)
 
-          when OP_2_16
-            @stack << OP_2_16.index(chunk)+2
+          when OP_CHECKMULTISIG
+            @debug << "OP_CHECKMULTISIG"
+            op_checkmultisig(check_callback)
 
           else
             name = OPCODES[chunk] || chunk
@@ -309,9 +313,7 @@ module Bitcoin
     def op_checksig(check_callback)
       return nil if @stack.size < 2
       pubkey = @stack.pop
-      sig_and_hash_type = @stack.pop
-      hash_type = sig_and_hash_type[-1].unpack("C")[0]
-      sig       = sig_and_hash_type[0...-1]
+      sig, hash_type = parse_sig(@stack.pop)
 
       if check_callback == nil # for tests
         @stack << 1
@@ -319,6 +321,39 @@ module Bitcoin
         @stack <<
           ((check_callback.call(pubkey, sig, hash_type) == true) ? 1 : 0)
       end
+    end
+
+    # do a CHECKMULTISIG operation on the current stack,
+    # asking +check_callback+ to do the actual signature verification.
+    #
+    # CHECKMULTISIG does a m-of-n signatures verification on scripts of the form:
+    #  0 <sig1> <sig2> | 2 <pub1> <pub2> 2 OP_CHECKMULTISIG
+    #  0 <sig1> <sig2> | 2 <pub1> <pub2> <pub3> 3 OP_CHECKMULTISIG
+    #  0 <sig1> <sig2> <sig3> | 3 <pub1> <pub2> <pub3> 3 OP_CHECKMULTISIG
+    #
+    # see https://en.bitcoin.it/wiki/BIP_0011 for details.
+    #
+    # TODO: validate signature order
+    def op_checkmultisig(check_callback)
+      n_pubkeys = @stack.pop
+      pubkeys = []; n_pubkeys.times { pubkeys << @stack.pop }
+
+      n_sigs = @stack.pop
+      return nil  if @stack.size != n_sigs + 1
+      sigs = []; n_sigs.times { sigs << parse_sig(@stack.pop) }
+
+      @stack.pop # remove OP_NOP from stack
+
+      valid_sigs = 0
+      sigs.each do |sig, hash_type|
+        pubkeys.each do |pubkey|
+          if check_callback.call(pubkey, sig, hash_type)
+            valid_sigs += 1
+          end
+        end
+      end
+
+      @stack << 1  if valid_sigs >= n_sigs
     end
 
     def is_standard? # TODO: add
@@ -382,5 +417,14 @@ module Bitcoin
       raise "pubkey is not in binary form" unless pubkey.bytesize == 65  && pubkey[0] == "\x04"
       [ [signature.bytesize+1].pack("C"), signature, hash_type, [pubkey.bytesize].pack("C"), pubkey ].join
     end
+
+    private
+
+    def parse_sig(sig)
+      hash_type = sig[-1].unpack("C")[0]
+      sig = sig[0...-1]
+      return sig, hash_type
+    end
+
   end
 end
