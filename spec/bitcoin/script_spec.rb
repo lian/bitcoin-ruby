@@ -133,7 +133,7 @@ describe 'Bitcoin::Script' do
 
     it "should do OP_NOP" do
       @script.op_nop
-      @script.stack.should == []
+      @script.stack.should == ["foobar"]
     end
 
     it "should do OP_DUP" do
