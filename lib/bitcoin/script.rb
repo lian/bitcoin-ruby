@@ -135,7 +135,6 @@ module Bitcoin
 
     # Does nothing
     def op_nop
-      @stack.pop
     end
 
     # Duplicates the top stack item.
