@@ -335,20 +335,18 @@ module Bitcoin
     # TODO: validate signature order
     def op_checkmultisig(check_callback)
       n_pubkeys = @stack.pop
-      pubkeys = []; n_pubkeys.times { pubkeys << @stack.pop }
+      pubkeys = Array.new(n_pubkeys) { @stack.pop }
 
       n_sigs = @stack.pop
       return nil  if @stack.size != n_sigs + 1
-      sigs = []; n_sigs.times { sigs << parse_sig(@stack.pop) }
+      sigs = Array.new(n_sigs) { parse_sig(@stack.pop) }
 
       @stack.pop # remove OP_NOP from stack
 
       valid_sigs = 0
       sigs.each do |sig, hash_type|
         pubkeys.each do |pubkey|
-          if check_callback.call(pubkey, sig, hash_type)
-            valid_sigs += 1
-          end
+          valid_sigs += 1  if check_callback.call(pubkey, sig, hash_type)
         end
       end
 
