@@ -353,8 +353,9 @@ module Bitcoin
       @stack << 1  if valid_sigs >= n_sigs
     end
 
-    def is_standard? # TODO: add
-      # https://github.com/bitcoin/bitcoin/blob/master/src/script.cpp#L967
+    # check if script is in one of the recognized standard formats
+    def is_standard?
+      is_pubkey? || is_hash160?
     end
 
     # is this a send-to-ip (pubkey) tx
