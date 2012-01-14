@@ -335,13 +335,18 @@ module Bitcoin
     # TODO: validate signature order
     def op_checkmultisig(check_callback)
       n_pubkeys = @stack.pop
+      return nil  unless n_pubkeys.is_a?(Fixnum)
+      return nil  unless @stack.last(n_pubkeys).all?{|e| e.is_a?(String) && e != '' }
       pubkeys = Array.new(n_pubkeys) { @stack.pop }
 
       n_sigs = @stack.pop
-      return nil  if @stack.size != n_sigs + 1
+      return nil  unless n_sigs.is_a?(Fixnum)
+      return nil  unless @stack.size >= n_sigs
+      return nil  unless @stack.last(n_sigs).all?{|e| e.is_a?(String) && e != '' }
+      return nil  if n_sigs > n_pubkeys
       sigs = Array.new(n_sigs) { parse_sig(@stack.pop) }
 
-      @stack.pop # remove OP_NOP from stack
+      @stack.pop if @stack[-1] == '' # remove OP_NOP from stack
 
       valid_sigs = 0
       sigs.each do |sig, hash_type|
@@ -350,7 +355,7 @@ module Bitcoin
         end
       end
 
-      @stack << 1  if valid_sigs >= n_sigs
+      @stack << 1  if valid_sigs == n_sigs
     end
 
     # check if script is in one of the recognized standard formats

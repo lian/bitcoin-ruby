@@ -354,6 +354,27 @@ describe 'Bitcoin::Script' do
       script = "0 #{sig1} #{sig2} #{sig3} 3 #{k1.pub} #{k2.pub} #{k3.pub} 3 OP_CHECKMULTISIG"
       run_script(script, "foobar").should == true
 
+      script = "#{sig1} #{sig2} #{sig3} 3 #{k1.pub} #{k2.pub} #{k3.pub} 3 OP_CHECKMULTISIG" # without OP_NOP
+      run_script(script, "foobar").should == true
+
+      script = "0 #{sig1} #{sig2} #{sig3} 3 #{k1.pub} #{k2.pub} #{k3.pub} 2 OP_CHECKMULTISIG"
+      run_script(script, "foobar").should == false
+
+      script = "0 #{sig1} #{sig2} #{sig3} 3 #{k2.pub} #{k3.pub} 2 OP_CHECKMULTISIG"
+      run_script(script, "foobar").should == false
+
+      script = "0 #{sig1} #{sig2} #{sig3} 3 2 #{k3.pub} 2 OP_CHECKMULTISIG"
+      run_script(script, "foobar").should == false
+
+      script = "0 #{sig1} #{sig2} #{sig3} 3 0 #{k3.pub} 2 OP_CHECKMULTISIG"
+      run_script(script, "foobar").should == false
+
+      script = "0 #{sig1} #{sig2} 2 3 #{k2.pub} #{k3.pub} 2 OP_CHECKMULTISIG"
+      run_script(script, "foobar").should == false
+
+      script = "0 #{sig1} #{sig2} 0 3 #{k2.pub} #{k3.pub} 2 OP_CHECKMULTISIG"
+      run_script(script, "foobar").should == false
+
       script = "0 #{sig2} f0f0f0f0 2 #{k1.pub} #{k2.pub} 2 OP_CHECKMULTISIG"
       run_script(script, "foobar").should == false
 
