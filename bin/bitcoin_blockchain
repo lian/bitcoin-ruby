@@ -28,7 +28,6 @@ options = {
   :intervals => {
     :queue => 5,
     :inv_queue => 5,
-    :blocks => 5,
     :addrs => 5,
     :connect => 15,
   },

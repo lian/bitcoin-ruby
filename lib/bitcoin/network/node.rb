@@ -30,7 +30,6 @@ module Bitcoin::Network
       :intervals => {
         :queue => 5,
         :inv_queue => 5,
-        :blocks => 5,
         :addrs => 5,
         :connect => 15,
       },
@@ -75,7 +74,7 @@ module Bitcoin::Network
       init_epoll  if @config[:epoll]
 
       EM.run do
-        [:blocks, :addrs, :connect].each do |name|
+        [:addrs, :connect].each do |name|
           interval = @config[:intervals][name]
           next  if !interval || interval == 0
           @timers[name] = EM.add_periodic_timer(interval, method("work_#{name}"))
@@ -181,22 +180,15 @@ module Bitcoin::Network
       log.error { "Error during connect: #{$!.inspect}" }
     end
 
-    # check if the inv queue is running low and issue a
-    # getblocks command to a random peer if needed
-    def work_blocks
-      return  unless @connections.select(&:connected?).any?
-      blocks = @connections.map(&:version).compact.map(&:block)
-      return  unless blocks.any?
-      if @store.get_depth >= blocks.inject{|a,b| a+=b;a} / blocks.size
-        @timers[:blocks].interval = 30
-      end
-
-      log.info { "Querying blocks" }
-      client = @connections.select(&:connected?).sample
+    # query blocks from random peer
+    def getblocks
+      peer = @connections.select(&:connected?).sample
+      return  unless peer
+      log.info { "querying blocks from #{peer.host}:{peer.port}" }
       if @config[:headers_only]
-        client.send_getheaders  unless @queue.size >= @config[:max][:queue]
+        peer.send_getheaders  unless @queue.size >= @config[:max][:queue]
       else
-        client.send_getblocks  unless @inv_queue.size >= @config[:max][:inv]
+        peer.send_getblocks  unless @inv_queue.size >= @config[:max][:inv]
       end
     end
 
@@ -216,7 +208,10 @@ module Bitcoin::Network
     def work_queue
       @log.debug { "queue worker running" }
       EM.defer(nil, proc { work_queue }) do
-        sleep @config[:intervals][:queue]  if @queue.size == 0
+        if @queue.size == 0
+          getblocks  if @inv_queue.size == 0# TODO: stop when up to date
+          sleep @config[:intervals][:queue]
+        end
         while obj = @queue.shift
           @store.send("store_#{obj[0]}", obj[1])
         end
