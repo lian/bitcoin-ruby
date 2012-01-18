@@ -59,13 +59,13 @@ module Bitcoin::Network
     def on_inv_transaction(hash)
       log.info { ">> inv transaction: #{hth(hash)}" }
       return  if @node.inv_queue.size >= @node.config[:max][:inv]
-      @node.inv_queue << [:tx, hash, self]
+      @node.queue_inv([:tx, hash, self])
     end
 
     def on_inv_block(hash)
       log.info { ">> inv block: #{hth(hash)}" }
       return  if @node.inv_queue.size >= @node.config[:max][:inv]
-      @node.inv_queue << [:block, hash, self]
+      @node.queue_inv([:block, hash, self])
     end
 
     def on_get_transaction(hash)

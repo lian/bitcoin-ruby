@@ -4,9 +4,9 @@ module Bitcoin::Network
 
   class Node
 
-    attr_reader :config, :log, :connections, :queue, :inv_queue, :store, :addrs
+    attr_reader :config, :log, :connections, :queue, :inv_queue, :inv_cache, :store, :addrs
     attr_accessor :block
-    
+
     DEFAULT_CONFIG = {
       :listen => ["0.0.0.0", Bitcoin.network[:default_port]],
       :connect => [],
@@ -26,6 +26,7 @@ module Bitcoin::Network
         :addr => 256,
         :queue => 64,
         :inv => 128,
+        :inv_cache => 1024,
       },
       :intervals => {
         :queue => 5,
@@ -47,6 +48,7 @@ module Bitcoin::Network
       set_store
       @addrs = []
       @timers = {}
+      @inv_cache = []
     end
 
     def set_store
@@ -222,6 +224,15 @@ module Bitcoin::Network
       end
     end
 
+    # queue inv, caching the most current ones
+    def queue_inv inv
+      128.times { @inv_cache.shift }  if @inv_cache.size > @config[:max][:inv_cache]
+      return  if @inv_cache.include?([inv[0], inv[1]])
+      @inv_cache << [inv[0], inv[1]]
+      @inv_queue << inv
+    end
+
+    # initiate epoll with given file descriptor and set effective user
     def init_epoll
       log.info { "EPOLL: Available file descriptors: " +
         EM.set_descriptor_table_size(@config[:epoll_limit]).to_s }

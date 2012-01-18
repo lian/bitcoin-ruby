@@ -33,6 +33,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
       :connections => "#{@node.connections.select{|c| c.state == :connected}.size} (#{@node.connections.size})",
       :queue => @node.queue.size,
       :inv_queue => @node.inv_queue.size,
+      :inv_cache => @node.inv_cache.size,
       :network => @node.config[:network],
       :storage => @node.config[:storage],
       :version => Bitcoin::Protocol::VERSION,
