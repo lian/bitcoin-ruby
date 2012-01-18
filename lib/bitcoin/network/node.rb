@@ -75,7 +75,7 @@ module Bitcoin::Network
       init_epoll  if @config[:epoll]
 
       EM.run do
-        [:queue, :inv_queue, :blocks, :addrs, :connect].each do |name|
+        [:blocks, :addrs, :connect].each do |name|
           interval = @config[:intervals][name]
           next  if !interval || interval == 0
           @timers[name] = EM.add_periodic_timer(interval, method("work_#{name}"))
@@ -98,6 +98,8 @@ module Bitcoin::Network
         end
 
         connect_dns  if @config[:dns]
+        work_inv_queue
+        work_queue
       end
     end
 
@@ -213,19 +215,10 @@ module Bitcoin::Network
     # check for new items in the queue and process them
     def work_queue
       @log.debug { "queue worker running" }
-      return  if @queue_thread && @queue_thread.alive?
-      EM.next_tick do
-        @queue_thread = Thread.start do
-          begin
-            while obj = @queue.shift
-              @log.debug { "storing #{obj[0]} #{obj[1].hash} (#{obj[1].payload.bytesize})" }
-              unless @config[:headers_only] && obj[0] == :tx && obj[1].tx.any?
-                @store.send("store_#{obj[0]}", obj[1])
-              end
-            end
-          rescue
-            log.error { "Error in queue worker: #{$!}" }
-          end
+      EM.defer(nil, proc { work_queue }) do
+        sleep @config[:intervals][:queue]  if @queue.size == 0
+        while obj = @queue.shift
+          @store.send("store_#{obj[0]}", obj[1])
         end
       end
     end
@@ -233,17 +226,13 @@ module Bitcoin::Network
     # check for new items in the inv queue and process them,
     # unless the queue is already full
     def work_inv_queue
-      return  if @queue.size >= @config[:max][:queue]
-      return  if @inv_queue_thread && @inv_queue_thread.alive?
-      @log.debug { "inv_queue worker running" }
-      @inv_queue_thread = Thread.start do
-        begin
-          while inv = @inv_queue.shift
-            next  if @store.send("has_#{inv[0]}", inv[1])
-            inv[2].send("send_getdata_#{inv[0]}", inv[1])
-          end
-        rescue
-          log.error { "Error in inv_queue worker: #{$!}" }
+      @log.debug { "inv queue worker running" }
+      EM.defer(nil, proc { work_inv_queue }) do
+        sleep @config[:intervals][:inv_queue]  if @inv_queue.size == 0
+        next  if @queue.size >= @config[:max][:queue]
+        while inv = @inv_queue.shift
+#          next  if @store.send("has_#{inv[0]}", inv[1])
+          inv[2].send("send_getdata_#{inv[0]}", inv[1])
         end
       end
     end
