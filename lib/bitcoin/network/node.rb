@@ -113,51 +113,41 @@ module Bitcoin::Network
 
     # query addrs from dns seed and connect
     def connect_dns
-      require 'em/dns_resolver'
-
-      seed = Bitcoin.network[:dns_seeds].sample
-      unless seed
-        log.warn { "No DNS seed nodes available" }
-        return
+      unless Bitcoin.network[:dns_seeds].any?
+        return log.warn { "No DNS seed nodes available" }
       end
-
-      log.info { "Querying addresses from DNS seed: #{seed}" }
-
-      dns = EM::DnsResolver.resolve(seed)
-      dns.callback do |addrs|
+      connect_dns_resolver(Bitcoin.network[:dns_seeds].sample) do |addrs|
         log.debug { "DNS returned addrs: #{addrs.inspect}" }
         addrs.sample(@config[:max][:connections] / 2).uniq.each do |addr|
           connect_peer(addr, Bitcoin.network[:default_port])
         end
       end
-      dns.errback do |*a|
-        log.error { "Cannot resolve DNS seed #{seed}: #{a.inspect}" }
-      end
-
-    rescue LoadError
-      log.warn { "DNS resolver not installed. Either install it or disable DNS seeds with --nd." }
-      log.info { "To install DNS resolver run: `gem install em-dns`" }
-      log.info { "DNS resolver fallback to `nslookup ..`" }
-      #  exit  if @config[:dns]
-      connect_dns_nslookup
     end
 
-    def connect_dns_nslookup
-      seed = Bitcoin.network[:dns_seeds].sample
-      unless seed
-        log.warn { "No DNS seed nodes available" }
-        return
-      end
-
+    # get peer addrs from given dns +seed+ using em/dns_resolver.
+    # fallback to using `nslookup` if it is not installed or fails.
+    def connect_dns_resolver(seed)
+      require 'em/dns_resolver'
       log.info { "Querying addresses from DNS seed: #{seed}" }
 
-      hosts = `nslookup #{seed}`.scan(/Address\: (.+)$/)
-                .flatten.sample(@config[:max][:connections] / 2)
+      dns = EM::DnsResolver.resolve(seed)
+      dns.callback {|addrs| yield(addrs) }
+      dns.errback do |*a|
+        log.error { "Cannot resolve DNS seed #{seed}: #{a.inspect}" }
+        connect_dns_nslookup(Bitcoin.network[:dns_seeds].sample) {|a| yield(a) }
+      end
+    rescue LoadError
+      log.warn { "DNS resolver not installed. To install run: `gem install em-dns`" }
+      log.info { "Falling back to nslookup resolver." }
+      connect_dns_nslookup(seed) {|a| yield(a) }
+    end
 
-      hosts.uniq.each{|addr|
-        log.debug { "DNS returned addrs: #{addrs.inspect}" }
-        connect_peer(addr, Bitcoin.network[:default_port])
-      }
+    # get peers from dns via nslookup
+    def connect_dns_nslookup(seed)
+      log.info { "Querying addresses from DNS seed: #{seed}" }
+      addrs = `nslookup #{seed}`.scan(/Address\: (.+)$/).flatten
+      #  exit  if @config[:dns] && hosts.size == 0
+      yield(addrs)
     end
 
     # check if there are enough connections and try to
@@ -184,7 +174,7 @@ module Bitcoin::Network
     def getblocks
       peer = @connections.select(&:connected?).sample
       return  unless peer
-      log.info { "querying blocks from #{peer.host}:{peer.port}" }
+      log.info { "querying blocks from #{peer.host}:#{peer.port}" }
       if @config[:headers_only]
         peer.send_getheaders  unless @queue.size >= @config[:max][:queue]
       else
@@ -226,7 +216,7 @@ module Bitcoin::Network
         sleep @config[:intervals][:inv_queue]  if @inv_queue.size == 0
         next  if @queue.size >= @config[:max][:queue]
         while inv = @inv_queue.shift
-#          next  if @store.send("has_#{inv[0]}", inv[1])
+          # next  if @store.send("has_#{inv[0]}", inv[1])
           inv[2].send("send_getdata_#{inv[0]}", inv[1])
         end
       end
