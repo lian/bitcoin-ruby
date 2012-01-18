@@ -13,17 +13,17 @@ module Bitcoin::Storage::Backends
     end
 
     def store_block(blk)
-      return nil  unless blk
+      return false  unless blk
       if block = get_block(blk.hash)
-        log.info { "ALREADY STORED" }
-        return block.id
+        log.info { "Block already stored; skipping" }
+        return false
       end
 
       prev_block = get_block(Bitcoin::hth(blk.prev_block.reverse))
       unless prev_block
         unless blk.hash == Bitcoin.network[:genesis_hash]
           log.warn { "INVALID BLOCK: #{blk.hash}" }
-          return nil
+          return false
         end
       end
 
@@ -35,10 +35,12 @@ module Bitcoin::Storage::Backends
     end
 
     def store_tx(tx)
+      if @tx.keys.include?(tx.hash)
+        log.info { "Tx already stored; skipping" }
+        return false
+      end
       @tx[tx.hash] = tx
-      tx.hash
     end
-
 
     def has_block(blk_hash)
       !!get_block(blk_hash)
@@ -75,7 +77,7 @@ module Bitcoin::Storage::Backends
     def get_block_by_tx(tx_hash)
       wrap_block(@blk.find {|blk| blk.tx.map(&:hash).include?(tx_hash) })
     end
-    
+
     def get_tx(tx_hash)
       transaction = @tx[tx_hash]
       return nil  unless transaction

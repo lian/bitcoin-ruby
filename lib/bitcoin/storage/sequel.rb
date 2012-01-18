@@ -27,12 +27,12 @@ module Bitcoin::Storage::Backends
     def store_block(blk)
       @db.transaction do
         block = @db[:blk][:hash => htb(blk.hash).to_sequel_blob]
-        return block[:depth]  if block
+        return false  if block
 
         prev_block = get_block(hth(blk.prev_block.reverse))
         if !prev_block && blk.hash != Bitcoin::network[:genesis_hash]
           log.warn { "Invalid Block: #{blk.hash} - prev_block not found" }
-          return nil
+          return false
         end
         if prev_block
           depth = prev_block.depth + 1
@@ -67,7 +67,7 @@ module Bitcoin::Storage::Backends
     def store_tx(tx)
       @db.transaction do
         transaction = @db[:tx][:hash => htb(tx.hash).to_sequel_blob]
-        return transaction[:id]  if transaction
+        return false  if transaction
 
         tx_id = @db[:tx].insert({
             :hash => htb(tx.hash).to_sequel_blob,
