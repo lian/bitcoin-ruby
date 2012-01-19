@@ -1,6 +1,8 @@
 #!/usr/bin/env ruby
-require 'socket'
+$:.unshift( File.expand_path("../../lib", __FILE__) )
+require 'eventmachine'
 require 'json'
+require 'bitcoin'
 
 host, port = "127.0.0.1", 9999
 if ARGV[0] == "-s"
@@ -8,7 +10,58 @@ if ARGV[0] == "-s"
   ARGV.shift; ARGV.shift
 end
 
-s = TCPSocket.new("127.0.0.1", 9999)
-s.puts(ARGV.join(' '))
-puts JSON::pretty_generate(JSON::parse(s.readline))
-s.close
+class CommandClient < EM::Connection
+
+  def initialize(*args)
+    super
+    @cmd = ARGV.shift
+    @opts = ARGV.join(" ")
+    @buf = ""
+  end
+
+  def post_init
+    send_data([@cmd, @opts].to_json)
+  end
+
+  def receive_data(data)
+    data = @buf += data
+    @buf = ""
+    EM.defer do
+      if data[-1] == "\0"
+        msgs = data.split("\0").compact
+      else
+        msgs = data.split("\0").compact
+        @buf = msgs.pop
+      end
+      msgs.each do |msg|
+        begin
+          cmd, result = JSON::parse(msg)
+          case @cmd
+          when "monitor"
+            type, obj, depth = result
+            puts "#{type}: #{obj['hash'] rescue 'none'} #{depth ? "(#{depth})" : ""}"
+          else
+            next  unless cmd == @cmd
+            puts JSON::pretty_generate(result)
+            close_connection
+          end
+        rescue JSON::ParserError
+          puts "parse error"
+        rescue Exception
+          p $!
+          puts *$@
+          # close_connection
+        end
+      end
+    end
+  end
+
+  def unbind
+    EM.stop
+  end
+
+end
+
+EM.run do
+  EventMachine.connect(host, port, CommandClient)
+end

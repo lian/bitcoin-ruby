@@ -4,25 +4,41 @@ class Bitcoin::Network::CommandHandler < EM::Connection
 
   def initialize node
     @node = node
+    @node.command_connections << self
+    @notify_sid = nil
   end
 
   def log
     @log ||= Bitcoin::Logger::LogWrapper.new("command:", @node.log)
   end
 
-  def respond(data)
-    send_data(data.to_json + "\n")
+  def respond(cmd, data)
+    send_data([cmd, data].to_json + "\0")
   end
 
   def receive_data line
-    return  if line == "\n"
-    cmd, *args = line.split(" ")
+    cmd, args = JSON::parse(line)
+    *args = args.split(" ")
     log.debug { line.chomp }
     if respond_to?("handle_#{cmd}")
-      respond(send("handle_#{cmd}", *args))
+      respond(cmd, send("handle_#{cmd}", *args))
     else
-      respond({:error => "unknown command: #{cmd}. send 'help' for help."})
+      respond(cmd, {:error => "unknown command: #{cmd}. send 'help' for help."})
     end
+  rescue Exception
+    p $!
+  end
+
+  def handle_monitor
+    @node.notify.subscribe do |type, obj, depth|
+      if type.to_sym == :block
+        send_data(["monitor", [type.to_s, obj, depth]].to_json + "\0")
+      else
+        send_data(["monitor", [type.to_s, obj]].to_json + "\0")
+      end
+    end
+    head = Bitcoin::P::Block.new(@node.store.get_head.to_payload) rescue nil
+    ["block", head, @node.store.get_depth.to_s]
   end
 
   def handle_info
@@ -90,6 +106,11 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     hh, mm = mm.divmod(60)           #=> [75, 15]
     dd, hh = hh.divmod(24)           #=> [3, 3]
     "%02d:%02d:%02d:%02d" % [dd, hh, mm, ss]
+  end
+
+  def unbind
+    @node.notify.unsubscribe(@notify_sid)  if @notify_sid
+    @node.command_connections.delete(self)
   end
 
 end

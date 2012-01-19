@@ -4,7 +4,8 @@ module Bitcoin::Network
 
   class Node
 
-    attr_reader :config, :log, :connections, :queue, :inv_queue, :inv_cache, :store, :addrs
+    attr_reader :config, :log, :connections, :command_connections,
+    :queue, :inv_queue, :inv_cache, :store, :addrs, :notify, :notify_lock
     attr_accessor :block
 
     DEFAULT_CONFIG = {
@@ -41,6 +42,7 @@ module Bitcoin::Network
       @log = Bitcoin::Logger.create("network")
       @log.level = @config[:log][:network]
       @connections = []
+      @command_connections = []
       @queue = []
       @queue_thread = nil
       @inv_queue = []
@@ -49,6 +51,7 @@ module Bitcoin::Network
       @addrs = []
       @timers = {}
       @inv_cache = []
+      @notify = EM::Channel.new
     end
 
     def set_store
@@ -205,7 +208,14 @@ module Bitcoin::Network
           sleep @config[:intervals][:queue]
         end
         while obj = @queue.shift
-          @store.send("store_#{obj[0]}", obj[1])
+          if @store.send("store_#{obj[0]}", obj[1])
+            if obj[0].to_sym == :block
+              block = @store.get_block(obj[1].hash)
+              @notify.push([obj[0], obj[1], block.depth])
+            else
+              @notify.push([obj[0], obj[1]])
+            end
+          end
         end
       end
     end
@@ -231,6 +241,7 @@ module Bitcoin::Network
       @inv_cache << [inv[0], inv[1]]
       @inv_queue << inv
     end
+
 
     # initiate epoll with given file descriptor and set effective user
     def init_epoll
