@@ -14,7 +14,7 @@ module Bitcoin::Storage::Backends
       connect
       super config
     end
-    
+
     def connect
       @db = Sequel.connect(@config[:db])
       migrate
@@ -52,11 +52,17 @@ module Bitcoin::Storage::Backends
           })
         blk.tx.each_with_index do |tx, idx|
           tx_id = store_tx(tx)
-          @db[:blk_tx].insert({
-              :blk_id => block_id,
-              :tx_id => tx_id,
-              :idx => idx,
-            })
+          unless tx_id
+            if tx = get_tx(tx.hash)
+              @db[:blk_tx].insert({
+                  :blk_id => block_id,
+                  :tx_id => tx.id,
+                  :idx => idx,
+                })
+            else
+              return false
+            end
+          end
         end
 
         log.info { "new head #{blk.hash} - #{get_depth}" }
