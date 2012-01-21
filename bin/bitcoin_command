@@ -10,58 +10,25 @@ if ARGV[0] == "-s"
   ARGV.shift; ARGV.shift
 end
 
-class CommandClient < EM::Connection
 
-  def initialize(*args)
-    super
-    @cmd = ARGV.shift
-    @opts = ARGV.join(" ")
-    @buf = ""
-  end
+EM.run do
+  EM.connect(host, port) do |connection|
 
-  def post_init
-    send_data([@cmd, @opts].to_json)
-  end
+    connection.send_data([ARGV[0], ARGV[1..-1].join(" ")].to_json)
 
-  def receive_data(data)
-    data = @buf += data
-    @buf = ""
-    EM.defer do
-      if data[-1] == "\0"
-        msgs = data.split("\0").compact
-      else
-        msgs = data.split("\0").compact
-        @buf = msgs.pop
-      end
-      msgs.each do |msg|
-        begin
-          cmd, result = JSON::parse(msg)
-          case @cmd
-          when "monitor"
-            type, obj, depth = result
-            puts "#{type}: #{obj['hash'] rescue 'none'} #{depth ? "(#{depth})" : ""}"
-          else
-            next  unless cmd == @cmd
-            puts JSON::pretty_generate(result)
-            close_connection
-          end
-        rescue JSON::ParserError
-          puts "parse error"
-        rescue Exception
-          p $!
-          puts *$@
-          # close_connection
+    def connection.receive_data(data)
+      (@buf ||= BufferedTokenizer.new("\x00")).extract(data).each do |packet|
+        cmd, result = JSON.load(packet)
+        next  unless cmd == ARGV[0]
+        if cmd == "monitor"
+          type, obj, depth = result
+          puts "#{type}: #{obj['hash'] rescue 'none'} #{depth ? "(#{depth})" : ""}"
+        else
+          puts JSON.pretty_generate(result)
+          EM.stop
         end
       end
     end
+
   end
-
-  def unbind
-    EM.stop
-  end
-
-end
-
-EM.run do
-  EventMachine.connect(host, port, CommandClient)
 end

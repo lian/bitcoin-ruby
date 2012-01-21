@@ -13,7 +13,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   end
 
   def respond(cmd, data)
-    send_data([cmd, data].to_json + "\0")
+    send_data([cmd, data].to_json + "\x00")
   end
 
   def receive_data line
@@ -32,9 +32,9 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   def handle_monitor
     @node.notify.subscribe do |type, obj, depth|
       if type.to_sym == :block
-        send_data(["monitor", [type.to_s, obj, depth]].to_json + "\0")
+        respond("monitor", [type.to_s, obj, depth])
       else
-        send_data(["monitor", [type.to_s, obj]].to_json + "\0")
+        respond("monitor", [type.to_s, obj])
       end
     end
     head = Bitcoin::P::Block.new(@node.store.get_head.to_payload) rescue nil
