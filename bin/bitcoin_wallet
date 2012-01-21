@@ -11,7 +11,7 @@ defaults = {
   :keystore => "dummy",
   :node => "127.0.0.1:9999"
 }
-options = Bitcoin::Config.load(defaults)
+options = Bitcoin::Config.load(defaults, :wallet)
 
 optparse = OptionParser.new do |opts|
   opts.banner =
