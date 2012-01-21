@@ -22,9 +22,16 @@ module Bitcoin
 
     def self.load_category(options, category)
       return options  unless category
-      category.map{|k,v| options[k.to_sym] = v }
+      options = merge(options, category)
       options
     end
+
+    def self.merge(a, b)
+      a.merge(b) do |k, o, n|
+        o.is_a?(Hash) && n.is_a?(Hash) ? merge(o, n) : n
+      end
+    end
+
   end
 
 end
