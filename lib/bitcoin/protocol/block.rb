@@ -65,8 +65,8 @@ module Bitcoin
 
       # convert to json representation as seen in the block explorer.
       # (see also #from_json)
-      def to_json
-        JSON.pretty_generate( to_hash, :space => '' )
+      def to_json(options = {:space => ''})
+        JSON.pretty_generate( to_hash, options )
       end
 
       # parse ruby hash (see also #to_hash)
