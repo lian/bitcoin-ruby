@@ -52,17 +52,12 @@ module Bitcoin::Storage::Backends
           })
         blk.tx.each_with_index do |tx, idx|
           tx_id = store_tx(tx)
-          unless tx_id
-            if tx = get_tx(tx.hash)
-              @db[:blk_tx].insert({
-                  :blk_id => block_id,
-                  :tx_id => tx.id,
-                  :idx => idx,
-                })
-            else
-              return false
-            end
-          end
+          return false  unless tx_id
+          @db[:blk_tx].insert({
+              :blk_id => block_id,
+              :tx_id => tx_id,
+              :idx => idx,
+            })
         end
 
         log.info { "new head #{blk.hash} - #{get_depth}" }
