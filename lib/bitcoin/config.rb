@@ -4,26 +4,26 @@ module Bitcoin
 
     CONFIG_PATHS = "./bitcoin-ruby.yml:~/.bitcoin-ruby.yml:/etc/bitcoin-ruby.yml"
 
-    def self.load(options, category = nil, paths = CONFIG_PATHS)
+    def self.load(options, categories = [], paths = CONFIG_PATHS)
       paths.split(":").reverse.each do |path|
         path.sub!("~", ENV["HOME"])
         next  unless File.exist?(path)
-        options = load_file(options, path, category)
+        options = load_file(options, path, categories)
       end
       options
     end
 
-    def self.load_file(options, file, category = nil)
+    def self.load_file(options, file, c = [])
       categories = YAML::load_file(file)
-      options = load_category(options, categories["all"])
-      options = load_category(options, categories[category.to_s])  if category
+      [:all, *(c.is_a?(Array) ? c : [c])].each do |category|
+        options = load_category(options, categories[category.to_s])  if category
+      end
       options
     end
 
     def self.load_category(options, category)
       return options  unless category
-      options = merge(options, category)
-      options
+      merge(options, category)
     end
 
     def self.merge(a, b)

@@ -20,7 +20,7 @@ optparse = OptionParser.new do |opts|
   opts.separator("\nAvailable options:\n")
   opts.on("-c", "--config [FILE]",
     "Config file (default: #{Bitcoin::Config::CONFIG_PATHS})") do |file|
-    options = Bitcoin::Config.load_file(options, file)
+    options = Bitcoin::Config.load_file(options, file, :wallet)
   end
   opts.on("-n", "--network [NETWORK]",
     "User Network (default: #{options[:network]})") do |network|
