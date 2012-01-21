@@ -5,20 +5,13 @@ require 'bitcoin'
 require 'optparse'
 require 'yaml'
 
-options = {
+defaults = {
   :network => "testnet",
   :storage => "dummy",
   :keystore => "dummy",
   :node => "127.0.0.1:9999"
 }
-
-["/etc/", "~/", "./"].each do |path|
-  file = File.join(path, "bitcoin-ruby.yml")
-  if File.exist?(file)
-    #    p "Using config file #{file}"
-    YAML.load_file(file).each {|k,v| options[k.to_sym] = v }
-  end
-end
+options = Bitcoin::Config.load(defaults)
 
 optparse = OptionParser.new do |opts|
   opts.banner =
@@ -26,23 +19,22 @@ optparse = OptionParser.new do |opts|
 
   opts.separator("\nAvailable options:\n")
   opts.on("-c", "--config [FILE]",
-    "Config file (default: non.)") do |file|
-    YAML.load_file(file).each {|k,v| options[k.to_sym] = v }
+    "Config file (default: #{Bitcoin::Config::CONFIG_PATHS})") do |file|
+    options = Bitcoin::Config.load_file(options, file)
   end
-
   opts.on("-n", "--network [NETWORK]",
     "User Network (default: #{options[:network]})") do |network|
     options[:network] = network
   end
 
-  opts.on("--node [HOST:PORT]",
-          "Node command socket (default: #{options[:node]})") do |node|
-    options[:node] = node
-  end
-
   opts.on("-s", "--storage [BACKEND::CONFIG]",
     "Use storage backend (default: #{options[:storage]})") do |storage|
     options[:storage] = storage
+  end
+
+  opts.on("--node [HOST:PORT]",
+          "Node command socket (default: #{options[:node]})") do |node|
+    options[:node] = node
   end
 
   opts.on("-k", "--keystore [backend::<config>]",
@@ -62,10 +54,9 @@ end
 
 optparse.parse!
 
-cmd = ARGV.shift
-cmdopts = ARGV
+cmd = ARGV.shift; cmdopts = ARGV
 unless cmd
-  puts optparse; exit
+  exit puts optparse
 end
 
 
