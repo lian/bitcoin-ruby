@@ -9,7 +9,7 @@ defaults = {
   :network => "testnet",
   :storage => "dummy",
   :keystore => "dummy",
-  :node => "127.0.0.1:9999"
+  :command => "127.0.0.1:9999"
 }
 options = Bitcoin::Config.load(defaults, :wallet)
 
@@ -18,28 +18,34 @@ optparse = OptionParser.new do |opts|
     "Usage: bitcoin_wallet [options] <command> [<command options>]\n"
 
   opts.separator("\nAvailable options:\n")
-  opts.on("-c", "--config [FILE]",
+
+  opts.on("-c", "--config FILE",
     "Config file (default: #{Bitcoin::Config::CONFIG_PATHS})") do |file|
     options = Bitcoin::Config.load_file(options, file, :wallet)
   end
-  opts.on("-n", "--network [NETWORK]",
+
+  opts.on("-n", "--network NETWORK",
     "User Network (default: #{options[:network]})") do |network|
     options[:network] = network
   end
 
-  opts.on("-s", "--storage [BACKEND::CONFIG]",
+  opts.on("-s", "--storage BACKEND::CONFIG",
     "Use storage backend (default: #{options[:storage]})") do |storage|
     options[:storage] = storage
   end
 
-  opts.on("--node [HOST:PORT]",
-          "Node command socket (default: #{options[:node]})") do |node|
-    options[:node] = node
+  opts.on("--command [HOST:PORT]",
+          "Node command socket (default: #{options[:command]})") do |command|
+    options[:command] = command
   end
 
   opts.on("-k", "--keystore [backend::<config>]",
     "Key store (default: #{options[:store]})") do |store|
     options[:keystore] = store
+  end
+
+  opts.on("-h", "--help", "Display this help") do
+    puts opts; exit
   end
 
   opts.separator "\nAvailable commands:\n" +
@@ -195,7 +201,7 @@ when "send"
     puts "Aborted."; exit
   end
 
-  host, port = *options[:node].split(":")
+  host, port = *options[:command].split(":")
   s = TCPSocket.new(host, port.to_i)
   s.puts "relay_tx " + tx.to_payload.unpack("H*")[0]
 

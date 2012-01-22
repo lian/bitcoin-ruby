@@ -136,11 +136,12 @@ into categories.
  all:
    network: bitcoin
    storage: sequel::postgres:/bitcoin
- blockchain:
    command: 127.0.0.1:1234
+ blockchain:
+   max:
+     connect: 30
  wallet:
    keystore: "simple::file=keys.json"
-   node: 127.0.0.1:1234
 
 Options in the +all+ category are loaded by every command, and are loaded first
 (so command-specific options will override them).

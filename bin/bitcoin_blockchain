@@ -4,10 +4,10 @@ $:.unshift( File.expand_path("../../lib", __FILE__) )
 require 'bitcoin'
 require 'optparse'
 
-options = {
+defaults = {
   :network => "testnet",
   :command => "127.0.0.1:9999",
-  :listen => "0.0.0.0:18332",
+  :listen => "0.0.0.0:8332",
   :connect => "",
   :storage => "dummy",
   :headers_only => false,
@@ -32,8 +32,18 @@ options = {
     :connect => 15,
   },
 }
-optparse = OptionParser.new do|opts|
+
+options = Bitcoin::Config.load(defaults, :blockchain)
+
+optparse = OptionParser.new do |opts|
   opts.banner = "Usage: bitcoin_node [options]"
+
+  opts.separator("\nAvailable options:\n")
+
+  opts.on("-c", "--config FILE",
+    "Config file (default: #{Bitcoin::Config::CONFIG_PATHS})") do |file|
+    options = Bitcoin::Config.load_file(options, file, :blockchain)
+  end
 
   opts.on("-n", "--network [NETWORK]",
     "User Network (default: #{options[:network]})") do |network|
@@ -50,7 +60,7 @@ optparse = OptionParser.new do|opts|
     options[:listen] = listen
   end
 
-  opts.on("-c", "--connect [HOST:PORT[,HOST:PORT[...]]]",
+  opts.on("--connect [HOST:PORT[,HOST:PORT[...]]]",
     "Hosts to connect to (default: #{options[:connect]})") do |connect|
     options[:connect] = connect
   end
@@ -117,8 +127,7 @@ optparse = OptionParser.new do|opts|
   end
 
   opts.on( '-h', '--help', 'Display this screen' ) do
-    puts opts
-    exit
+    puts opts; exit
   end
 end
 

@@ -1,17 +1,48 @@
 #!/usr/bin/env ruby
 $:.unshift( File.expand_path("../../lib", __FILE__) )
+
 require 'eventmachine'
 require 'json'
 require 'bitcoin'
+require 'optparse'
 
-host, port = "127.0.0.1", 9999
-if ARGV[0] == "-s"
-  host, port = ARGV[1].split(":")
-  ARGV.shift; ARGV.shift
+defaults = {
+  :command => "127.0.0.1:9999"
+}
+options = Bitcoin::Config.load(defaults, :command)
+
+optparse = OptionParser.new do |opts|
+  opts.banner =
+    "Usage: bitcoin_command [options] <command> [<command options>]\n"
+
+  opts.separator("\nAvailable options:\n")
+
+  opts.on("-c", "--config FILE",
+    "Config file (default: #{Bitcoin::Config::CONFIG_PATHS})") do |file|
+    options = Bitcoin::Config.load_file(options, file, :wallet)
+  end
+
+  opts.on("--command HOST:PORT",
+    "Node command socket (default: #{options[:command]})") do |command|
+    options[:command] = command
+  end
+
+  opts.on("-h", "--help", "Display this help") do
+    puts opts; exit
+  end
+
+  opts.separator "\nAvailable commands:\n" +
+    "run `bitcoin_command help` to see all available commands."
 end
 
+optparse.parse!
+host, port = options[:command].split(":")
+unless ARGV.any?
+  puts optparse; exit
+end
 
 EM.run do
+
   EM.connect(host, port) do |connection|
 
     connection.send_data([ARGV[0], ARGV[1..-1].join(" ")].to_json)
