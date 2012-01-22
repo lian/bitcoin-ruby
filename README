@@ -107,7 +107,6 @@ If you accept, it will be sent to your node and relayed to the rest of the netwo
 
 Launches an irb session with bitcoin loaded where you can try stuff out.
 
-
 === Storage Backends
 
 For examples that require storage backends, you can specify them using
@@ -118,6 +117,36 @@ The default backend is always 'dummy' which needs no configuration
  sequel::sqlite:///tmp/bitcoin.db
  sequel::postgres:/bitcoin
  sequel::postgres://user:pass@host/database
+
+
+=== Config Files
+
+Some of the commands look for a config file in default locations, and provide
+an option to specify a custom location. The default locations are:
+
+* /etc/bitcoin-ruby.yml
+* ~/.bitcoin-ruby.yml
+* /bitcoin-ruby.yml
+
+Files are loaded in order (if they exist) and may override each others settings.
+
+Inside a config file, you can put options for the various commands, separated
+into categories.
+
+ all:
+   network: bitcoin
+   storage: sequel::postgres:/bitcoin
+ blockchain:
+   command: 127.0.0.1:1234
+ wallet:
+   keystore: "simple::file=keys.json"
+   node: 127.0.0.1:1234
+
+Options in the +all+ category are loaded by every command, and are loaded first
+(so command-specific options will override them).
+
+Other categories are loaded by the corresponding command and may override options
+from the +all+ category (ie. +bitcoin_wallet+ loads +all+ and +wallet+).
 
 
 == Library Usage
