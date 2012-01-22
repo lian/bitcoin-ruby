@@ -1,3 +1,4 @@
+require 'yaml'
 module Bitcoin
 
   # Load config files, merge options, etc.
@@ -28,7 +29,7 @@ module Bitcoin
     def self.load_file(options, file, c = [])
       categories = YAML::load_file(file)
       [:all, *(c.is_a?(Array) ? c : [c])].each do |category|
-        options = merge(options, categories[category.to_s])  if category
+        options = merge(options, categories[category.to_s])  if categories[category.to_s]
       end
       options
     end
@@ -36,9 +37,18 @@ module Bitcoin
     # Deep-merge hash +b+ into +a+.
     def self.merge(a, b)
       return a unless b
-      a.merge(b) do |k, o, n|
-        o.is_a?(Hash) && n.is_a?(Hash) ? merge(o, n) : n
+      symbolize(a).merge(symbolize(b)) do |k, o, n|
+        if o.is_a?(Hash) && n.is_a?(Hash)
+          merge(symbolize(o), symbolize(n))
+        else
+          n
+        end
       end
+    end
+
+    # Turn all keys in +hash+ into symbols.
+    def self.symbolize(hash)
+      Hash[hash.map{|k,v|[k.to_sym,v]}]
     end
 
   end
