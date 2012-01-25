@@ -33,6 +33,7 @@ module Bitcoin
     OP_SHA1         = 167
     OP_RIPEMD160    = 166
     OP_EVAL         = 176
+    OP_NOP2         = 177
 
     OPCODES = Hash[*constants.grep(/^OP_/).map{|i| [const_get(i), i.to_s] }.flatten]
     OPCODES[0] = "0"
