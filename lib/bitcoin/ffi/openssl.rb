@@ -1,7 +1,12 @@
 # autoload when you need to re-generate a public_key from its private_key.
 # ported from: https://github.com/sipa/bitcoin/blob/2d40fe4da9ea82af4b652b691a4185431d6e47a8/key.h
 
-require 'ffi'
+begin
+  require 'ffi'
+rescue LoadError
+  puts "Cannot load 'ffi' - install with `gem install ffi`"
+  exit 1
+end
 
 module Bitcoin
 module OpenSSL_EC

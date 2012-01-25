@@ -24,4 +24,11 @@ end
 
 Bitcoin::network = :bitcoin
 
-require 'bacon'; Bacon.summary_on_exit
+begin
+  require 'bacon'
+rescue LoadError
+  puts "Cannot load 'bacon' - install with `gem install bacon`"
+  puts "Note: to run all the tests, you will also need: ffi, sequel, sqlite3"
+  exit 1
+end
+Bacon.summary_on_exit

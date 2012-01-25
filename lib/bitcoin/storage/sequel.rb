@@ -1,4 +1,10 @@
-require 'sequel'
+begin
+  require 'sequel'
+rescue LoadError
+  puts "Cannot load 'sequel' - install with `gem install sequel`"
+  puts "Note: You will also need an adapter for your database like sqlite3, mysql2, postgresql"
+  exit 1
+end
 require 'bitcoin/storage/sequel_store/sequel_migrations'
 
 module Bitcoin::Storage::Backends
