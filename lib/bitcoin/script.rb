@@ -34,11 +34,18 @@ module Bitcoin
     OP_RIPEMD160    = 166
     OP_EVAL         = 176
     OP_NOP2         = 177
+    #OP_CHECKHASHVERIFY = 177
+    OP_CODESEPARATOR = 171
 
     OPCODES = Hash[*constants.grep(/^OP_/).map{|i| [const_get(i), i.to_s] }.flatten]
     OPCODES[0] = "0"
+    OPCODES[81] = "1"
 
-    OPCODES_ALIAS = { "OP_NOP1" => OP_EVAL }
+    OPCODES_ALIAS = {
+      "OP_NOP1" => OP_EVAL,
+      #"OP_NOP2" => OP_CHECKHASHVERIFY
+    }
+
 
     OP_2_16 = (82..96).to_a
 
@@ -140,7 +147,7 @@ module Bitcoin
 
     # Duplicates the top stack item.
     def op_dup
-      @stack << @stack[-1].dup
+      @stack << (@stack[-1].dup rescue @stack[-1])
     end
 
     # The input is hashed using SHA-256.
@@ -254,10 +261,21 @@ module Bitcoin
       @stack << 1
     end
 
+    # TODO: https://en.bitcoin.it/wiki/BIP_0017
+    def op_nop2
+    end
+
+    # All of the signature checking words will only match signatures to the data after the most recently-executed OP_CODESEPARATOR.
+    # TODO: or figure out whatever it does now, in certain cases. skip for now
+    #def op_codeseparator
+    #end
+
+
     OPCODES_METHOD = Hash[*instance_methods.grep(/^op_/).map{|m|
       [ (OPCODES.find{|k,v| v == m.to_s.upcase }.first rescue nil), m ]
     }.flatten]
     OPCODES_METHOD[0]  = :op_0
+    OPCODES_METHOD[81] = :op_1
 
 
     # run the script. +check_callback+ is called for OP_CHECKSIG operations

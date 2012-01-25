@@ -40,6 +40,8 @@ describe 'Bitcoin::Script' do
     Bitcoin::Script.from_string("OP_EVAL").to_string.should == "OP_EVAL"
     Bitcoin::Script.from_string("OP_NOP1").to_string.should == "OP_EVAL" # test opcodes_alias table
     Bitcoin::Script.from_string("OP_NOP").to_string.should == "OP_NOP"
+
+    Bitcoin::Script.from_string("0 ffff OP_CODESEPARATOR 1 ffff 1 OP_CHECKMULTISIG").to_string.should == "0 ffff OP_CODESEPARATOR 1 ffff 1 OP_CHECKMULTISIG"
   end
 
   it '#get_pubkey' do
