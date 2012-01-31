@@ -182,3 +182,7 @@ or, if you want to run a single spec
  ruby spec/bitcoin/bitcoin_spec.rb
 
 If you make changes to the code or add functionality, please also add specs.
+
+== Development
+
+If you are curious or like to participate in development, drop by \#bitcoin-ruby on irc.freenode.net!
