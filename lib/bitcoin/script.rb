@@ -276,66 +276,6 @@ module Bitcoin
       @codehash_start = @chunks.size - @chunks.reverse.index(OP_CODESEPARATOR)
     end
 
-
-    OPCODES_METHOD = Hash[*instance_methods.grep(/^op_/).map{|m|
-      [ (OPCODES.find{|k,v| v == m.to_s.upcase }.first rescue nil), m ]
-    }.flatten]
-    OPCODES_METHOD[0]  = :op_0
-    OPCODES_METHOD[81] = :op_1
-
-
-    # run the script. +check_callback+ is called for OP_CHECKSIG operations
-    def run(&check_callback)
-      @debug = []
-      @chunks.each{|chunk|
-        break if invalid?
-        @debug << @stack.map{|i| i.unpack("H*") rescue i}
-        case chunk
-        when Fixnum
-          case chunk
-
-          when *OPCODES_METHOD.keys
-            m = OPCODES_METHOD[chunk]
-            @debug << m.to_s.upcase
-            send(m) # invoke opcode method
-
-          when *OP_2_16
-            @stack << OP_2_16.index(chunk) + 2
-
-          when OP_CHECKSIG
-            @debug << "OP_CHECKSIG"
-            op_checksig(check_callback)
-
-          when OP_CHECKSIGVERIFY
-            @debug << "OP_CHECKSIGVERIFY"
-            op_checksigverify(check_callback)
-
-          when OP_CHECKMULTISIG
-            @debug << "OP_CHECKMULTISIG"
-            op_checkmultisig(check_callback)
-
-          else
-            name = OPCODES[chunk] || chunk
-            raise "opcode #{name} unkown or not implemented"
-          end
-        when String
-          @debug << "PUSH DATA #{chunk.unpack("H*")[0]}"
-          @stack << chunk
-        end
-      }
-      @debug << @stack.map{|i| i.unpack("H*") rescue i}
-
-      if @script_invalid
-        @stack << 0
-        @debug << "INVALID TRANSACTION"
-      end
-
-      @debug << "RESULT"
-      #require 'pp'; pp @debug
-      @stack.pop == 1
-    end
-
-
     # do a CHECKSIG operation on the current stack,
     # asking +check_callback+ to do the actual signature verification.
     # This is used by Protocol::Tx#verify_input_signature
@@ -399,14 +339,61 @@ module Bitcoin
       @stack << ((valid_sigs == n_sigs) ? 1 : (invalid; 0))
     end
 
+
+
+
+    OPCODES_METHOD = Hash[*instance_methods.grep(/^op_/).map{|m|
+      [ (OPCODES.find{|k,v| v == m.to_s.upcase }.first rescue nil), m ]
+    }.flatten]
+    OPCODES_METHOD[0]  = :op_0
+    OPCODES_METHOD[81] = :op_1
+
+
+    # run the script. +check_callback+ is called for OP_CHECKSIG operations
+    def run(&check_callback)
+      @debug = []
+      @chunks.each{|chunk|
+        break if invalid?
+        @debug << @stack.map{|i| i.unpack("H*") rescue i}
+        case chunk
+        when Fixnum
+          case chunk
+
+          when *OPCODES_METHOD.keys
+            m = method( n=OPCODES_METHOD[chunk] )
+            @debug << n.to_s.upcase
+            (m.arity == 1) ? m.call(check_callback) : m.call  # invoke opcode method
+
+          when *OP_2_16
+            @stack << OP_2_16.index(chunk) + 2
+
+          else
+            name = OPCODES[chunk] || chunk
+            raise "opcode #{name} unkown or not implemented"
+          end
+        when String
+          @debug << "PUSH DATA #{chunk.unpack("H*")[0]}"
+          @stack << chunk
+        end
+      }
+      @debug << @stack.map{|i| i.unpack("H*") rescue i }
+
+      if @script_invalid
+        @stack << 0
+        @debug << "INVALID TRANSACTION"
+      end
+
+      @debug << "RESULT"
+      #require 'pp'; pp @debug
+      @stack.pop == 1
+    end
+
     def invalid
       @script_invalid = true; nil
     end
 
     def codehash_script(opcode)
       # CScript scriptCode(pbegincodehash, pend);
-      #s = to_string.split(" "); s = s[-(s.reverse.index("OP_CODESEPARATOR") || 0)..-1]
-      #script = s[0..s.index("OP_CHECKMULTISIG")].join(" ")
       script    = to_string(@chunks[(@codehash_start||0)...-(@chunks.reverse.index(opcode)||1)])
       checkhash = Bitcoin.hash160(Bitcoin::Script.binary_from_string(script).unpack("H*")[0])
       [script, checkhash]
