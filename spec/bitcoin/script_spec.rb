@@ -419,6 +419,7 @@ describe 'Bitcoin::Script' do
       checkhash = Bitcoin.hash160(Bitcoin::Script.binary_from_string(script).unpack("H*")[0])
       script = "1 #{k1.pub} #{k3.pub} 2 OP_CHECKMULTISIG"
       script = "0 #{sig1} OP_CODESEPARATOR #{script} #{checkhash} OP_NOP2 OP_DROP"
+      run_script(script, "foobar").should == false
 
 
       tx = Bitcoin::Protocol::Tx.from_json(fixtures_file('bc179baab547b7d7c1d5d8d6f8b0cc6318eaa4b0dd0a093ad6ac7f5a1cb6b3ba.json'))
