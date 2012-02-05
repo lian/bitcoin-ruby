@@ -34,7 +34,7 @@ module Bitcoin
     OP_RIPEMD160    = 166
     OP_EVAL         = 176
     OP_NOP2         = 177
-    #OP_CHECKHASHVERIFY = 177
+    OP_CHECKHASHVERIFY = 177
     OP_CODESEPARATOR = 171
 
     OPCODES = Hash[*constants.grep(/^OP_/).map{|i| [const_get(i), i.to_s] }.flatten]
@@ -42,8 +42,10 @@ module Bitcoin
     OPCODES[81] = "1"
 
     OPCODES_ALIAS = {
+      "OP_TRUE"  => OP_1,
+      "OP_FALSE" => OP_0,
       "OP_NOP1" => OP_EVAL,
-      #"OP_NOP2" => OP_CHECKHASHVERIFY
+      "OP_NOP2" => OP_CHECKHASHVERIFY
     }
 
 
@@ -88,8 +90,8 @@ module Bitcoin
     end
 
     # string representation of the script
-    def to_string
-      @chunks.map{|i|
+    def to_string(chunks=nil)
+      (chunks || @chunks).map{|i|
         case i
         when Fixnum
           case i
@@ -256,19 +258,23 @@ module Bitcoin
       @stack << "" # []
     end
 
-    # The number 1 is pushed onto the stack.
+    # The number 1 is pushed onto the stack. Same as OP_TRUE
     def op_1
       @stack << 1
     end
 
-    # TODO: https://en.bitcoin.it/wiki/BIP_0017
-    def op_nop2
+    # https://en.bitcoin.it/wiki/BIP_0017  (old OP_NOP2)
+    # TODO: don't rely on it yet. add guards from wikipage too.
+    def op_checkhashverify
+      unless @checkhash && (@checkhash == @stack[-1].unpack("H*")[0])
+        @script_invalid = true
+      end
     end
 
     # All of the signature checking words will only match signatures to the data after the most recently-executed OP_CODESEPARATOR.
-    # TODO: or figure out whatever it does now, in certain cases. skip for now
-    #def op_codeseparator
-    #end
+    def op_codeseparator
+      @codehash_start = @chunks.size - @chunks.reverse.index(OP_CODESEPARATOR)
+    end
 
 
     OPCODES_METHOD = Hash[*instance_methods.grep(/^op_/).map{|m|
@@ -300,6 +306,10 @@ module Bitcoin
             @debug << "OP_CHECKSIG"
             op_checksig(check_callback)
 
+          when OP_CHECKSIGVERIFY
+            @debug << "OP_CHECKSIGVERIFY"
+            op_checksigverify(check_callback)
+
           when OP_CHECKMULTISIG
             @debug << "OP_CHECKMULTISIG"
             op_checkmultisig(check_callback)
@@ -321,6 +331,7 @@ module Bitcoin
       end
 
       @debug << "RESULT"
+      #require 'pp'; pp @debug
       @stack.pop == 1
     end
 
@@ -331,6 +342,7 @@ module Bitcoin
     def op_checksig(check_callback)
       return nil if @stack.size < 2
       pubkey = @stack.pop
+      #p drop_sigs = [@stack[-1].unpack("H*")[0]]
       sig, hash_type = parse_sig(@stack.pop)
 
       if check_callback == nil # for tests
@@ -338,7 +350,14 @@ module Bitcoin
       else # real signature check callback
         @stack <<
           ((check_callback.call(pubkey, sig, hash_type) == true) ? 1 : 0)
+          #((check_callback.call(pubkey, sig, hash_type, drop_sigs) == true) ? 1 : 0)
       end
+    end
+
+    def op_checksigverify(check_callback)
+      op_checksig(check_callback)
+      p @stack
+      op_verify
     end
 
     # do a CHECKMULTISIG operation on the current stack,
@@ -375,6 +394,70 @@ module Bitcoin
       end
 
       @stack << 1  if valid_sigs == n_sigs
+    end
+
+    # another CHECKMULTISIG port from: https://github.com/bitcoin/bitcoin/blob/master/src/script.cpp#L931
+    def op_checkmultisig(check_callback)
+      i = 1
+      return nil if @stack.size < i
+
+      n_pubkeys = @stack[-i]
+      return nil  unless (0..20).include?(n_pubkeys)
+
+      #(@op_count ||= 0) += n_pubkeys # TODO take global opcode count
+      #return nil  if @op_count > 201
+
+      ikey = i+=1; i += n_pubkeys
+      return nil  if @stack.size < i
+
+      n_sigs = @stack[-i]
+      return nil  unless (0..n_pubkeys).include?(n_sigs)
+
+      isig = i+=1; i += n_sigs
+      t = (@stack[0] == "") ? 0 : 1 # for without OP_NOP
+      return nil  if @stack.size+t < i
+
+      # Subset of script starting at the most recent codeseparator to OP_CHECKMULTISIG
+      hash_script, @checkhash = codehash_script(OP_CHECKMULTISIG)
+
+      # Drop the signatures, since there's no way for a signature to sign itself.
+      # Only collect them here, dropping takes place in Tx.signature_hash_for_input
+      drop_sigs = n_sigs.times.map{|k| @stack[-isig-k].unpack("H*")[0] }
+
+      success = true
+      while (success && (n_sigs > 0)) do
+        sig, hash_type = parse_sig(@stack[-isig])
+        pubkey         = @stack[-ikey]
+
+        # check signature here
+        if check_callback.call(pubkey, sig, hash_type, drop_sigs, hash_script)
+          #p :valid_check
+          isig += 1; n_sigs -= 1
+        end
+        ikey += 1; n_pubkeys -= 1
+
+        # If there are more signatures left than keys left, then too many signatures have failed.
+        success = false if n_sigs > n_pubkeys
+      end
+
+      @script_invalid = true unless success
+
+      @stack.pop(i)
+      @stack << (success ? 1 : 0)
+    end
+
+    def codehash_script(opcode)
+      # CScript scriptCode(pbegincodehash, pend);
+      #s = to_string.split(" "); s = s[-(s.reverse.index("OP_CODESEPARATOR") || 0)..-1]
+      #script = s[0..s.index("OP_CHECKMULTISIG")].join(" ")
+      script    = to_string(@chunks[(@codehash_start||0)...-(@chunks.reverse.index(opcode)||1)])
+      checkhash = Bitcoin.hash160(Bitcoin::Script.binary_from_string(script).unpack("H*")[0])
+      [script, checkhash]
+    end
+
+    def self.drop_signatures(script_pubkey, drop_signatures)
+      script = new(script_pubkey).to_string.split(" ").delete_if{|c| drop_signatures.include?(c) }.join(" ")
+      script_pubkey = binary_from_string(script)
     end
 
     # check if script is in one of the recognized standard formats

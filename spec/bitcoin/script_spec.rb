@@ -40,6 +40,7 @@ describe 'Bitcoin::Script' do
     Bitcoin::Script.from_string("OP_EVAL").to_string.should == "OP_EVAL"
     Bitcoin::Script.from_string("OP_NOP1").to_string.should == "OP_EVAL" # test opcodes_alias table
     Bitcoin::Script.from_string("OP_NOP").to_string.should == "OP_NOP"
+    Bitcoin::Script.from_string("1").to_string.should == "1"
 
     Bitcoin::Script.from_string("0 ffff OP_CODESEPARATOR 1 ffff 1 OP_CHECKMULTISIG").to_string.should == "0 ffff OP_CODESEPARATOR 1 ffff 1 OP_CHECKMULTISIG"
   end
@@ -327,13 +328,12 @@ describe 'Bitcoin::Script' do
       script.stack.should == []
     end
 
-
     def run_script(string, hash)
       script = Bitcoin::Script.from_string(string)
       script.run do |pk, sig, hash_type|
         k = Bitcoin::Key.new nil, pk.unpack("H*")[0]
         k.verify(hash, sig) rescue false
-      end
+      end == true
     end
 
     it "should do OP_CHECKMULTISIG" do
@@ -357,6 +357,12 @@ describe 'Bitcoin::Script' do
       run_script(script, "foobar").should == true
 
       script = "#{sig1} #{sig2} #{sig3} 3 #{k1.pub} #{k2.pub} #{k3.pub} 3 OP_CHECKMULTISIG" # without OP_NOP
+      run_script(script, "foobar").should == true
+
+      script = "0 #{sig2} 1 #{k1.pub} #{k2.pub} 2 OP_CHECKMULTISIG"
+      run_script(script, "foobar").should == true
+
+      script = "0 #{sig2} OP_TRUE #{k1.pub} #{k2.pub} 2 OP_CHECKMULTISIG"
       run_script(script, "foobar").should == true
 
       script = "0 #{sig1} #{sig2} #{sig3} 3 #{k1.pub} #{k2.pub} #{k3.pub} 2 OP_CHECKMULTISIG"
@@ -394,6 +400,38 @@ describe 'Bitcoin::Script' do
       # script = "0 #{sig1} #{sig3} #{sig2} 3 #{k1.pub} #{k2.pub} #{k3.pub} 3 OP_CHECKMULTISIG"
       # run_script(script, "foobar").should == false
     end
+
+
+    it "should do OP_CHECKHASHVERIFY" do # https://en.bitcoin.it/wiki/BIP_0017
+      k1 = Bitcoin::Key.new; k1.generate
+      k2 = Bitcoin::Key.new; k2.generate
+      k3 = Bitcoin::Key.new; k2.generate
+      sig1 = (k1.sign("foobar") + "\x01").unpack("H*")[0]
+      sig2 = (k2.sign("foobar") + "\x01").unpack("H*")[0]
+      sig3 = (k2.sign("foobar") + "\x01").unpack("H*")[0]
+
+      script = "1 #{k1.pub} #{k2.pub} 2 OP_CHECKMULTISIG"
+      checkhash = Bitcoin.hash160(Bitcoin::Script.binary_from_string(script).unpack("H*")[0])
+      script = "0 #{sig1} OP_CODESEPARATOR #{script} #{checkhash} OP_NOP2 OP_DROP"
+      run_script(script, "foobar").should == true
+
+      script = "1 #{k1.pub} #{k2.pub} 2 OP_CHECKMULTISIG"
+      checkhash = Bitcoin.hash160(Bitcoin::Script.binary_from_string(script).unpack("H*")[0])
+      script = "1 #{k1.pub} #{k3.pub} 2 OP_CHECKMULTISIG"
+      script = "0 #{sig1} OP_CODESEPARATOR #{script} #{checkhash} OP_NOP2 OP_DROP"
+
+
+      tx = Bitcoin::Protocol::Tx.from_json(fixtures_file('bc179baab547b7d7c1d5d8d6f8b0cc6318eaa4b0dd0a093ad6ac7f5a1cb6b3ba.json'))
+      tx.hash.should == "bc179baab547b7d7c1d5d8d6f8b0cc6318eaa4b0dd0a093ad6ac7f5a1cb6b3ba"
+      prev_tx1 = Bitcoin::Protocol::Tx.from_json(fixtures_file('477fff140b363ec2cc51f3a65c0c58eda38f4d41f04a295bbd62babf25e4c590.json'))
+      prev_tx1.hash.should == "477fff140b363ec2cc51f3a65c0c58eda38f4d41f04a295bbd62babf25e4c590"
+      prev_tx2 = Bitcoin::Protocol::Tx.from_json(fixtures_file('0d0affb5964abe804ffe85e53f1dbb9f29e406aa3046e2db04fba240e63c7fdd.json'))
+      prev_tx2.hash.should == "0d0affb5964abe804ffe85e53f1dbb9f29e406aa3046e2db04fba240e63c7fdd"
+
+      tx.verify_input_signature(0, prev_tx1).should == true
+      tx.verify_input_signature(1, prev_tx2).should == true
+    end
+
 
   end
 

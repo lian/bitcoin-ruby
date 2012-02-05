@@ -93,12 +93,14 @@ module Bitcoin
 
       # generate a signature hash for input +input_idx+.
       # either pass the +outpoint_tx+ or the +script_pubkey+ directly.
-      def signature_hash_for_input(input_idx, outpoint_tx, script_pubkey=nil, hash_type=nil)
+      def signature_hash_for_input(input_idx, outpoint_tx, script_pubkey=nil, hash_type=nil, drop_sigs=nil, script=nil)
         # https://github.com/bitcoin/bitcoin/blob/e071a3f6c06f41068ad17134189a4ac3073ef76b/script.cpp#L834
         # http://code.google.com/p/bitcoinj/source/browse/trunk/src/com/google/bitcoin/core/Script.java#318
         pin  = @in.map.with_index{|i,idx|
           if idx == input_idx
             script_pubkey ||= outpoint_tx.out[ i.prev_out_index ].pk_script
+            script_pubkey = Bitcoin::Script.binary_from_string(script)                if script    # force this string a script
+            script_pubkey = Bitcoin::Script.drop_signatures(script_pubkey, drop_sigs) if drop_sigs # array of signature to drop
             length = script_pubkey.bytesize
             [ i.prev_out, i.prev_out_index, length, script_pubkey, i.sequence || "\xff\xff\xff\xff" ].pack("a32ICa#{length}a4")
           else
@@ -124,11 +126,11 @@ module Bitcoin
         script_pubkey = outpoint_tx.out[outpoint_idx].pk_script
         script        = script_sig + script_pubkey
 
-        Bitcoin::Script.new(script).run do |pubkey,sig,hash_type|
+        Bitcoin::Script.new(script).run do |pubkey,sig,hash_type,drop_sigs,script|
           # this IS the checksig callback, must return true/false
-          #p ['checksig', pubkey, sig, hash_type]
-          hash = signature_hash_for_input(in_idx, outpoint_tx, nil, hash_type)
-          #hash = signature_hash_for_input(in_idx, nil, script_pubkey, hash_type)
+          #p ['checksig', pubkey, sig, hash_type, drop_sigs, script]
+          hash = signature_hash_for_input(in_idx, outpoint_tx, nil, hash_type, drop_sigs, script)
+          #hash = signature_hash_for_input(in_idx, nil, script_pubkey, hash_type, drop_sigs, script)
           Bitcoin.verify_signature( hash, sig, pubkey.unpack("H*")[0] )
         end
       end
