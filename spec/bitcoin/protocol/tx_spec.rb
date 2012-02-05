@@ -211,6 +211,13 @@ describe 'Bitcoin::Protocol::Tx' do
       tx.verify_input_signature(1, prev_tx2).should == true
     end
 
+    it "should do OP_CHECKMULTISIG" do
+      # checkmultisig without checkhashverify
+      tx = Bitcoin::Protocol::Tx.from_json(fixtures_file('23b397edccd3740a74adb603c9756370fafcde9bcc4483eb271ecad09a94dd63.json'))
+      prev_tx = Bitcoin::Protocol::Tx.from_json(fixtures_file('60a20bd93aa49ab4b28d514ec10b06e1829ce6818ec06cd3aabd013ebcdc4bb1.json'))
+      tx.verify_input_signature(0, prev_tx).should == true
+    end
+
   end
 
 end

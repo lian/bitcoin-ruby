@@ -326,7 +326,6 @@ module Bitcoin
       #return invalid  if ((@op_count ||= 0) += n_pubkeys) > 201
       pubkeys = @stack.pop(n_pubkeys)
 
-
       n_sigs = @stack.pop
       return invalid  unless (0..n_pubkeys).include?(n_sigs)
       return invalid  unless @stack.last(n_sigs).all?{|e| e.is_a?(String) && e != '' }
@@ -334,8 +333,13 @@ module Bitcoin
 
       @stack.pop if @stack[-1] == '' # remove OP_NOP from stack
 
-      # Subset of script starting at the most recent codeseparator to OP_CHECKMULTISIG
-      script_code, @checkhash = codehash_script(OP_CHECKMULTISIG)
+      if @chunks.include?(OP_CHECKHASHVERIFY)
+        # Subset of script starting at the most recent codeseparator to OP_CHECKMULTISIG
+        script_code, @checkhash = codehash_script(OP_CHECKMULTISIG)
+        drop_sigs.map!{|i| i.unpack("H*")[0] }
+      else
+        script_code, drop_sigs = nil, nil
+      end
 
       valid_sigs = 0
       sigs.each{|sig, hash_type| pubkeys.each{|pubkey|
@@ -387,10 +391,10 @@ module Bitcoin
       if @script_invalid
         @stack << 0
         @debug << "INVALID TRANSACTION"
+        require 'pp'; pp @debug
       end
 
       @debug << "RESULT"
-      #(require 'pp'; pp @debug) if $debug
       @stack.pop == 1
     end
 
@@ -400,7 +404,7 @@ module Bitcoin
 
     def codehash_script(opcode)
       # CScript scriptCode(pbegincodehash, pend);
-      script    = to_string(@chunks[(@codehash_start||0)...-(@chunks.reverse.index(opcode)||1)])
+      script    = to_string(@chunks[(@codehash_start||0)...@chunks.size-@chunks.reverse.index(opcode)])
       checkhash = Bitcoin.hash160(Bitcoin::Script.binary_from_string(script).unpack("H*")[0])
       [script, checkhash]
     end
