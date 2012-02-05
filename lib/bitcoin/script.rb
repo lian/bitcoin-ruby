@@ -369,81 +369,38 @@ module Bitcoin
     #  0 <sig1> <sig2> <sig3> | 3 <pub1> <pub2> <pub3> 3 OP_CHECKMULTISIG
     #
     # see https://en.bitcoin.it/wiki/BIP_0011 for details.
+    # see https://github.com/bitcoin/bitcoin/blob/master/src/script.cpp#L931
     #
     # TODO: validate signature order
+    # TODO: take global opcode count
     def op_checkmultisig(check_callback)
       n_pubkeys = @stack.pop
-      return nil  unless n_pubkeys.is_a?(Fixnum)
-      return nil  unless @stack.last(n_pubkeys).all?{|e| e.is_a?(String) && e != '' }
-      pubkeys = Array.new(n_pubkeys) { @stack.pop }
+      return invalid  unless (0..20).include?(n_pubkeys)
+      return invalid  unless @stack.last(n_pubkeys).all?{|e| e.is_a?(String) && e != '' }
+      #return invalid  if ((@op_count ||= 0) += n_pubkeys) > 201
+      pubkeys = @stack.pop(n_pubkeys)
+
 
       n_sigs = @stack.pop
-      return nil  unless n_sigs.is_a?(Fixnum)
-      return nil  unless @stack.size >= n_sigs
-      return nil  unless @stack.last(n_sigs).all?{|e| e.is_a?(String) && e != '' }
-      return nil  if n_sigs > n_pubkeys
-      sigs = Array.new(n_sigs) { parse_sig(@stack.pop) }
+      return invalid  unless (0..n_pubkeys).include?(n_sigs)
+      return invalid  unless @stack.last(n_sigs).all?{|e| e.is_a?(String) && e != '' }
+      sigs = (drop_sigs = @stack.pop(n_sigs)).map{|s| parse_sig(s) }
 
       @stack.pop if @stack[-1] == '' # remove OP_NOP from stack
-
-      valid_sigs = 0
-      sigs.each do |sig, hash_type|
-        pubkeys.each do |pubkey|
-          valid_sigs += 1  if check_callback.call(pubkey, sig, hash_type)
-        end
-      end
-
-      @stack << 1  if valid_sigs == n_sigs
-    end
-
-    # another CHECKMULTISIG port from: https://github.com/bitcoin/bitcoin/blob/master/src/script.cpp#L931
-    def op_checkmultisig(check_callback)
-      i = 1
-      return nil if @stack.size < i
-
-      n_pubkeys = @stack[-i]
-      return nil  unless (0..20).include?(n_pubkeys)
-
-      #(@op_count ||= 0) += n_pubkeys # TODO take global opcode count
-      #return nil  if @op_count > 201
-
-      ikey = i+=1; i += n_pubkeys
-      return nil  if @stack.size < i
-
-      n_sigs = @stack[-i]
-      return nil  unless (0..n_pubkeys).include?(n_sigs)
-
-      isig = i+=1; i += n_sigs
-      t = (@stack[0] == "") ? 0 : 1 # for without OP_NOP
-      return nil  if @stack.size+t < i
 
       # Subset of script starting at the most recent codeseparator to OP_CHECKMULTISIG
       hash_script, @checkhash = codehash_script(OP_CHECKMULTISIG)
 
-      # Drop the signatures, since there's no way for a signature to sign itself.
-      # Only collect them here, dropping takes place in Tx.signature_hash_for_input
-      drop_sigs = n_sigs.times.map{|k| @stack[-isig-k].unpack("H*")[0] }
+      valid_sigs = 0
+      sigs.each{|sig, hash_type| pubkeys.each{|pubkey|
+        valid_sigs += 1  if check_callback.call(pubkey, sig, hash_type, drop_sigs, hash_script)
+      }}
 
-      success = true
-      while (success && (n_sigs > 0)) do
-        sig, hash_type = parse_sig(@stack[-isig])
-        pubkey         = @stack[-ikey]
+      @stack << ((valid_sigs == n_sigs) ? 1 : (invalid; 0))
+    end
 
-        # check signature here
-        if check_callback.call(pubkey, sig, hash_type, drop_sigs, hash_script)
-          #p :valid_check
-          isig += 1; n_sigs -= 1
-        end
-        ikey += 1; n_pubkeys -= 1
-
-        # If there are more signatures left than keys left, then too many signatures have failed.
-        success = false if n_sigs > n_pubkeys
-      end
-
-      @script_invalid = true unless success
-
-      @stack.pop(i)
-      @stack << (success ? 1 : 0)
+    def invalid
+      @script_invalid = true; nil
     end
 
     def codehash_script(opcode)
