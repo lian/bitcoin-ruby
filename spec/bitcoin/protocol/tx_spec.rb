@@ -190,4 +190,27 @@ describe 'Bitcoin::Protocol::Tx' do
     prev_tx.hash.should == "52250a162c7d03d2e1fbc5ebd1801a88612463314b55102171c5b5d817d2d7b2"
     #File.open("rawtx-#{prev_tx.hash}.json",'wb'){|f| f.print prev_tx.to_json }
   end
+
+
+  describe "Bitcoin::Protocol::Tx - BIP Scripts" do
+
+    it "should do OP_CHECKHASHVERIFY (BIP_0017)" do # https://en.bitcoin.it/wiki/BIP_0017
+      # scriptSig: [signatures...] OP_CODESEPARATOR 1 [pubkey1] [pubkey2] 2 OP_CHECKMULTISIG
+      # scriptPubKey: [20-byte-hash of {1 [pubkey1] [pubkey2] 2 OP_CHECKMULTISIG} ] OP_CHECKHASHVERIFY OP_DROP
+
+      tx = Bitcoin::Protocol::Tx.from_json(fixtures_file('bc179baab547b7d7c1d5d8d6f8b0cc6318eaa4b0dd0a093ad6ac7f5a1cb6b3ba.json'))
+      tx.hash.should == "bc179baab547b7d7c1d5d8d6f8b0cc6318eaa4b0dd0a093ad6ac7f5a1cb6b3ba"
+
+      prev_tx1 = Bitcoin::Protocol::Tx.from_json(fixtures_file('477fff140b363ec2cc51f3a65c0c58eda38f4d41f04a295bbd62babf25e4c590.json'))
+      prev_tx1.hash.should == "477fff140b363ec2cc51f3a65c0c58eda38f4d41f04a295bbd62babf25e4c590"
+
+      prev_tx2 = Bitcoin::Protocol::Tx.from_json(fixtures_file('0d0affb5964abe804ffe85e53f1dbb9f29e406aa3046e2db04fba240e63c7fdd.json'))
+      prev_tx2.hash.should == "0d0affb5964abe804ffe85e53f1dbb9f29e406aa3046e2db04fba240e63c7fdd"
+
+      tx.verify_input_signature(0, prev_tx1).should == true
+      tx.verify_input_signature(1, prev_tx2).should == true
+    end
+
+  end
+
 end

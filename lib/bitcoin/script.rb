@@ -280,17 +280,23 @@ module Bitcoin
     # asking +check_callback+ to do the actual signature verification.
     # This is used by Protocol::Tx#verify_input_signature
     def op_checksig(check_callback)
-      return nil if @stack.size < 2
+      return invalid if @stack.size < 2
       pubkey = @stack.pop
-      #p drop_sigs = [@stack[-1].unpack("H*")[0]]
+      drop_sigs      = [@stack[-1].unpack("H*")[0]]
       sig, hash_type = parse_sig(@stack.pop)
+
+      if @chunks.include?(OP_CHECKHASHVERIFY)
+        # Subset of script starting at the most recent codeseparator to OP_CHECKSIG
+        script_code, @checkhash = codehash_script(OP_CHECKSIG)
+      else
+        script_code, drop_sigs = nil, nil
+      end
 
       if check_callback == nil # for tests
         @stack << 1
       else # real signature check callback
         @stack <<
-          ((check_callback.call(pubkey, sig, hash_type) == true) ? 1 : 0)
-          #((check_callback.call(pubkey, sig, hash_type, drop_sigs) == true) ? 1 : 0)
+          ((check_callback.call(pubkey, sig, hash_type, drop_sigs, script_code) == true) ? 1 : 0)
       end
     end
 
@@ -329,11 +335,11 @@ module Bitcoin
       @stack.pop if @stack[-1] == '' # remove OP_NOP from stack
 
       # Subset of script starting at the most recent codeseparator to OP_CHECKMULTISIG
-      hash_script, @checkhash = codehash_script(OP_CHECKMULTISIG)
+      script_code, @checkhash = codehash_script(OP_CHECKMULTISIG)
 
       valid_sigs = 0
       sigs.each{|sig, hash_type| pubkeys.each{|pubkey|
-        valid_sigs += 1  if check_callback.call(pubkey, sig, hash_type, drop_sigs, hash_script)
+        valid_sigs += 1  if check_callback.call(pubkey, sig, hash_type, drop_sigs, script_code)
       }}
 
       @stack << ((valid_sigs == n_sigs) ? 1 : (invalid; 0))
@@ -384,7 +390,7 @@ module Bitcoin
       end
 
       @debug << "RESULT"
-      #require 'pp'; pp @debug
+      #(require 'pp'; pp @debug) if $debug
       @stack.pop == 1
     end
 
