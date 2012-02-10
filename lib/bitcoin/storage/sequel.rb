@@ -34,7 +34,10 @@ module Bitcoin::Storage::Backends
       @log.debug { "Storing tx #{blk.hash} (#{blk.to_payload.bytesize} bytes)" }
       @db.transaction do
         block = @db[:blk][:hash => htb(blk.hash).to_sequel_blob]
-        return false  if block
+        if block
+          @log.info { "skipping already existing block: #{blk.hash}" }
+          return false
+        end
 
         prev_block = get_block(hth(blk.prev_block.reverse))
         if !prev_block && blk.hash != Bitcoin::network[:genesis_hash]
@@ -59,7 +62,7 @@ module Bitcoin::Storage::Backends
           })
         blk.tx.each_with_index do |tx, idx|
           tx_id = store_tx(tx)
-          return false  unless tx_id
+          raise "Error saving tx #{tx.hash} in block #{blk.hash}"  unless tx_id
           @db[:blk_tx].insert({
               :blk_id => block_id,
               :tx_id => tx_id,

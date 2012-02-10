@@ -208,13 +208,18 @@ module Bitcoin::Network
           sleep @config[:intervals][:queue]
         end
         while obj = @queue.shift
-          if @store.send("store_#{obj[0]}", obj[1])
-            if obj[0].to_sym == :block
-              block = @store.get_block(obj[1].hash)
-              @notify.push([obj[0], obj[1], block.depth])
-            else
-              @notify.push([obj[0], obj[1]])
+          begin
+            if @store.send("store_#{obj[0]}", obj[1])
+              if obj[0].to_sym == :block
+                block = @store.get_block(obj[1].hash)
+                @notify.push([obj[0], obj[1], block.depth])
+              else
+                @notify.push([obj[0], obj[1]])
+              end
             end
+          rescue
+            @log.warn { $!.inspect }
+            puts *$@
           end
         end
       end
