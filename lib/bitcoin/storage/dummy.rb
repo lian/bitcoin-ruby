@@ -37,7 +37,7 @@ module Bitcoin::Storage::Backends
     def store_tx(tx)
       if @tx.keys.include?(tx.hash)
         log.info { "Tx already stored; skipping" }
-        return false
+        return tx
       end
       @tx[tx.hash] = tx
     end

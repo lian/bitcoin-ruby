@@ -132,9 +132,9 @@ require_relative 'spec_helper'
       @store.store_tx(@tx).should != false
     end
 
-    it "should not store tx if already stored" do
+    it "should not store tx if already stored and return existing id" do
       id = @store.store_tx(@tx)
-      @store.store_tx(@tx).should == false
+      @store.store_tx(@tx).should == id
     end
 
     it "should check if tx is already stored" do

@@ -31,6 +31,7 @@ module Bitcoin::Storage::Backends
     end
 
     def store_block(blk)
+      @log.debug { "Storing tx #{blk.hash} (#{blk.to_payload.bytesize} bytes)" }
       @db.transaction do
         block = @db[:blk][:hash => htb(blk.hash).to_sequel_blob]
         return false  if block
@@ -72,10 +73,10 @@ module Bitcoin::Storage::Backends
     end
 
     def store_tx(tx)
+      @log.debug { "Storing tx #{tx.hash} (#{tx.to_payload.bytesize} bytes)" }
       @db.transaction do
         transaction = @db[:tx][:hash => htb(tx.hash).to_sequel_blob]
-        return false  if transaction
-
+        return transaction[:id]  if transaction
         tx_id = @db[:tx].insert({
             :hash => htb(tx.hash).to_sequel_blob,
             :version => tx.ver,
