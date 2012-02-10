@@ -30,5 +30,10 @@ EM.run do
       end
     end
 
+    def connection.unbind
+      puts "Disconnected."
+      EM.stop
+    end
+
   end
 end
