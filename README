@@ -60,18 +60,20 @@ Collect transactions and display balance for an address.
 === bitcoin_wallet
 
 To use the wallet you should create a configfile. It's not required but more convenient.
-Default paths are `./bitcoin-ruby.yml`, `~/.bitcoin-ruby.yml` and `/etc/bitcoin-ruby.yml`.
+See the +Config+ +Files+ section for details.
 
- network: bitcoin
- keystore: "simple::file=keys.json"
- # keystore: "deterministic::seed=foo,nonce=2116,keys=7"
- storage: "sequel::postgres:/bitcoin"
- node: "127.0.01:9999" # command socket of a node to relay the transaction
+ all:
+   network: bitcoin
+   storage: "sequel::postgres:/bitcoin"
+   command: "127.0.01:9999"
+ wallet:
+   keystore: "simple::file=keys.json"
+   # keystore: "deterministic::seed=foo,nonce=2116,keys=7"
 
-The `simple` keystore will create one key and put it into the given file.
+The +simple+ keystore will create one key and put it into the given file.
 You can later ask it to generate more keys.
 
-The `deterministic` keystore uses the seed (which should be a large, unique, random string!)
+The +deterministic+ keystore uses the seed (which should be a large, unique, random string!)
 and generates the given number of keys. The nonce is optional, it just speeds up finding the first key.
 See Bitcoin::Wallet::KeyGenerator for details.
 
@@ -83,7 +85,7 @@ Display transaction history for a specific address:
 
  bitcoin_wallet list <address>
 
-Create new keys/addresses (only with `simple` keystore; with `deterministic` you have to edit your config):
+Create new keys/addresses (only with +simple+ keystore; with +deterministic+ you have to edit your config and increase the number of keys):
 
  bitcoin_wallet new
 
@@ -111,7 +113,7 @@ Launches an irb session with bitcoin loaded where you can try stuff out.
 
 For examples that require storage backends, you can specify them using
 a string containing the backend name and a configuration string.
-The default backend is always 'dummy' which needs no configuration
+The default backend is always +dummy+ which needs no configuration
 
  dummy
  sequel::sqlite:///tmp/bitcoin.db
@@ -126,7 +128,7 @@ an option to specify a custom location. The default locations are:
 
 * /etc/bitcoin-ruby.yml
 * ~/.bitcoin-ruby.yml
-* /bitcoin-ruby.yml
+* ./bitcoin-ruby.yml
 
 Files are loaded in order (if they exist) and may override each others settings.
 
