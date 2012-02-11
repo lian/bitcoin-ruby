@@ -87,6 +87,7 @@ class AddrFetcher < EM::Connection
       pop = @dns.addrs.size - DNS_OPTS[:cache]
       @dns.addrs.pop(pop)  if pop > 0
       @dns.logger.debug { "addr pool size now #{@dns.addrs.size}" }
+      close_connection
     end
   end
 
