@@ -17,6 +17,7 @@ DNS_OPTS = {
   :send => 16,
   :interval => 10,
   :ttl => nil,
+  :hosts => nil,
 }
 optparse = OptionParser.new do|opts|
   opts.banner = "Usage: bitcoin_dns_seed [options] <domain>"
@@ -47,6 +48,10 @@ optparse = OptionParser.new do|opts|
     DNS_OPTS[:ttl] = t.to_i
   end
 
+  opts.on("--hosts [HOSTS]", "Additional hosts file with name => addr mappings") do |h|
+    DNS_OPTS[:hosts] = h
+  end
+
   opts.on( '-h', '--help', 'Display this screen' ) do
     puts opts
     exit
@@ -61,41 +66,64 @@ unless DNS_OPTS[:domain]
 end
 
 
-RubyDNS::run_server do
-  @addrs = []
+class RubyDNS::Server
+  attr_accessor :addrs
+end
 
-  Thread.start do
-    loop do
-      begin
-        s = TCPSocket.new(*DNS_OPTS[:connect].split(":"))
-        s.puts("addrs #{DNS_OPTS[:cache]}")
-        @addrs = JSON::parse(s.readline)
-        @logger.info { "Refreshed addrs (#{@addrs.size})" }
-        s.close
-      rescue
-        @logger.error { "Error refreshing addrs: #{$!.inspect}" }
-      ensure
-        sleep DNS_OPTS[:interval]
-      end
+class AddrFetcher < EM::Connection
+  def initialize(dns)
+    @dns = dns
+    @dns.addrs ||= []
+    @buf = BufferedTokenizer.new("\x00")
+    send_data(["addrs", DNS_OPTS[:cache].to_s].to_json)
+  end
+
+  def receive_data(data)
+    @buf.extract(data).each do |packet|
+      json = JSON.load(packet)[1]
+      @dns.logger.info { "received #{json.size} new addrs" }
+      @dns.addrs += json.select{|a| a[1] == DNS_OPTS[:port]}
+      @dns.addrs.uniq! {|a| a[0]}
+      pop = @dns.addrs.size - DNS_OPTS[:cache]
+      @dns.addrs.pop(pop)  if pop > 0
+      @dns.logger.debug { "addr pool size now #{@dns.addrs.size}" }
     end
   end
 
-  match(DNS_OPTS[:domain], :A) do |transaction|
+  def self.run(host, port, dns, interval = 30)
+    EM.connect(host, port, self, dns)
+    EM.add_periodic_timer(interval) do
+      EM.connect(host, port, self, dns)
+    end
+  end
+end
+
+dns = RubyDNS::Server.new
+dns.match(DNS_OPTS[:domain], :A) do |transaction|
+  addrs = dns.addrs.weighted_sample(DNS_OPTS[:send]) {|addr| 10800 - addr[2] }.uniq
+  addrs.each do |addr|
     begin
-      @addrs.select{|a| a[1] == DNS_OPTS[:port]}
-        .weighted_sample(DNS_OPTS[:send]) do |addr|
-        10800 - addr[2]
-      end.uniq.each do |addr|
-        begin
-          ttl = DNS_OPTS[:ttl] || ((10800 - addr[2]) / 30)
-          transaction.respond!(addr[0], :ttl => ttl)
-        rescue
-          # ignore faulty addrs ("localhost" etc)
-        end
-      end
+      ttl = DNS_OPTS[:ttl] || ((10800 - addr[2]) / 30)
+      transaction.respond!(addr[0], :ttl => ttl)
     rescue
-      @logger.error { "Error answering request: #{$!.inspect}" }
-      p *$@
+      # ignore faulty addrs ("localhost" etc)
     end
   end
+end
+
+if DNS_OPTS[:hosts]
+  dns.logger.info { "serving additional addrs from file" }
+  File.read(DNS_OPTS[:hosts]).each_line do |line|
+    dns.logger.debug { line.strip }
+    addr, *names = line.split(/\s+/)
+    names.each {|n| dns.match(n, :A) {|t| t.respond!(addr) } }
+  end
+end
+
+EM.run do
+  EventMachine.open_datagram_socket("0.0.0.0", 53, RubyDNS::UDPHandler, dns)
+  EventMachine.start_server("0.0.0.0", 53, RubyDNS::TCPHandler, dns)
+  dns.logger.info { "DNS Server listening on 0.0.0.0:53" }
+
+  timer = AddrFetcher.run(*DNS_OPTS[:connect].split(":"), dns, DNS_OPTS[:interval])
 end
