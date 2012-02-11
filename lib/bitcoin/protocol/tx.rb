@@ -163,7 +163,7 @@ module Bitcoin
       end
 
       # generates rawblock json as seen in the block explorer.
-      def to_json(options = {:space => ''})
+      def to_json(options = {:space => ''}, *a)
         JSON.pretty_generate( to_hash, options )
       end
 
