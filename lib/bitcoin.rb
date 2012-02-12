@@ -255,7 +255,8 @@ module Bitcoin
       :default_port => 8333,
       :dns_seeds => ["bitseed.xf2.org", "dnsseed.bluematt.me",
         "dnsseed.bitcoin.dashjr.org", "seed.bitcoin.sipa.be"],
-      :genesis_hash => "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"
+      :genesis_hash => "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
+      :proof_of_work_limit => 0x1d00ffff
     },
     :testnet => {
       :magic_head => "\xFA\xBF\xB5\xDA",
@@ -263,7 +264,8 @@ module Bitcoin
       :privkey_version => "ef",
       :default_port => 18333,
       :dns_seeds => ["testseed.bitcoin.interesthings.de"],
-      :genesis_hash => "00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008"
+      :genesis_hash => "00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008",
+      :proof_of_work_limit => 0x1d07fff8
     }
   }
   
