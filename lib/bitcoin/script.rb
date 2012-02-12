@@ -434,6 +434,10 @@ module Bitcoin
         @chunks[2].is_a?(String) && @chunks[2].bytesize == 20
     end
 
+    def is_multisig?
+      @chunks[-1] == OP_CHECKMULTISIG
+    end
+
     # get the public key for this script (in generation scripts)
     def get_pubkey
       return @chunks[0].unpack("H*")[0] if @chunks.size == 1
@@ -443,6 +447,11 @@ module Bitcoin
     # get the address for the public key (in generation scripts)
     def get_pubkey_address
       Bitcoin.pubkey_to_address(get_pubkey)
+    end
+
+    def get_multisig_addresses
+      pubs = 0.upto(@chunks[0] - 80).map {|i| @chunks[i+1]}
+      pubs.map {|p| Bitcoin::Key.new(nil, p.unpack("H*")[0]).addr}
     end
 
     # get the hash160 for this script (in standard address scripts)
@@ -456,10 +465,17 @@ module Bitcoin
       Bitcoin.hash160_to_address(get_hash160)
     end
 
-    # get address this script corresponds to (if possible)
+    # get all addresses this script corresponds to (if possible)
+    def get_addresses
+      return [get_pubkey_address]  if is_pubkey?
+      return [get_hash160_address] if is_hash160?
+      return get_multisig_addresses  if is_multisig?
+    end
+
+    # get single address, or first for multisig script
     def get_address
-      return get_pubkey_address  if is_pubkey?
-      return get_hash160_address if is_hash160?
+      addrs = get_addresses
+      addrs.is_a?(Array) ? addrs[0] : addrs
     end
 
     # generate standard transaction script for given +address+

@@ -98,9 +98,14 @@ module Bitcoin::Storage::Models
       @store.get_txin_for_txout(get_tx.hash, @tx_idx)
     end
 
-    # get the address this txout corresponds to (if possible)
+    # get all addresses this txout corresponds to (if possible)
     def get_address
       Bitcoin::Script.new(@pk_script).get_address
+    end
+
+    # get the single address this txout corresponds to (first for multisig tx)
+    def get_addresses
+      Bitcoin::Script.new(@pk_script).get_addresses
     end
 
   end

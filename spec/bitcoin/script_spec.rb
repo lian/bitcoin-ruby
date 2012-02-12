@@ -6,6 +6,8 @@ describe 'Bitcoin::Script' do
     ["410411db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5cb2e0eaddfb84ccf9744464f82e160bfa9b8b64f9d4c03f999b8643f656b412a3ac"].pack("H*"),
     ["47304402204e45e16932b8af514961a1d3a1a25fdf3f4f7732e9d624c6c61548ab5fb8cd410220181522ec8eca07de4860a4acdd12909d831cc56cbbac4622082221a8768d1d0901"].pack("H*"),
     ["76a91417977bca1b6287a5e6559c57ef4b6525e9d7ded688ac"].pack("H*"),
+    ["524104573b6e9f3a714440048a7b87d606bcbf9e45b8586e70a67a3665ea720c095658471a523e5d923f3f3e015626e7c900bd08560ddffeb17d33c5b52c96edb875954104039c2f4e413a26901e67ad4adbb6a4759af87bc16c7120459ecc9482fed3dd4a4502947f7b4c7782dcadc2bed513ed14d5e770452b97ae246ac2030f13b80a5141048b0f9d04e495c3c754f8c3c109196d713d0778882ef098f785570ee6043f8c192d8f84df43ebafbcc168f5d95a074dc4010b62c003e560abc163c312966b74b653ae"].pack("H*"), # multisig 2 of 3
+    ["5141040ee607b584b36e995f2e96dec35457dbb40845d0ce0782c84002134e816a6b8cbc65e9eed047ae05e10760e4113f690fd49ad73b86b04a1d7813d843f8690ace4104220a78f5f6741bb0739675c2cc200643516b02cfdfda5cba21edeaa62c0f954936b30dfd956e3e99af0a8e7665cff6ac5b429c54c418184c81fbcd4bde4088f552ae"].pack("H*"), # multisig 1 of 2
   ]
 
   it '#to_string' do
@@ -67,12 +69,24 @@ describe 'Bitcoin::Script' do
       "139k1g5rtTsL4aGZbcASH3Fv3fUh9yBEdW"
   end
 
+  it "#get multisig_addresses" do
+    Bitcoin::Script.new(@script[3]).get_multisig_addresses.should == [
+      "1JiaVc3N3U3CwwcLtzNX1Q4eYfeYxVjtuj", "19Fm2gY7qDTXriNTEhFY2wjxbHna3Gvenk",
+      "1B6k6g1d2L975i7beAbiBRxfBWhxomPxvy"]
+    Bitcoin::Script.new(@script[4]).get_multisig_addresses.should == [
+      "1F2Nnyn7niMcheiYhkHrkc18aDxEkFowy5", "1EE7JGimkV7QqyHwXDJvk3b1yEN4ZUWeqx"]
+  end
+
   it "#get_address" do
     Bitcoin::Script.new(@script[0]).get_address.should ==
       "12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S"
     Bitcoin::Script.new(@script[1]).get_address.should == nil
     Bitcoin::Script.new(@script[2]).get_address.should ==
       "139k1g5rtTsL4aGZbcASH3Fv3fUh9yBEdW"
+    Bitcoin::Script.new(@script[3]).get_address.should == 
+      "1JiaVc3N3U3CwwcLtzNX1Q4eYfeYxVjtuj"
+    Bitcoin::Script.new(@script[4]).get_address.should == 
+      "1F2Nnyn7niMcheiYhkHrkc18aDxEkFowy5"
   end
 
   it '#is_send_to_ip?' do
@@ -87,6 +101,12 @@ describe 'Bitcoin::Script' do
     Bitcoin::Script.new(@script[2]).is_hash160?.should == true
     Bitcoin::Script.from_string("OP_DUP OP_HASH160 0 OP_EQUALVERIFY OP_CHECKSIG")
       .is_hash160?.should == false
+  end
+
+  it "#is_multisig?" do
+    Bitcoin::Script.new(@script[3]).is_multisig?.should == true
+    Bitcoin::Script.new(@script[4]).is_multisig?.should == true
+    Bitcoin::Script.new(@script[0]).is_multisig?.should == false
   end
 
   it '#run' do
