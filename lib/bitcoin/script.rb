@@ -376,7 +376,7 @@ module Bitcoin
 
           when *OP_2_16
             @stack << OP_2_16.index(chunk) + 2
-
+            @debug << "OP_#{chunk-80}"
           else
             name = OPCODES[chunk] || chunk
             raise "opcode #{name} unkown or not implemented"
