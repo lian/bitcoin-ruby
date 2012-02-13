@@ -89,6 +89,13 @@ module Bitcoin
 
       # convert json representation to raw binary
       def self.binary_from_json(json_string); from_json(json_string).to_payload; end
+
+      # convert header to json representation as seen in the block explorer.
+      def header_to_json(options = {:space => ''})
+        h = to_hash
+        %w[tx mrkl_tree].each{|k| h.delete(k) }
+        JSON.pretty_generate( h, options )
+      end
     end
 
   end

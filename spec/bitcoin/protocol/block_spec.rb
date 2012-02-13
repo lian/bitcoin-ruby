@@ -78,4 +78,21 @@ describe 'Bitcoin::Protocol::Block' do
     Bitcoin::Protocol::Block.from_json(fixtures_file('rawblock-testnet-26478.json'))
       .to_payload.should == @blocks['testnet-26478']
   end
+
+  it '#header_to_json' do
+    @block.header_to_json.should == (<<-JSON).chomp
+{
+  "hash":"00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048",
+  "ver":1,
+  "prev_block":"000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
+  "mrkl_root":"0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098",
+  "time":1231469665,
+  "bits":486604799,
+  "nonce":2573394689,
+  "n_tx":1,
+  "size":215
+}
+    JSON
+  end
+
 end
