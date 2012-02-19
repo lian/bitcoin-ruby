@@ -38,18 +38,31 @@ module Bitcoin::Wallet
     end
 
     # outputs = [<addr>, <value>]
+    # [:address, <addr>, <value>]
+    # [:multisig, 2, 3, <addr>, <addr>, <addr>, <value>]
     def tx outputs, fee = 0, change_policy = :back
-      prev_outs = get_selector.select(outputs.map{|o| o[1]}.inject(:+))
+      output_value = outputs.map{|o|o[-1]}.inject(:+)
+
+      prev_outs = get_selector.select(output_value)
       return nil  if !prev_outs
 
       tx = Bitcoin::Protocol::Tx.new(nil)
 
       input_value = prev_outs.map(&:value).inject(:+)
-      output_value = outputs.map{|o|o[1]}.inject(:+)
       return nil  unless input_value >= (output_value + fee)
 
-      outputs.each do |addr, value|
-        script = Bitcoin::Script.to_address_script(addr)
+      outputs.each do |type, *addrs, value|
+        script = nil
+        case type
+        when :address
+          script = Bitcoin::Script.to_address_script(addrs[0])
+        when :multisig
+          m, *pubkeys = addrs
+          addrs = pubkeys.map{|p| Bitcoin.pubkey_to_address(p)}
+          script = Bitcoin::Script.to_multisig_script(m, *pubkeys)
+        else
+          raise "unknown script type: #{type}"
+        end
         txout = Bitcoin::Protocol::TxOut.new(value, script.bytesize, script)
         tx.add_out(txout)
       end
@@ -70,10 +83,11 @@ module Bitcoin::Wallet
 
       prev_outs.each_with_index do |prev_out, idx|
         prev_tx = prev_out.get_tx
+
         key = @keystore.key(prev_out.get_address)
         sig_hash = tx.signature_hash_for_input(idx, prev_tx)
         sig = key.sign(sig_hash)
-        script_sig = Bitcoin::Script.to_signature_pubkey_script(sig, [key.pub].pack("H*"))
+        script_sig = Bitcoin::Script.to_pubkey_script_sig(sig, [key.pub].pack("H*"))
         tx.in[idx].script_sig_length = script_sig.bytesize
         tx.in[idx].script_sig = script_sig
         raise "Signature error"  unless tx.verify_input_signature(idx, prev_tx)
