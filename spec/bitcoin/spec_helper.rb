@@ -4,7 +4,7 @@ begin
   require 'simplecov'
   SimpleCov.start do
     add_group("Bitcoin") do |file|
-      ["bitcoin.rb", "script.rb", "key.rb"].include?(file.filename.split("/").last)
+      ["bitcoin.rb", "opcodes.rb", "script.rb", "key.rb"].include?(file.filename.split("/").last)
     end
     add_group "Protocol", "lib/bitcoin/protocol"
     add_group "Storage", "lib/bitcoin/storage"
