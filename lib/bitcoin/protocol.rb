@@ -40,8 +40,7 @@ module Bitcoin
     def self.pkt(command, payload)
       cmd      = command.ljust(12, "\x00")[0...12]
       length   = [payload.bytesize].pack("I")
-      checksum = ['version', 'verack'].include?(command) ?
-        "" : Digest::SHA256.digest(Digest::SHA256.digest(payload))[0...4]
+      checksum = Digest::SHA256.digest(Digest::SHA256.digest(payload))[0...4]
 
       [Bitcoin.network[:magic_head], cmd, length, checksum, payload].join
     end

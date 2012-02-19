@@ -87,19 +87,14 @@ module Bitcoin
           @buf = ''
         else
 
-          if ['version', 'verack'].include?(cmd)
-            head_size -= 4
-            payload = @buf[head_size...head_size+length]
-          else
-            if Digest::SHA256.digest(Digest::SHA256.digest( payload ))[0...4] != checksum
-              if (length < 50000) && (payload.size < length)
-                size_info = [payload.size, length].join('/')
-                handle_error(:debug, "chunked packet stream (#{size_info})")
-              else
-                handle_error(:close, "checksum mismatch")
-              end
-              return
+          if Digest::SHA256.digest(Digest::SHA256.digest( payload ))[0...4] != checksum
+            if (length < 50000) && (payload.size < length)
+              size_info = [payload.size, length].join('/')
+              handle_error(:debug, "chunked packet stream (#{size_info})")
+            else
+              handle_error(:close, "checksum mismatch")
             end
+            return
           end
           @buf = @buf[head_size+length..-1] || ""
 
