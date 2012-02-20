@@ -58,6 +58,7 @@ module Bitcoin
         when 'addr';     parse_addr(payload)
         when 'verack';   @h.on_handshake_complete # nop
         when 'version';  parse_version(payload)
+        when 'alert';    parse_alert(payload)
         else
           p ['unkown-packet', command, payload]
         end
@@ -66,6 +67,11 @@ module Bitcoin
       def parse_version(payload)
         version = Bitcoin::Protocol::VersionPkt.parse(payload)
         @h.on_version(version)
+      end
+
+      def parse_alert(payload)
+        m = @h.method(:on_alert)
+        m ? m.call(Bitcoin::Protocol::Alert.parse(payload)) : nil
       end
 
       def parse(buf)
