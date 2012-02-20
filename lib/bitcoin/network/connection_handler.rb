@@ -120,6 +120,10 @@ module Bitcoin::Network
       on_handshake_complete  if handshake?
     end
 
+    def on_alert(alert)
+      log.warn { ">> alert: #{alert.inspect}" }
+    end
+
     def send_getdata_tx(hash)
       pkt = Protocol.getdata_pkt(:tx, [hash])
       log.info { "<< getdata tx: #{hth(hash)}" }
