@@ -10,6 +10,7 @@ module Bitcoin
     autoload :Tx,      'bitcoin/protocol/tx'
     autoload :Block,   'bitcoin/protocol/block'
     autoload :Addr,    'bitcoin/protocol/address'
+    autoload :Alert,   'bitcoin/protocol/alert'
 
     autoload :Handler, 'bitcoin/protocol/handler'
     autoload :Parser,  'bitcoin/protocol/parser'
@@ -36,6 +37,12 @@ module Bitcoin
       else raise "int(#{i}) too large!"
       end
     end
+
+    def self.unpack_var_string(payload)
+      size, payload = payload.unpack("Ca*")
+      size > 0 ? (string, payload = payload.unpack("a#{size}a*")) : [nil, payload]
+    end
+
 
     def self.pkt(command, payload)
       cmd      = command.ljust(12, "\x00")[0...12]
