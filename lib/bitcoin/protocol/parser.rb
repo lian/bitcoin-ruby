@@ -65,13 +65,13 @@ module Bitcoin
       end
 
       def parse_version(payload)
-        version = Bitcoin::Protocol::VersionPkt.parse(payload)
+        version = Bitcoin::Protocol::Version.parse(payload)
         @h.on_version(version)
       end
 
       def parse_alert(payload)
-        m = @h.method(:on_alert)
-        m ? m.call(Bitcoin::Protocol::Alert.parse(payload)) : nil
+        return unless @h.respond_to?(:on_alert)
+        @h.on_alert Bitcoin::Protocol::Alert.parse(payload)
       end
 
       def parse(buf)

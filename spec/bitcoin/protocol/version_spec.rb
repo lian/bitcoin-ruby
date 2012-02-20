@@ -47,7 +47,7 @@ describe 'Bitcoin::Protocol::Parser (version)' do
   it 'builds version' do
     id, block = Bitcoin::Protocol::Uniq, 12345
     from, to = "127.0.0.1:18333", "127.0.0.1:1234"
-    pkt = Bitcoin::Protocol::VersionPkt.build_payload(id, from, to, block)
+    pkt = Bitcoin::Protocol::Version.build_payload(id, from, to, block)
     parser = Bitcoin::Protocol::Parser.new( handler = Version_Handler.new )
     parser.parse(Bitcoin::Protocol.pkt("version", pkt))
 
