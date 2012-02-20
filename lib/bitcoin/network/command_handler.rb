@@ -65,6 +65,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     @node.connections.sort{|x,y| x.host <=> y.host}.map{|c|
       "#{c.host.rjust(15)}:#{c.port} [state: #{c.state}, " +
       "version: #{c.version.version rescue '?'}, " +
+      "client: #{c.version.user_agent rescue '?'}, " +
       "block: #{c.version.block rescue '?'}, " +
       "uptime: #{format_uptime(c.uptime) rescue 0}]" }
   end

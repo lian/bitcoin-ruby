@@ -83,15 +83,19 @@ module Bitcoin
         hashes.map{|hash| [t].pack("I") + hash[0..32].reverse }.join)
     end
 
-    class VersionPkt < Struct.new(:version, :services, :timestamp, :to, :from, :block)
+    class VersionPkt < Struct.new(:version, :services, :timestamp, :to, :from,
+        :nonce, :user_agent, :block)
 
       #
       # parse packet
       #
       def self.parse(payload)
-        version, services, timestamp, to, from, block = payload.unpack("Ia8Qa26a26x9I")
+
+        version, services, timestamp, to, from, nonce, payload = payload.unpack("Ia8Qa26a26Qa*")
         to, from = parse_ip(to), parse_ip(from)
-        new(version, services, timestamp, to, from, block)
+        user_agent, payload = P.unpack_var_string(payload)
+        block = payload.unpack("I")[0]
+        new(version, services, timestamp, to, from, nonce, user_agent, block)
       end
 
       def self.parse_ip(payload)
