@@ -43,6 +43,9 @@ module Bitcoin
       size > 0 ? (string, payload = payload.unpack("a#{size}a*")) : [nil, payload]
     end
 
+    def self.pack_var_string(payload)
+      [payload.bytesize].pack("C") + payload
+    end
 
     def self.pkt(command, payload)
       cmd      = command.ljust(12, "\x00")[0...12]
@@ -115,14 +118,14 @@ module Bitcoin
         [[1].pack("Q"), "\x00"*10, "\xFF\xFF",  host, port].join
       end
 
-      def self.build_payload(from_id, from, to, last_block=nil, time=nil)
+      def self.build_payload(from_id, from, to, last_block=nil, time=nil, user_agent = nil)
         ver, services, time = [Bitcoin::Protocol::VERSION, 1, time || Time.now.tv_sec].pack("IQQ")
         payload = [
           ver, services, time,
           build_address(from),  # me
           build_address(to),    # you
           [ from_id ].pack("Q"),
-          "\x00",
+          P.pack_var_string(user_agent || "/bitcoin-ruby:#{Bitcoin::VERSION}/"),
           [last_block || 0].pack("I")
         ].join
       end
