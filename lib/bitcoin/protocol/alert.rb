@@ -2,7 +2,7 @@ module Bitcoin
 module Protocol
 
   class Alert < Struct.new(:version, :relay_until, :expiration, :id, :cancel, :set_cancel,
-                           :min_ver, :max_ver, :set_sub_ver, :priority, :comment, :status_bar, :reversed)
+                           :min_ver, :max_ver, :set_sub_ver, :priority, :comment, :status_bar, :reserved)
 
     attr_accessor :payload, :signature
 
@@ -35,9 +35,9 @@ module Protocol
       priority,          payload = payload.unpack("Va*")
       comment,           payload = Bitcoin::Protocol.unpack_var_string(payload)
       status_bar,        payload = Bitcoin::Protocol.unpack_var_string(payload)
-      reversed,          payload = Bitcoin::Protocol.unpack_var_string(payload)
+      reserved,          payload = Bitcoin::Protocol.unpack_var_string(payload)
 
-      values = [ version, relay_until, expiration, id, cancel, set_cancel, min_ver, max_ver, set_sub_ver, priority, comment, status_bar, reversed ]
+      values = [ version, relay_until, expiration, id, cancel, set_cancel, min_ver, max_ver, set_sub_ver, priority, comment, status_bar, reserved ]
 
       new(values, alert_payload, alert_signature)
     end
