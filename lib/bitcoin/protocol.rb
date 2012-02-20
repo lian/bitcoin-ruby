@@ -40,12 +40,12 @@ module Bitcoin
     end
 
     def self.unpack_var_string(payload)
-      size, payload = payload.unpack("Ca*")
+      size, payload = unpack_var_int(payload)
       size > 0 ? (string, payload = payload.unpack("a#{size}a*")) : [nil, payload]
     end
 
     def self.pack_var_string(payload)
-      [payload.bytesize].pack("C") + payload
+      pack_var_int(payload.bytesize) + payload
     end
 
     def self.pkt(command, payload)
