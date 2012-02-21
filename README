@@ -99,11 +99,16 @@ Export keys to base58 format:
 
 And finally send bitcoins to an address:
 
- bitcoin_wallet send <address>:<amount> [<fee>]
- bitcoin_wallet send 1GQkkFvAFW2ts3YLnEvMnu76WyCB6yDb4d:0.1 0.005
+ bitcoin_wallet send <type>:<address>:<amount> [<fee>]
+ bitcoin_wallet send address:1GQkkFvAFW2ts3YLnEvMnu76WyCB6yDb4d:0.1 0.005
 
 This will create a transaction and display it, asking for confirmation.
 If you accept, it will be sent to your node and relayed to the rest of the network.
+
+There's also experimental multisig support, but you need to have all keys in your wallet for now:
+
+ bitcoin_wallet send <type>:<m>:<key>:<key>:<amount> [<fee>]
+ bitcoin_wallet send multisig:1:1GQkkFvAFW2ts3YLnEvMnu76WyCB6yDb4d:1C5uWeXorS46ZubciCLN4zyR7sAqeNJfLD:1.0 0.005
 
 === bitcoin_shell
 
