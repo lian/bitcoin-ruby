@@ -119,7 +119,6 @@ module Bitcoin::Storage::Backends
           store_addr(txout_id, Bitcoin.hash160(pubkey.unpack("H*")[0]))
         end
       else
-        raise "UNKNOWN SCRIPT"
         # unknown script
       end
       txout_id
