@@ -220,5 +220,19 @@ require_relative 'spec_helper'
       @store.get_balance("f3de26ff7d472d5365e3adafece9bbdcace915a0").should == 200000000
     end
 
+    it "should store multisig tx and index hash160's" do
+      (true.should==true) && next  if @store.class == Bitcoin::Storage::Backends::DummyStore
+      *keys = Bitcoin::Key.generate, Bitcoin::Key.generate
+      pk_script = Bitcoin::Script.to_multisig_script(1, keys[0].pub, keys[1].pub)
+      txout = Bitcoin::Protocol::TxOut.new(1000, pk_script.bytesize, pk_script)
+      @store.store_txout(0, txout, 0)
+      keys.each do |key|
+        hash160 = Bitcoin.hash160(key.pub)
+        txouts = @store.get_txouts_for_hash160(hash160)
+        txouts.size.should == 1
+        txouts[0].pk_script.should == txout.pk_script
+      end
+    end
+
   end
 end

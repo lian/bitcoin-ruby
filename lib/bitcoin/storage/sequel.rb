@@ -105,15 +105,32 @@ module Bitcoin::Storage::Backends
     end
 
     def store_txout(tx_id, txout, idx)
-      @db[:txout].insert({
+      txout_id = @db[:txout].insert({
           :tx_id => tx_id,
           :tx_idx => idx,
           :pk_script => txout.pk_script.to_sequel_blob,
           :value => txout.value,
-          :hash160 => Bitcoin::Script.new(txout.pk_script).get_hash160
         })
+      script = Bitcoin::Script.new(txout.pk_script)
+      if script.is_hash160? || script.is_pubkey?
+        store_addr(txout_id, script.get_hash160)
+      elsif script.is_multisig?
+        script.get_multisig_pubkeys.map do |pubkey|
+          store_addr(txout_id, Bitcoin.hash160(pubkey.unpack("H*")[0]))
+        end
+      else
+        raise "UNKNOWN SCRIPT"
+        # unknown script
+      end
+      txout_id
     end
 
+    def store_addr(txout_id, hash160)
+      addr = @db[:addr][:hash160 => hash160]
+      addr_id = addr[:id]  if addr
+      addr_id ||= @db[:addr].insert({:hash160 => hash160})
+      @db[:addr_txout].insert({:addr_id => addr_id, :txout_id => txout_id})
+    end
 
     def has_block(blk_hash)
       !!@db[:blk].where(:hash => htb(blk_hash).to_sequel_blob).get(1)
@@ -181,7 +198,11 @@ module Bitcoin::Storage::Backends
     end
 
     def get_txouts_for_hash160(hash160)
-      @db[:txout].where(:hash160 => hash160).map{|o| wrap_txout(o) }
+      addr = @db[:addr][:hash160 => hash160]
+      return []  unless addr
+      @db[:addr_txout].where(:addr_id => addr[:id])
+        .map{|t| @db[:txout][:id => t[:txout_id]] }
+        .map{|o| wrap_txout(o) }
     end
 
     def get_unconfirmed_tx

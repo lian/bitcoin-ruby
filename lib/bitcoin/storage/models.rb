@@ -78,14 +78,17 @@ module Bitcoin::Storage::Models
   # Transaction output retrieved from storage.
   class TxOut < Bitcoin::Protocol::TxOut
 
-    attr_reader :store, :id, :tx_id, :tx_idx, :hash160
+    attr_reader :store, :id, :tx_id, :tx_idx
 
     def initialize store, data
       @store = store
       @id = data[:id]
       @tx_id = data[:tx_id]
       @tx_idx = data[:tx_idx]
-      @hash160 = data[:hash160]
+    end
+
+    def hash160
+      Bitcoin::Script.new(@pk_script).get_hash160
     end
 
     # get the transaction this output is in

@@ -54,8 +54,20 @@ module Bitcoin::Storage::Backends::SequelMigrations
         column :tx_idx, :int, :null => false
         column :pk_script, :bytea, :null => false, :index => true
         column :value, :bigint
-        column :hash160, String
-        index :hash160
+      end
+    end
+
+    unless @db.tables.include?(:addr)
+      @db.create_table :addr do
+        primary_key :id
+        column :hash160, String, :null => false, :index => true
+      end
+    end
+
+    unless @db.tables.include?(:addr_txout)
+      @db.create_table :addr_txout do
+        column :addr_id, :int, :null => false, :index => true
+        column :txout_id, :int, :null => false, :index => true
       end
     end
 
