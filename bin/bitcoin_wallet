@@ -2,6 +2,7 @@
 $:.unshift( File.expand_path("../../lib", __FILE__) )
 
 require 'bitcoin'
+require 'eventmachine'
 require 'optparse'
 require 'yaml'
 
@@ -65,7 +66,7 @@ unless cmd
   exit puts optparse
 end
 
-
+Bitcoin.network = options[:network]
 backend, config = options[:keystore].split("::")
 config = Hash[config.split(",").map{|c| c.split("=")}]
 keystore = Bitcoin::Wallet.const_get("#{backend.capitalize}KeyStore").new(config)
@@ -161,14 +162,14 @@ when "list"
 
 when "send"
   to = cmdopts[0].split(',').map do |pair|
-    addr, value = pair.split(":")
+    type, *addrs, value = pair.split(":")
     value = val_str(value)
-    [addr, value]
+    [type.to_sym, *addrs, value]
   end
   fee = val_str(cmdopts[1]) || 0
   value = val_str value
 
-  unless wallet.get_balance >= (to.map{|t|t[1]}.inject{|a,b|a+=b;a} + fee)
+  unless wallet.get_balance >= (to.map{|t|t[-1]}.inject{|a,b|a+=b;a} + fee)
     puts "Insufficient funds."; exit
   end
 
@@ -190,8 +191,12 @@ when "send"
   puts "outputs:"
   tx.out.each do |txout|
     total -= txout.value
-    address = Bitcoin::Script.new(txout.pk_script).get_address
-    puts " #{address} - #{str_val txout.value}"
+    script = Bitcoin::Script.new(txout.pk_script)
+    if script.is_hash160?
+      puts "#{str_val txout.value} #{script.get_address} (address)"
+    elsif script.is_multisig?
+      puts "#{str_val txout.value} #{script.get_addresses.join(' ')} (multisig)"
+    end
   end
   puts "Fee: #{str_val total}"
 
@@ -201,13 +206,18 @@ when "send"
     puts "Aborted."; exit
   end
 
-  host, port = *options[:command].split(":")
-  s = TCPSocket.new(host, port.to_i)
-  s.puts "relay_tx " + tx.to_payload.unpack("H*")[0]
-
-  res = s.readline
-  puts JSON::pretty_generate(JSON::parse(res))
-  puts "Transaction sent."
+  EM.run do
+    EM.connect(*options[:command].split(":")) do |conn|
+      conn.send_data(["relay_tx", tx.to_payload.unpack("H*")[0]].to_json)
+      def conn.receive_data(data)
+        (@buf ||= BufferedTokenizer.new("\x00")).extract(data).each do |packet|
+          res = JSON.load(packet)
+          puts "Transaction relayed: #{res[1]["hash"]}"
+          EM.stop
+        end
+      end
+    end
+  end
 
 else
   puts "Unknown command."

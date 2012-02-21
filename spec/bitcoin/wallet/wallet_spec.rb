@@ -6,6 +6,26 @@ include Bitcoin::Wallet
 
 describe Bitcoin::Wallet::Wallet do
 
+  class DummyKeyStore
+
+    def initialize keys
+      @keys =keys
+    end
+
+    def key(addr)
+      @keys.select{|k|k.addr==addr}.first
+    end
+
+    def keys
+      @keys
+    end
+
+    def new_key
+      @keys << Bitcoin::Key.generate
+      @keys[-1]
+    end
+  end
+
   def txout_mock(value, next_in)
     txout = Mock.new
     txout.expect(:value, value)
@@ -14,40 +34,33 @@ describe Bitcoin::Wallet::Wallet do
 
   before do
     @storage = Mock.new
-    @keystore = Mock.new
     @key = Key.from_base58('5J2hn1E8KEXmQn5gqykzKotyCcHbKrVbe8fjegsfVXRdv6wwon8')
     @addr = '1M89ZeWtmZmATzE3b6PHTBi8c7tGsg5xpo'
     @key2 = Key.from_base58('5KK9Lw8gtNd4kcaXQJmkwcmNy8Y5rLGm49RqhcYAb7qRhWxaWMJ')
     @addr2 = '134A4Bi8jN5V2KjkwmXUHjokDqdyqZ778J'
-    @keystore.expect(:keys, [@key])
+    @key3 = Key.from_base58('5JFcJByQvwYnWjQ2RHTTu6LLGiBj9oPQYsHqKWuKLDVAvv4cQ7E')
+    @addr3 = '1EnrPVaRiRgrs1D7pujYZNN1N6iD9unZV6'
+    @keystore = DummyKeyStore.new([@key])
     @selector = MiniTest::Mock.new
     @wallet = Wallet.new(@storage, @keystore, @selector)
-  end
-
-  after do
-    [@storage.verify, @selector.verify, @keystore.verify].all?.should == true
   end
 
   it "should get total balance" do
     @storage.expect(:get_txouts_for_address, [], [@addr])
     @wallet.get_balance.should == 0
 
-    @storage.expect(:get_txouts_for_address, [txout_mock(5000, nil)],
-      [@addr])
+    @storage.expect(:get_txouts_for_address, [txout_mock(5000, nil)], [@addr])
     @wallet.get_balance.should == 5000
 
     @storage.expect(:get_txouts_for_address, [txout_mock(5000, true), txout_mock(1000, nil)],
       [@addr])
     @wallet.get_balance.should == 1000
-    @storage.verify; @keystore.verify
+    @storage.verify
   end
 
   it "should get all addrs" do
     @wallet.addrs.should == [@addr]
-
-    @keystore.expect(:keys, [@key, Key.generate])
-    @wallet.addrs.size.should == 2
-    @keystore.verify
+    @wallet.addrs.size.should == 1
   end
 
   it "should list all addrs with balances" do
@@ -63,8 +76,6 @@ describe Bitcoin::Wallet::Wallet do
     @wallet.addrs.size.should == 1
 
     key = Key.generate
-    @keystore.expect(:new_key, key)
-    @keystore.expect(:keys, [@key, key])
     a = @wallet.get_new_addr
     @wallet.addrs.size.should == 2
     @wallet.addrs[1].should == a
@@ -87,7 +98,6 @@ describe Bitcoin::Wallet::Wallet do
       txout.expect(:pk_script,
         Script.to_address_script(@addr))
       @storage.expect(:get_txouts_for_address, [txout], [@addr])
-      @keystore.expect(:key, @key, [@addr])
       selector = Mock.new
       selector.expect(:select, [txout], [[txout]])
       @selector.expect(:new, selector, [[txout]])
@@ -95,7 +105,6 @@ describe Bitcoin::Wallet::Wallet do
     end
 
 
-    
     it "should have hash" do
       @tx.hash.size.should == 64
     end
@@ -132,13 +141,9 @@ describe Bitcoin::Wallet::Wallet do
     end
 
     it "should send change to new address" do
-      key = Key.generate
-      @keystore.expect(:new_key, key)
-      @keystore.expect(:keys, [@key, key])
       @tx = @wallet.tx([[:address, '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7', 1000]], 50, :new)
       @wallet.addrs.size.should == 2
-      @wallet.addrs.last.should == key.addr
-      Script.new(@tx.out.last.pk_script).get_address.should == key.addr
+      Script.new(@tx.out.last.pk_script).get_address.should == @wallet.addrs.last
     end
 
     it "should return nil if insufficient balance" do
@@ -149,6 +154,7 @@ describe Bitcoin::Wallet::Wallet do
   end
 
   describe "Bitcoin::Wallet::Wallet#tx (multisig)" do
+
     def txout_mock(value, next_in)
       txout = Mock.new
       txout.expect(:value, value)
@@ -164,18 +170,20 @@ describe Bitcoin::Wallet::Wallet do
       txout.expect(:get_address, @addr)
       txout.expect(:pk_script, Script.to_address_script(@addr))
       @storage.expect(:get_txouts_for_address, [txout], [@addr])
-      @keystore.expect(:key, @key, [@addr])
+      @keystore = DummyKeyStore.new([@key, @key2, @key3])
+
       selector = Mock.new
       selector.expect(:select, [txout], [1000])
       @selector.expect(:new, selector, [[txout]])
-      @tx = @wallet.tx([[:multisig, 1, @key.pub, @key2.pub, 1000]])
+      @wallet = Wallet.new(@storage, @keystore, @selector)
+      @tx = @wallet.tx([[:multisig, 1, @key2.addr, @key3.addr, 1000]])
     end
 
     it "should have correct outputs" do
       @tx.out.size.should == 2
       @tx.out.first.value.should == 1000
       s = Script.new(@tx.out.first.pk_script)
-      s.get_addresses.should == [@addr, @addr2]
+      s.get_addresses.should == [@addr2, @addr3]
     end
 
   end

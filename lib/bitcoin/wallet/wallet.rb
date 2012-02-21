@@ -57,9 +57,9 @@ module Bitcoin::Wallet
         when :address
           script = Bitcoin::Script.to_address_script(addrs[0])
         when :multisig
-          m, *pubkeys = addrs
-          addrs = pubkeys.map{|p| Bitcoin.pubkey_to_address(p)}
-          script = Bitcoin::Script.to_multisig_script(m, *pubkeys)
+          m, *addrs = addrs
+          addrs.map!{|a| keystore.key(a).pub rescue raise("public key for #{a} not known")}
+          script = Bitcoin::Script.to_multisig_script(m, *addrs)
         else
           raise "unknown script type: #{type}"
         end
@@ -83,14 +83,18 @@ module Bitcoin::Wallet
 
       prev_outs.each_with_index do |prev_out, idx|
         prev_tx = prev_out.get_tx
-
-        key = @keystore.key(prev_out.get_address)
-        sig_hash = tx.signature_hash_for_input(idx, prev_tx)
-        sig = key.sign(sig_hash)
-        script_sig = Bitcoin::Script.to_pubkey_script_sig(sig, [key.pub].pack("H*"))
-        tx.in[idx].script_sig_length = script_sig.bytesize
-        tx.in[idx].script_sig = script_sig
-        raise "Signature error"  unless tx.verify_input_signature(idx, prev_tx)
+        pk_script = Bitcoin::Script.new(prev_out.pk_script)
+        if pk_script.is_pubkey? || pk_script.is_hash160?
+          key = @keystore.key(prev_out.get_address)
+          sig_hash = tx.signature_hash_for_input(idx, prev_tx)
+          sig = key.sign(sig_hash)
+          script_sig = Bitcoin::Script.to_pubkey_script_sig(sig, [key.pub].pack("H*"))
+          tx.in[idx].script_sig_length = script_sig.bytesize
+          tx.in[idx].script_sig = script_sig
+          raise "Signature error"  unless tx.verify_input_signature(idx, prev_tx)
+        elsif pk_script.is_multisig?
+          # TODO
+        end
       end
 
       Bitcoin::Protocol::Tx.new(tx.to_payload)
