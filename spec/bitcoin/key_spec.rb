@@ -110,10 +110,10 @@ begin
         Bitcoin::OpenSSL_EC.regenerate_key(privkey).should == key
       }
 
-      5.times{
+      250.times.map{
         keypair = Bitcoin.generate_key;
-        Bitcoin::OpenSSL_EC.regenerate_key(keypair.first).should == keypair
-      }
+        Bitcoin::OpenSSL_EC.regenerate_key(keypair.first) == keypair
+      }.all?.should == true
     end
 
   end

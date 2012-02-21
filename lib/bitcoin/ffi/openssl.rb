@@ -44,6 +44,7 @@ module OpenSSL_EC
   #   keypair = Bitcoin.generate_key; Bitcoin::OpenSSL_EC.regenerate_key(keypair.first) == keypair
   def self.regenerate_key(private_key)
     private_key = [private_key].pack("H*") if private_key.bytesize >= (32*2)
+    private_key_hex = private_key.unpack("H*")[0]
 
     #private_key = FFI::MemoryPointer.new(:uint8, private_key.bytesize)
     #                .put_bytes(0, private_key, 0, private_key.bytesize)
@@ -51,6 +52,7 @@ module OpenSSL_EC
  
     init_ffi_ssl
     eckey = EC_KEY_new_by_curve_name(NID_secp256k1)
+    #priv_key = BN_bin2bn(private_key, private_key.size, BN_new())
     priv_key = BN_bin2bn(private_key, private_key.size-1, BN_new())
 
     group, order, ctx = EC_KEY_get0_group(eckey), BN_new(), BN_CTX_new()
@@ -70,8 +72,14 @@ module OpenSSL_EC
     length = i2d_ECPrivateKey(eckey, nil)
     ptr = FFI::MemoryPointer.new(:pointer)
     priv_hex = if i2d_ECPrivateKey(eckey, ptr) == length
-      ptr.read_pointer.read_string(length)[9...9+32].unpack("H*")[0]
+      size = ptr.read_pointer.get_array_of_uint8(8, 1)[0]
+      ptr.read_pointer.get_array_of_uint8(9, size).pack("C*").rjust(32, "\x00").unpack("H*")[0]
     end
+
+    if priv_hex != private_key_hex
+      raise "regenerated wrong private_key, raise here before generating a faulty public_key too!"
+    end
+
 
     length = i2o_ECPublicKey(eckey, nil)
     ptr = FFI::MemoryPointer.new(:pointer)
