@@ -9,55 +9,62 @@ module Bitcoin::Wallet
     # [config] Hash of settings ({:file => "/foo/bar.json"})
     def initialize config
       @config = Hash[config.map{|k,v|[k.to_sym,v]}]
-      @keys = {}
+      @keys = []
       load_keys
     end
 
     # List all stored keys.
     def keys
-      @keys.values
+      @keys
     end
 
-    # Get key for given +addr+.
-    def key(addr)
-      @keys[addr]
+    # Get key for given +label+, +addr+ or +pubkey+.
+    def key(name)
+      find_key(name)
     end
 
     # Generate and store a new key.
-    def new_key
+    def new_key(label = nil)
       key = Bitcoin::Key.generate
-      @keys[key.addr] = key
+      @keys << {:label => label, :addr => key.addr, :key => key}
       save_keys
       key
     end
 
-    def delete(addr)
-      @keys.delete(addr)
+    # Delete key for given +label+, +addr+ or +pubkey+.
+    def delete(name)
+      key = find_key(name)
+      @keys.delete(key)
       save_keys
     end
 
-    # Export key for given +addr+ to base58 format.
+    # Export key for given +name+ to base58 format.
     # (See Bitcoin::Key#to_base58)
-    def export(addr)
-      @keys[addr].to_base58
+    def export(name)
+      find_key(name)[:key].to_base58 rescue nil
     end
 
     # Import key from given +base58+ string.
     # (See Bitcoin::Key.from_base58)
-    def import(base58)
+    def import(base58, label = nil)
       key = Bitcoin::Key.from_base58(base58)
-      @keys[key.addr] = key
+      @keys << {:label => label, :addr => key.addr, :key => key}
       save_keys
       key.addr
     end
 
     # Load keys from file.
-    # If file is emty this will generate a new key
+    # If file is empty this will generate a new key
     # and store it, creating the file.
     def load_keys
       if File.exist?(@config[:file])
-        data = JSON.load(File.read(@config[:file]))
-        data.map {|a, k| @keys[a] = Bitcoin::Key.from_base58(k)}
+        keys = JSON.load(File.read(@config[:file]))
+        keys.map!{|k| Hash[k.map{|k,v| [k.to_sym, v] }]}
+        keys.map do |key|
+          key[:key] = Bitcoin::Key.new(key[:priv], key[:pub])
+          key[:priv], key[:pub] = nil
+          @keys << key
+        end
       else
         new_key; save_keys
       end
@@ -66,7 +73,26 @@ module Bitcoin::Wallet
     # Save keys to file.
     def save_keys
       File.open(@config[:file], 'w') do |file|
-        file.write(Hash[@keys.map {|a, k| [a, k.to_base58]}].to_json)
+        keys = @keys.map do |key|
+          key = key.dup
+          key[:priv] = key[:key].priv
+          key[:pub] = key[:key].pub
+          key[:key] = nil
+          key
+        end
+        file.write(JSON.pretty_generate(keys))
+      end
+    end
+
+    private
+
+    def find_key(name)
+      if Bitcoin.valid_address?(name)
+        @keys.find{|k| k[:addr] == name }
+      elsif name.size == 130
+        @keys.find{|k| k[:key].pub == name }
+      else
+        @keys.find{|k| k[:label] == name }
       end
     end
 
