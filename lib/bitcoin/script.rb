@@ -219,6 +219,7 @@ class Bitcoin::Script
 
   # is this a multisig tx
   def is_multisig?
+    return false  if @chunks.size > 6 || @chunks.size < 4
     @chunks[-1] == OP_CHECKMULTISIG
   end
 
@@ -246,7 +247,7 @@ class Bitcoin::Script
 
   # get the public keys for this multisig script
   def get_multisig_pubkeys
-    0.upto(@chunks[0] - 80).map {|i| @chunks[i+1]}
+    1.upto(@chunks[-2] - 80).map {|i| @chunks[i]}
   end
 
   # get the pubkey addresses for this multisig script

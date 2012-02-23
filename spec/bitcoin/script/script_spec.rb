@@ -82,7 +82,11 @@ describe 'Bitcoin::Script' do
         "04573b6e9f3a714440048a7b87d606bcbf9e45b8586e70a67a3665ea720c095658471a523e5d923f3f3e015626e7c900bd08560ddffeb17d33c5b52c96edb87595",
         "04039c2f4e413a26901e67ad4adbb6a4759af87bc16c7120459ecc9482fed3dd4a4502947f7b4c7782dcadc2bed513ed14d5e770452b97ae246ac2030f13b80a51",
         "048b0f9d04e495c3c754f8c3c109196d713d0778882ef098f785570ee6043f8c192d8f84df43ebafbcc168f5d95a074dc4010b62c003e560abc163c312966b74b6"].map{|pk| [pk].pack("H*")}
-
+      Script.from_string("3 #{PUBKEYS[0..2].join(' ')} 3 OP_CHECKMULTISIG")
+        .get_multisig_pubkeys.should == [
+        "04fb0123fe2c399981bc77d522e2ae3268d2ab15e9a84ae49338a4b1db3886a1ea04cdab955d81e9fa1fcb0c062cb9a5af1ad5dd5064f4afcca322402b07030ec2",
+        "0423b8161514560bc8638054b6637ab78f400b24e5694ec8061db635d1f28a17902b14dbf4f80780da659ab24f11ded3095c780452a4004c30ab58dffac33d839a",
+        "04f43e76afac66bf3927638b6c4f7e324513ce56d2d658ac9d24c420d09993a4464eea6141a68a4748c092ad0e8f4ac29c4a2f661ef4d22b21f20110f42fcd6f6d"].map{|k|[k].pack("H*")}
     end
 
     it "#get_multisig_addresses" do
@@ -144,6 +148,9 @@ describe 'Bitcoin::Script' do
       Script.new(SCRIPT[3]).is_multisig?.should == true
       Script.new(SCRIPT[4]).is_multisig?.should == true
       Script.new(SCRIPT[0]).is_multisig?.should == false
+      Script.new("OP_DUP OP_DROP 2 #{PUBKEYS[0..2].join(' ')} 3 OP_CHECKMULTISIG")
+        .is_multisig?.should == false
+      Script.new("OP_DROP OP_CHECKMULTISIG").is_multisig?.should == false
     end
   end
 
