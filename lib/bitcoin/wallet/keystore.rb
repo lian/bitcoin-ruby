@@ -14,8 +14,22 @@ module Bitcoin::Wallet
     end
 
     # List all stored keys.
-    def keys
-      @keys
+    def keys(need = nil)
+      @keys.select do |key|
+        next !key[:hidden]  unless need
+        case need
+        when :label
+          !!key[:label]
+        when :pub
+          !!key[:key].pub
+        when :priv
+          !!key[:key].priv
+        when :hidden
+          !!key[:hidden]
+        when :mine
+          !!key[:mine]
+        end
+      end
     end
 
     # Get key for given +label+, +addr+ or +pubkey+.
@@ -25,10 +39,29 @@ module Bitcoin::Wallet
 
     # Generate and store a new key.
     def new_key(label = nil)
+      raise ArgumentError, "Label #{label} already in use"  if label && find_key(label)
       key = Bitcoin::Key.generate
       @keys << {:label => label, :addr => key.addr, :key => key}
       save_keys
       key
+    end
+
+    # Add a key which can consist only of +addr+ and +label+.
+    def add_key key
+      label = key[:label]
+      raise ArgumentError, "Label #{label} already in use"  if label && find_key(label)
+      addr = key[:addr]
+      raise ArgumentError, "Address #{addr} is invalid"  if addr && !Bitcoin.valid_address?(addr)
+      @keys << key
+      save_keys
+      key
+    end
+
+    def flag_key(name, flag, value)
+      find_key(name) do |key|
+        key[flag.to_sym] = value
+      end
+      save_keys
     end
 
     # Delete key for given +label+, +addr+ or +pubkey+.
@@ -47,6 +80,7 @@ module Bitcoin::Wallet
     # Import key from given +base58+ string.
     # (See Bitcoin::Key.from_base58)
     def import(base58, label = nil)
+      raise ArgumentError, "Label #{label} already in use"  if label && find_key(label)
       key = Bitcoin::Key.from_base58(base58)
       @keys << {:label => label, :addr => key.addr, :key => key}
       save_keys
@@ -75,9 +109,11 @@ module Bitcoin::Wallet
       File.open(@config[:file], 'w') do |file|
         keys = @keys.map do |key|
           key = key.dup
-          key[:priv] = key[:key].priv
-          key[:pub] = key[:key].pub
-          key[:key] = nil
+          if key[:key]
+            key[:priv] = key[:key].priv
+            key[:pub] = key[:key].pub
+            key.delete(:key)
+          end
           key
         end
         file.write(JSON.pretty_generate(keys))
@@ -87,13 +123,14 @@ module Bitcoin::Wallet
     private
 
     def find_key(name)
-      if Bitcoin.valid_address?(name)
-        @keys.find{|k| k[:addr] == name }
-      elsif name.size == 130
-        @keys.find{|k| k[:key].pub == name }
-      else
-        @keys.find{|k| k[:label] == name }
-      end
+      key = if Bitcoin.valid_address?(name)
+              @keys.find{|k| k[:addr] == name }
+            elsif name.size == 130
+              @keys.find{|k| k[:key].pub == name }
+            else
+              @keys.find{|k| k[:label] == name }
+            end
+      block_given? ? yield(key) : key
     end
 
   end
