@@ -30,6 +30,7 @@ module Bitcoin
     autoload :DeterministicKeyStore, 'bitcoin/wallet/keystore'
     autoload :SimpleCoinSelector,    'bitcoin/wallet/coinselector'
     autoload :Wallet,                'bitcoin/wallet/wallet'
+    autoload :TxDP,                'bitcoin/wallet/txdp'
   end
 
   module Util
