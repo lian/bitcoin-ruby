@@ -37,6 +37,7 @@ module Bitcoin::Network
         :inv_queue => 5,
         :addrs => 5,
         :connect => 15,
+        :relay => 30,
       },
     }
 
@@ -107,7 +108,7 @@ module Bitcoin::Network
       init_epoll  if @config[:epoll]
 
       EM.run do
-        [:addrs, :connect].each do |name|
+        [:addrs, :connect, :relay].each do |name|
           interval = @config[:intervals][name]
           next  if !interval || interval == 0
           @timers[name] = EM.add_periodic_timer(interval, method("work_#{name}"))
@@ -293,6 +294,14 @@ module Bitcoin::Network
       @store.store_tx(tx)
       @connections.sample((@connections.size / 2) + 1).each do |peer|
         peer.send_inv(:tx, tx)
+      end
+    end
+
+    def work_relay
+      log.debug { "relay worker running" }
+      @store.get_unconfirmed_tx.each do |tx|
+        log.info { "relaying tx #{tx.hash}" }
+        relay_tx(tx)
       end
     end
 
