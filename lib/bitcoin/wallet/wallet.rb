@@ -20,7 +20,7 @@ module Bitcoin::Wallet
     end
 
     def addrs
-      @keystore.keys.map{|k| k.addr}
+      @keystore.keys.map{|k| k[:key].addr}
     end
 
     def list

@@ -1,19 +1,28 @@
 require_relative '../spec_helper'
-
+require 'json'
 include MiniTest
 include Bitcoin
 include Bitcoin::Wallet
+
+def txout_mock(value, next_in)
+  txout = Mock.new
+  txout.expect(:value, value)
+  txout.expect(:get_next_in, next_in)
+  txout.expect(:hash, [value, next_in].hash)
+  txout.expect(:eql?, false, [1])
+  txout.expect(:==, false, [1])
+end
 
 describe Bitcoin::Wallet::Wallet do
 
   class DummyKeyStore
 
     def initialize keys
-      @keys =keys
+      @keys = keys.map{|k|{:key => k}}
     end
 
     def key(addr)
-      @keys.select{|k|k.addr==addr}.first
+      @keys.select{|k|k[:key].addr==addr}.first
     end
 
     def keys
@@ -21,16 +30,13 @@ describe Bitcoin::Wallet::Wallet do
     end
 
     def new_key
-      @keys << Bitcoin::Key.generate
+      k=Bitcoin::Key.generate
+      @keys << {:key => k}
       @keys[-1]
     end
   end
 
-  def txout_mock(value, next_in)
-    txout = Mock.new
-    txout.expect(:value, value)
-    txout.expect(:get_next_in, next_in)
-  end
+
 
   before do
     @storage = Mock.new
@@ -40,7 +46,12 @@ describe Bitcoin::Wallet::Wallet do
     @addr2 = '134A4Bi8jN5V2KjkwmXUHjokDqdyqZ778J'
     @key3 = Key.from_base58('5JFcJByQvwYnWjQ2RHTTu6LLGiBj9oPQYsHqKWuKLDVAvv4cQ7E')
     @addr3 = '1EnrPVaRiRgrs1D7pujYZNN1N6iD9unZV6'
-    @keystore = DummyKeyStore.new([@key])
+    keystore_data = [{:addr => @key.addr, :priv => @key.priv, :pub => @key.pub}]
+    spec_dir = File.join(File.dirname(__FILE__), '../fixtures/wallet')
+    FileUtils.mkdir_p(spec_dir)
+    @filename = File.join(spec_dir, 'test1.json')
+    File.open(@filename, 'w') {|f| f.write(keystore_data.to_json) }
+    @keystore = SimpleKeyStore.new(file: @filename)
     @selector = MiniTest::Mock.new
     @wallet = Wallet.new(@storage, @keystore, @selector)
   end
@@ -82,11 +93,6 @@ describe Bitcoin::Wallet::Wallet do
   end
 
   describe "Bitcoin::Wallet::Wallet#tx" do
-    def txout_mock(value, next_in)
-      txout = Mock.new
-      txout.expect(:value, value)
-      txout.expect(:get_next_in, next_in)
-    end
 
     before do
       txout = txout_mock(5000, nil)
@@ -155,11 +161,6 @@ describe Bitcoin::Wallet::Wallet do
 
   describe "Bitcoin::Wallet::Wallet#tx (multisig)" do
 
-    def txout_mock(value, next_in)
-      txout = Mock.new
-      txout.expect(:value, value)
-      txout.expect(:get_next_in, next_in)
-    end
 
     before do
       txout = txout_mock(5000, nil)
