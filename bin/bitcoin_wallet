@@ -144,7 +144,7 @@ when "list"
         puts "#{tx.hash} | #{str_val txout.value, '- '} | " +
           "#{str_val total} | #{blocks}"
         txin.get_tx.out.each do |out|
-          puts "  -> #{out.get_address}"
+          puts "  -> #{out.get_addresses.join(', ')}"
         end
         puts
       end
@@ -157,7 +157,7 @@ when "list"
       total += balance
       puts "  #{addr.ljust(34)} - #{("%.8f" % (balance / 1e8)).rjust(15)}"
     end
-    puts "Total balance: #{str_val total}"
+    puts "Total balance: #{str_val wallet.get_balance}"
   end
 
 when "send"

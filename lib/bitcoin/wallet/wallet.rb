@@ -11,7 +11,7 @@ module Bitcoin::Wallet
 
     def get_txouts
       @keystore.keys.map {|k|
-        @storage.get_txouts_for_address(k.addr)}.flatten
+        @storage.get_txouts_for_address(k[:addr])}.flatten.uniq
     end
 
     def get_balance
@@ -25,7 +25,7 @@ module Bitcoin::Wallet
 
     def list
       @keystore.keys.map do |key|
-        [key.addr, @storage.get_balance(Bitcoin.hash160_from_address(key.addr))]
+        [key[:addr], @storage.get_balance(Bitcoin.hash160_from_address(key[:addr]))]
       end
     end
 
@@ -58,7 +58,7 @@ module Bitcoin::Wallet
           script = Bitcoin::Script.to_address_script(addrs[0])
         when :multisig
           m, *addrs = addrs
-          addrs.map!{|a| keystore.key(a).pub rescue raise("public key for #{a} not known")}
+          addrs.map!{|a| keystore.key(a)[:key].pub rescue raise("public key for #{a} not known")}
           script = Bitcoin::Script.to_multisig_script(m, *addrs)
         else
           raise "unknown script type: #{type}"
@@ -87,14 +87,26 @@ module Bitcoin::Wallet
         if pk_script.is_pubkey? || pk_script.is_hash160?
           key = @keystore.key(prev_out.get_address)
           sig_hash = tx.signature_hash_for_input(idx, prev_tx)
-          sig = key.sign(sig_hash)
-          script_sig = Bitcoin::Script.to_pubkey_script_sig(sig, [key.pub].pack("H*"))
-          tx.in[idx].script_sig_length = script_sig.bytesize
-          tx.in[idx].script_sig = script_sig
-          raise "Signature error"  unless tx.verify_input_signature(idx, prev_tx)
+          sig = key[:key].sign(sig_hash)
+          script_sig = Bitcoin::Script.to_pubkey_script_sig(sig, [key[:key].pub].pack("H*"))
         elsif pk_script.is_multisig?
-          # TODO
+          sigs = []
+          required_sigs = pk_script.get_signatures_required
+          pk_script.get_multisig_pubkeys.each do |pub|
+            break  if sigs.size == required_sigs
+            key = @keystore.key(pub.unpack("H*")[0])[:key]
+            next  unless key && key.priv
+            sig_hash = tx.signature_hash_for_input(idx, prev_tx)
+            sig = [key.sign(sig_hash), "\x01"].join
+            sigs << sig
+          end
+          raise "Need #{required_sigs} signatures, only have #{sigs.size} private keys"  if sigs.size < required_sigs
+
+          script_sig = Bitcoin::Script.to_multisig_script_sig(*sigs)
         end
+        tx.in[idx].script_sig_length = script_sig.bytesize
+        tx.in[idx].script_sig = script_sig
+        raise "Signature error"  unless tx.verify_input_signature(idx, prev_tx)
       end
 
       Bitcoin::Protocol::Tx.new(tx.to_payload)

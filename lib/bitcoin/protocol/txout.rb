@@ -13,8 +13,16 @@ module Bitcoin
         end
       end
 
+      def hash
+        [@value, @pk_script].hash
+      end
+
       # compare to another txout
       def ==(other)
+        @value == other.value && @pk_script == other.pk_script
+      end
+
+      def eql?(other)
         @value == other.value && @pk_script == other.pk_script
       end
 

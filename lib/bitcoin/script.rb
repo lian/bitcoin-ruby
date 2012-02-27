@@ -331,6 +331,14 @@ class Bitcoin::Script
     to_pubkey_script_sig(*a)
   end
 
+  def self.to_multisig_script_sig(*sigs)
+    from_string("0 #{sigs.map{|s|s.unpack('H*')[0]}.join(' ')}").raw
+  end
+
+  def get_signatures_required
+    return false unless is_multisig?
+    @chunks[0] - 80
+  end
 
   ## OPCODES
 
