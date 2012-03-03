@@ -154,6 +154,15 @@ describe 'Bitcoin::Script' do
         .is_multisig?.should == false
       Script.new("OP_DROP OP_CHECKMULTISIG").is_multisig?.should == false
     end
+
+    it "#type" do
+      Script.new(SCRIPT[0]).type.should == :pubkey
+      Script.new(SCRIPT[1]).type.should == :unknown
+      Script.new(SCRIPT[2]).type.should == :hash160
+      Script.new(SCRIPT[3]).type.should == :multisig
+      Script.new(SCRIPT[4]).type.should == :multisig
+    end
+
   end
 
   describe "generate scripts" do

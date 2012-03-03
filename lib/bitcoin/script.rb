@@ -239,6 +239,18 @@ class Bitcoin::Script
     @chunks[-1] == OP_CHECKMULTISIG
   end
 
+  def type
+    if is_hash160?
+      return :hash160
+    elsif is_pubkey?
+      return :pubkey
+    elsif is_multisig?
+      return :multisig
+    else
+      return :unknown
+    end
+  end
+
   # get the public key for this pubkey script
   def get_pubkey
     return @chunks[0].unpack("H*")[0] if @chunks.size == 1
