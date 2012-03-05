@@ -55,6 +55,7 @@ module Bitcoin::Storage::Backends::SequelMigrations
         column :tx_idx, :int, :null => false
         column :pk_script, :bytea, :null => false, :index => true
         column :value, :bigint
+        column :type, :int, :null => false, :index => true
       end
     end
 

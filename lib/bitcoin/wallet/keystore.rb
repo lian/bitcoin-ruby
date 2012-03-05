@@ -16,7 +16,7 @@ module Bitcoin::Wallet
     # List all stored keys.
     def keys(need = nil)
       @keys.select do |key|
-        next !key[:hidden]  unless need
+        next !(key[:hidden] && key[:hidden] == "true")  unless need
         case need
         when :label
           !!key[:label]
@@ -57,8 +57,15 @@ module Bitcoin::Wallet
       key
     end
 
-    def flag_key(name, flag, value)
+    def label_key(name, label)
       find_key(name) do |key|
+        key[:label] = label
+      end
+      save_keys
+    end
+
+    def flag_key(name, flag, value)
+      find_key(name, true) do |key|
         key[flag.to_sym] = value
       end
       save_keys
@@ -122,7 +129,7 @@ module Bitcoin::Wallet
 
     private
 
-    def find_key(name)
+    def find_key(name, hidden = false)
       key = if Bitcoin.valid_address?(name)
               @keys.find{|k| k[:addr] == name }
             elsif name.size == 130
@@ -130,6 +137,7 @@ module Bitcoin::Wallet
             else
               @keys.find{|k| k[:label] == name }
             end
+      return nil  if !key || (!hidden && key[:hidden] == "true")
       block_given? ? yield(key) : key
     end
 

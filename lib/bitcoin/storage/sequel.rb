@@ -15,6 +15,8 @@ module Bitcoin::Storage::Backends
     SIDE = 1
     ORPHAN = 2
 
+    SCRIPT_TYPES = [:unknown, :pubkey, :hash160, :multisig]
+
     attr_accessor :db
 
     include Bitcoin::Storage::Backends::SequelMigrations
@@ -151,34 +153,37 @@ module Bitcoin::Storage::Backends
     end
 
     def store_txin(tx_id, txin, idx)
-      @db[:txin].insert({
-          :tx_id => tx_id,
-          :tx_idx => idx,
-          :script_sig => txin.script_sig.to_sequel_blob,
-          :prev_out => txin.prev_out.to_sequel_blob,
-          :prev_out_index => txin.prev_out_index,
-          :sequence => txin.sequence.unpack("I")[0],
-        })
+      @db.transaction do
+        @db[:txin].insert({
+            :tx_id => tx_id,
+            :tx_idx => idx,
+            :script_sig => txin.script_sig.to_sequel_blob,
+            :prev_out => txin.prev_out.to_sequel_blob,
+            :prev_out_index => txin.prev_out_index,
+            :sequence => txin.sequence.unpack("I")[0],
+          })
+      end
     end
 
     def store_txout(tx_id, txout, idx)
-      txout_id = @db[:txout].insert({
-          :tx_id => tx_id,
-          :tx_idx => idx,
-          :pk_script => txout.pk_script.to_sequel_blob,
-          :value => txout.value,
-        })
-      script = Bitcoin::Script.new(txout.pk_script)
-      if script.is_hash160? || script.is_pubkey?
-        store_addr(txout_id, script.get_hash160)
-      elsif script.is_multisig?
-        script.get_multisig_pubkeys.map do |pubkey|
-          store_addr(txout_id, Bitcoin.hash160(pubkey.unpack("H*")[0]))
+      @db.transaction do
+        script = Bitcoin::Script.new(txout.pk_script)
+        txout_id = @db[:txout].insert({
+            :tx_id => tx_id,
+            :tx_idx => idx,
+            :pk_script => txout.pk_script.to_sequel_blob,
+            :value => txout.value,
+            :type => SCRIPT_TYPES.index(script.type)
+          })
+        if script.is_hash160? || script.is_pubkey?
+          store_addr(txout_id, script.get_hash160)
+        elsif script.is_multisig?
+          script.get_multisig_pubkeys.map do |pubkey|
+            store_addr(txout_id, Bitcoin.hash160(pubkey.unpack("H*")[0]))
+          end
         end
-      else
-        # unknown script
+        txout_id
       end
-      txout_id
     end
 
     def store_addr(txout_id, hash160)
@@ -297,7 +302,6 @@ module Bitcoin::Storage::Backends
       tx = Bitcoin::Storage::Models::Tx.new(self, data)
 
       inputs = db[:txin].filter(:tx_id => transaction[:id]).order(:tx_idx)
-
       inputs.each { |i| tx.add_in(wrap_txin(i)) }
 
       outputs = db[:txout].filter(:tx_id => transaction[:id]).order(:tx_idx)
@@ -323,7 +327,7 @@ module Bitcoin::Storage::Backends
     def wrap_txout(output)
       return nil  unless output
       data = {:id => output[:id], :tx_id => output[:tx_id], :tx_idx => output[:tx_idx],
-        :hash160 => output[:hash160]}
+        :hash160 => output[:hash160], :type => SCRIPT_TYPES[output[:type]]}
       txout = Bitcoin::Storage::Models::TxOut.new(self, data)
       txout.value = output[:value]
       txout.pk_script = output[:pk_script]

@@ -1,22 +1,64 @@
 class Bitcoin::Wallet::TxDP
 
   attr_accessor :id, :tx, :inputs
-  def initialize
-    @tx = []
+  def initialize tx = []
+    @id = Bitcoin.int_to_base58(rand(1e14))
+    @tx = tx
     @inputs = []
+    return  unless tx.any?
+    @tx[0].in.each_with_index do |input, i|
+      prev_out_hash = input.prev_out.reverse.unpack("H*")[0]
+      prev_tx = @tx[1..-1].find {|tx| tx.hash == prev_out_hash}
+      raise "prev tx #{prev_out_hash} not found"  unless prev_tx
+      prev_out = prev_tx.out[input.prev_out_index]
+      raise "prev out ##{input.prev_out_index} not found in tx #{@tx.hash}"  unless prev_out
+      out_script = Bitcoin::Script.new(prev_out.pk_script)
+      out_script.get_addresses.each do |addr|
+        add_sig(i, prev_out.value, addr, input.script_sig)
+      end
+    end
+  end
+
+  def add_sig(in_idx, value, addr, sig)
+    sig = sig ? [[addr, sig.unpack("H*")[0]]] : []
+    @inputs[in_idx] = [value, sig]
+  end
+
+  def sign_inputs
+    @inputs.each_with_index do |txin, i|
+      input = @tx[0].in[i]
+      prev_out_hash = input.prev_out.reverse.unpack("H*")[0]
+      prev_tx = @tx[1..-1].find {|tx| tx.hash == prev_out_hash}
+      raise "prev tx #{prev_out_hash} not found"  unless prev_tx
+      prev_out = prev_tx.out[input.prev_out_index]
+      raise "prev out ##{input.prev_out_index} not found in tx #{@tx.hash}"  unless prev_out
+      out_script = Bitcoin::Script.new(prev_out.pk_script)
+      out_script.get_addresses.each do |addr|
+        sig = yield(@tx[0], prev_tx, i, addr)
+        if sig
+          @inputs[i][1] ||= []
+          @inputs[i][1] << [addr, sig]
+          break
+        end
+      end
+    end
   end
 
   def serialize
     lines = []
     lines << "-----BEGIN-TRANSACTION-#{@id}".ljust(80, '-')
-    lines << "_TXDIST_#{Bitcoin.network[:magic_head].unpack("H*")[0]}_#{@id}_00a0" #TODO size
+    size = [@tx.first.to_payload.bytesize].pack("C").ljust(2, "\x00").reverse.unpack("H*")[0]
+    lines << "_TXDIST_#{Bitcoin.network[:magic_head].unpack("H*")[0]}_#{@id}_#{size}"
     tx = @tx.map(&:to_payload).join.unpack("H*")[0]
     tx_str = ""; tx.split('').each_with_index{|c,i| tx_str << (i % 80 == 0 ? "\n#{c}" : c)}
     lines << tx_str.strip
     @inputs.each_with_index do |input, idx|
       lines << "_TXINPUT_#{idx.to_s.rjust(2, '0')}_#{"%.8f" % (input[0].to_f / 1e8)}"
+      next  unless input[1]
       input[1].each do |sig|
-        lines << "_SIG_#{sig[0]}_#{idx.to_s.rjust(2, '0')}_008c" # TODO size
+        size = [sig[1]].pack("H*").bytesize
+        size = [size].pack("C").ljust(2, "\x00").reverse.unpack("H*")[0]
+        lines << "_SIG_#{sig[0]}_#{idx.to_s.rjust(2, '0')}_#{size}"
         sig_str = ""; sig[1].split('').each_with_index{|c,i| sig_str << (i % 80 == 0 ? "\n#{c}" : c)}
         lines << sig_str.strip
       end
@@ -49,14 +91,15 @@ class Bitcoin::Wallet::TxDP
   end
 
   def parse_input input
-    m = input.match(/(\d+)_(\d+).(\d+)\n(.*)/m)
-    _, idx, maj, min, sigs = *m
-    value = ("#{maj}.#{min}".to_f * 1e8).to_i
+    m = input.match(/(\d+)_(\d+\.\d+)\n(.*)/m)
+    _, idx, value, sigs = *m
+    value = (value.sub('.','').to_i)
     sigs = parse_sigs(sigs)
     @inputs[idx.to_i] = [value, sigs]
   end
 
   def parse_sigs sigs
+    return nil  unless sigs["_SIG_"]
     sigs = sigs.split("_SIG_").map do |s|
       if s == ""
         nil

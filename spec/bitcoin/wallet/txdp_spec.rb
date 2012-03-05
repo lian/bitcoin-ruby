@@ -1,54 +1,74 @@
 require_relative '../spec_helper'
 include Bitcoin
 include Bitcoin::Wallet
+include MiniTest
 
 describe "Bitcoin::Wallet::TxDP" do
 
   before do
     Bitcoin.network = :testnet
-    @txdp = <<-EOS
------BEGIN-TRANSACTION-3fX59xPj-------------------------------------------------
-_TXDIST_fabfb5da_3fX59xPj_00a0
-010000000292807c8e70a28c687daea2998d6273d074e56fa8a55a0b10556974cf2b526e61000000
-0000ffffffffe3c1ee0711611b01af3dee55b1484f0d6b65d17dce4eff0e6e06242e6cf457e10000
-000000ffffffff02b0feea0b000000001976a91457996661391fa4e95bed27d7e8fe47f47cb8e428
-88ac00a0acb9030000001976a914dc504e07b1107110f601fb679dd3f56cee9ff71e88ac00000000
-0100000001eb626e4f73d88f415a8e8cb32b8d73eed47aa1039d0ed2f013abdc741ce6828c010000
-008c493046022100b0da540e4924518f8989a9da798ca2d9e761b69a173b8cc41a3e3e3c6d77cd50
-022100ecfa61730e58005338420516744ef680428dcfc05022dec70a851365c8575b190141042dc5
-be3afa5887aee4a377032ed014361b0b9b61eb3ea6b8a8821bfe13ee4b65cd25d9630e4f227a53e8
-bf637f85452c9981bcbd64ef77e22ce97b0f547c783effffffff0200d6117e030000001976a914cf
-f580fd243f64f0ad7bf69faf41c0bf42d86d8988ac00205fa0120000001976a9148d573ef6984fd9
-f8847d420001f7ac49b222a24988ac000000000100000001f2782db40ae147398a31cff9c7cc3423
-014a073a92e463741244330cc304168f000000008c493046022100c9311b9eef0cc69219cb96838f
-dd621530a80c46269a00dccc66498bc03ccf7a0221003742ee652a0a76fd28ad81aa73bb7f7a0a6a
-81850af58f62d9a184d10e5eec30014104f815e8ef4cad584e04974889d7636e8933803d2e72991d
-b5288c9e953c2465533905f98b7b688898c7c1f0708f2e49f0dd0abc06859ffed5144e8a1018a4e8
-63ffffffff02008c8647000000001976a914d4e211215967f8e3744693bf85f47eb4ee9567fc88ac
-603d4e95010000001976a914e9a6b50901c1969d2b0fd43a3ccfa3fef3291efe88ac00000000
-_TXINPUT_00_150.00000000
-_SIG_mzUYGfqGpyXmppYpmWJ31Y4zTxR4ZCod22_00_008c
-4930460221007699967c3ec09d072599558d2e7082fae0820206b63aa66afea124634ed11a080221
-0003346f7e963e645ecae2855026dc7332eb7237012539b34cd441c3cef97fbd4d01410497d5e1a0
-0e1db90e893d1f2e547e2ee83b5d6bf4ddaa3d514e6dc2d94b6bcb5a72be1fcec766b8c382502caa
-9ec09fe478bad07d3f38ff47b2eb42e681c384cc
-_TXINPUT_01_12.00000000
-_SIG_mzvaN8JUhHLz3Gdec1zBRxs5rNaYLQnbD1_01_008c
-49304602210081554f8b08a1ad8caa69e34f4794d54952dac7c5efcf2afe080985d6bd5b00770221
-00dea20ca3dbae1d15ec61bec57b4b8062e7d7c47614aba032c5a32f651f471cfd014104c30936d2
-456298a566aa76fefeab8a7cb7a91e8a936a11757c911b4c669f0434d12ab0936fc13986b156156f
-9b389ed244bbb580112be07dbe23949a4764dffb
--------END-TRANSACTION-3fX59xPj-------------------------------------------------
-EOS
   end
 
   it "should parse txdp" do
-    txdp = TxDP.parse(@txdp)
+    txt = fixtures_file("txdp-1.txt")
+    txdp = TxDP.parse(txt)
     txdp.id.should == "3fX59xPj"
     txdp.tx.size.should == 3
     txdp.tx.first.hash.should ==
       "2aa1938705066d0f9988923000ee75d5fc728b92b9739b71f94c139e5a729527"
     txdp.inputs.size.should == 2
-    txdp.serialize.should == @txdp.strip
   end
+
+  it "should parse unsigned txdp" do
+    txt = fixtures_file("txdp-2-unsigned.txt")
+    txdp = TxDP.parse(txt)
+    txdp.id.should == "7Q74Wkre"
+    txdp.tx.size.should == 2
+    txdp.inputs.size.should == 1
+    txdp.inputs.first[1].should == nil
+  end
+
+  it "should parse signed txdp" do
+    txt = fixtures_file("txdp-2-signed.txt")
+    txdp = TxDP.parse(txt)
+    txdp.id.should == "7Q74Wkre"
+    txdp.tx.size.should == 2
+    txdp.inputs.size.should == 1
+    txdp.inputs.first[1].should ==[["mnheKkGdmw8d1fUV15XZbfmLR6AjQjVthy", "49304602210087bc1ff770c6cb3c7e47b9a3acb7dce678c16350f29acaa92e4ab231692256cf0221002da46fc1f39e132e726dea46a6e87e4278e85d36ccd393e39e931b89d55fc3a2014104955ec5646652d1b5bb14b2f867ef8879bcf224f1eab01072147fdfe0992440a234b36792937a23df736e8430613da6f0466bfc5505f2ad41b056131b7af13086"]]
+  end
+
+  it "should serialize unsigned txdp" do
+    txt = fixtures_file("txdp-2-unsigned.txt")
+    txdp = TxDP.parse(txt)
+    txdp.serialize.should == txt.strip
+  end
+
+  it "should serialize signed txdp" do
+    txt = fixtures_file("txdp-2-signed.txt")
+    txdp = TxDP.parse(txt)
+    txdp.serialize.should == txt.strip
+  end
+
+  it "should create txdp from tx" do
+    tx1 = Bitcoin::P::Tx.from_json(fixtures_file("rawtx-05.json"))
+    tx2 = Bitcoin::P::Tx.from_json(fixtures_file("rawtx-04.json"))
+    sig = tx2.in[0].script_sig
+    tx2.in[0].script_sig_length = 0
+    tx2.in[0].script_sig = ""
+    txdp = TxDP.new([tx2, tx1])
+    txdp.id.should != nil
+    txdp.inputs.size.should == 1
+    txdp.inputs.first[0].should == 5e9
+    txt = txdp.serialize
+
+    txt.should =~ /--BEGIN-TRANSACTION-#{txdp.id}--/
+    txt.should =~ /^_TXDIST_fabfb5da_#{txdp.id}_00cb$/
+    txt.should =~ /^_TXINPUT_00_50.00000000$/
+    txt.should =~ /--END-TRANSACTION-#{txdp.id}--/
+
+    txdp.add_sig(0, tx1.out[0].value, "mh8YhPYEAYs3E7EVyKtB5xrcfMExkkdEMF", sig)
+    txt = txdp.serialize
+    txt.should =~ /^_SIG_mh8YhPYEAYs3E7EVyKtB5xrcfMExkkdEMF_00_0048$/
+  end
+
 end

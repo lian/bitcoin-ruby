@@ -3,7 +3,7 @@ require_relative 'spec_helper'
 include Bitcoin::Builder
 
 [
-  #  { :name => :dummy },
+#  { :name => :dummy },
   { :name => :sequel, :db => 'sqlite:/' }, # in memory
 #  { :name => :sequel, :db => 'sqlite:///tmp/bitcoin_test.db' },
 #  { :name => :sequel, :db => 'postgres://localhost/bitcoin_test' },
@@ -224,6 +224,11 @@ include Bitcoin::Builder
       end
     end
 
+    it "should index output script type" do
+      @store.store_tx(@tx)
+      @store.get_tx(@tx.hash).out.first.type.should == :hash160
+    end
+
     describe "reorg" do
 
       def create_block prev, store = true
@@ -306,5 +311,6 @@ include Bitcoin::Builder
       end
 
     end
+
   end
 end
