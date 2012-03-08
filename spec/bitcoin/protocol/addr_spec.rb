@@ -2,8 +2,7 @@ require_relative '../spec_helper.rb'
 
 describe 'Bitcoin::Protocol::Parser (addr)' do
 
-  it 'parses transaction inv' do
-
+  it 'parses address packet' do
     pkt = [
       "f9 be b4 d9 61 64 64 72 00 00 00 00 00 00 00 00 1f 00 00 00 e8 b4 c9 ba 01 2b dd d7 4d 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ff ff 52 53 de 04 20 8d"
       .split(" ").join].pack("H*")
