@@ -206,7 +206,7 @@ describe 'Bitcoin::Script' do
     Script.from_string("bar foo OP_DUP OP_DROP bar OP_EQUAL")
       .run.should == false
 
-    Script.from_string("1 OP_DROP 2").run.should == false
+    Script.from_string("1 OP_DROP 2").run.should == true
   end
 
 end

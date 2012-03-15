@@ -177,7 +177,9 @@ class Bitcoin::Script
     end
 
     @debug << "RESULT"
-    @stack.pop == 1
+    return false if @stack.empty?
+    return false if @stack.pop == 0
+    true
   end
 
   def invalid
