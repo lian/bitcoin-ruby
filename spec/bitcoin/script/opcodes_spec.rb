@@ -137,6 +137,26 @@ describe "Bitcoin::Script OPCODES" do
     @script.stack.should == ["foobar", 1]
   end
 
+  it "should do OP_MIN" do
+    [
+      [4, 5], [5, 4], [4, 4]
+    ].each{|s|
+      @script.instance_eval { @stack = s }
+      @script.op_min
+      @script.stack.should == [4]
+    }
+  end
+
+  it "should do OP_MAX" do
+    [
+      [4, 5], [5, 4], [5, 5]
+    ].each{|s|
+      @script.instance_eval { @stack = s }
+      @script.op_max
+      @script.stack.should == [5]
+    }
+  end
+
   it "should do OP_CHECKSIG" do
     @script.stack = ["bar", "foo"]
     verify_callback = proc{|pubkey,signature,type|

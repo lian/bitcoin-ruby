@@ -36,6 +36,8 @@ class Bitcoin::Script
   OP_NOP2         = 177
   OP_CHECKHASHVERIFY = 177
   OP_CODESEPARATOR = 171
+  OP_MIN          = 163
+  OP_MAX          = 164
 
   OPCODES = Hash[*constants.grep(/^OP_/).map{|i| [const_get(i), i.to_s] }.flatten]
   OPCODES[0] = "0"
@@ -426,6 +428,16 @@ class Bitcoin::Script
   # The number 1 is pushed onto the stack. Same as OP_TRUE
   def op_1
     @stack << 1
+  end
+
+  # Returns the smaller of a and b.
+  def op_min
+    @stack << @stack.pop(2).min
+  end
+
+  # Returns the larger of a and b.
+  def op_max
+    @stack << @stack.pop(2).max
   end
 
   # https://en.bitcoin.it/wiki/BIP_0017  (old OP_NOP2)
