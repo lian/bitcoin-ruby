@@ -111,6 +111,8 @@ class Bitcoin::Script
     new(binary_from_string(script_string))
   end
 
+  class ScriptOpcodeError < StandardError; end
+
   # raw script binary of a string representation
   def self.binary_from_string(script_string)
     script_string.split(" ").map{|i|
@@ -119,6 +121,7 @@ class Bitcoin::Script
       when *OPCODES_ALIAS.keys;      OPCODES_ALIAS.find{|k,v| k == i }.last
       when /^([2-9]$|1[0-7])$/;      OP_2_16[$1.to_i-2]
       when /\(opcode (\d+)\)/;       $1.to_i
+      when /OP_(.+)$/;               raise ScriptOpcodeError, "#{i} not defined!"
       else 
         data = [i].pack("H*")
         size = data.bytesize
