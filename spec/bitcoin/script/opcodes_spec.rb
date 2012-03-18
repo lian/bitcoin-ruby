@@ -156,6 +156,42 @@ describe "Bitcoin::Script OPCODES" do
       @script.stack.should == [5]
     }
   end
+  
+  it "should do op_2over" do
+    @script.instance_eval { @stack = [1,2,3,4] }
+    @script.op_2over
+    @script.stack.should == [1,2,3,4,1,2]
+  end
+  
+  it "should do op_2swap" do
+    @script.instance_eval { @stack = [1,2,3,4] }
+    @script.op_2swap
+    @script.stack.should == [3,4,1,2]
+  end
+  
+  it "should do op_ifdup" do
+    @script.instance_eval { @stack = [1] }
+    @script.op_ifdup
+    @script.stack.should == [1,1]
+    
+    @script.instance_eval { @stack = ['a'] }
+    @script.op_ifdup
+    @script.stack.should == ['a','a']
+    
+    @script.instance_eval { @stack = [0] }
+    @script.op_ifdup
+    @script.stack.should == [0]
+  end
+  
+  it "should do op_depth" do
+    @script.instance_eval { @stack = [] }
+    @script.op_depth
+    @script.stack.should == [0]
+    
+    @script.instance_eval { @stack = [1,2,3] }
+    @script.op_depth
+    @script.stack.should == [1,2,3,3]
+  end
 
   it "should do OP_CHECKSIG" do
     @script.stack = ["bar", "foo"]

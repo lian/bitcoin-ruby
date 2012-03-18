@@ -38,6 +38,14 @@ class Bitcoin::Script
   OP_CODESEPARATOR = 171
   OP_MIN          = 163
   OP_MAX          = 164
+  OP_2OVER        = 112
+  OP_2SWAP        = 114
+  OP_IFDUP        = 115
+  OP_DEPTH        = 116
+  # OP_IF           = 99
+  # OP_NOTIF        = 100
+  # OP_ELSE         = 103
+  # OP_ENDIF        = 104
 
   OPCODES = Hash[*constants.grep(/^OP_/).map{|i| [const_get(i), i.to_s] }.flatten]
   OPCODES[0] = "0"
@@ -153,6 +161,7 @@ class Bitcoin::Script
     @chunks.each{|chunk|
       break if invalid?
       @debug << @stack.map{|i| i.unpack("H*") rescue i}
+      
       case chunk
       when Fixnum
         case chunk
@@ -410,7 +419,7 @@ class Bitcoin::Script
   # Marks transaction as invalid if top stack value is not true. True is removed, but false is not.
   def op_verify
     res = @stack.pop
-    if res != 1
+    if res == 0
       @stack << res
       @script_invalid = true # raise 'transaction invalid' ?
     else
@@ -441,6 +450,31 @@ class Bitcoin::Script
   # Returns the larger of a and b.
   def op_max
     @stack << @stack.pop(2).max
+  end
+  
+  # Copies the pair of items two spaces back in the stack to the front.
+  def op_2over
+    @stack << @stack[-4]
+    @stack << @stack[-4]
+  end
+  
+  # Swaps the top two pairs of items.
+  def op_2swap
+    p1 = @stack.pop(2)
+    p2 = @stack.pop(2)
+    @stack += p1 += p2
+  end
+  
+  # If the input is true, duplicate it.
+  def op_ifdup
+    if @stack.last != 0
+      @stack << @stack.last
+    end
+  end
+  
+  # Puts the number of stack items onto the stack.
+  def op_depth
+    @stack << @stack.size
   end
 
   # https://en.bitcoin.it/wiki/BIP_0017  (old OP_NOP2)
