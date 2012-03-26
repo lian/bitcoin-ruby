@@ -48,6 +48,18 @@ module Bitcoin
       pack_var_int(payload.bytesize) + payload
     end
 
+    def self.unpack_var_string_array(payload) # unpacks set<string>
+      size, payload = unpack_var_int(payload)
+      return [nil, payload] if size == 0
+      [(0...size).map{ s, payload = unpack_var_string(payload); s }, payload]
+    end
+
+    def self.unpack_var_int_array(payload) # unpacks set<int>
+      size, payload = unpack_var_int(payload)
+      return [nil, payload] if size == 0
+      [(0...size).map{ i, payload = unpack_var_int(payload); i }, payload]
+    end
+
     def self.pkt(command, payload)
       cmd      = command.ljust(12, "\x00")[0...12]
       length   = [payload.bytesize].pack("I")

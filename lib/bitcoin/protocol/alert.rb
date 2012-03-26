@@ -29,9 +29,9 @@ module Protocol
 
       version, relay_until, expiration, id, cancel, payload = alert_payload.unpack("VQQVVa*")
 
-      set_cancel,        payload = Bitcoin::Protocol.unpack_var_string(payload)
+      set_cancel,        payload = Bitcoin::Protocol.unpack_var_int_array(payload)
       min_ver, max_ver,  payload = payload.unpack("VVa*")
-      set_sub_ver,       payload = Bitcoin::Protocol.unpack_var_string(payload)
+      set_sub_ver,       payload = Bitcoin::Protocol.unpack_var_string_array(payload)
       priority,          payload = payload.unpack("Va*")
       comment,           payload = Bitcoin::Protocol.unpack_var_string(payload)
       status_bar,        payload = Bitcoin::Protocol.unpack_var_string(payload)
