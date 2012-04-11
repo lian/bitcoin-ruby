@@ -37,7 +37,11 @@ module Bitcoin
       def parse_addr(payload)
         count, payload = Protocol.unpack_var_int(payload)
         payload.each_byte.each_slice(30){|i|
-          @h.on_addr( Addr.new(i.pack("C*")) )
+          begin
+            @h.on_addr( Addr.new(i.pack("C*")) )
+          rescue
+            puts "Error parsing addr: #{i.pack("C*")}"
+          end
         }
       end
 
