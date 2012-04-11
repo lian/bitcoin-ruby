@@ -113,7 +113,8 @@ module Bitcoin::Network
       log.info { "Attempting to connect to #{host}:#{port}" }
       EM.connect(host, port.to_i, ConnectionHandler, self, host, port.to_i)
     rescue
-      p $!; puts $@; exit
+      log.warn { "Error connecting to #{host}:#{port}" }
+      log.debug { $!.inspect }
     end
 
     # query addrs from dns seed and connect
