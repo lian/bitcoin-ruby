@@ -1,4 +1,6 @@
 require 'eventmachine'
+require 'json'
+require 'fileutils'
 
 module Bitcoin::Network
 
@@ -18,6 +20,7 @@ module Bitcoin::Network
       :epoll => false,
       :epoll_limit => 10000,
       :epoll_user => nil,
+      :addr_file => "#{ENV['HOME']}/.bitcoin-ruby/addrs.json",
       :log => {
         :network => :info,
         :storage => :info,
@@ -48,7 +51,7 @@ module Bitcoin::Network
       @inv_queue = []
       @inv_queue_thread = nil
       set_store
-      @addrs = []
+      load_addrs
       @timers = {}
       @inv_cache = []
       @notify = EM::Channel.new
@@ -58,6 +61,26 @@ module Bitcoin::Network
       backend, config = @config[:storage].split('::')
       @store = Bitcoin::Storage.send(backend, {:db => config})
       @store.log.level = @config[:log][:storage]
+    end
+
+    def load_addrs
+      @addrs = JSON.load(File.read(@config[:addr_file])).map {|a|
+        OpenStruct.new(a) } rescue []
+      log.info { "Initialized #{@addrs.size} addrs from #{@config[:addr_file]}." }
+    end
+
+    def store_addrs
+      return  if !@addrs || !@addrs.any?
+      file = @config[:addr_file]
+      FileUtils.mkdir_p(File.dirname(file))
+      File.open(file, 'w') do |f|
+        addrs = @addrs.map {|a|
+          Hash[[:time, :service, :ip, :port].zip(a.entries)] rescue nil }.compact
+        f.write(JSON.pretty_generate(addrs))
+      end
+      log.info { "Stored #{@addrs.size} addrs to #{file}" }
+    rescue
+      log.warn { "Error storing addrs to #{file}." }
     end
 
     def stop
@@ -73,6 +96,7 @@ module Bitcoin::Network
       @started = Time.now
 
       EM.add_shutdown_hook do
+        store_addrs
         log.info { "Bye" }
       end
 
@@ -101,6 +125,7 @@ module Bitcoin::Network
           @config[:connect].each{|host| connect_peer(*host) }
         end
 
+        work_connect if @addrs.any?
         connect_dns  if @config[:dns]
         work_inv_queue
         work_queue
