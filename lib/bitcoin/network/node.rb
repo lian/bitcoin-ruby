@@ -1,5 +1,6 @@
 require 'eventmachine'
 require 'json'
+require 'ostruct'
 require 'fileutils'
 
 module Bitcoin::Network
