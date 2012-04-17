@@ -111,6 +111,10 @@ module Bitcoin::Storage::Models
       Bitcoin::Script.new(@pk_script).get_addresses
     end
 
+    def type
+      Bitcoin::Script.new(@pk_script).type
+    end
+
   end
 
 end
