@@ -1,4 +1,4 @@
-xbmodule Bitcoin
+module Bitcoin
   module Protocol
 
     class TxOut

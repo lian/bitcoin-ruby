@@ -1,5 +1,5 @@
 module Bitcoin::Wallet
-  
+
   class SimpleCoinSelector
 
     def initialize txouts
@@ -21,7 +21,7 @@ module Bitcoin::Wallet
       end
       nil
     end
-    
+
   end
 
 end

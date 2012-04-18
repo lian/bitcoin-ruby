@@ -204,10 +204,8 @@ include Bitcoin::Builder
 
     it "should get balance for address" do
       @store.store_tx(@tx)
-      @store.get_balance("3129d7051d509424d23d533fa2d5258977e822e3").should == 1000000
-
+      @store.get_balance("62e907b15cbf27d5425399ebf6f0fb50ebb88f18").should == 5000000000
       @store.get_balance("4580f1b3632948202655fd555fdaaf9b9ef5ac0d").should == 0
-      @store.get_balance("f3de26ff7d472d5365e3adafece9bbdcace915a0").should == 200000000
     end
 
     it "should store multisig tx and index hash160's" do

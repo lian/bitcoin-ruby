@@ -4,13 +4,16 @@ include MiniTest
 include Bitcoin
 include Bitcoin::Wallet
 
-def txout_mock(value, next_in)
+def txout_mock(value, next_in = true, in_block = true)
+  tx = Mock.new
+  tx.expect(:get_block, in_block)
   txout = Mock.new
   txout.expect(:value, value)
   txout.expect(:get_next_in, next_in)
   txout.expect(:hash, [value, next_in].hash)
   txout.expect(:eql?, false, [1])
   txout.expect(:==, false, [1])
+  txout.expect(:get_tx, tx)
 end
 
 describe Bitcoin::Wallet::Wallet do
@@ -76,10 +79,20 @@ describe Bitcoin::Wallet::Wallet do
 
   it "should list all addrs with balances" do
     @storage.expect(:get_balance, 0, ['dcbc93494b38ae96b14b1cc080d2acb514b7e955'])
-    @wallet.list.should == [[@addr, 0]]
+    list = @wallet.list
+    list.size.should == 1
+    list = list[0]
+    list.size.should == 2
+    list[0][:addr].should == "1M89ZeWtmZmATzE3b6PHTBi8c7tGsg5xpo"
+    list[1].should == 0
 
     @storage.expect(:get_balance, 5000, ['dcbc93494b38ae96b14b1cc080d2acb514b7e955'])
-    @wallet.list.should == [[@addr, 5000]]
+    list = @wallet.list
+    list.size.should == 1
+    list = list[0]
+    list.size.should == 2
+    list[0][:addr].should == @addr
+    list[1].should == 5000
     @storage.verify
   end
 
@@ -99,6 +112,7 @@ describe Bitcoin::Wallet::Wallet do
       tx = Mock.new
       tx.expect(:binary_hash, "foo")
       tx.expect(:out, [txout])
+      tx.expect(:get_block, true)
       txout.expect(:get_tx, tx)
       txout.expect(:get_address, @addr)
       txout.expect(:pk_script,
@@ -167,6 +181,7 @@ describe Bitcoin::Wallet::Wallet do
       tx = Mock.new
       tx.expect(:binary_hash, "foo")
       tx.expect(:out, [txout])
+      tx.expect(:get_block, true)
       txout.expect(:get_tx, tx)
       txout.expect(:get_address, @addr)
       txout.expect(:pk_script, Script.to_address_script(@addr))

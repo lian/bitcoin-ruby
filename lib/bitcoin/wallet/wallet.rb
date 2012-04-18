@@ -12,7 +12,7 @@ module Bitcoin::Wallet
     def get_txouts(unconfirmed = false)
       txouts = @keystore.keys.map {|k|
         @storage.get_txouts_for_address(k[:addr])}.flatten.uniq
-      txouts.select! {|o| !!o.get_tx.get_block}  unless unconfirmed
+      unconfirmed ? txouts : txouts.select {|o| !!o.get_tx.get_block}
     end
 
     def get_balance

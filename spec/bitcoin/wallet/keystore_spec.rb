@@ -40,12 +40,12 @@ describe "Bitcoin::Wallet::SimpleKeyStore" do
     filename = @filename.sub('test1', 'test2')
     File.open(filename, 'w') {|f| f.write(@test1.to_json) }
     ks = SimpleKeyStore.new(file: filename)
-    ks.keys.size.should == 5
+    ks.keys.size.should == 6
     File.delete(filename) rescue nil
   end
 
   it "should load store" do
-    @ks.keys.size.should == 5
+    @ks.keys.size.should == 6
   end
 
   it "should save store" do
@@ -65,7 +65,7 @@ describe "Bitcoin::Wallet::SimpleKeyStore" do
 
   it "should delete key" do
     @ks.delete(@ks.keys.last[:addr])
-    @ks.keys.size.should == 4
+    @ks.keys.size.should == 5
   end
 
   it "should get key" do
@@ -111,7 +111,7 @@ describe "Bitcoin::Wallet::SimpleKeyStore" do
   it "should store only address" do
     k = {:label => 'test6', :addr => @key.addr}
     @ks.add_key(k)
-    @ks.keys.size.should == 6
+    @ks.keys.size.should == 7
     @ks.key('test6').should == k
     @ks.key(@key.addr).should == k
   end
@@ -119,7 +119,7 @@ describe "Bitcoin::Wallet::SimpleKeyStore" do
   it "should store only pubkey and addr" do
     k = {:label => 'test6', :addr => @key.addr, :pub => @key.pub}
     @ks.add_key(k)
-    @ks.keys.size.should == 6
+    @ks.keys.size.should == 7
     @ks.key('test6').should == k
     @ks.key(@key.addr).should == k
   end
