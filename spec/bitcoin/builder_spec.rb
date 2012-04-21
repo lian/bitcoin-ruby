@@ -27,6 +27,7 @@ describe "Bitcoin::Builder" do
         end
       end
     end
+
     block.hash[0..1].should == "00"
     block.ver.should == 1
     block.prev_block.should == "\x00"*32
