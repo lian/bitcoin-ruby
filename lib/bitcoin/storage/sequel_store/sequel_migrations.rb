@@ -13,6 +13,7 @@ module Bitcoin::Storage::Backends::SequelMigrations
         column :bits, :bigint, :null => false
         column :nonce, :bigint, :null => false
         column :blk_size, :int, :null => false
+        column :chain, :int, :null => false
       end
     end
 

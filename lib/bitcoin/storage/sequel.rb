@@ -11,6 +11,10 @@ module Bitcoin::Storage::Backends
 
   class SequelStore < StoreBase
 
+    MAIN = 0
+    SIDE = 1
+    ORPHAN = 2
+
     attr_accessor :db
 
     include Bitcoin::Storage::Backends::SequelMigrations
@@ -30,28 +34,68 @@ module Bitcoin::Storage::Backends
       [:blk, :blk_tx, :tx, :txin, :txout].each {|table| @db[table].delete}
     end
 
+    def reorg(blk)
+      new, old = [], []
+      while blk[:chain] != MAIN do
+        new << blk
+        blk = @db[:blk][:hash => blk[:prev_hash].to_sequel_blob]
+      end
+
+      head = @db[:blk].filter(:chain => MAIN).order(:depth).last
+      while head != blk do
+        old << head
+        head = @db[:blk][:hash => head[:prev_hash].to_sequel_blob]
+      end
+
+      @log.info { "reorg new main: #{new.map{|b|hth(b[:hash])}.inspect} " }
+      @log.info { "reorg new side: #{old.map{|b|hth(b[:hash])}.inspect}" }
+
+      new.each {|b| @db[:blk].filter(:hash => b[:hash].to_sequel_blob).update(:chain => MAIN) }
+      old.each {|b| @db[:blk].filter(:hash => b[:hash].to_sequel_blob).update(:chain => SIDE) }
+    end
+
+    def org_block(blk)
+      reorg = false
+      if prev_block = @db[:blk][:hash => blk[:prev_hash].to_sequel_blob]
+        depth = prev_block[:depth] + 1
+        if prev_block[:chain] == MAIN
+          if @db[:blk][:prev_hash => prev_block[:hash].to_sequel_blob, :chain => MAIN]
+            chain = SIDE
+          else
+            chain = MAIN
+          end
+        else
+          chain = prev_block[:chain]
+          reorg = true  if depth > get_head.depth rescue true
+        end
+      else
+        chain = ORPHAN
+        depth = 0
+      end
+      chain = MAIN  if hth(blk[:hash]) == Bitcoin.network[:genesis_hash]
+
+      @db[:blk].filter(:hash => blk[:hash].to_sequel_blob).update(:chain => chain, :depth => depth)
+
+      reorg(blk)  if reorg
+      blk = @db[:blk][:id => blk[:id]]
+      log.info { "new block #{hth blk[:hash]} - #{blk[:depth]} (#{['main', 'side', 'orphan'][blk[:chain]]})" }
+
+    end
+
     def store_block(blk)
+      sleep 0.1
       @log.debug { "Storing tx #{blk.hash} (#{blk.to_payload.bytesize} bytes)" }
       @db.transaction do
-        block = @db[:blk][:hash => htb(blk.hash).to_sequel_blob]
-        if block
-          @log.info { "skipping already existing block: #{blk.hash}" }
-          return false
+        existing = @db[:blk][:hash => htb(blk.hash).to_sequel_blob]
+        if existing
+          org_block(existing)
+          return
         end
 
-        prev_block = get_block(hth(blk.prev_block.reverse))
-        if !prev_block && blk.hash != Bitcoin::network[:genesis_hash]
-          log.warn { "Invalid Block: #{blk.hash} - prev_block not found" }
-          return false
-        end
-        if prev_block
-          depth = prev_block.depth + 1
-        else
-          depth = 0
-        end
         block_id = @db[:blk].insert({
             :hash => htb(blk.hash).to_sequel_blob,
-            :depth => depth,
+            :depth => -1,
+            :chain => 2,
             :version => blk.ver,
             :prev_hash => blk.prev_block.reverse.to_sequel_blob,
             :mrkl_root => blk.mrkl_root.reverse.to_sequel_blob,
@@ -70,8 +114,13 @@ module Bitcoin::Storage::Backends
             })
         end
 
-        log.info { "new head #{blk.hash} - #{get_depth}" }
-        depth
+        depth, chain = org_block(@db[:blk][:id => block_id])
+
+        @db[:blk].where(:prev_hash => htb(blk.hash).to_sequel_blob, :chain => ORPHAN).each do |b|
+          org_block(b)
+        end
+
+        return depth
       end
     end
 
@@ -140,7 +189,7 @@ module Bitcoin::Storage::Backends
     end
 
     def get_head
-      wrap_block(@db[:blk].order(:depth).last)
+      wrap_block(@db[:blk].filter(:chain => MAIN).order(:depth).last)
     end
 
     def get_depth
@@ -153,7 +202,7 @@ module Bitcoin::Storage::Backends
     end
 
     def get_block_by_depth(depth)
-      wrap_block(@db[:blk][:depth => depth])
+      wrap_block(@db[:blk][:depth => depth, :chain => MAIN])
     end
 
     def get_block_by_prev_hash(prev_hash)
@@ -211,7 +260,7 @@ module Bitcoin::Storage::Backends
     def wrap_block(block)
       return nil  unless block
 
-      data = {:id => block[:id], :depth => block[:depth]}
+      data = {:id => block[:id], :depth => block[:depth], :chain => block[:chain]}
       blk = Bitcoin::Storage::Models::Block.new(self, data)
 
       blk.ver = block[:version]
