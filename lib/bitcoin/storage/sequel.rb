@@ -39,6 +39,7 @@ module Bitcoin::Storage::Backends
       while blk[:chain] != MAIN do
         new << blk
         blk = @db[:blk][:hash => blk[:prev_hash].to_sequel_blob]
+        return  unless blk
       end
 
       head = @db[:blk].filter(:chain => MAIN).order(:depth).last
@@ -66,7 +67,7 @@ module Bitcoin::Storage::Backends
           end
         else
           chain = prev_block[:chain]
-          reorg = true  if depth > get_head.depth rescue true
+          reorg = true  if depth > get_head.depth
         end
       else
         chain = ORPHAN
@@ -76,19 +77,24 @@ module Bitcoin::Storage::Backends
 
       @db[:blk].filter(:hash => blk[:hash].to_sequel_blob).update(:chain => chain, :depth => depth)
 
+      blk = @db[:blk][:id => blk[:id]]
       reorg(blk)  if reorg
       blk = @db[:blk][:id => blk[:id]]
       log.info { "new block #{hth blk[:hash]} - #{blk[:depth]} (#{['main', 'side', 'orphan'][blk[:chain]]})" }
-
+      if chain != ORPHAN
+        @db[:blk].where(:prev_hash => blk[:hash].to_sequel_blob, :chain => ORPHAN).each do |b|
+          org_block(b)
+        end
+      end
+      return depth, chain
     end
 
     def store_block(blk)
-      sleep 0.1
-      @log.debug { "Storing tx #{blk.hash} (#{blk.to_payload.bytesize} bytes)" }
+      @log.debug { "Storing block #{blk.hash} (#{blk.to_payload.bytesize} bytes)" }
       @db.transaction do
         existing = @db[:blk][:hash => htb(blk.hash).to_sequel_blob]
         if existing
-          org_block(existing)
+          org_block(existing)  if existing[:chain] != MAIN
           return
         end
 
@@ -102,7 +108,7 @@ module Bitcoin::Storage::Backends
             :time => blk.time,
             :bits => blk.bits,
             :nonce => blk.nonce,
-            :blk_size => blk.payload.bytesize,
+            :blk_size => blk.to_payload.bytesize,
           })
         blk.tx.each_with_index do |tx, idx|
           tx_id = store_tx(tx)
@@ -116,12 +122,12 @@ module Bitcoin::Storage::Backends
 
         depth, chain = org_block(@db[:blk][:id => block_id])
 
-        @db[:blk].where(:prev_hash => htb(blk.hash).to_sequel_blob, :chain => ORPHAN).each do |b|
-          org_block(b)
-        end
 
-        return depth
+        return depth, chain
       end
+    rescue
+      @log.warn { "Error storing block: #{$!}" }
+      puts *$@
     end
 
     def store_tx(tx)
@@ -140,6 +146,8 @@ module Bitcoin::Storage::Backends
         tx.out.each_with_index {|o, idx| store_txout(tx_id, o, idx)}
         tx_id
       end
+    rescue
+      @log.warn { "Error storing tx: #{$!}" }
     end
 
     def store_txin(tx_id, txin, idx)
@@ -193,7 +201,7 @@ module Bitcoin::Storage::Backends
     end
 
     def get_depth
-      return -1  if @db[:blk].count == 0
+      return -1  unless get_head
       @db[:blk][:hash => htb(get_head.hash).to_sequel_blob][:depth]
     end
 
