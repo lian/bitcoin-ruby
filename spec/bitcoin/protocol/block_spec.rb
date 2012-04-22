@@ -58,6 +58,7 @@ describe 'Bitcoin::Protocol::Block' do
     Bitcoin::Protocol::Block.new( @blocks['1'] ).to_json.should == fixtures_file('rawblock-1.json')
     Bitcoin::Protocol::Block.new( @blocks['131025'] ).to_json.should == fixtures_file('rawblock-131025.json')
     Bitcoin::Protocol::Block.new( @blocks['testnet-26478'] ).to_json.should == fixtures_file('rawblock-testnet-26478.json')
+    Bitcoin::P::Block.from_json(@block.to_json).tx[0].in[0].sequence.should == "\xff\xff\xff\xff"
   end
 
   it '#to_payload' do
@@ -69,7 +70,9 @@ describe 'Bitcoin::Protocol::Block' do
   end
 
   it '#from_json' do
-    Bitcoin::Protocol::Block.from_json(fixtures_file('rawblock-0.json')).to_payload.should == @blocks['0']
+    block = Bitcoin::Protocol::Block.from_json(fixtures_file('rawblock-0.json'))
+    block.to_payload.should == @blocks['0']
+    block.tx[0].in[0].sequence.should == "\xff\xff\xff\xff"
     Bitcoin::Protocol::Block.from_json(fixtures_file('rawblock-1.json')).to_payload.should == @blocks['1']
 
     Bitcoin::Protocol::Block.from_json(fixtures_file('rawblock-131025.json'))

@@ -178,6 +178,7 @@ module Bitcoin
             coinbase_data = [ input['coinbase'] ].pack("H*")
             txin.script_sig_length = coinbase_data.bytesize
             txin.script_sig = coinbase_data
+            txin.sequence = "\xff\xff\xff\xff"
           else
             script_data = Script.binary_from_string(input['scriptSig'])
             txin.script_sig_length = script_data.bytesize
