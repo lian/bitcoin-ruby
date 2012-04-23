@@ -1,10 +1,10 @@
 require_relative 'spec_helper'
 
-include Bitcoin::Creator
+include Bitcoin::Builder
 
-describe "Bitcoin::Creator" do
+describe "Bitcoin::Builder" do
 
-  it "should create blocks and transactions with in/outputs and signatures" do
+  it "should build blocks and transactions with in/outputs and signatures" do
 
     keys = []
     5.times { keys << Bitcoin::Key.generate }

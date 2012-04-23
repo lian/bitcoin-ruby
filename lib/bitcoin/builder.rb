@@ -1,5 +1,5 @@
 module Bitcoin
-  class BlockCreator
+  class BlockBuilder
 
     def initialize
       @block = Bitcoin::P::Block.new(nil)
@@ -14,7 +14,7 @@ module Bitcoin
     end
 
     def tx &block
-      c = TxCreator.new
+      c = TxBuilder.new
       c.instance_eval &block
       @block.tx << c.tx
     end
@@ -53,7 +53,7 @@ module Bitcoin
 
   end
 
-  class TxCreator
+  class TxBuilder
 
     def initialize
       @tx = Bitcoin::P::Tx.new(nil)
@@ -70,13 +70,13 @@ module Bitcoin
     end
 
     def input &block
-      c = TxInCreator.new
+      c = TxInBuilder.new
       c.instance_eval &block
       @ins << c
     end
 
     def output &block
-      c = TxOutCreator.new
+      c = TxOutBuilder.new
       c.instance_eval &block
       @outs << c
     end
@@ -103,7 +103,7 @@ module Bitcoin
     end
   end
 
-  class TxInCreator
+  class TxInBuilder
     attr_reader :key, :coinbase_data
 
     def initialize
@@ -140,7 +140,7 @@ module Bitcoin
     end
   end
 
-  class ScriptCreator
+  class ScriptBuilder
     attr_reader :script
 
     def initialize
@@ -157,7 +157,7 @@ module Bitcoin
     end
   end
 
-  class TxOutCreator
+  class TxOutBuilder
     attr_reader :txout
 
     def initialize
@@ -169,7 +169,7 @@ module Bitcoin
     end
 
     def script &block
-      c = ScriptCreator.new
+      c = ScriptBuilder.new
       c.instance_eval &block
       @txout.pk_script_length = c.script.bytesize
       @txout.pk_script = c.script
@@ -177,24 +177,16 @@ module Bitcoin
 
   end
 
-  module Creator
-
-    def initialize
-      @key = {}
-    end
-
-    def create_key name
-      @key[name.to_sym] = Bitcoin::Key.generate
-    end
+  module Builder
 
     def blk(target = "00".ljust(32, 'f'), &block)
-      c = BlockCreator.new
+      c = BlockBuilder.new
       c.instance_eval &block
       c.block(target)
     end
 
     def tx &block
-      c = TxCreator.new
+      c = TxBuilder.new
       c.instance_eval &block
       c.tx
     end
