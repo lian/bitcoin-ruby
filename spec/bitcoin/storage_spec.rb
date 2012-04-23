@@ -5,7 +5,6 @@ require_relative 'spec_helper'
   { :name => :sequel, :db => 'sqlite:/' }, # in memory
 #  { :name => :sequel, :db => 'sqlite:///tmp/bitcoin_test.db' },
 #  { :name => :sequel, :db => 'postgres://localhost/bitcoin_test' },
-#  { 'name' => :activerecord, 'adapter' => 'postgresql', 'database' => 'bitcoin_test' },
 ].each do |configuration|
   describe "Bitcoin::Storage::Backends::#{configuration[:name].capitalize}Store" do
 
