@@ -171,7 +171,6 @@ module Bitcoin
     def script &block
       c = ScriptBuilder.new
       c.instance_eval &block
-      @txout.pk_script_length = c.script.bytesize
       @txout.pk_script = c.script
     end
 

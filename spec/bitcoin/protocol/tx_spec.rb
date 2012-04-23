@@ -134,11 +134,10 @@ describe 'Tx' do
     new_tx = Tx.new(nil)
     new_tx.add_in( TxIn.new(prev_tx.binary_hash, 0, 0) )
     pk_script = Bitcoin::Script.to_address_script("1BVJWLTCtjA8wRivvrCiwjNdL6KjdMUCTZ")
-    new_tx.add_out( TxOut.new(1000000, pk_script.bytesize, pk_script) )
+    new_tx.add_out( TxOut.new(1000000, pk_script) )
     signature_hash = new_tx.signature_hash_for_input(0, prev_tx)
     sig = Bitcoin.sign_data(key, signature_hash)
     script_sig = Bitcoin::Script.to_pubkey_script_sig(sig, [pubkey].pack("H*"))
-    new_tx.in[0].script_sig_length = script_sig.bytesize
     new_tx.in[0].script_sig = script_sig
 
     new_tx = Tx.new( new_tx.to_payload )
@@ -155,11 +154,10 @@ describe 'Tx' do
     new_tx = Tx.new(nil)
     new_tx.add_in( TxIn.new(prev_tx.binary_hash, 0, 0) )
     pk_script = Bitcoin::Script.to_address_script("1FEYAh1x5jeKQMPPuv3bKnKvbgVAqXvqjW")
-    new_tx.add_out( TxOut.new(1000000, pk_script.bytesize, pk_script) )
+    new_tx.add_out( TxOut.new(1000000, pk_script) )
     signature_hash = new_tx.signature_hash_for_input(0, prev_tx)
     sig = Bitcoin.sign_data(key, signature_hash)
     script_sig = Bitcoin::Script.to_pubkey_script_sig(sig, [pubkey].pack("H*"))
-    new_tx.in[0].script_sig_length = script_sig.bytesize
     new_tx.in[0].script_sig = script_sig
 
     new_tx = Tx.new( new_tx.to_payload )
@@ -176,11 +174,10 @@ describe 'Tx' do
     new_tx = Tx.new(nil)
     new_tx.add_in( TxIn.new(prev_tx.binary_hash, 0, 0) )
     pk_script = Bitcoin::Script.to_address_script("14yz7fob6Q16hZu4nXfmv1kRJpSYaFtet5")
-    new_tx.add_out( TxOut.new(1000000, pk_script.bytesize, pk_script) )
+    new_tx.add_out( TxOut.new(1000000, pk_script) )
     signature_hash = new_tx.signature_hash_for_input(0, prev_tx)
     sig = Bitcoin.sign_data(key, signature_hash)
     script_sig = Bitcoin::Script.to_pubkey_script_sig(sig, [pubkey].pack("H*"))
-    new_tx.in[0].script_sig_length = script_sig.bytesize
     new_tx.in[0].script_sig = script_sig
 
     new_tx = Tx.new( new_tx.to_payload )
