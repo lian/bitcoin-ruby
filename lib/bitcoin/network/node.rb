@@ -1,6 +1,5 @@
 require 'eventmachine'
 require 'json'
-require 'ostruct'
 require 'fileutils'
 
 module Bitcoin::Network
@@ -65,8 +64,12 @@ module Bitcoin::Network
     end
 
     def load_addrs
-      @addrs = JSON.load(File.read(@config[:addr_file])).map {|a|
-        OpenStruct.new(a) } rescue []
+      @addrs = JSON.load(File.read(@config[:addr_file])).map do |a|
+        addr = Bitcoin::P::Addr.new
+        addr.time, addr.service, addr.ip, addr.port =
+          a['time'], a['service'], a['ip'], a['port']
+        addr
+      end
       log.info { "Initialized #{@addrs.size} addrs from #{@config[:addr_file]}." }
     end
 

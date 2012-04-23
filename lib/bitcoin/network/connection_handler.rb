@@ -53,8 +53,6 @@ module Bitcoin::Network
       log.info { "Disconnected #{@host}:#{@port}" }
       @state = :disconnected
       @node.connections.delete(self)
-      addr = @node.addrs.find{|a|a.ip == @host && a.port == @port}
-      @node.addrs.delete(addr)
     end
 
 
