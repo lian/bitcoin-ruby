@@ -57,8 +57,7 @@ module Bitcoin::Wallet
       change_value = input_value - output_value - fee
       if change_value > 0
         change_addr = get_change_addr(change_policy,prev_outs.sample.get_address)
-        pk_script = Bitcoin::Script.to_address_script(change_addr)
-        change = Bitcoin::Protocol::TxOut.new(input_value - output_value - fee, pk_script)
+        change = Bitcoin::Protocol::TxOut.value_to_address(input_value - output_value - fee, change_addr)
         tx.add_out(change)
       end
 

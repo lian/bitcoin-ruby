@@ -326,7 +326,6 @@ module Bitcoin::Storage::Backends
         :hash160 => output[:hash160]}
       txout = Bitcoin::Storage::Models::TxOut.new(self, data)
       txout.value = output[:value]
-      txout.pk_script_length = output[:pk_script].bytesize
       txout.pk_script = output[:pk_script]
       txout
     end

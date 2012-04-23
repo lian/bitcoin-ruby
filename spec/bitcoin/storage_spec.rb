@@ -214,7 +214,7 @@ include Bitcoin::Builder
       (true.should==true) && next  if @store.class == Bitcoin::Storage::Backends::DummyStore
       *keys = Bitcoin::Key.generate, Bitcoin::Key.generate
       pk_script = Bitcoin::Script.to_multisig_script(1, keys[0].pub, keys[1].pub)
-      txout = Bitcoin::Protocol::TxOut.new(1000, pk_script.bytesize, pk_script)
+      txout = Bitcoin::Protocol::TxOut.new(1000, pk_script)
       @store.store_txout(0, txout, 0)
       keys.each do |key|
         hash160 = Bitcoin.hash160(key.pub)
