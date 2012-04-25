@@ -33,6 +33,11 @@ module Bitcoin
     autoload :TxDP,                'bitcoin/wallet/txdp'
   end
 
+  module Gui
+    autoload :Gui,        'bitcoin/gui/gui'
+    autoload :Connection, 'bitcoin/gui/connection'
+  end
+
   module Util
 
     def hth(h); h.unpack("H*")[0]; end

@@ -51,6 +51,7 @@ module Bitcoin::Network
 
     def unbind
       log.info { "Disconnected #{@host}:#{@port}" }
+      @node.notifiers[:connection].push([:disconnected, [@host, @port]])
       @state = :disconnected
       @node.connections.delete(self)
     end
@@ -90,6 +91,7 @@ module Bitcoin::Network
     def on_addr(addr)
       log.info { ">> addr: #{addr.ip}:#{addr.port} alive: #{addr.alive?}, service: #{addr.service}" }
       @node.addrs << addr
+      @node.notifiers[:addr].push(addr)
     end
 
     def on_tx(tx)
@@ -170,9 +172,7 @@ module Bitcoin::Network
       log.debug { "handshake complete" }
       @state = :connected
       @started = Time.now
-      addr = Bitcoin::Protocol::Addr.new
-      addr.time, addr.service, addr.ip, addr.port =
-        Time.now.tv_sec, @version.services, @host, @port
+      @node.notifiers[:connection].push([:connected, info])
       @node.addrs << addr
       #send_getaddr
     end
@@ -189,10 +189,25 @@ module Bitcoin::Network
       send_data(pkt)
     end
 
+    def addr
+      return @addr  if @addr
+      @addr = Bitcoin::Protocol::Addr.new
+      @addr.time, @addr.service, @addr.ip, @addr.port =
+        Time.now.tv_sec, @version.services, @host, @port
+      @addr
+    end
+
     [:new, :handshake, :connected].each do |state|
       define_method("#{state}?") { @state == state }
     end
 
+    def info
+      {
+        :host => @host, :port => @port, :state => @state,
+        :version => @version.version, :block => @version.block, :started => @started.to_i,
+        :user_agent => @version.user_agent
+      }
+    end
   end
 
 end

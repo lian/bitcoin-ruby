@@ -5,6 +5,8 @@ module Bitcoin::Wallet
   # JSON-file-based keystore.
   class SimpleKeyStore
 
+    attr_reader :config
+
     # Initialize keystore.
     # [config] Hash of settings ({:file => "/foo/bar.json"})
     def initialize config

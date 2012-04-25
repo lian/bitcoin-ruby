@@ -2,7 +2,7 @@ module Bitcoin::Wallet
 
   class Wallet
 
-    attr_reader :keystore
+    attr_reader :keystore, :storage
     def initialize storage, keystore, selector
       @storage = storage
       @keystore = keystore

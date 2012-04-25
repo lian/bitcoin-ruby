@@ -7,7 +7,7 @@ module Bitcoin::Network
   class Node
 
     attr_reader :config, :log, :connections, :command_connections,
-    :queue, :inv_queue, :inv_cache, :store, :addrs, :notify, :notify_lock
+    :queue, :inv_queue, :inv_cache, :store, :addrs, :notifiers, :notify_lock
     attr_accessor :block
 
     DEFAULT_CONFIG = {
@@ -55,7 +55,7 @@ module Bitcoin::Network
       load_addrs
       @timers = {}
       @inv_cache = []
-      @notify = EM::Channel.new
+      @notifiers = Hash[[:block, :tx, :connection, :addr].map {|n| [n, EM::Channel.new]}]
     end
 
     def set_store
@@ -243,9 +243,9 @@ module Bitcoin::Network
             if @store.send("store_#{obj[0]}", obj[1])
               if obj[0].to_sym == :block
                 block = @store.get_block(obj[1].hash)
-                @notify.push([obj[0], obj[1], block.depth])
+                @notifiers[:block].push([obj[0], obj[1], block.depth])
               else
-                @notify.push([obj[0], obj[1]])
+                @notifiers[:tx].push([obj[0], obj[1]])
               end
             end
           rescue

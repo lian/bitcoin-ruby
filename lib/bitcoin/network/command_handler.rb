@@ -1,11 +1,13 @@
 require 'json'
+require 'monitor'
 
 class Bitcoin::Network::CommandHandler < EM::Connection
 
   def initialize node
     @node = node
     @node.command_connections << self
-    @notify_sid = nil
+    @buf = BufferedTokenizer.new("\x00")
+    @lock = Monitor.new
   end
 
   def log
@@ -13,32 +15,42 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   end
 
   def respond(cmd, data)
-    send_data([cmd, data].to_json + "\x00")
+    @lock.synchronize do
+      send_data([cmd, data].to_json + "\x00")
+    end
   end
 
-  def receive_data line
-    cmd, args = JSON::parse(line)
-    *args = args.split(" ")
-    log.debug { line.chomp }
-    if respond_to?("handle_#{cmd}")
-      respond(cmd, send("handle_#{cmd}", *args))
-    else
-      respond(cmd, {:error => "unknown command: #{cmd}. send 'help' for help."})
+  def receive_data data
+    @buf.extract(data).each do |packet|
+      p packet
+      cmd, args = JSON::parse(packet)
+      *args = args.split(" ")
+      log.debug { line.chomp }
+      if respond_to?("handle_#{cmd}")
+        respond(cmd, send("handle_#{cmd}", *args))
+      else
+        respond(cmd, {:error => "unknown command: #{cmd}. send 'help' for help."})
+      end
     end
   rescue Exception
     p $!
   end
 
-  def handle_monitor
-    @node.notify.subscribe do |type, obj, depth|
-      if type.to_sym == :block
-        respond("monitor", [type.to_s, obj, depth])
-      else
-        respond("monitor", [type.to_s, obj])
+  def handle_monitor *channels
+    channels.each do |channel|
+      @node.notifiers[channel.to_sym].subscribe do |*data|
+        respond("monitor", [channel, *data])
+      end
+      case channel.to_sym
+      when :block
+        head = Bitcoin::P::Block.new(@node.store.get_head.to_payload) rescue nil
+        respond("monitor", ["block", head, @node.store.get_depth.to_s])
+      when :connection
+        @node.connections.select {|c| c.connected?}.each do |conn|
+          respond("monitor", [:connection, [:connected, conn.info]])
+        end
       end
     end
-    head = Bitcoin::P::Block.new(@node.store.get_head.to_payload) rescue nil
-    ["block", head, @node.store.get_depth.to_s]
   end
 
   def handle_info
@@ -73,6 +85,15 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   def handle_connect *args
     args.each {|a| @node.connect_peer(*a.split(':')) }
     {:state => "Connecting..."}
+  end
+
+  def handle_disconnect *args
+    args.each do |c|
+      host, port = *c.split(":")
+      conn = @node.connections.select{|c| c.host == host && c.port == port.to_i}.first
+      conn.close_connection  if conn
+    end
+    {:state => "Disconnected"}
   end
 
   def handle_getblocks
@@ -116,7 +137,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   end
 
   def unbind
-    @node.notify.unsubscribe(@notify_sid)  if @notify_sid
+    #@node.notifiers.unsubscribe(@notify_sid)  if @notify_sid
     @node.command_connections.delete(self)
   end
 
