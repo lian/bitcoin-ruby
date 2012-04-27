@@ -11,7 +11,7 @@ module Gtk
   def Gtk.main_iteration_with_queue
       GTK_PENDING_BLOCKS_LOCK.synchronize do
         for block in GTK_PENDING_BLOCKS
-          EM.next_tick { block.call }
+          block.call
         end
         GTK_PENDING_BLOCKS.clear
       end
@@ -21,13 +21,6 @@ end
 
 module EM
   def self.gtk_main
-    give_tick = proc do
-      Gtk.main_iteration_with_queue
-      EM.defer do
-        sleep 0.001
-        EM.next_tick give_tick
-      end
-    end
-    give_tick.call
+    EM.add_periodic_timer(0.001) { Gtk.main_iteration_with_queue }
   end
 end
