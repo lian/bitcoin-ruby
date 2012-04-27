@@ -73,6 +73,6 @@ config = Hash[config.split(",").map{|c| c.split("=")}]
 
 EM.run do
   @gui = Bitcoin::Gui::Gui.new(@storage, config['file'])
-  Bitcoin::Gui::Connection.connect(*options[:command].split(":"), @gui)
+  Bitcoin::Gui::Connection.new(*options[:command].split(":"), @gui)
   EM.gtk_main
 end

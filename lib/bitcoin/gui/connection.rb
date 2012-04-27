@@ -1,94 +1,67 @@
 module Bitcoin::Gui
-  class Connection < EM::Connection
 
-    attr_reader :info
-
-    def initialize gtk
-      @gtk = gtk
-      @gtk.node = self
-      @buf = BufferedTokenizer.new("\x00")
-    end
-
+  class Bitcoin::Network::CommandClient
     def gui &block
       EM.next_tick do
-        @gtk.instance_eval &block
+        @args[0].instance_eval &block
       end
     end
+  end
 
-    def post_init
-      p 'connected'
-      query("info")
-      query("monitor", "block connection")
-    end
+  class Connection
 
-    def query(cmd, args = "")
-      puts "query: #{cmd}"
-      send_data([cmd, args].to_json + "\x00")
-    end
+    def initialize host, port, gui
+      @gui = gui
+      client = Bitcoin::Network::CommandClient.connect(host, port, gui) do
 
-    def receive_data data
-      @buf.extract(data).each do |packet|
-        # p packet
-        cmd, data = *JSON.load(packet)
-        puts "data: #{cmd}"
-        case cmd
-        when 'info'
-          text = "connections: #{data['connections']} | " +
-            "addrs: #{data['addrs']} | uptime: #{data['uptime']}"
+        on_connected do
+          request :info
+          request :monitor, "block", "connection"
+        end
+
+        on_info do |info|
+          text = "connections: #{info['connections']} | " +
+            "addrs: #{info['addrs']} | uptime: #{info['uptime']}"
           gui { status_network.push 0, text }
-          #EM::defer { sleep(1) && query("info") }
+          EM::defer { sleep(1) && request(:info) }
+        end
 
-        when 'monitor'
-          EM.defer do
-            begin
-              type, data = *data
-              case type
-              when "block"
-                gui { status_store.push 0, "#{depth}" }
-              when "tx"
-              when "connection"
-                next  unless data
-                conn_type, data = *data
-                if conn_type == "connected"
-                  row = @gtk.conn_store.append(nil)
-                  row[0] = data['host']
-                  row[1] = data['port']
-                  row[2] = data['state']
-                  row[3] = data['version']
-                  row[4] = data['block']
-                  row[5] = data['started']
-                  row[6] = data['user_agent']
-                  gui { conn_view.model = conn_store }
-                elsif conn_type == "disconnected"
-                  iter = nil
-                  @gtk.conn_store.each do |model,path,i|
-                    iter = i  if i[0] == data[0] && i[1] == data[1].to_s
-                  end
-                  if iter
-                    @gtk.conn_store.remove(iter)
-                    gui { conn_view.model = conn_store}
-                  end
-                end
-              when "addr"
-              else
-                puts "invalid datatype: #{type.inspect}"
-              end
-            rescue
-              puts "Error reading command: #{cmd}(#{data.inspect})"
-              p $!
-              puts *$@
+        on_block do |block, depth|
+          gui { status_store.push 0, "Blocks: #{depth}" }
+        end
+
+        on_connection do |state, data|
+          if state == "connected"
+            row = gui.conn_store.append(nil)
+            row[0] = data['host']
+              row[1] = data['port']
+              row[2] = data['state']
+              row[3] = data['version']
+              row[4] = data['block']
+              row[5] = data['started']
+              row[6] = data['user_agent']
+              gui { conn_view.model = conn_store }
+          elsif state == "disconnected"
+            iter = nil
+            gui.conn_store.each do |model,path,i|
+              iter = i  if i[0] == data[0] && i[1] == data[1].to_s
+            end
+            if iter
+              gui.conn_store.remove(iter)
+              gui { conn_view.model = conn_store}
             end
           end
+          i=0; gui.conn_store.each {i+=1};
+          p = gui.notebook.get_nth_page(2)
+          l = Gtk::Label.new("Connections (#{i})")
+          gui { notebook.set_tab_label(p, l) }
+        end
+
+        on_disconnected do
+          gui { status_network.push 0, "Offline" }
         end
       end
     end
-
-    def unbind
-      puts "disconnected"
-    end
-
-    def self.connect host, port, gtk
-      EM.connect(host, port, self, gtk)
-    end
   end
+
 end

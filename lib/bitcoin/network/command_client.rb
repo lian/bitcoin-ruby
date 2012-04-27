@@ -17,7 +17,7 @@ class Bitcoin::Network::CommandClient < EM::Connection
   end
 
   def self.connect host, port, *args, &block
-    client = EM.connect(host, port, self, host, port, block, *args)
+    client = EM.connect(host, port.to_i, self, host, port.to_i, block, *args)
   end
 
   def post_init
@@ -27,8 +27,11 @@ class Bitcoin::Network::CommandClient < EM::Connection
 
   def unbind
     log.info { "Disconnected" }
-    sleep 1
-    EM.connect(@host, @port, self.class, @host, @port, @block, *@args)
+    callback :disconnected
+    EM.add_timer(1) do
+      reconnect(@host, @port)
+      post_init
+    end
   end
 
   def request cmd, *args
