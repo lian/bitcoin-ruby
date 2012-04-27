@@ -25,6 +25,13 @@ module Bitcoin::Storage::Backends
       @config = config
       connect
       super config
+      if @config[:db] =~ /^sqlite/
+        require 'monitor'
+        @lock = Monitor.new
+      else
+        def synchronize; yield; end
+        @lock = self
+      end
     end
 
     def connect
@@ -93,39 +100,41 @@ module Bitcoin::Storage::Backends
 
     def store_block(blk)
       @log.debug { "Storing block #{blk.hash} (#{blk.to_payload.bytesize} bytes)" }
-      @db.transaction do
-        existing = @db[:blk][:hash => htb(blk.hash).to_sequel_blob]
-        if existing
-          org_block(existing)  if existing[:chain] != MAIN
-          return
-        end
+      @lock.synchronize do
+        @db.transaction do
+          existing = @db[:blk][:hash => htb(blk.hash).to_sequel_blob]
+          if existing
+            org_block(existing)  if existing[:chain] != MAIN
+            return
+          end
 
-        block_id = @db[:blk].insert({
-            :hash => htb(blk.hash).to_sequel_blob,
-            :depth => -1,
-            :chain => 2,
-            :version => blk.ver,
-            :prev_hash => blk.prev_block.reverse.to_sequel_blob,
-            :mrkl_root => blk.mrkl_root.reverse.to_sequel_blob,
-            :time => blk.time,
-            :bits => blk.bits,
-            :nonce => blk.nonce,
-            :blk_size => blk.to_payload.bytesize,
-          })
-        blk.tx.each_with_index do |tx, idx|
-          tx_id = store_tx(tx)
-          raise "Error saving tx #{tx.hash} in block #{blk.hash}"  unless tx_id
-          @db[:blk_tx].insert({
-              :blk_id => block_id,
-              :tx_id => tx_id,
-              :idx => idx,
+          block_id = @db[:blk].insert({
+              :hash => htb(blk.hash).to_sequel_blob,
+              :depth => -1,
+              :chain => 2,
+              :version => blk.ver,
+              :prev_hash => blk.prev_block.reverse.to_sequel_blob,
+              :mrkl_root => blk.mrkl_root.reverse.to_sequel_blob,
+              :time => blk.time,
+              :bits => blk.bits,
+              :nonce => blk.nonce,
+              :blk_size => blk.to_payload.bytesize,
             })
+          blk.tx.each_with_index do |tx, idx|
+            tx_id = store_tx(tx)
+            raise "Error saving tx #{tx.hash} in block #{blk.hash}"  unless tx_id
+            @db[:blk_tx].insert({
+                :blk_id => block_id,
+                :tx_id => tx_id,
+                :idx => idx,
+              })
+          end
+
+          depth, chain = org_block(@db[:blk][:id => block_id])
+
+
+          return depth, chain
         end
-
-        depth, chain = org_block(@db[:blk][:id => block_id])
-
-
-        return depth, chain
       end
     rescue
       @log.warn { "Error storing block: #{$!}" }
@@ -134,55 +143,61 @@ module Bitcoin::Storage::Backends
 
     def store_tx(tx)
       @log.debug { "Storing tx #{tx.hash} (#{tx.to_payload.bytesize} bytes)" }
-      @db.transaction do
-        transaction = @db[:tx][:hash => htb(tx.hash).to_sequel_blob]
-        return transaction[:id]  if transaction
-        tx_id = @db[:tx].insert({
-            :hash => htb(tx.hash).to_sequel_blob,
-            :version => tx.ver,
-            :lock_time => tx.lock_time,
-            :coinbase => tx.in.size==1 && tx.in[0].coinbase?,
-            :tx_size => tx.payload.bytesize,
-          })
-        tx.in.each_with_index {|i, idx| store_txin(tx_id, i, idx)}
-        tx.out.each_with_index {|o, idx| store_txout(tx_id, o, idx)}
-        tx_id
+      @lock.synchronize do
+        @db.transaction do
+          transaction = @db[:tx][:hash => htb(tx.hash).to_sequel_blob]
+          return transaction[:id]  if transaction
+          tx_id = @db[:tx].insert({
+              :hash => htb(tx.hash).to_sequel_blob,
+              :version => tx.ver,
+              :lock_time => tx.lock_time,
+              :coinbase => tx.in.size==1 && tx.in[0].coinbase?,
+              :tx_size => tx.payload.bytesize,
+            })
+          tx.in.each_with_index {|i, idx| store_txin(tx_id, i, idx)}
+          tx.out.each_with_index {|o, idx| store_txout(tx_id, o, idx)}
+          tx_id
+        end
       end
     rescue
       @log.warn { "Error storing tx: #{$!}" }
     end
 
     def store_txin(tx_id, txin, idx)
-      @db.transaction do
-        @db[:txin].insert({
-            :tx_id => tx_id,
-            :tx_idx => idx,
-            :script_sig => txin.script_sig.to_sequel_blob,
-            :prev_out => txin.prev_out.to_sequel_blob,
-            :prev_out_index => txin.prev_out_index,
-            :sequence => txin.sequence.unpack("I")[0],
-          })
+      @lock.synchronize do
+        @db.transaction do
+          @db[:txin].insert({
+              :tx_id => tx_id,
+              :tx_idx => idx,
+              :script_sig => txin.script_sig.to_sequel_blob,
+              :prev_out => txin.prev_out.to_sequel_blob,
+              :prev_out_index => txin.prev_out_index,
+              :sequence => txin.sequence.unpack("I")[0],
+            })
+        end
       end
     end
 
     def store_txout(tx_id, txout, idx)
-      @db.transaction do
-        script = Bitcoin::Script.new(txout.pk_script)
-        txout_id = @db[:txout].insert({
-            :tx_id => tx_id,
-            :tx_idx => idx,
-            :pk_script => txout.pk_script.to_sequel_blob,
-            :value => txout.value,
-            :type => SCRIPT_TYPES.index(script.type)
-          })
-        if script.is_hash160? || script.is_pubkey?
-          store_addr(txout_id, script.get_hash160)
-        elsif script.is_multisig?
-          script.get_multisig_pubkeys.map do |pubkey|
-            store_addr(txout_id, Bitcoin.hash160(pubkey.unpack("H*")[0]))
+      @lock.synchronize do
+        @db.transaction do
+          script = Bitcoin::Script.new(txout.pk_script)
+          txout_id = @db[:txout].insert({
+              :tx_id => tx_id,
+              :tx_idx => idx,
+              :pk_script => txout.pk_script.to_sequel_blob,
+              :value => txout.value,
+              :type => SCRIPT_TYPES.index(script.type)
+            })
+          if script.is_hash160? || script.is_pubkey?
+            store_addr(txout_id, script.get_hash160)
+          elsif script.is_multisig?
+            script.get_multisig_pubkeys.map do |pubkey|
+              store_addr(txout_id, Bitcoin.hash160(pubkey.unpack("H*")[0]))
+            end
           end
+          txout_id
         end
-        txout_id
       end
     end
 
