@@ -43,28 +43,61 @@ end
 
 EM.run do
 
-  EM.connect(host, port) do |connection|
+  Bitcoin::Network::CommandClient.connect(host, port) do
+  on_response do |cmd, data|
+      EM.stop  unless cmd == "monitor"
+    end
+    on_info do |info|
+      puts JSON.pretty_generate(info)
+    end
+    on_connections do |connections|
+      puts *connections
+    end
+    [:connect, :disconnect, :getblocks, :getaddr, :relay_tx, :stop].each do |req|
+      send("on_#{req}") {|res| p res}
+    end
 
-    connection.send_data([ARGV[0], ARGV[1..-1].join(" ")].to_json + "\x00")
-
-    def connection.receive_data(data)
-      (@buf ||= BufferedTokenizer.new("\x00")).extract(data).each do |packet|
-        cmd, result = JSON.load(packet)
-        next  unless cmd == ARGV[0]
-        if cmd == "monitor"
-          type, obj, depth = result
-          puts "#{type}: #{obj['hash'] rescue 'none'} #{depth ? "(#{depth})" : ""}"
-        else
-          puts JSON.pretty_generate(result)
-          EM.stop
-        end
+    on_block do |block, depth|
+      puts "block: #{block['hash']} (#{depth})"
+    end
+    on_tx do |tx|
+      puts "tx: #{tx['hash']}"
+    end
+    on_connection do |type, host|
+      if type == "connected"
+        puts "Connected: #{host['host']}:#{host['port']}"
+      else
+        puts "Disconnected: #{host.inspect}"
       end
     end
 
-    def connection.unbind
-      puts "Disconnected."
-      EM.stop
+    on_connected do
+      request(ARGV[0], *(ARGV[1] || "").split(" "))
     end
-
   end
+  #  client.request("monitor", "connection")
+  # EM.connect(host, port) do |connection|
+
+  #   connection.send_data([ARGV[0], ARGV[1..-1].join(" ")].to_json + "\x00")
+
+  #   def connection.receive_data(data)
+  #     (@buf ||= BufferedTokenizer.new("\x00")).extract(data).each do |packet|
+  #       cmd, result = JSON.load(packet)
+  #       next  unless cmd == ARGV[0]
+  #       if cmd == "monitor"
+  #         type, obj, depth = result
+  #         puts "#{type}: #{obj['hash'] rescue 'none'} #{depth ? "(#{depth})" : ""}"
+  #       else
+  #         puts JSON.pretty_generate(result)
+  #         EM.stop
+  #       end
+  #     end
+  #   end
+
+  #   def connection.unbind
+  #     puts "Disconnected."
+  #     EM.stop
+  #   end
+
+  # end
 end

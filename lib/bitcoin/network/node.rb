@@ -243,9 +243,9 @@ module Bitcoin::Network
             if @store.send("store_#{obj[0]}", obj[1])
               if obj[0].to_sym == :block
                 block = @store.get_block(obj[1].hash)
-                @notifiers[:block].push([obj[0], obj[1], block.depth])
+                @notifiers[:block].push([obj[1], block.depth])  if block.chain == 0
               else
-                @notifiers[:tx].push([obj[0], obj[1]])
+                @notifiers[:tx].push([obj[1]])
               end
             end
           rescue
@@ -259,9 +259,9 @@ module Bitcoin::Network
     # check for new items in the inv queue and process them,
     # unless the queue is already full
     def work_inv_queue
-      @log.debug { "inv queue worker running" }
       EM.defer(nil, proc { work_inv_queue }) do
         sleep @config[:intervals][:inv_queue]  if @inv_queue.size == 0
+        @log.debug { "inv queue worker running" }
         next  if @queue.size >= @config[:max][:queue]
         while inv = @inv_queue.shift
           # next  if @store.send("has_#{inv[0]}", inv[1])

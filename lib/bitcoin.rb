@@ -21,6 +21,7 @@ module Bitcoin
   module Network
     autoload :ConnectionHandler,  'bitcoin/network/connection_handler'
     autoload :CommandHandler,     'bitcoin/network/command_handler'
+    autoload :CommandClient,     'bitcoin/network/command_client'
     autoload :Node,               'bitcoin/network/node'
   end
 

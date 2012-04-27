@@ -15,6 +15,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   end
 
   def respond(cmd, data)
+    return  unless data
     @lock.synchronize do
       send_data([cmd, data].to_json + "\x00")
     end
@@ -22,10 +23,8 @@ class Bitcoin::Network::CommandHandler < EM::Connection
 
   def receive_data data
     @buf.extract(data).each do |packet|
-      p packet
       cmd, args = JSON::parse(packet)
-      *args = args.split(" ")
-      log.debug { line.chomp }
+      log.debug { [cmd, args] }
       if respond_to?("handle_#{cmd}")
         respond(cmd, send("handle_#{cmd}", *args))
       else
@@ -44,13 +43,14 @@ class Bitcoin::Network::CommandHandler < EM::Connection
       case channel.to_sym
       when :block
         head = Bitcoin::P::Block.new(@node.store.get_head.to_payload) rescue nil
-        respond("monitor", ["block", head, @node.store.get_depth.to_s])
+        respond("monitor", ["block", [head, @node.store.get_depth.to_s]])
       when :connection
         @node.connections.select {|c| c.connected?}.each do |conn|
           respond("monitor", [:connection, [:connected, conn.info]])
         end
       end
     end
+    nil
   end
 
   def handle_info
@@ -118,6 +118,8 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     tx = Bitcoin::Protocol::Tx.new([data].pack("H*"))
     @node.relay_tx(tx)
     tx.to_hash
+  rescue
+    {:error => $!}
   end
 
   def handle_stop
