@@ -17,7 +17,7 @@ module Bitcoin::Network
     end
 
     def uptime
-      @started ? (Time.now - @started).to_i : nil
+      @started ? (Time.now - @started).to_i : 0
     end
 
     def initialize node, host, port
@@ -32,7 +32,9 @@ module Bitcoin::Network
     end
 
     def post_init
-      return close_connection  if @node.connections.size >= @node.config[:max][:connections]
+      if @node.connections.size >= @node.config[:max][:connections]
+        return close_connection  unless @node.config[:connect].include?([@host, @port.to_s])
+      end
       log.info { "Connected to #{@host}:#{@port}" }
       @state = :established
       @node.connections << self
@@ -51,8 +53,6 @@ module Bitcoin::Network
       log.info { "Disconnected #{@host}:#{@port}" }
       @state = :disconnected
       @node.connections.delete(self)
-      addr = @node.addrs.find{|a|a.ip == @host && a.port == @port}
-      @node.addrs.delete(addr)
     end
 
 

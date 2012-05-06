@@ -62,12 +62,12 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   end
 
   def handle_connections
-    @node.connections.sort{|x,y| x.host <=> y.host}.map{|c|
+    @node.connections.sort{|x,y| y.uptime <=> x.uptime}.map{|c|
       "#{c.host.rjust(15)}:#{c.port} [state: #{c.state}, " +
       "version: #{c.version.version rescue '?'}, " +
-      "client: #{c.version.user_agent rescue '?'}, " +
       "block: #{c.version.block rescue '?'}, " +
-      "uptime: #{format_uptime(c.uptime) rescue 0}]" }
+      "uptime: #{format_uptime(c.uptime) rescue 0}, " +
+      "client: #{c.version.user_agent rescue '?'}]" }
   end
 
   def handle_connect *args

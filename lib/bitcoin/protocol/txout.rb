@@ -6,7 +6,11 @@ module Bitcoin
       attr_accessor :value, :pk_script_length, :pk_script
 
       def initialize *args
-        @value, @pk_script_length, @pk_script = *args
+        if args.size == 2
+          @value, @pk_script_length, @pk_script = args[0], args[1].bytesize, args[1]
+        else
+          @value, @pk_script_length, @pk_script = *args
+        end
       end
 
       # compare to another txout
@@ -40,9 +44,13 @@ module Bitcoin
         idx
       end
 
+      def pk_script=(script)
+        @pk_script_length, @pk_script = script.bytesize, script
+      end
+
       def self.value_to_address(value, address)
         pk_script = Bitcoin::Script.to_address_script(address)
-        new(value, pk_script.bytesize, pk_script)
+        new(value, pk_script)
       end
 
     end

@@ -1,11 +1,12 @@
 require_relative 'spec_helper'
 
+include Bitcoin::Builder
+
 [
-  { :name => :dummy },
+  #  { :name => :dummy },
   { :name => :sequel, :db => 'sqlite:/' }, # in memory
 #  { :name => :sequel, :db => 'sqlite:///tmp/bitcoin_test.db' },
 #  { :name => :sequel, :db => 'postgres://localhost/bitcoin_test' },
-#  { 'name' => :activerecord, 'adapter' => 'postgresql', 'database' => 'bitcoin_test' },
 ].each do |configuration|
   describe "Bitcoin::Storage::Backends::#{configuration[:name].capitalize}Store" do
 
@@ -44,26 +45,15 @@ require_relative 'spec_helper'
 
     it "should get locator" do
       @store.get_locator.should == [
-         "0000000098932356a236718829dd9e3eb0f9143317ab921333b1a203de336de4",
-         "000000037b21cac5d30fc6fda2581cf7b2612908aed2abbcc429c45b0557a15f",
-         "000000033cc282bc1fa9dcae7a533263fd7fe66490f550d80076433340831604",
-         "00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008"]
-    end
-
-    it "should store block" do
-      @store.store_block(@blk).should == 4
-      @store.get_depth.should == 4
-      @store.get_tx(@blk.tx[0].hash).should == @blk.tx[0]
-    end
-
-    it "should return depth if block is already stored" do
-      @store.store_block(@blk).should == 4
-      @store.store_block(@blk).should == false
+        "0000000098932356a236718829dd9e3eb0f9143317ab921333b1a203de336de4",
+        "000000037b21cac5d30fc6fda2581cf7b2612908aed2abbcc429c45b0557a15f",
+        "000000033cc282bc1fa9dcae7a533263fd7fe66490f550d80076433340831604",
+        "00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008"]
     end
 
     it "should not store if there is no prev block" do
       @store.reset
-      @store.store_block(@blk).should == false
+      @store.store_block(@blk).should == [0, 2]
       @store.get_depth.should == -1
     end
 
@@ -224,7 +214,7 @@ require_relative 'spec_helper'
       (true.should==true) && next  if @store.class == Bitcoin::Storage::Backends::DummyStore
       *keys = Bitcoin::Key.generate, Bitcoin::Key.generate
       pk_script = Bitcoin::Script.to_multisig_script(1, keys[0].pub, keys[1].pub)
-      txout = Bitcoin::Protocol::TxOut.new(1000, pk_script.bytesize, pk_script)
+      txout = Bitcoin::Protocol::TxOut.new(1000, pk_script)
       @store.store_txout(0, txout, 0)
       keys.each do |key|
         hash160 = Bitcoin.hash160(key.pub)
@@ -234,5 +224,87 @@ require_relative 'spec_helper'
       end
     end
 
+    describe "reorg" do
+
+      def create_block prev, store = true
+        block = blk do
+          prev_block prev
+          tx do
+            input { coinbase }
+            output do
+              value 5000000000
+              script { type :address; recipient Bitcoin::Key.generate.addr }
+            end
+          end
+        end
+        @store.store_block(block)  if store
+        block
+      end
+
+      before do
+        @store.reset
+        @block0 = Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_0.bin'))
+        @store.store_block(@block0)
+      end
+
+      it "should reorg a single side block" do
+        @store.get_head.should == @block0
+
+        block1 = create_block @block0.hash
+        @store.get_head.should == block1
+
+        block2_0 = create_block block1.hash
+        @store.get_head.should == block2_0
+
+        block2_1 = create_block block1.hash
+        @store.get_head.should == block2_0
+
+        block3 = create_block block2_1.hash
+        @store.get_head.should == block3
+        @store.get_block_by_depth(2).hash.should == block2_1.hash
+      end
+
+      it "should reorg two side blocks" do
+        block1 = create_block @block0.hash
+        @store.get_head.should == block1
+
+        block2_0 = create_block block1.hash
+        @store.get_head.should == block2_0
+
+        block2_1 = create_block block1.hash
+        @store.get_head.should == block2_0
+
+        block3_1 = create_block block2_1.hash
+        @store.get_head.should == block3_1
+
+        block3_0 = create_block block2_0.hash
+        @store.get_head.should == block3_1
+
+        block4 = create_block block3_0.hash
+        @store.get_head.should == block4
+      end
+
+      it "should reconnect orphans" do
+        blocks = [@block0]
+        blocks << create_block(@block0.hash, false)
+        blocks << create_block(blocks[1].hash, false)
+        blocks << create_block(blocks[2].hash, false)
+
+        {
+          [0, 1, 2, 3] => [0, 1, 2, 3],
+          [0, 1, 3, 2] => [0, 1, 1, 3],
+          [0, 3, 2, 1] => [0, 0, 0, 3],
+          [0, 3, 1, 2] => [0, 0, 1, 3],
+          [0, 2, 3, 1] => [0, 0, 0, 3],
+        }.each do |order, result|
+          @store.reset
+          order.each_with_index do |n, i|
+            @store.store_block(blocks[n])
+            @store.get_head.should == blocks[result[i]]
+          end
+        end
+      end
+
+    end
   end
 end

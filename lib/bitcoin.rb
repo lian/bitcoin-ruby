@@ -16,6 +16,7 @@ module Bitcoin
   autoload :Logger,     'bitcoin/logger'
   autoload :Key,        'bitcoin/key'
   autoload :Config,     'bitcoin/config'
+  autoload :Builder,    'bitcoin/builder'
 
   module Network
     autoload :ConnectionHandler,  'bitcoin/network/connection_handler'

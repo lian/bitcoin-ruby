@@ -7,12 +7,13 @@ module Bitcoin::Storage::Models
   class Block < Bitcoin::Protocol::Block
 
     attr_accessor :ver, :prev_block, :mrkl_root, :time, :bits, :nonce, :tx
-    attr_reader :store, :id, :depth
+    attr_reader :store, :id, :depth, :chain
 
     def initialize store, data
       @store = store
       @id = data[:id]
       @depth = data[:depth]
+      @chain = data[:chain]
       @tx = []
     end
 
@@ -109,6 +110,10 @@ module Bitcoin::Storage::Models
     # get the single address this txout corresponds to (first for multisig tx)
     def get_addresses
       Bitcoin::Script.new(@pk_script).get_addresses
+    end
+
+    def type
+      Bitcoin::Script.new(@pk_script).type
     end
 
   end
