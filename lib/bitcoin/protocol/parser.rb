@@ -2,6 +2,8 @@ module Bitcoin
   module Protocol
 
     class Parser
+      @log = Bitcoin::Logger.create("parser")
+      
       def initialize(handler=nil)
         @h = handler || Handler.new
         @buf = ""
@@ -114,9 +116,9 @@ module Bitcoin
       def handle_error(type, msg)
         case type
         when :close
-          puts "closing packet stream (#{msg})"
+          @log.debug {"closing packet stream (#{msg})"}
         else
-          p [type, msg]
+          @log.debug { [type, msg] }
         end
       end
     end # Parser
