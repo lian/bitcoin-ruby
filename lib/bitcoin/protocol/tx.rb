@@ -96,6 +96,11 @@ module Bitcoin
       def signature_hash_for_input(input_idx, outpoint_tx, script_pubkey=nil, hash_type=nil, drop_sigs=nil, script=nil)
         # https://github.com/bitcoin/bitcoin/blob/e071a3f6c06f41068ad17134189a4ac3073ef76b/script.cpp#L834
         # http://code.google.com/p/bitcoinj/source/browse/trunk/src/com/google/bitcoin/core/Script.java#318
+        # https://en.bitcoin.it/wiki/OP_CHECKSIG#How_it_works
+        # https://github.com/bitcoin/bitcoin/blob/c2e8c8acd8ae0c94c70b59f55169841ad195bb99/src/script.cpp#L1058
+
+        hash_type ||= 1 # 1: ALL, 2: NONE, 3: SINGLE
+
         pin  = @in.map.with_index{|i,idx|
           if idx == input_idx
             script_pubkey ||= outpoint_tx.out[ i.prev_out_index ].pk_script
@@ -104,16 +109,25 @@ module Bitcoin
             length = script_pubkey.bytesize
             [ i.prev_out, i.prev_out_index, length, script_pubkey, i.sequence || "\xff\xff\xff\xff" ].pack("a32ICa#{length}a4")
           else
-            [ i.prev_out, i.prev_out_index, 0, i.sequence || "\xff\xff\xff\xff" ].pack("a32ICa4")
+            case hash_type
+            when 2
+              [ i.prev_out, i.prev_out_index, 0, "\x00\x00\x00\x00" ].pack("a32ICa4")
+            else
+              [ i.prev_out, i.prev_out_index, 0, i.sequence || "\xff\xff\xff\xff" ].pack("a32ICa4")
+            end
           end
         }.join
         pout = @out.map{|o|
           [ o.value, o.pk_script_length, o.pk_script ].pack("QCa#{o.pk_script_length}")
         }.join
 
-        hash_type ||= 1 # 1: ALL, 2: NONE, 3: SINGLE
-
-        in_size, out_size = Protocol.pack_var_int(@in.size), Protocol.pack_var_int(@out.size)
+        case hash_type
+        when 2
+          pout = ""
+          in_size, out_size = Protocol.pack_var_int(@in.size), Protocol.pack_var_int(0)
+        else
+          in_size, out_size = Protocol.pack_var_int(@in.size), Protocol.pack_var_int(@out.size)
+        end
         buf = [[@ver].pack("I"), in_size, pin, out_size, pout, [@lock_time].pack("I")].join + [hash_type].pack("I")
         Digest::SHA256.digest( Digest::SHA256.digest( buf ) )
       end
