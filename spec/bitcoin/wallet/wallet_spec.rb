@@ -1,5 +1,6 @@
 require_relative '../spec_helper'
 require 'json'
+require 'fileutils'
 include MiniTest
 include Bitcoin
 include Bitcoin::Wallet

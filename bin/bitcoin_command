@@ -42,9 +42,9 @@ unless ARGV.any?
 end
 
 EM.run do
-
   Bitcoin::Network::CommandClient.connect(host, port) do
-  on_response do |cmd, data|
+
+    on_response do |cmd, data|
       EM.stop  unless cmd == "monitor"
     end
     on_info do |info|
@@ -74,30 +74,6 @@ EM.run do
     on_connected do
       request(ARGV[0], *(ARGV[1] || "").split(" "))
     end
+
   end
-  #  client.request("monitor", "connection")
-  # EM.connect(host, port) do |connection|
-
-  #   connection.send_data([ARGV[0], ARGV[1..-1].join(" ")].to_json + "\x00")
-
-  #   def connection.receive_data(data)
-  #     (@buf ||= BufferedTokenizer.new("\x00")).extract(data).each do |packet|
-  #       cmd, result = JSON.load(packet)
-  #       next  unless cmd == ARGV[0]
-  #       if cmd == "monitor"
-  #         type, obj, depth = result
-  #         puts "#{type}: #{obj['hash'] rescue 'none'} #{depth ? "(#{depth})" : ""}"
-  #       else
-  #         puts JSON.pretty_generate(result)
-  #         EM.stop
-  #       end
-  #     end
-  #   end
-
-  #   def connection.unbind
-  #     puts "Disconnected."
-  #     EM.stop
-  #   end
-
-  # end
 end
