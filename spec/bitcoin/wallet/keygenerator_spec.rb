@@ -6,6 +6,10 @@ describe "Bitcoin::KeyGenerator" do
 
   @target = ("\x00\xff" + "\x00"*30).unpack("H*")[0].to_i(16)
 
+  before do
+    Bitcoin.network = :bitcoin
+  end
+
   it "should use random data if no seed given" do
     g = KeyGenerator.new(nil, nil, @target)
     g.seed.size.should == 64

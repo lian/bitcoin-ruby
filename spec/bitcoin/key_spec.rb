@@ -3,6 +3,7 @@ require_relative 'spec_helper'
 describe "Bitcoin::Key" do
 
   before do
+    Bitcoin.network = :bitcoin
     @key_data = {
       :priv => "2ebd3738f59ae4fd408d717bf325b4cb979a409b0153f6d3b4b91cdfe046fb1e",
       :pub => "045fcb2fb2802b024f371cc22bc392268cc579e47e7936e0d1f05064e6e1103b8a81954eb6d3d33b8b6e73e9269013e843e83919f7ce4039bb046517a0cad5a3b1" }
@@ -95,6 +96,7 @@ begin
     Bitcoin::OpenSSL_EC
 
     it 'resolves public from private key' do
+      Bitcoin.network = :testnet
       privkey = ["56e28a425a7b588973b5db962a09b1aca7bdc4a7268cdd671d03c52a997255dc"].pack("H*")
       pubkey =  ["04324c6ebdcf079db6c9209a6b715b955622561262cde13a8a1df8ae0ef030eaa1552e31f8be90c385e27883a9d82780283d19507d7fa2e1e71a1d11bc3a52caf3"].pack("H*")
 

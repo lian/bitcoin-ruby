@@ -43,6 +43,7 @@ describe Bitcoin::Wallet::Wallet do
 
 
   before do
+    Bitcoin.network = :bitcoin
     @storage = Mock.new
     @key = Key.from_base58('5J2hn1E8KEXmQn5gqykzKotyCcHbKrVbe8fjegsfVXRdv6wwon8')
     @addr = '1M89ZeWtmZmATzE3b6PHTBi8c7tGsg5xpo'

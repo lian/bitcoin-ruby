@@ -3,6 +3,7 @@ require_relative 'spec_helper.rb'
 describe 'Bitcoin::network' do
 
   it 'returns network descriptor' do
+    Bitcoin.network = :bitcoin
     net = Bitcoin::network
     net[:magic_head].should == "\xF9\xBE\xB4\xD9"
     net[:address_version].should == "00"
