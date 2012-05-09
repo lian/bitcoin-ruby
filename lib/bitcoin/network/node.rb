@@ -65,6 +65,10 @@ module Bitcoin::Network
     end
 
     def load_addrs
+      unless File.exist?(@config[:addr_file])
+        @addrs = []
+        return
+      end
       @addrs = JSON.load(File.read(@config[:addr_file])).map do |a|
         addr = Bitcoin::P::Addr.new
         addr.time, addr.service, addr.ip, addr.port =

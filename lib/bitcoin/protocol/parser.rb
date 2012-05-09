@@ -44,7 +44,7 @@ module Bitcoin
           begin
             @h.on_addr( Addr.new(i.pack("C*")) )
           rescue
-            puts "Error parsing addr: #{i.pack("C*")}"
+            puts "Error parsing addr: #{i.inspect}"
           end
         }
       end

@@ -7,6 +7,7 @@ class Bitcoin::Network::CommandClient < EM::Connection
     @block = block
     instance_eval &block  if block
     @buffer = BufferedTokenizer.new("\x00")
+    @connection_attempts = 0
   end
 
   def log
@@ -28,6 +29,10 @@ class Bitcoin::Network::CommandClient < EM::Connection
   def unbind
     log.info { "Disconnected" }
     callback :disconnected
+    if @connection_attempts > 2
+      log.info { "Trying to start server..." }
+      EM.defer { system("bin/bitcoin_node", "--quiet") }
+    end
     EM.add_timer(1) do
       reconnect(@host, @port)
       post_init
@@ -41,6 +46,7 @@ class Bitcoin::Network::CommandClient < EM::Connection
   end
 
   def receive_data data
+    @connection_attempts = 0
     @buffer.extract(data).each do |packet|
       cmd, *data = *JSON.load(packet)
       log.info { d = data.inspect
