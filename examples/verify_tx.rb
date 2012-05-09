@@ -2,45 +2,18 @@
 #
 # Fetch a transaction and all its previous outputs from local storage and verify signatures.
 #
-#  verify_tx.rb [options] <tx_hash>
-#  ruby examples/verify_tx.rb -s sequel::postgres:/bitcoin 0f6741210a02e196ca5f5ad17f684968623546c1accdbcb701a668a51a7ba9fd
-
-Note: For this to work, you obviously need to have the transactions in your storage.
-
+#  examples/verify_tx.rb <tx_hash>
+#  examples/verify_tx.rb f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16
 #
+# see Bitcoin::Protocol::Tx and Bitcoin::Script.
+# Note: For this to work, you need to have the transactions in your storage. see NODE.
+
+
 $:.unshift( File.expand_path("../../lib", __FILE__) )
-
 require 'bitcoin'
-require 'optparse'
 
-options = {
-  :network => "testnet",
-  :storage => "dummy",
-}
-optparse = OptionParser.new do|opts|
-  opts.banner = "Usage: bitcoin_verify_tx [options] <tx hash>"
-
-  opts.on("-n", "--network [NETWORK]", "User Network (default: testnet)") do |network|
-    options[:network] = network
-  end
-
-  opts.on("-s", "--storage [BACKEND::CONFIG]", "Use storage backend (default: 'dummy')") do |storage|
-    options[:storage] = storage
-  end
-
-  opts.on( '-h', '--help', 'Display this screen' ) do
-    puts opts
-    exit
-  end
-end
-optparse.parse!
-
-
-Bitcoin.network = options[:network]
-puts "Using network #{options[:network]}"
-backend, config = options[:storage].split('::')
-store = Bitcoin::Storage.send(backend, :db => config)
-puts "Using #{backend} store #{config}"
+Bitcoin.network = :bitcoin
+store = Bitcoin::Storage.sequel(:db => "sqlite://bitcoin.db")
 
 tx_hash = ARGV.shift
 
@@ -62,14 +35,21 @@ tx1.in.each_with_index do |txin, idx|
   end
 
   prev_tx = txin.get_prev_out.get_tx
-  unless prev_tx
-    puts "Missing prev_out tx for input #{idx} of tx #{tx_hash}!"
+  if prev_tx
+    puts "Found prev tx #{prev_tx.hash}"
+    txout = prev_tx.out[txin.prev_out_index]
+    script = Bitcoin::Script.new(txout.pk_script)
+    puts "Output Script: #{script.to_string}"
+  else
+    puts "Missing prev tx for input #{idx}!"
     exit
   end
 
   result = tx1.verify_input_signature(idx, prev_tx)
-  unless result
-    puts "Input #{idx} of tx #{tx_hash} is invalid!"
+  if result
+    puts "Valid signature for input #{idx}."
+  else
+    puts "Signature for input #{idx} is invalid!"
     exit
   end
 end

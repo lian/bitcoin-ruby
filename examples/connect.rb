@@ -1,11 +1,12 @@
 #!/usr/bin/env ruby
 #
-# Connect to a few peers and download the first 500 blocks.
+# Connect to a random peer and download the first 500 blocks.
 #
-#  ruby examples/connect.rb
+#  examples/connect.rb [testnet]
+#
+# see Bitcoin::Connection and Bitcoin::Protocol.
 
 $:.unshift( File.expand_path("../../lib", __FILE__) )
-
 require 'bitcoin/connection'
 
 Bitcoin::network = ARGV[0] || :bitcoin
@@ -13,12 +14,12 @@ Bitcoin::network = ARGV[0] || :bitcoin
 class RawJSON_Connection < Bitcoin::Connection
   def on_tx(tx)
     p ['tx', tx.hash, Time.now]
-    puts tx.to_json
+    # puts tx.to_json
   end
 
   def on_block(block)
     p ['block', block.hash, Time.now]
-    puts block.to_json
+    # puts block.to_json
   end
 end
 

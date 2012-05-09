@@ -1,7 +1,10 @@
 #!/usr/bin/env ruby
 #
 # Fetch a transaction from blockexplorer.com and verify all signatures.
-#  ruby examples/bbe_verifytx.rb <tx hash> [<network>]
+#
+#  examples/bbe_verify_tx.rb <tx hash> [testnet]
+#  examples/bbe_verify_tx.rb f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16
+# see Bitcoin::P::Tx and Bitcoin::Script.
 
 $:.unshift(File.dirname(__FILE__) + "/../lib")
 require 'bitcoin'

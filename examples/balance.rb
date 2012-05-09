@@ -3,8 +3,8 @@
 # Collect all unspent outputs for given address and display balance.
 # Optionally display list of transactions.
 # 
-#  ruby examples/balance.rb <address> [--list]
-#  ruby examples/balance.rb -s sequel::postgres:/bitcoin -l moz14kFmgHPszRvS6rvhfEVYmx4RbcNMfH
+#  examples/balance.rb <address> [--list]
+#  examples/balance.rb 1Q2TWHE3GMdB6BZKafqwxXtWAWgFt5Jvm3
 
 $:.unshift( File.expand_path("../../lib", __FILE__) )
 require 'bitcoin'
@@ -19,12 +19,6 @@ unless Bitcoin.valid_address?(address)
   exit 1
 end
 
-script = Bitcoin::Script.to_address_script(address)
-txouts = store.get_txouts_for_pk_script(script)
-unless txouts.any?
-  puts "Address not seen."
-  exit
-end
 
 # format value to be displayed
 def str_val(val, pre = "")
@@ -32,6 +26,12 @@ def str_val(val, pre = "")
 end
 
 if ARGV[0] == "--list"
+  txouts = store.get_txouts_for_address(address)
+  unless txouts.any?
+    puts "Address not seen."
+    exit
+  end
+
   total = 0
   txouts.each do |txout|
     tx = txout.get_tx
@@ -39,7 +39,7 @@ if ARGV[0] == "--list"
     puts "#{tx.hash} |#{str_val(txout.value, '+ ')}  |=> #{str_val(total)}"
 
     txout.get_tx.in.map(&:get_prev_out).each do |prev_out|
-      puts "  <- #{prev_out.get_addresses.join(", ")}"
+      puts "  from #{prev_out.get_addresses.join(", ")}"
     end
     puts
 
@@ -48,12 +48,13 @@ if ARGV[0] == "--list"
       total -= txout.value
       puts "#{tx.hash} |#{str_val(txout.value, '- ')}  |=> #{str_val(total)}"
       txin.get_tx.out.each do |out|
-        puts "  -> #{out.get_addresses.join(", ")}"
+        puts "  to #{out.get_addresses.join(", ")}"
       end
       puts
     end
   end
 end
 
-balance = store.get_balance(address)
+hash160 = Bitcoin.hash160_from_address(address)
+balance = store.get_balance(hash160)
 puts "Balance: %.8f" % (balance / 1e8)

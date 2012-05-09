@@ -51,7 +51,7 @@ module Bitcoin
       p [@sockaddr, 'handshake complete']
       @connected = true
 
-      #query_blocks
+      query_blocks
     end
 
     def query_blocks

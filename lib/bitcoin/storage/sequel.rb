@@ -47,7 +47,6 @@ module Bitcoin::Storage::Backends
     # connect to database
     def connect
       @db = Sequel.connect(@config[:db])
-      p @db
       migrate
     end
 
