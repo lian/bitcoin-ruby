@@ -1,0 +1,189 @@
+= Bitcoin-ruby
+
+This is a ruby library for interacting with the bitcoin protocol/network.
+
+Some of the main features are:
+
+* bitcoin utility functions for base58, ECC, etc. (Bitcoin::Util)
+* parse/create (almost?) all protocol messages (Bitcoin::Protocol)
+* connect to peers and exchange messages (Bitcoin::Network::Node, NODE)
+* load the blockchain from the network and stay in sync (WITHOUT verification yet!)
+* store and the blockchain and query for txouts (Bitcoin::Storage)
+* script implementation, create/run scripts and verify signatures (Bitcoin::Script)
+* create transactions (and even blocks!) (Bitcoin::Builder)
+* manage keys (Bitcoin::Key) in a wallet (Bitcoin::Wallet, WALLET)
+* there is even a highly experimental(!) Bitcoin::Gui
+
+== Installation
+
+We assume you already have a ruby 1.9 compatible interpreter and rubygems environment.
+
+ git clone https://github.com/lian/bitcoin-ruby.git; cd bitcoin-ruby
+ ruby -Ilib bin/bitcoin_node
+
+if you want to install it system-wide, just build the gem and install it
+
+ gem build bitcoin-ruby.gemspec && gem install bitcoin-ruby-0.0.1.gem
+
+now you can just call +bitcoin_node+ from anywhere.
+
+
+Note that some aspects of the library (such as networking, storage, etc.) need
+additional dependencies which are not specified in the gemspec. The core requirements are
+intentionally kept to a minimum, so nobody has to install unneeded dependencies.
+
+* +eventmachine+ to run a node / connect to peers
+* +sequel+, +sqlite3+/+pg+/+mysql+ to use a storage backend
+* +em-dns+ or +nslookup+ to get peer addrs from DNS seeds
+* +ruby-gnome2+, +glib2+ and +pango+ for the gui
+* +bacon+ to run the specs
+
+== Client
+
+There is a NODE which connects to the network and downloads
+the blockchain into a database. see Bitcoin::Network::Node.
+
+It also opens an extra socket for clients to connect where they can call certain
+methods, ask for information or register callbacks for events.
+see Bitcoin::Network::CommandClient.
+
+
+There is a WALLET implementation to manage a set of keys, list balances and create
+transactions. see Bitcoin::Wallet
+
+
+== Library Usage
+
+There are different aspects to the library which can be used separately or in combination.
+Here are some Ideas of what you could do. There are also some scripts which you can run,
+see EXAMPLES.
+
+
+=== Keys/Addresses
+
+Generate a Bitcoin::Key
+
+ key = Bitcoin::generate_key
+ key #=> [<privkey>, <pubkey>]
+
+Get the address from a public key
+
+ address = Bitcoin::pubkey_to_address(key[1])
+ address #=> <bitcoin address>
+
+Check if an address is valid
+
+ Bitcoin::valid_address?(address) #=> true
+
+
+=== Blocks / Transactions parsing
+
+Parse a Bitcoin::Protocol::Block
+
+ raw_block = File.open('spec/bitcoin/fixtures/rawblock-0.bin', 'rb') {|f| f.read}
+ blk = Bitcoin::Protocol::Block.new(raw_block)
+ blk.hash #=> 00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048
+ blk.tx.count #=> 1
+ blk.to_hash #=> ...
+ Bitcoin::Protocol::Block.from_json( blk.to_json )
+ 
+Parse a Bitcoin::Protocol::Tx
+
+ raw_tx = File.open('spec/bitcoin/fixtures/rawtx-01.bin', 'rb') {|f| f.read}
+ tx = Bitcoin::Protocol::Tx.new(raw_tx)
+ tx.hash #=> 6e9dd16625b62cfcd4bf02edb89ca1f5a8c30c4b1601507090fb28e59f2d02b4
+ tx.in.size #=> 1
+ tx.out.size #=> 2
+ tx.to_hash #=> ...
+ Bitcoin::Protocol::Tx.from_json( tx.to_json )
+ 
+ Bitcoin::Script.new(tx.out[0].pk_script).to_string
+ #=> "OP_DUP OP_HASH160 b2e21c1db922e3bdc529de7b38b4c401399e9afd OP_EQUALVERIFY OP_CHECKSIG"
+
+=== Transaction verification / Scripts
+
+Get the matching transactions (in this example tx1 is the spending transaction)
+
+ rawtx1 = File.open("spec/bitcoin/fixtures/rawtx-f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16.bin", 'rb') {|f| f.read}
+ rawtx2 = File.open("spec/bitcoin/fixtures/rawtx-0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9.bin", 'rb') {|f| f.read}
+ tx1 = Bitcoin::Protocol::Tx.new(rawtx1)
+ tx2 = Bitcoin::Protocol::Tx.new(rawtx2)
+
+Then simply ask the transaction to verify an input
+
+ tx1.verify_input_signature(0, tx2) #=> true
+
+=== Scripts
+
+If you want to control the Bitcoin::Script yourself, you can do so
+
+ txin = tx1.in.first
+ txout = tx2.out[txin.prev_out_index]
+ script = Bitcoin::Script.new(txin.script_sig + txout.pk_script)
+ 
+ result = script.run do |pubkey, sig, hash_type|
+   hash = tx1.signature_hash_for_input(0, nil, txout.pk_script)
+   Bitcoin.verify_signature(hash, sig, pubkey.unpack("H*")[0])
+ end
+ result #=> true
+
+=== Create Transactions
+
+TODO
+
+=== Node / Network connections
+
+The Bitcoin::Network::Node can connect to peers and download the blockchain into a
+Bitcoin::Storage backend. For now it works completely self-contained:
+
+ node = Bitcoin::Network::Node.new(options) # options = {:network => :bitcoin, ...}
+ node.run
+
+In the future you will be able to register callbacks to the node and control many aspects
+of its operation yourself. Also see NODE.
+
+If you want to implement your own node, see lib/bitcoin/connection.rb or
+lib/bitcoin/network/node.rb for examples.
+
+
+=== Storage / Database backends
+
+There is support for multiple database backends, but currently the only stable one is 
+the Bitcoin::Storage::Backends::SequelStore backend. All backends implement the interface
+defined in Bitcoin::Storage::Backends::StoreBase and return Bitcoin::Storage::Models.
+
+ store = Bitcoin::Storage.sequel(:db => "sqlite://bitcoin.db") # in-memory db
+ store.get_head #=> block
+ txouts = store.get_txouts_for_address("15yN7NPEpu82sHhB6TzCW5z5aXoamiKeGy")
+ txouts.first.value #=> 5000000000
+ txouts.first.type #=> :pubkey
+ txouts.first.get_address #=> "15yN7NPEpu82sHhB6TzCW5z5aXoamiKeGy"
+
+See Bitcoin::Storage::Backends::StoreBase, Bitcoin::Storage::Backends::SequelStore 
+and Bitcoin::Storage::Models for details.
+
+== Documentation
+
+Always trying to improve, any help appreciated! If anything is unclear to you, let us know!
+
+Documentation is generated using RDoc
+
+ rake rdoc
+
+The specs are also a good place to see how something works.
+
+== Specs
+
+The specs can be run with
+
+ rake bacon
+
+or, if you want to run a single spec
+
+ ruby spec/bitcoin/bitcoin_spec.rb
+
+If you make changes to the code or add functionality, please also add specs.
+
+== Development
+
+If you are curious or like to participate in development, drop by \#bitcoin-ruby on irc.freenode.net!

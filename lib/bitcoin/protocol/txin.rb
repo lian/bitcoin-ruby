@@ -3,7 +3,17 @@ module Bitcoin
 
     class TxIn
 
-      attr_accessor :prev_out, :prev_out_index, :script_sig_length, :script_sig, :sequence
+      # previous output hash
+      attr_accessor :prev_out
+
+      # previous output index
+      attr_accessor :prev_out_index
+
+      # script_sig input Script (signature)
+      attr_accessor :script_sig, :script_sig_length
+
+      # sequence
+      attr_accessor :sequence
 
       def initialize *args
         @prev_out, @prev_out_index, @script_sig_length,
@@ -54,10 +64,12 @@ module Bitcoin
         @prev_out.reverse.unpack("H*")[0]
       end
 
+      # check if input is coinbase
       def coinbase?
         (@prev_out_index == 4294967295) && (@prev_out == "\x00"*32)
       end
 
+      # set script_sig and script_sig_length
       def script_sig=(script_sig)
         @script_sig_length = script_sig.bytesize
         @script_sig = script_sig

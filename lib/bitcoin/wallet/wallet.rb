@@ -1,58 +1,94 @@
+# The wallet implementation consists of several concepts:
+# Wallet::             the high-level API used to manage a wallet
+# SimpleKeyStore::     key store to manage keys/addresses/labels
+# SimpleCoinSelector:: coin selector to find unspent outputs to use when creating tx
 module Bitcoin::Wallet
 
+  # A wallet manages a set of keys (through a +keystore+), can
+  # list transactions/balances for those keys (using a Storage backend for
+  # blockchain data).
+  # It can also create transactions with various kinds of outputs and
+  # connect with a CommandClient to relay those transactions through a node.
+  #
+  # TODO: new tx notification, keygenerators, keystore cleanup
   class Wallet
 
-    attr_reader :keystore, :storage
+    # the keystore (SimpleKeyStore) managing keys/addresses/labels
+    attr_reader :keystore
+
+    # the Storage which holds the blockchain
+    attr_reader :storage
+
+    # open wallet with given +storage+ Storage backend, +keystore+ SimpleKeyStore
+    # and +selector+ SimpleCoinSelector
     def initialize storage, keystore, selector
       @storage = storage
       @keystore = keystore
       @selector = selector
     end
 
+    # get all Storage::Models::TxOut concerning any address from this wallet
     def get_txouts(unconfirmed = false)
       txouts = @keystore.keys.map {|k|
         @storage.get_txouts_for_address(k[:addr])}.flatten.uniq
       unconfirmed ? txouts : txouts.select {|o| !!o.get_tx.get_block}
     end
 
+    # get total balance for all addresses in this wallet
     def get_balance
       values = get_txouts.select{|o| !o.get_next_in}.map(&:value)
       ([0] + values).inject(:+)
     end
 
+    # list all addresses in this wallet
     def addrs
       @keystore.keys.map{|k| k[:key].addr}
     end
 
+    # add +key+ to wallet
     def add_key key
       @keystore.add_key(key)
     end
 
+    # set label for key +old+ to +new+
     def label old, new
       @keystore.label_key(old, new)
     end
 
+    # set +flag+ for key +name+ to +value+
     def flag name, flag, value
       @keystore.flag_key(name, flag, value)
     end
 
+    # list all keys along with their balances
     def list
       @keystore.keys.map do |key|
         [key, @storage.get_balance(Bitcoin.hash160_from_address(key[:addr]))]
       end
     end
 
+    # create new key and return its address
     def get_new_addr
       @keystore.new_key.addr
     end
 
+    # get SimpleCoinSelector with txouts for this wallet
     def get_selector
       @selector.new(get_txouts)
     end
 
-    # outputs = [<addr>, <value>]
-    # [:address, <addr>, <value>]
-    # [:multisig, 2, 3, <addr>, <addr>, <addr>, <value>]
+    # create a transaction with given +outputs+, +fee+ and +change_policy+.
+    #
+    # outputs are of the form
+    #  [<type>, <recipients>, <value>]
+    # examples:
+    #  [:address, <addr>, <value>]
+    #  [:multisig, 2, 3, <addr>, <addr>, <addr>, <value>]
+    #
+    # inputs are selected automatically by the SimpleCoinSelector.
+    # 
+    # change_policy controls where the change_output is spent to.
+    # see #get_change_addr
     def tx outputs, fee = 0, change_policy = :back
       output_value = outputs.map{|o|o[-1]}.inject(:+)
 
@@ -148,6 +184,12 @@ module Bitcoin::Wallet
 
     protected
 
+    # get address to send change output to.
+    # +policy+ controls which address is chosen:
+    # first:: send to the first key in the wallets keystore
+    # random:: send to a random key from the wallets keystore
+    # new:: send to a new key generated in the wallets keystore
+    # back:: send to the address given as +in_addr+
     def get_change_addr(policy, in_addr)
       case policy
       when :first

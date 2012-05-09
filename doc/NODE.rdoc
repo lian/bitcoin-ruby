@@ -1,0 +1,35 @@
+= NODE
+
+Bitcoin Node. Connects to the network and downloads the blockchain into local storage.
+
+== Usage
+
+To run the node with the default options (download the blockchain into ./bitcoin.db
+using the sequel::sqlite3 STORAGE backend):
+
+ bitcoin_node
+
+You can specify options (see +--help+) or pass a config file with +--config+ (see CONFIG).
+
+Some common options you might want to change:
+
+<tt>-n --network</tt> <i><name></i>::
+  +bitcoin+ or +testnet+ network
+<tt>--connect</tt> <i><ip:port></i>::
+  list of peers to connect to
+<tt>-s --storage</tt> <i><backend-string></i>::
+ storage backend to use (see STORAGE)
+
+It will take some time to download/store the entire blockchain at first, so be patient ;)
+
+
+== Command client
+
+The node opens a separate command socket which you can connect to and query statistics
+or get notified about new blocks/tx, etc.
+
+ bitcoin_node info  # general statistics
+
+ bitcoin_node help  # list all commands
+
+ bitcoin_node monitor block # wait for new blocks and output their hashes

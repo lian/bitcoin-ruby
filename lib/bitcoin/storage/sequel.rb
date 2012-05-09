@@ -9,18 +9,28 @@ require 'bitcoin/storage/sequel_store/sequel_migrations'
 
 module Bitcoin::Storage::Backends
 
+  # Storage backend using Sequel to connect to arbitrary SQL databases.
+  # Inherits from StoreBase and implements its interface.
   class SequelStore < StoreBase
 
+    # main branch (longest valid chain
     MAIN = 0
+
+    # side branch (connected, valid but too short)
     SIDE = 1
+
+    # orphan branch (not connected to main branch / genesis block)
     ORPHAN = 2
 
+    # possible script types
     SCRIPT_TYPES = [:unknown, :pubkey, :hash160, :multisig]
 
+    # sequel database connection
     attr_accessor :db
 
     include Bitcoin::Storage::Backends::SequelMigrations
 
+    # create sequel store with given +config+
     def initialize config
       @config = config
       connect
@@ -34,15 +44,22 @@ module Bitcoin::Storage::Backends
       end
     end
 
+    # connect to database
     def connect
       @db = Sequel.connect(@config[:db])
+      p @db
       migrate
     end
 
+    # reset database; delete all data
     def reset
       [:blk, :blk_tx, :tx, :txin, :txout].each {|table| @db[table].delete}
     end
 
+    # reorg starting with given +blk+.
+    # determine point where +blk+'s SIDE branch splits from the MAIN chain.
+    # switch branches, setting all blocks from split-point to branch MAIN,
+    # and all blocks from split-point to the previous head to branch SIDE.
     def reorg(blk)
       new, old = [], []
       while blk[:chain] != MAIN do
@@ -64,6 +81,10 @@ module Bitcoin::Storage::Backends
       old.each {|b| @db[:blk].filter(:hash => b[:hash].to_sequel_blob).update(:chain => SIDE) }
     end
 
+    # organize block +blk+.
+    # determine branch/chain and dept of block. trigger reorg if side branch becomes longer
+    # than current main chain.
+    # if block connects an orphan block to the main chain, recursively organize the orphan.
     def org_block(blk)
       reorg = false
       if prev_block = @db[:blk][:hash => blk[:prev_hash].to_sequel_blob]
@@ -98,6 +119,7 @@ module Bitcoin::Storage::Backends
       return depth, chain
     end
 
+    # store block +blk+
     def store_block(blk)
       @log.debug { "Storing block #{blk.hash} (#{blk.to_payload.bytesize} bytes)" }
       @lock.synchronize do
@@ -141,6 +163,7 @@ module Bitcoin::Storage::Backends
       puts *$@
     end
 
+    # store transaction +tx+
     def store_tx(tx)
       @log.debug { "Storing tx #{tx.hash} (#{tx.to_payload.bytesize} bytes)" }
       @lock.synchronize do
@@ -163,6 +186,7 @@ module Bitcoin::Storage::Backends
       @log.warn { "Error storing tx: #{$!}" }
     end
 
+    # store input +txin+
     def store_txin(tx_id, txin, idx)
       @lock.synchronize do
         @db.transaction do
@@ -178,6 +202,7 @@ module Bitcoin::Storage::Backends
       end
     end
 
+    # store output +txout+
     def store_txout(tx_id, txout, idx)
       @lock.synchronize do
         @db.transaction do
@@ -201,6 +226,7 @@ module Bitcoin::Storage::Backends
       end
     end
 
+    # store address +hash160+
     def store_addr(txout_id, hash160)
       addr = @db[:addr][:hash160 => hash160]
       addr_id = addr[:id]  if addr
@@ -208,35 +234,43 @@ module Bitcoin::Storage::Backends
       @db[:addr_txout].insert({:addr_id => addr_id, :txout_id => txout_id})
     end
 
+    # check if block +blk_hash+ exists
     def has_block(blk_hash)
       !!@db[:blk].where(:hash => htb(blk_hash).to_sequel_blob).get(1)
     end
 
+    # check if transaction +tx_hash+ exists
     def has_tx(tx_hash)
       !!@db[:tx].where(:hash => htb(tx_hash).to_sequel_blob).get(1)
     end
 
+    # get head block (highest block from the MAIN chain)
     def get_head
       wrap_block(@db[:blk].filter(:chain => MAIN).order(:depth).last)
     end
 
+    # get depth of MAIN chain
     def get_depth
       return -1  unless get_head
       @db[:blk][:hash => htb(get_head.hash).to_sequel_blob][:depth]
     end
 
+    # get block for given +blk_hash+
     def get_block(blk_hash)
       wrap_block(@db[:blk][:hash => htb(blk_hash).to_sequel_blob])
     end
 
+    # get block by given +depth+
     def get_block_by_depth(depth)
       wrap_block(@db[:blk][:depth => depth, :chain => MAIN])
     end
 
+    # get block by given +prev_hash+
     def get_block_by_prev_hash(prev_hash)
       wrap_block(@db[:blk][:prev_hash => htb(prev_hash).to_sequel_blob])
     end
 
+    # get block by given +tx_hash+
     def get_block_by_tx(tx_hash)
       tx = @db[:tx][:hash => htb(tx_hash).to_sequel_blob]
       return nil  unless tx
@@ -245,34 +279,42 @@ module Bitcoin::Storage::Backends
       wrap_block(@db[:blk][:id => parent[:blk_id]])
     end
 
+    # get block by given +id+
     def get_block_by_id(block_id)
       wrap_block(@db[:blk][:id => block_id])
     end
 
+    # get transaction for given +tx_hash+
     def get_tx(tx_hash)
       wrap_tx(@db[:tx][:hash => htb(tx_hash).to_sequel_blob])
     end
 
+    # get transaction by given +tx_id+
     def get_tx_by_id(tx_id)
       wrap_tx(@db[:tx][:id => tx_id])
     end
 
+    # get corresponding Models::TxIn for the txout in transaction
+    # +tx_hash+ with index +txout_idx+
     def get_txin_for_txout(tx_hash, txout_idx)
       tx_hash = htb(tx_hash).reverse.to_sequel_blob
       wrap_txin(@db[:txin][:prev_out => tx_hash, :prev_out_index => txout_idx])
     end
 
+    # get corresponding Models::TxOut for +txin+
     def get_txout_for_txin(txin)
       tx = @db[:tx][:hash => txin.prev_out.reverse.to_sequel_blob]
       return nil  unless tx
       wrap_txout(@db[:txout][:tx_idx => txin.prev_out_index, :tx_id => tx[:id]])
     end
 
+    # get all Models::TxOut matching given +script+
     def get_txouts_for_pk_script(script)
       txouts = @db[:txout].filter(:pk_script => script.to_sequel_blob).order(:id)
       txouts.map{|txout| wrap_txout(txout)}
     end
 
+    # get all Models::TxOut matching given +hash160+
     def get_txouts_for_hash160(hash160)
       addr = @db[:addr][:hash160 => hash160]
       return []  unless addr
@@ -281,10 +323,12 @@ module Bitcoin::Storage::Backends
         .map{|o| wrap_txout(o) }
     end
 
+    # get all unconfirmed Models::TxOut
     def get_unconfirmed_tx
       @db[:unconfirmed].map{|t| wrap_tx(t)}
     end
 
+    # wrap given +block+ into Models::Block
     def wrap_block(block)
       return nil  unless block
 
@@ -308,6 +352,7 @@ module Bitcoin::Storage::Backends
       blk
     end
 
+    # wrap given +transaction+ into Models::Transaction
     def wrap_tx(transaction)
       return nil  unless transaction
 
@@ -327,6 +372,7 @@ module Bitcoin::Storage::Backends
       tx
     end
 
+    # wrap given +input+ into Models::TxIn
     def wrap_txin(input)
       return nil  unless input
       data = {:id => input[:id], :tx_id => input[:tx_id], :tx_idx => input[:tx_idx]}
@@ -339,6 +385,7 @@ module Bitcoin::Storage::Backends
       txin
     end
 
+    # wrap given +output+ into Models::TxOut
     def wrap_txout(output)
       return nil  unless output
       data = {:id => output[:id], :tx_id => output[:tx_id], :tx_idx => output[:tx_idx],

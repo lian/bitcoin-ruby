@@ -86,7 +86,7 @@ end
 desc 'Generate RDoc documentation'
 task :rdoc do
   `rm -rf rdoc`
-  system("rdoc -o rdoc -m README lib/ README COPYING")
+  system("rdoc -o rdoc -m README.rdoc examples/ doc/ lib/ README.rdoc COPYING")
 end
 
 

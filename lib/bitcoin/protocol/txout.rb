@@ -3,7 +3,11 @@ module Bitcoin
 
     class TxOut
 
-      attr_accessor :value, :pk_script_length, :pk_script
+      # output value (in base units; "satoshi")
+      attr_accessor :value
+
+      # pk_script output Script
+      attr_accessor :pk_script, :pk_script_length
 
       def initialize *args
         if args.size == 2
@@ -52,10 +56,12 @@ module Bitcoin
         idx
       end
 
+      # set pk_script and pk_script_length
       def pk_script=(script)
         @pk_script_length, @pk_script = script.bytesize, script
       end
 
+      # create output spending +value+ btc (base units) to +address+
       def self.value_to_address(value, address)
         pk_script = Bitcoin::Script.to_address_script(address)
         new(value, pk_script)

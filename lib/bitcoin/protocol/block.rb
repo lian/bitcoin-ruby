@@ -2,7 +2,33 @@ module Bitcoin
   module Protocol
 
     class Block
-      attr_accessor :hash, :payload, :tx, :ver, :prev_block, :mrkl_root, :time, :bits, :nonce
+
+      # block hash
+      attr_accessor :hash
+
+      # previous block hash
+      attr_accessor :prev_block
+
+      # transactions (Array of Tx)
+      attr_accessor :tx
+
+      # merkle root
+      attr_accessor :mrkl_root
+
+      # block generation time
+      attr_accessor :time
+
+      # difficulty target bits
+      attr_accessor :bits
+
+      # nonce (number counted when searching for block hash matching target)
+      attr_accessor :nonce
+
+      # version (usually 1)
+      attr_accessor :ver
+
+      # raw protocol payload
+      attr_accessor :payload
 
       # compare to another block
       def ==(other)

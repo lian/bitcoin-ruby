@@ -1,4 +1,22 @@
 module Bitcoin
+
+  module Builder
+
+    def blk(target = "00".ljust(32, 'f'), &block)
+      c = BlockBuilder.new
+      c.instance_eval &block
+      c.block(target)
+    end
+
+    def tx &block
+      c = TxBuilder.new
+      c.instance_eval &block
+      c.tx
+    end
+
+  end
+
+
   class BlockBuilder
 
     def initialize
@@ -176,19 +194,4 @@ module Bitcoin
 
   end
 
-  module Builder
-
-    def blk(target = "00".ljust(32, 'f'), &block)
-      c = BlockBuilder.new
-      c.instance_eval &block
-      c.block(target)
-    end
-
-    def tx &block
-      c = TxBuilder.new
-      c.instance_eval &block
-      c.tx
-    end
-
-  end
 end

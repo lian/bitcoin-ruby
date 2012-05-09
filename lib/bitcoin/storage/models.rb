@@ -1,9 +1,14 @@
 # StorageModels defines objects that are returned from storage.
 # These objects inherit from their Bitcoin::Protocol counterpart
 # and add some additional data and methods.
+#
+# * Bitcoin::Storage::Models::Block
+# * Bitcoin::Storage::Models::Tx
+# * Bitcoin::Storage::Models::TxIn
+# * Bitcoin::Storage::Models::TxOut
 module Bitcoin::Storage::Models
 
-  # Block retrieved from storage.
+  # Block retrieved from storage. (see Bitcoin::Protocol::Block)
   class Block < Bitcoin::Protocol::Block
 
     attr_accessor :ver, :prev_block, :mrkl_root, :time, :bits, :nonce, :tx
@@ -29,7 +34,7 @@ module Bitcoin::Storage::Models
 
   end
 
-  # Transaction retrieved from storage.
+  # Transaction retrieved from storage. (see Bitcoin::Protocol::Tx)
   class Tx < Bitcoin::Protocol::Tx
 
     attr_accessor :ver, :lock_time, :hash
@@ -49,7 +54,7 @@ module Bitcoin::Storage::Models
 
   end
 
-  # Transaction input retrieved from storage.
+  # Transaction input retrieved from storage. (see Bitcoin::Protocol::TxIn
   class TxIn < Bitcoin::Protocol::TxIn
 
     attr_reader :store, :id, :tx_id, :tx_idx
@@ -76,7 +81,7 @@ module Bitcoin::Storage::Models
 
   end
 
-  # Transaction output retrieved from storage.
+  # Transaction output retrieved from storage. (see Bitcoin::Protocol::TxOut)
   class TxOut < Bitcoin::Protocol::TxOut
 
     attr_reader :store, :id, :tx_id, :tx_idx, :type

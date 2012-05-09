@@ -3,6 +3,15 @@ module Bitcoin
 
     class Addr < Struct.new(:time, :service, :ip, :port)
 
+      # # IP Address / Port
+      # attr_reader :ip, :port
+
+      # # Time the node was last active
+      # attr_reader :time
+
+      # # Services supported by this node
+      # attr_reader :service
+
       # create addr from raw binary +data+
       def initialize(data = nil)
         if data

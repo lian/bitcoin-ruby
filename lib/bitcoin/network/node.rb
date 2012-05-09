@@ -6,9 +6,36 @@ module Bitcoin::Network
 
   class Node
 
-    attr_reader :config, :log, :connections, :command_connections,
-    :queue, :inv_queue, :inv_cache, :store, :addrs, :notifiers, :notify_lock
-    attr_accessor :block
+    # configuration hash
+    attr_reader :config
+
+    # logger
+    attr_reader :log
+
+    # connections to other peers (Array of ConnectionHandler)
+    attr_reader :connections
+
+    # command connections (Array of CommandHandler)
+    attr_reader :command_connections
+
+    # storage queue (blocks/tx waiting to be stored)
+    attr_reader :queue
+
+    # inventory queue (blocks/tx waiting to be downloaded)
+    attr_reader :inv_queue
+
+    # inventory cache (blocks/tx recently downloaded)
+    attr_reader :inv_cache
+
+    # Bitcoin::Storage backend
+    attr_reader :store
+
+    # peer addrs (Array of Bitcoin::Protocol::Addr)
+    attr_reader :addrs
+
+    # clients to be notified for new block/tx events
+    attr_reader :notifiers
+
 
     DEFAULT_CONFIG = {
       :listen => ["0.0.0.0", Bitcoin.network[:default_port]],

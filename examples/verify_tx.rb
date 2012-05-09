@@ -1,4 +1,13 @@
 #!/usr/bin/env ruby
+#
+# Fetch a transaction and all its previous outputs from local storage and verify signatures.
+#
+#  verify_tx.rb [options] <tx_hash>
+#  ruby examples/verify_tx.rb -s sequel::postgres:/bitcoin 0f6741210a02e196ca5f5ad17f684968623546c1accdbcb701a668a51a7ba9fd
+
+Note: For this to work, you obviously need to have the transactions in your storage.
+
+#
 $:.unshift( File.expand_path("../../lib", __FILE__) )
 
 require 'bitcoin'

@@ -1,0 +1,21 @@
+= Storage
+
+There is support for different storage backends, currently the `sequel` backend is the most stable and should work with `sqlite` and `postgres` databases. see Bitcoin::Storage
+
+== Backends
+
+For examples that require storage backends, you can specify them using
+a string containing the backend name and a configuration string.
+The default backend is +sequel::sqlite://bitcoin.db+ which is a sqlite database
+called +bitcoin.db+ in the current directory
+
+ sequel::sqlite:/ # in-memory
+ sequel::sqlite://bitcoin.db
+ sequel::sqlite:///tmp/bitcoin.db
+ sequel::postgres:/bitcoin
+ sequel::postgres://<user>:<pass>@<host>:<port>/<database>
+
+== Custom Backends
+
+To implement a custom backend you need to inherit from Bitcoin::Storage::Backends::StoreBase
+and implement the methods defined there.

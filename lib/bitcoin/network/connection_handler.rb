@@ -2,6 +2,8 @@ require 'eventmachine'
 
 module Bitcoin::Network
 
+  # Node network connection to a peer. Handles all the communication with a specific peer.
+  # TODO: incoming/outgoing?
   class ConnectionHandler < EM::Connection
 
     include Bitcoin
@@ -16,10 +18,12 @@ module Bitcoin::Network
       @log ||= Logger::LogWrapper.new("#@host:#@port", @node.log)
     end
 
+    # how long has this connection been open?
     def uptime
       @started ? (Time.now - @started).to_i : 0
     end
 
+    # create connection to +host+:+port+ for given +node+
     def initialize node, host, port
       @node, @host, @port = node, host, port
       @parser = Bitcoin::Protocol::Parser.new(self)
@@ -31,6 +35,7 @@ module Bitcoin::Network
       p $!; puts $@; exit
     end
 
+    # check if connection is wanted, begin handshake if it is, disconnect if not
     def post_init
       if @node.connections.size >= @node.config[:max][:connections]
         return close_connection  unless @node.config[:connect].include?([@host, @port.to_s])
@@ -44,11 +49,13 @@ module Bitcoin::Network
       p $!; puts $@; exit
     end
 
+    # receive data from peer and invoke Protocol::Parser
     def receive_data data
       log.debug { "Receiving data (#{data.size} bytes)" }
       @parser.parse(data)
     end
 
+    # connection closed; notify listeners and cleanup connection from node
     def unbind
       log.info { "Disconnected #{@host}:#{@port}" }
       @node.notifiers[:connection].push([:disconnected, [@host, @port]])
@@ -56,19 +63,24 @@ module Bitcoin::Network
       @node.connections.delete(self)
     end
 
-
+    # received +inv_tx+ message for given +hash+.
+    # add to inv_queue, unlesss maximum is reached
     def on_inv_transaction(hash)
       log.info { ">> inv transaction: #{hth(hash)}" }
       return  if @node.inv_queue.size >= @node.config[:max][:inv]
       @node.queue_inv([:tx, hash, self])
     end
 
+    # received +inv_block+ message for given +hash+.
+    # add to inv_queue, unless maximum is reached
     def on_inv_block(hash)
       log.info { ">> inv block: #{hth(hash)}" }
       return  if @node.inv_queue.size >= @node.config[:max][:inv]
       @node.queue_inv([:block, hash, self])
     end
 
+    # received +get_tx+ message for given +hash+.
+    # send specified tx if we have it
     def on_get_transaction(hash)
       log.info { ">> get transaction: #{hash.unpack("H*")[0]}" }
       tx = @node.store.get_tx(hash.unpack("H*")[0])
@@ -78,37 +90,51 @@ module Bitcoin::Network
       send_data pkt
     end
 
+    # received +get_block+ message for given +hash+.
+    # send specified block if we have it
+    # TODO
     def on_get_block(hash)
       log.info { ">> get block: #{hth(hash)}" }
     end
 
+    # send +inv+ message with given +type+ for given +obj+
     def send_inv type, obj
       pkt = Protocol.inv_pkt(type, [[obj.hash].pack("H*")])
       log.info { "<< inv #{type}: #{obj.hash}" }
       send_data(pkt)
     end
 
+    # received +addr+ message for given +addr+.
+    # store addr in node and notify listeners
     def on_addr(addr)
       log.info { ">> addr: #{addr.ip}:#{addr.port} alive: #{addr.alive?}, service: #{addr.service}" }
       @node.addrs << addr
       @node.notifiers[:addr].push(addr)
     end
 
+    # received +tx+ message for given +tx+.
+    # push tx to storage queue
     def on_tx(tx)
       log.info { ">> tx: #{tx.hash} (#{tx.payload.size} bytes)" }
       @node.queue.push([:tx, tx])
     end
 
+    # received +block+ message for given +blk+.
+    # push block to storage queue
     def on_block(blk)
       log.info { ">> block: #{blk.hash} (#{blk.payload.size} bytes)" }
       @node.queue.push([:block, blk])
     end
 
+    # received +headers+ message for given +headers+.
+    # push each header to storage queue
     def on_headers(headers)
       log.info { ">> headers: #{headers.size}" }
       headers.each {|h| @node.queue.push([:block, h])}
     end
 
+    # received +version+ message for given +version+.
+    # send +verack+ message and complete handshake
     def on_version(version)
       log.info { ">> version: #{version.version}" }
       @version = version
@@ -117,27 +143,34 @@ module Bitcoin::Network
       on_handshake_complete
     end
 
+    # received +verack+ message.
+    # complete handshake if it isn't completed already
     def on_verack
       log.info { ">> verack" }
       on_handshake_complete  if handshake?
     end
 
+    # received +alert+ message for given +alert+.
+    # TODO: implement alert logic, store, display, relay
     def on_alert(alert)
       log.warn { ">> alert: #{alert.inspect}" }
     end
 
+    # send +getdata tx+ message for given tx +hash+
     def send_getdata_tx(hash)
       pkt = Protocol.getdata_pkt(:tx, [hash])
       log.info { "<< getdata tx: #{hth(hash)}" }
       send_data(pkt)
     end
 
+    # send +getdata block+ message for given block +hash+
     def send_getdata_block(hash)
       pkt = Protocol.getdata_pkt(:block, [hash])
       log.info { "<< getdata block: #{hth(hash)}" }
       send_data(pkt)
     end
 
+    # send +getblocks+ message
     def send_getblocks
       return get_genesis_block  if @node.store.get_depth == -1
       locator = @node.store.get_locator
@@ -147,6 +180,7 @@ module Bitcoin::Network
       send_data(pkt)
     end
 
+    # send +getheaders+ message
     def send_getheaders
       return get_genesis_block  if @node.store.get_depth == -1
       locator = @node.store.get_locator
@@ -156,17 +190,20 @@ module Bitcoin::Network
       send_data(pkt)
     end
 
+    # send +getaddr+ message
     def send_getaddr
       log.info { "<< getaddr" }
       send_data(Protocol.pkt("getaddr", ""))
     end
 
+    # ask for the genesis block
     def get_genesis_block
       log.info { "Asking for genesis block" }
       pkt = Protocol.getdata_pkt(:block, [htb(Bitcoin::network[:genesis_hash])])
       send_data(pkt)
     end
 
+    # complete handshake; set state, started time, notify listeners and add address to Node
     def on_handshake_complete
       return  unless handshake?
       log.debug { "handshake complete" }
@@ -177,6 +214,7 @@ module Bitcoin::Network
       #send_getaddr
     end
 
+    # begin handshake; send +version+ message
     def on_handshake_begin
       @state = :handshake
       block   = @node.store.get_depth
@@ -189,6 +227,7 @@ module Bitcoin::Network
       send_data(pkt)
     end
 
+    # get Addr object for this connection
     def addr
       return @addr  if @addr
       @addr = Bitcoin::Protocol::Addr.new
@@ -201,6 +240,7 @@ module Bitcoin::Network
       define_method("#{state}?") { @state == state }
     end
 
+    # get info hash
     def info
       {
         :host => @host, :port => @port, :state => @state,

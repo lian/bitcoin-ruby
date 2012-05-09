@@ -1,6 +1,12 @@
 #!/usr/bin/env ruby
+#
+# Relay transaction to the network.
+# TODO
+
 require 'socket'
 require 'json'
+
+# TODO: use CommandClient
 
 host, port = "127.0.0.1", 9999
 if ARGV[0] == "-s"

@@ -9,7 +9,7 @@ require 'yaml'
 defaults = {
   :network => "testnet",
   :storage => "dummy",
-  :keystore => "dummy",
+  :keystore => "simple::file=#{ENV['HOME']}/.bitcoin-ruby/keys.json",
   :command => "127.0.0.1:9999"
 }
 options = Bitcoin::Config.load(defaults, :wallet)
@@ -42,7 +42,7 @@ optparse = OptionParser.new do |opts|
 
   opts.on("-k", "--keystore [backend::<config>]",
     "Key store (default: #{options[:store]})") do |store|
-    options[:keystore] = store
+    options[:keystore] = store.gsub("~", ENV['HOME'])
   end
 
   opts.on("-h", "--help", "Display this help") do

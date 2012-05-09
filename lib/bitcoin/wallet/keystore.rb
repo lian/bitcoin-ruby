@@ -2,7 +2,7 @@ require 'json'
 
 module Bitcoin::Wallet
 
-  # JSON-file-based keystore.
+  # JSON-file-based keystore used by the Wallet.
   class SimpleKeyStore
 
     attr_reader :config

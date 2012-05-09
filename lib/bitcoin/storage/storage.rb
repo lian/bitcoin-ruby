@@ -1,3 +1,9 @@
+# The storage implementation supports different backends, which inherit from
+# Storage::StoreBase and implement the same interface.
+# Each backend returns Storage::Models objects to easily access helper methods and metadata.
+#
+# The most stable backend is Backends::SequelStore, which uses sequel and can use all
+# kinds of SQL database backends.
 module Bitcoin::Storage
 
   autoload :Models, 'bitcoin/storage/models'

@@ -4,8 +4,24 @@ module Bitcoin
   module Protocol
 
     class Tx
-      attr_reader :hash, :in, :out, :payload
-      attr_accessor :ver, :lock_time
+
+      # transaction hash
+      attr_reader :hash
+
+      # inputs (Array of TxIn)
+      attr_reader :in
+
+      # outputs (Array of TxOut)
+      attr_reader :out
+
+      # raw protocol payload
+      attr_reader :payload
+
+      # version (usually 1)
+      attr_accessor :ver
+
+      # lock time
+      attr_accessor :lock_time
 
       # compare to another tx
       def ==(other)

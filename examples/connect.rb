@@ -1,9 +1,14 @@
 #!/usr/bin/env ruby
+#
+# Connect to a few peers and download the first 500 blocks.
+#
+#  ruby examples/connect.rb
+
 $:.unshift( File.expand_path("../../lib", __FILE__) )
 
 require 'bitcoin/connection'
 
-Bitcoin::network = :bitcoin
+Bitcoin::network = ARGV[0] || :bitcoin
 
 class RawJSON_Connection < Bitcoin::Connection
   def on_tx(tx)

@@ -1,15 +1,18 @@
 #!/usr/bin/env ruby
-$:.unshift(File.dirname(__FILE__) + "/../lib")
+#
+# Fetch a transaction from blockexplorer.com and verify all signatures.
+#  ruby examples/bbe_verifytx.rb <tx hash> [<network>]
 
+$:.unshift(File.dirname(__FILE__) + "/../lib")
 require 'bitcoin'
 require 'open-uri'
 
 tx_hash = ARGV[0]
 $testnet = ARGV[1]
 
+# fetch transaction from bbe as json and deserialize into Bitcoin::Protocol::Tx object
 def get_tx(hash)
   url = "http://blockexplorer.com/%srawtx/%s" % [$testnet ? 'testnet/' : '',  hash]
-  #puts "fetching %s .." % [url]
   json = open(url).read
   Bitcoin::Protocol::Tx.from_json(json)
 rescue Exception
