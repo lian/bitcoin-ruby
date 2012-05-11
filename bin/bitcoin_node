@@ -1,0 +1,193 @@
+#!/usr/bin/env ruby
+$:.unshift( File.expand_path("../../lib", __FILE__) )
+
+require 'rubygems'
+require 'bitcoin'
+require 'optparse'
+require 'eventmachine'
+require 'json'
+
+defaults = {
+  :network => "bitcoin",
+  :command => "127.0.0.1:9999",
+  :listen => "0.0.0.0:8332",
+  :connect => "",
+  :storage => "sequel::sqlite://bitcoin.db",
+  :headers_only => false,
+  :dns => true,
+  :epoll => false,
+  :epoll_limit => 10000,
+  :epoll_user => nil,
+  :log => {
+    :network => :info,
+    :storage => :info,
+  },
+  :max => {
+    :connections => 32,
+    :addr => 1024,
+    :queue => 500,
+    :inv => 500,
+  },
+  :intervals => {
+    :queue => 5,
+    :inv_queue => 5,
+    :addrs => 15,
+    :connect => 30,
+  },
+  :daemon => false,
+}
+
+options = Bitcoin::Config.load(defaults, :blockchain)
+
+optparse = OptionParser.new do |opts|
+  opts.banner = "Usage: bitcoin_node [options]"
+
+  opts.separator("\nAvailable options:\n")
+
+  opts.on("-c", "--config FILE",
+    "Config file (default: #{Bitcoin::Config::CONFIG_PATHS})") do |file|
+    options = Bitcoin::Config.load_file(options, file, :blockchain)
+  end
+
+  opts.on("-n", "--network [NETWORK]",
+    "User Network (default: #{options[:network]})") do |network|
+    options[:network] = network
+  end
+
+  opts.on("--command [HOST:PORT]",
+    "Command socket (default: #{options[:command]})") do |command|
+    options[:command] = command
+  end
+
+  opts.on("-l", "--listen [HOST:PORT]",
+    "Listen address/port (default: #{options[:listen]})") do |listen|
+    options[:listen] = listen
+  end
+
+  opts.on("--connect [HOST:PORT[,HOST:PORT[...]]]",
+    "Hosts to connect to (default: #{options[:connect]})") do |connect|
+    options[:connect] = connect
+  end
+
+  opts.on("-s", "--storage [BACKEND::CONFIG]",
+    "Use storage backend (default: #{options[:storage]})") do |storage|
+    options[:storage] = storage
+  end
+
+  opts.on("--ho", "--headers-only",
+    "Download only block headers") do
+    options[:headers_only] = true
+  end
+
+  opts.on("-d", "--dns", "Use DNS seeds (default)") do
+    options[:dns] = true
+  end
+
+  opts.on("--nd", "--no-dns", "Don't use DNS seeds") do
+    options[:dns] = false
+  end
+
+  opts.on("--epoll", "Enable epoll support") do
+    options[:epoll] = true
+  end
+
+  opts.on("--epoll-limit [NUM]",
+    "Increase socket descriptor limit to NUM") do |num|
+    options[:epoll_limit] = num.to_i
+  end
+
+  opts.on("--epoll-user [NAME]",
+    "Set effective user after increasing socket descriptor limit") do |user|
+    options[:epoll_user] = user
+  end
+
+  [:connections, :addr, :queue, :inv].each do |name|
+    opts.on("--m#{name.to_s[0]}", "--max-#{name} [COUNT]",
+      "Max #{name} (default: #{options[:max][name]})") do |count|
+      options[:max][name] = count.to_i
+    end
+  end
+
+  [:queue, :inv_queue, :blocks, :addrs, :connect].each do |name|
+    opts.on("--i#{name.to_s[0]}", "--interval-#{name} [SECONDS]",
+      "Interval for #{name} worker (default: #{options[:intervals][name]})") do |sec|
+      options[:intervals][name] = sec.to_i
+    end
+  end
+
+  [:network, :storage].each do |name|
+    opts.on("--l#{name.to_s[0]}", "--log-#{name} [LEVEL]",
+      "Log level for #{name} (default: #{options[:log][name]})") do |level|
+      options[:log][name] = level.to_sym
+    end
+  end
+
+  opts.on("-v", "--verbose", "Set all loggers to debug") do
+    options[:log].each_key {|k| options[:log][k] = :debug }
+  end
+
+  opts.on("-q", "--quiet", "Set all loggers to warn") do
+    options[:log].each_key {|k| options[:log][k] = :warn }
+  end
+
+  opts.on("--daemon", "Daemonize process") do
+    options[:daemon] = true
+  end
+
+  opts.on( '-h', '--help', 'Display this screen' ) do
+    puts opts; exit
+  end
+end
+
+optparse.parse!
+
+Bitcoin.network = options[:network]
+options[:command] = options[:command] == "" ? nil : options[:command].split(':')
+options[:listen] = options[:listen] == "" ? nil : options[:listen].split(':')
+options[:connect] = options[:connect] == "" ? [] : options[:connect].split(',').map{|h| h.split(':')}
+
+if ARGV.any?
+  EM.run do
+    Bitcoin::Network::CommandClient.connect(*options[:command]) do
+
+      on_response do |cmd, data|
+        EM.stop  unless cmd == "monitor"
+      end
+      on_info do |info|
+        puts JSON.pretty_generate(info)
+      end
+      on_connections do |connections|
+        puts *connections
+      end
+      [:connect, :disconnect, :getblocks, :getaddr, :relay_tx, :stop].each do |req|
+        send("on_#{req}") {|res| p res}
+      end
+
+      on_block do |block, depth|
+        puts "block: #{block['hash']} (#{depth})"
+      end
+      on_tx do |tx|
+        puts "tx: #{tx['hash']}"
+      end
+      on_connection do |type, host|
+        if type == "connected"
+          puts "Connected: #{host['host']}:#{host['port']}"
+        else
+          puts "Disconnected: #{host.inspect}"
+        end
+      end
+
+      on_connected do
+        request(ARGV[0], *(ARGV[1] || "").split(" "))
+      end
+
+    end
+  end
+else
+  node = Bitcoin::Network::Node.new(options)
+#  if options[:daemon]
+#    Process.detach(fork { node.run })
+#  else
+    node.run
+#  end
+end
