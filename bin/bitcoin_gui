@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 $:.unshift( File.expand_path("../../lib", __FILE__) )
 
-require 'gtk3'
+require 'ffi-gtk3'
 require 'eventmachine'
 require 'bitcoin'
 require 'optparse'

@@ -33,28 +33,38 @@ module Bitcoin::Gui
         on_connection do |state, data|
           if state == "connected"
             row = gui.conn_store.append(nil)
-            row[0] = data['host']
-              row[1] = data['port']
-              row[2] = data['state']
-              row[3] = data['version']
-              row[4] = data['block']
-              row[5] = data['started']
-              row[6] = data['user_agent']
-              gui { conn_view.model = conn_store }
-          elsif state == "disconnected"
-            iter = nil
-            gui.conn_store.each do |model,path,i|
-              iter = i  if i[0] == data[0] && i[1] == data[1].to_s
+            gui do
+              data.each_with_index do |pair, i|
+                conn_store.set_value(row, i, pair[1] || "")
+              end
             end
-            if iter
-              gui.conn_store.remove(iter)
-              gui { conn_view.model = conn_store}
+          elsif state == "disconnected"
+            gui do
+              valid, i = conn_store.get_iter_first
+              while valid
+                host = conn_store.get_value(i, 0).get_string
+                port = conn_store.get_value(i, 1).get_int
+                if host == data[0] && port == data[1]
+                  conn_store.remove(i)
+                  break
+                end
+                valid = conn_store.iter_next(i.to_ptr)
+              end
             end
           end
-          i=0; gui.conn_store.each {i+=1};
-          p = gui.notebook.get_nth_page(2)
-          l = Gtk::Label.new("Connections (#{i})")
-          gui { notebook.set_tab_label(p, l) }
+
+          gui do
+            size = 0
+            v, i = conn_store.get_iter_first
+            while v
+              size += 1
+              v = conn_store.iter_next(i.to_ptr)
+            end
+
+            p = notebook.get_nth_page(2)
+            l = Gtk::Label.new("Connections (#{size})")
+            notebook.set_tab_label(p, l)
+          end
         end
 
         on_disconnected do

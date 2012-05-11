@@ -15,7 +15,7 @@ module Gtk
         end
         GTK_PENDING_BLOCKS.clear
       end
-    Gtk.main_iteration  if Gtk.events_pending?
+    Gtk.main_iteration while Gtk.events_pending
   end
 end
 
