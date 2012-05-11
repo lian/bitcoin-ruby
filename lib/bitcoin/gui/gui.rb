@@ -25,6 +25,18 @@ module Bitcoin::Gui
       @builder.connect_signals_full(->(builder, widget, signal, handler, _, _, gui) do
           GObject.signal_connect(widget, signal) { gui.send(handler) }
         end, self)
+
+      {
+        "<Control>n" => :file_new,
+        "<Control>o" => :file_open,
+        "<Control>q" => :file_quit,
+        "<Control>c" => :edit_copy,
+        "<Control>p" => :edit_paste,
+        "<Control>h" => :help_about,
+      }.each do |binding, action|
+        send("menu_#{action}").add_accelerator("activate", accelgroup1,
+          *Gtk.accelerator_parse(binding), 0)
+      end
     end
 
     def setup_addr_view
@@ -150,6 +162,8 @@ module Bitcoin::Gui
       @wallet = Bitcoin::Wallet::Wallet.new(@storage, keystore,
         Bitcoin::Wallet::SimpleCoinSelector)
       update_addr_store
+    rescue
+      message(:error, "Error loading wallet", $!.message, [:ok])
     end
 
     def wallet_preview(dialog, *args)

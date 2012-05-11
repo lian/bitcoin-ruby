@@ -38,7 +38,7 @@ class Bitcoin::Network::CommandClient < EM::Connection
   def unbind
     log.info { "Disconnected." }
     callback :disconnected
-    if @connection_attempts > 2
+    if @connection_attempts > 1
       log.info { "Trying to start server..." }
       EM.defer { system("bin/bitcoin_node", "--quiet") }
     end

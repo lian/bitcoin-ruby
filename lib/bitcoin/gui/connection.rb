@@ -68,7 +68,14 @@ module Bitcoin::Gui
         end
 
         on_disconnected do
-          gui { status_network.push 0, "Offline" }
+          if @connection_attempts == 4
+            gui do
+              message(:warning, "Node not available", "The bitcoin node is not running " +
+                "or not reachable.\nYou can use the wallet to handle keys but you won't " +
+                "be able to send/receive transactions.", [:ok])
+            end
+          end
+          gui.status_network.push 0, "Offline"
         end
       end
     end

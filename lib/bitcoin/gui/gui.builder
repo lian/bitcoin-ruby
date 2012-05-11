@@ -58,6 +58,9 @@ Marius Hanne</property>
       </object>
     </child>
   </object>
+  <object class="GtkAccelGroup" id="accelgroup1">
+    <signal name="accel-activate" handler="on_accel_activate" swapped="no"/>
+  </object>
   <object class="GtkDialog" id="dialog1">
     <property name="can_focus">False</property>
     <property name="border_width">5</property>
@@ -103,6 +106,9 @@ Marius Hanne</property>
   </object>
   <object class="GtkWindow" id="main_window">
     <property name="can_focus">False</property>
+    <accel-groups>
+      <group name="accelgroup1"/>
+    </accel-groups>
     <signal name="delete-event" handler="on_exit" swapped="no"/>
     <child>
       <object class="GtkBox" id="box1">
@@ -125,7 +131,7 @@ Marius Hanne</property>
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <child>
-                      <object class="GtkImageMenuItem" id="imagemenuitem1">
+                      <object class="GtkImageMenuItem" id="menu_file_new">
                         <property name="label">gtk-new</property>
                         <property name="use_action_appearance">False</property>
                         <property name="visible">True</property>
@@ -136,7 +142,7 @@ Marius Hanne</property>
                       </object>
                     </child>
                     <child>
-                      <object class="GtkImageMenuItem" id="imagemenuitem2">
+                      <object class="GtkImageMenuItem" id="menu_file_open">
                         <property name="label">gtk-open</property>
                         <property name="use_action_appearance">False</property>
                         <property name="visible">True</property>
@@ -154,13 +160,12 @@ Marius Hanne</property>
                       </object>
                     </child>
                     <child>
-                      <object class="GtkImageMenuItem" id="imagemenuitem5">
-                        <property name="label">gtk-quit</property>
+                      <object class="GtkImageMenuItem" id="menu_file_quit">
                         <property name="use_action_appearance">False</property>
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="use_underline">True</property>
                         <property name="use_stock">True</property>
+                        <property name="accel_group">accelgroup1</property>
                         <signal name="activate" handler="on_exit" swapped="no"/>
                       </object>
                     </child>
@@ -180,7 +185,7 @@ Marius Hanne</property>
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <child>
-                      <object class="GtkImageMenuItem" id="imagemenuitem7">
+                      <object class="GtkImageMenuItem" id="menu_edit_copy">
                         <property name="label">gtk-copy</property>
                         <property name="use_action_appearance">False</property>
                         <property name="visible">True</property>
@@ -191,7 +196,7 @@ Marius Hanne</property>
                       </object>
                     </child>
                     <child>
-                      <object class="GtkImageMenuItem" id="imagemenuitem8">
+                      <object class="GtkImageMenuItem" id="menu_edit_paste">
                         <property name="label">gtk-paste</property>
                         <property name="use_action_appearance">False</property>
                         <property name="visible">True</property>
@@ -225,7 +230,7 @@ Marius Hanne</property>
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <child>
-                      <object class="GtkImageMenuItem" id="imagemenuitem10">
+                      <object class="GtkImageMenuItem" id="menu_help_about">
                         <property name="label">gtk-about</property>
                         <property name="use_action_appearance">False</property>
                         <property name="visible">True</property>

@@ -11,7 +11,7 @@ require 'monitor'
 defaults = {
   :network => "testnet",
   :storage => "dummy",
-  :keystore => "dummy",
+  :keystore => "simple::file=~/.bitcoin-ruby/keys.json",
   :command => "127.0.0.1:9999"
 }
 options = Bitcoin::Config.load(defaults, :wallet)
