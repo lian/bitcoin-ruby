@@ -1,15 +1,17 @@
 #!/usr/bin/env ruby
 $:.unshift( File.expand_path("../../lib", __FILE__) )
 
-require 'ffi-gtk3'
-require 'eventmachine'
 require 'bitcoin'
 require 'optparse'
-require 'json'
-require 'monitor'
+
+Bitcoin.require_dependency 'ffi-gtk3', gem: "gir_ffi"
+Bitcoin.require_dependency :eventmachine
+Bitcoin.require_dependency :notify
+Bitcoin.require_dependency :json
+
 
 defaults = {
-  :network => "testnet",
+  :network => "bitcoin",
   :storage => "dummy",
   :keystore => "simple::file=~/.bitcoin-ruby/keys.json",
   :command => "127.0.0.1:9999"
@@ -63,7 +65,7 @@ end
 
 optparse.parse!
 
-
+Bitcoin.network = options[:network]
 
 backend, config = options[:storage].split("::")
 @storage = Bitcoin::Storage.send(backend, :db => config)

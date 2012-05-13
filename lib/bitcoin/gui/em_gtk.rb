@@ -1,3 +1,5 @@
+require "monitor"
+
 module Gtk
   GTK_PENDING_BLOCKS = []
   GTK_PENDING_BLOCKS_LOCK = Monitor.new

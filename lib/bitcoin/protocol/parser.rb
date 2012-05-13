@@ -2,14 +2,15 @@ module Bitcoin
   module Protocol
 
     class Parser
-            
+
       def initialize(handler=nil)
         @h = handler || Handler.new
         @buf = ""
-        @log = Bitcoin::Logger.create("parser")
       end
-      
-      def log; @log; end
+
+      def log
+        @log ||= Bitcoin::Logger.create("parser")
+      end
 
       # handles inv/getdata packets
       #

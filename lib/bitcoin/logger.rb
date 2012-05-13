@@ -1,13 +1,15 @@
-begin
-  require 'log4r'
+if Bitcoin.require_dependency :log4r, exit: false
   # monkey-patch Log4r to accept level names as symbols
   class Log4r::Logger
-    def level= l
-      @level = l.is_a?(Fixnum) ? l : Log4r::LNAMES.index(l)
+    def level= l = 0
+      _level = l.is_a?(Fixnum) ? l : Log4r::LNAMES.index(l.to_s.upcase)
+      Log4r::Log4rTools.validate_level(_level)
+      @level = _level
+      LoggerFactory.define_methods(self)
+      Log4r::Logger.log_internal {"Logger '#{@fullname}' set to #{LNAMES[@level]}"}
+      @level
     end
   end
-rescue LoadError
-  # log4r not installed
 end
 
 module Bitcoin
@@ -31,7 +33,7 @@ module Bitcoin
         define_method(level) do |*msg, &block|
           return  if LEVELS.index(level.to_sym) < LEVELS.index(@level.to_sym)
           msg = block ? block.call : msg.join
-          puts "#{level.to_s.upcase.ljust(5)} #{@name} #{msg}"
+          puts "#{level.to_s.upcase.ljust(5)} #{@name}: #{msg}"
         end
       end
     end
@@ -47,10 +49,10 @@ module Bitcoin
     # create a logger with given +name+. if log4r is installed, the logger
     # will have a stdout and a fileout outputter to `log/<name>.log`.
     # otherwise, the internal dummy logger is used which only logs to stdout.
-    def self.create name
+    def self.create name, level = :info
       if defined?(Log4r)
         @log = Log4r::Logger.new(name.to_s)
-        @log.level = 0
+        @log.level = level
         @log.outputters << Log4r::Outputter.stdout
         @log.outputters << Log4r::FileOutputter.new("fout", :filename => "log/#{name}.log")
       else

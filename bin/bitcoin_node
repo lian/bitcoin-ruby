@@ -1,11 +1,10 @@
 #!/usr/bin/env ruby
 $:.unshift( File.expand_path("../../lib", __FILE__) )
 
-require 'rubygems'
 require 'bitcoin'
 require 'optparse'
-require 'eventmachine'
-require 'json'
+Bitcoin.require_dependency :eventmachine
+Bitcoin.require_dependency :json
 
 defaults = {
   :network => "bitcoin",
@@ -130,10 +129,6 @@ optparse = OptionParser.new do |opts|
     options[:log].each_key {|k| options[:log][k] = :warn }
   end
 
-  opts.on("--daemon", "Daemonize process") do
-    options[:daemon] = true
-  end
-
   opts.on( '-h', '--help', 'Display this screen' ) do
     puts opts; exit
   end
@@ -185,9 +180,5 @@ if ARGV.any?
   end
 else
   node = Bitcoin::Network::Node.new(options)
-#  if options[:daemon]
-#    Process.detach(fork { node.run })
-#  else
-    node.run
-#  end
+  node.run
 end

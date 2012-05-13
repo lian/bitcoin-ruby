@@ -1,10 +1,5 @@
-begin
-  require 'sequel'
-rescue LoadError
-  puts "Cannot load 'sequel' - install with `gem install sequel`"
-  puts "Note: You will also need an adapter for your database like sqlite3, mysql2, postgresql"
-  exit 1
-end
+Bitcoin.require_dependency :sequel, message:
+  "Note: You will also need an adapter for your database like sqlite3, mysql2, postgresql"
 require 'bitcoin/storage/sequel_store/sequel_migrations'
 
 module Bitcoin::Storage::Backends
@@ -46,6 +41,13 @@ module Bitcoin::Storage::Backends
 
     # connect to database
     def connect
+      {:sqlite => "sqlite3", :postgres => "pg", :mysql => "mysql",
+      }.each do |adapter, name|
+        if @config[:db].split(":").first == adapter.to_s
+          Bitcoin.require_dependency name, gem: name
+        end
+      end
+
       @db = Sequel.connect(@config[:db])
       migrate
     end

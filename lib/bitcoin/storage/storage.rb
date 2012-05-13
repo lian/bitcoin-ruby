@@ -8,7 +8,7 @@ module Bitcoin::Storage
 
   autoload :Models, 'bitcoin/storage/models'
 
-  @log = Bitcoin::Logger.create("storage")
+  @log = Bitcoin::Logger.create(:storage)
   def self.log; @log; end
 
   BACKENDS = [:dummy, :sequel]
@@ -31,13 +31,12 @@ module Bitcoin::Storage
     # inside the appropriate Bitcoin::Storage::Models class.
     class StoreBase
 
+      attr_reader :log
+
       def initialize(config = {})
         @config = config
         @log    = config[:log] || Bitcoin::Storage.log
       end
-
-      # get the storage logger
-      def log; @log; end
 
       # reset the store; delete all data
       def reset

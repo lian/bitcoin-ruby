@@ -17,11 +17,8 @@ class Bitcoin::Network::CommandClient < EM::Connection
     @connection_attempts = 0
   end
 
-  def log
-    return @log  if @log
-    @log = Bitcoin::Logger.create("command_client")
-    @log.level = :info
-    @log
+  def log;
+    @log ||= Bitcoin::Logger.create(:client)
   end
 
   def self.connect host, port, *args, &block

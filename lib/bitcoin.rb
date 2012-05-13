@@ -39,6 +39,20 @@ module Bitcoin
     autoload :Connection, 'bitcoin/gui/connection'
   end
 
+  def self.require_dependency name, opts = {}
+    begin
+      require name.to_s
+    rescue LoadError
+      print "Cannot load #{opts[:exit] == false ? 'optional' : 'required'} dependency '#{name}'"
+      (opts[:gem] == false) ? puts("") :
+        puts(" - install with `gem install #{opts[:gem] || name}`")
+      puts opts[:message]  if opts[:message]
+      exit 1  unless opts[:exit] == false
+      return false
+    end
+    true
+  end
+
   module Util
 
     def hth(h); h.unpack("H*")[0]; end
