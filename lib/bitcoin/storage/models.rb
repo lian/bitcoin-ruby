@@ -52,6 +52,11 @@ module Bitcoin::Storage::Models
       @store.get_block_by_id(@blk_id)
     end
 
+    # get the number of blocks that confirm this tx in the main chain
+    def confirmations
+      return 0  unless get_block
+      @store.get_head.depth - get_block.depth + 1
+    end
   end
 
   # Transaction input retrieved from storage. (see Bitcoin::Protocol::TxIn

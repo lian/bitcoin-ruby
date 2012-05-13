@@ -12,7 +12,7 @@ module Bitcoin::Gui
 
     def initialize host, port, gui
       @gui = gui
-      client = Bitcoin::Network::CommandClient.connect(host, port, gui) do
+      @gui.node = Bitcoin::Network::CommandClient.connect(host, port, gui) do
 
         on_connected do
           request :info
@@ -32,33 +32,17 @@ module Bitcoin::Gui
 
         on_connection do |state, data|
           if state == "connected"
-            row = gui.conn_store.append(nil)
-            gui do
-              data.each_with_index do |pair, i|
-                conn_store.set_value(row, i, pair[1] || "")
-              end
-            end
+            gui.conn_view.connected(data)
           elsif state == "disconnected"
-            gui do
-              valid, i = conn_store.get_iter_first
-              while valid
-                host = conn_store.get_value(i, 0).get_string
-                port = conn_store.get_value(i, 1).get_int
-                if host == data[0] && port == data[1]
-                  conn_store.remove(i)
-                  break
-                end
-                valid = conn_store.iter_next(i.to_ptr)
-              end
-            end
+            gui.conn_view.disconnected(data)
           end
 
           gui do
             size = 0
-            v, i = conn_store.get_iter_first
+            v, i = conn_view.model.get_iter_first
             while v
               size += 1
-              v = conn_store.iter_next(i.to_ptr)
+              v = conn_view.model.iter_next(i.to_ptr)
             end
 
             p = notebook.get_nth_page(2)

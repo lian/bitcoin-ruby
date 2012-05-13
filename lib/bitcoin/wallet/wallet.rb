@@ -1,3 +1,5 @@
+Bitcoin.require_dependency :eventmachine, exit: false
+
 # The wallet implementation consists of several concepts:
 # Wallet::             the high-level API used to manage a wallet
 # SimpleKeyStore::     key store to manage keys/addresses/labels
@@ -25,6 +27,77 @@ module Bitcoin::Wallet
       @storage = storage
       @keystore = keystore
       @selector = selector
+      @callbacks = {}
+      connect_node  if defined?(EM)
+    end
+
+    def connect_node
+      return  unless EM.reactor_running?
+      host, port = "127.0.0.1", 9999
+      @node = Bitcoin::Network::CommandClient.connect(host, port, self, @storage) do
+        on_connected { request :monitor, "block", "tx" }
+        on_block do |block, depth|
+          EM.defer do
+            block['tx'].each do |tx|
+              relevant, tx = @args[0].check_tx(tx['hash'])
+              @args[0].callback(:tx, :confirmed, tx)  if relevant
+            end
+          end
+        end
+
+        on_tx do |response|
+          EM.defer do
+            p "tx: #{response['hash']}"
+            relevant, tx = @args[0].check_tx(response['hash'])
+            @args[0].callback(:tx, relevant, tx)  if relevant
+          end
+        end
+      end
+    end
+
+    def check_tx tx_hash
+      relevant = false
+      addrs = addrs
+      tx = @storage.get_tx(tx_hash)
+      unless tx
+        log.warn { "Received tx #{response['hash']} but not found in storage" }
+        binding.pry
+        return false
+      end
+      addrs = @keystore.keys.map {|k| k[:addr] }
+      tx.out.each do |txout|
+        return :incoming, tx  if (txout.get_addresses & addrs).any?
+      end
+      tx.in.each do |txin|
+        next unless  prev_out = txin.get_prev_out
+        return :outgoing, tx  if (prev_out.get_addresses & addrs).any?
+      end
+      return false
+    end
+
+    def log
+      return @log  if @log
+      @log = Bitcoin::Logger.create("wallet")
+      @log.level = :debug
+      @log
+    end
+
+    # call the callback specified by +name+ passing in +args+
+    def callback name, *args
+      cb = @callbacks[name.to_sym]
+      return  unless cb
+      log.debug { "callback: #{name}" }
+      cb.call(*args)
+    end
+
+    # register callback methods
+    def method_missing(name, *args, &block)
+      if name =~ /^on_/
+        @callbacks[name.to_s.split("on_")[1].to_sym] = block
+        log.debug { "callback #{name} registered" }
+      else
+        super(name, *args)
+      end
     end
 
     # get all Storage::Models::TxOut concerning any address from this wallet
@@ -37,6 +110,7 @@ module Bitcoin::Wallet
     # get total balance for all addresses in this wallet
     def get_balance
       values = get_txouts.select{|o| !o.get_next_in}.map(&:value)
+
       ([0] + values).inject(:+)
     end
 
@@ -106,7 +180,6 @@ module Bitcoin::Wallet
         when :pubkey
           pubkey = @keystore.key(addrs[0])
           raise "Public key for #{addrs[0]} not known"  unless pubkey
-          binding.pry
           script = Bitcoin::Script.to_pubkey_script(pubkey[:key].pub)
         when :address
           if Bitcoin.valid_address?(addrs[0])

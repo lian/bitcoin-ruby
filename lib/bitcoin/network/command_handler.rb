@@ -143,9 +143,9 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   # relay given transaction (in hex)
   #  bitcoin_node relay_tx <tx data>
   def handle_relay_tx data
-    tx = Bitcoin::Protocol::Tx.new([data].pack("H*"))
+    tx = Bitcoin::Protocol::Tx.from_hash(data)
     @node.relay_tx(tx)
-    tx.to_hash
+    tx
   rescue
     {:error => $!}
   end

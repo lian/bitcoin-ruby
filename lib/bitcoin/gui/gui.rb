@@ -1,23 +1,43 @@
 require_relative "em_gtk.rb"
+require_relative "helpers.rb"
+require_relative "tree_view.rb"
+require_relative "addr_view.rb"
+require_relative "tx_view.rb"
+require_relative "conn_view.rb"
 
 Gtk.init
 
 module Bitcoin::Gui
 
   class Gui
-    attr_reader :builder
-    attr_accessor :node, :conn_view, :conn_store, :addr_store
+
+    include Helpers
+
+    attr_reader :builder, :wallet, :storage
+    attr_accessor :node, :addr_view, :conn_view
+
     def initialize storage, wallet_file = nil
       @storage = storage
       @node = nil
       build
-      setup_addr_view
-      setup_conn_view
+      @addr_view = AddrView.new(self)
+      @tx_view = TxView.new(self, :tx_view)
+      @conn_view = ConnView.new(self)
       open_wallet(wallet_file)  if wallet_file
       main_window.show_all
+      # notebook.next_page
+      statusicon.tooltip_text = "Bitcoin-Ruby GUI"
+      GObject.signal_connect(statusicon, "activate") do
+        main_window.visible ? main_window.hide : main_window.show
+      end
+      GObject.signal_connect(statusicon, "popup-menu") do
+        popup_menu.popup_for_device(nil, nil, nil, ->(*a) {}, nil, nil, 0, 0)
+      end
     end
 
-    # VIEWS
+    def log
+      @log ||= Bitcoin::Logger.create(:gui)
+    end
 
     def build
       @builder = Gtk::Builder.new
@@ -31,7 +51,8 @@ module Bitcoin::Gui
         "<Control>o" => :file_open,
         "<Control>q" => :file_quit,
         "<Control>c" => :edit_copy,
-        "<Control>p" => :edit_paste,
+        "<Control>v" => :edit_paste,
+        "<Control>p" => :edit_preferences,
         "<Control>h" => :help_about,
       }.each do |binding, action|
         send("menu_#{action}").add_accelerator("activate", accelgroup1,
@@ -39,75 +60,38 @@ module Bitcoin::Gui
       end
     end
 
-    def setup_addr_view
-      @addr_store = Gtk::TreeStore.new [GObject::TYPE_STRING, GObject::TYPE_STRING, GObject::TYPE_INT]
-      @addr_view = Gtk::TreeView.new_with_model(@addr_store)
-
-      renderer = Gtk::CellRendererText.new
-      col = tree_view_col(renderer, "Address", "text", 0) {|*a| format_address(*a) }
-      @addr_view.append_column(col)
-      renderer = Gtk::CellRendererText.new
-      col = tree_view_col(renderer, "Balance", "text", 1) {|*a| format_value(*a) }
-      @addr_view.append_column(col)
-
-      p = @builder.get_object("address_view").parent
-      p.remove(p.get_child)
-
-      p.add(@addr_view)
-    end
-
-    def setup_conn_view
-      @conn_store = Gtk::TreeStore.new [GObject::TYPE_STRING, GObject::TYPE_INT,
-        GObject::TYPE_STRING, GObject::TYPE_INT, GObject::TYPE_INT,
-        GObject::TYPE_INT, GObject::TYPE_STRING]
-      @conn_view = Gtk::TreeView.new_with_model(@conn_store)
-
-
-      %w[Host Port State Version Block Uptime UserAgent].each_with_index do |c, i|
-        renderer = Gtk::CellRendererText.new
-        case c
-        when "Version"
-          col = tree_view_col(renderer, c, "text", i) {|*a| format_version(*a)}
-        else
-          col = tree_view_col(renderer, c, "text", i)
-        end
-        @conn_view.append_column(col)
-      end
-      p = @builder.get_object("connections_view").parent
-      p.remove(p.get_child)
-      p.add(@conn_view)
-      @conn_view.show_all
-    end
-
-    # STORES
-
-    def update_addr_store
+    def update_wallet_views
       return  unless @wallet
-      @addr_store.clear
-      @wallet.list.each do |addr, balance|
-        row = @addr_store.append(nil)
-        @addr_store.set_value(row, 0, addr[:addr])
-        @addr_store.set_value(row, 1, addr[:label] || "")
-        @addr_store.set_value(row, 2, balance)
-      end
-      @addr_view.set_model @addr_store
+      @addr_view.update(@wallet.list)
+      @tx_view.update(@wallet.get_txouts(true))
       wallet_text = "wallet: #{@wallet.keystore.config[:file]} | " +
         "addresses: #{@wallet.addrs.size} | " +
         "balance: #{"%.8f" % (@wallet.get_balance / 1e8)}"
       status_wallet.push 0, wallet_text
     end
 
-    # CALLBACKS
+    def on_preferences
+      dialog(:preferences, :setup => ->(d) {
+          config = Bitcoin::Config.load({}, :wallet)
+          model = preferences_box_network.get_model
+          row = model.append
+          model.set_value(row, 0, "foo")
+          preferences_box_network.set_model model
+          # preferences_entry_network.text = config[:network]
+        }) do |*a|
+        p a
+      end
+    end
 
     def on_copy_addr
       addrs = []
-      valid, i = @addr_store.get_iter_first
+      valid, i = @addr_view.model.get_iter_first
       while valid
-        if @addr_view.selection.iter_is_selected(i)
-          a = @addr_store.get_value(i, 0).get_string
+        if @addr_view.view.selection.iter_is_selected(i)
+          a = @addr_view.model.get_value(i, 0).get_string
           addrs << a
         end
-        valid = @addr_store.iter_next(i.to_ptr)
+        valid = @addr_view.model.iter_next(i.to_ptr)
       end
 
       return  unless addrs.any?
@@ -119,14 +103,113 @@ module Bitcoin::Gui
     end
 
     def on_new_addr
-      dialog(:new_addr) do |*a|
+      dialog(:new_addr, setup: ->(d) {
+          new_addr_check_addr.active = false
+          new_addr_check_pubkey.active = false
+          new_addr_check_mine.active = true
+          [:label, :addr, :pubkey].each {|n| send("new_addr_entry_#{n}").text = "" }
+          [:addr, :pubkey].each {|n| send("new_addr_entry_#{n}").hide }
+          GObject.signal_connect(new_addr_check_addr, "toggled") do
+            new_addr_check_addr.active ? new_addr_entry_addr.show :
+              new_addr_entry_addr.hide
+          end
+          GObject.signal_connect(new_addr_check_pubkey, "toggled") do
+            new_addr_check_pubkey.active ? new_addr_entry_pubkey.show :
+              new_addr_entry_pubkey.hide
+          end
+        }) do |*a|
         begin
           label = new_addr_entry_label.text
-          @wallet.keystore.new_key(label)
+          set_address = new_addr_check_addr.active
+          set_pubkey = new_addr_check_pubkey.active
+          is_mine = new_addr_check_mine.active
+          key = {:label => label}
+          if set_address
+            addr = new_addr_entry_addr.text
+            raise "Address #{addr} invalid"  unless Bitcoin.valid_address?(addr)
+            key[:addr] = addr
+          end
+          if set_pubkey
+            k = Bitcoin::Key.new(nil, new_addr_entry_pubkey.text)
+            key[:key] = k
+            key[:addr] = k.addr
+          end
+          if !set_addr && !set_pubkey
+            key[:key] = Bitcoin::Key.generate
+            key[:addr] = key[:key].addr
+          end
+          key[:mine] = is_mine
+          @wallet.add_key(key)
+          update_wallet_views
         rescue
-          message(:error, "Error adding key", $!.message, [:ok])
+          message(:error, "Error adding key", $!.message, [:ok]) do
+            new_addr_dialog.show
+          end
         end
         update_addr_store
+      end
+    end
+
+    def on_new_tx
+      dialog(:new_tx, :setup => ->(d) {
+          new_tx_entry_address.text = ""
+          new_tx_entry_amount.text = ""
+          model = Gtk::ListStore.new([GObject::TYPE_STRING, GObject::TYPE_STRING])
+          @wallet.keystore.keys.each do |key|
+            row = model.append
+            model.set_value(row, 0, "#{key[:addr]}\n#{key[:label]}")
+            model.set_value(row, 1, key[:addr])
+          end
+          renderer = Gtk::CellRendererText.new
+          comp = Gtk::EntryCompletion.new_with_area(area)
+          comp.text_column = 0
+          comp.minimum_key_length = 1
+          comp.set_match_func(->(comp, text, iter, _) {
+              label = comp.get_model.value(iter, 0).get_string
+              addr = comp.get_model.value(iter, 1).get_string
+              !!(label =~ /#{text}/ || addr =~ /#{text}/)
+            }, nil, nil)
+          comp.set_model model
+          new_tx_entry_address.set_completion comp
+          GObject.signal_connect(comp, "match-selected") do |comp, _, iter, _|
+            addr = comp.get_model.get_value(iter, 1).get_string
+            new_tx_entry_address.text = addr
+            true
+          end
+        }) do |dialog|
+
+        address = new_tx_entry_address.text
+        amount = new_tx_entry_amount.text
+        unless Bitcoin.valid_address?(address)
+          message(:error, "Invalid Address",
+            "Address #{address} is not a valid bitcoin address.", [:ok]) do
+            new_tx_dialog.show
+          end
+          next
+        end
+        unless amount =~ /[0-9]*\.[0-9]*/
+          message(:error, "Invalid Amount",
+            "Amount #{amount} can not be parsed. Please use \"0.0\" form.", [:ok]) do
+            new_tx_dialog.show
+          end
+          next
+        end
+        value = (amount.to_f * 1e8).to_i
+        unless value <= @wallet.get_balance
+          message(:error, "Insufficient Balance",
+            "Balance #{@wallet.get_balance} is not sufficient to spend #{value}.", [:ok]) do
+            dialog.show
+          end
+          next
+        end
+        message(:question, "Really send transaction?",
+          "Do you really want to send #{format_value value} to #{address}?", [:no, :yes]) do
+          tx = @wallet.tx([[:address, *[address], value]], 0.00)
+          puts tx.to_json
+          if @node.request(:relay_tx, tx)
+            p 'hoho'
+          end
+        end
       end
     end
 
@@ -155,125 +238,24 @@ module Bitcoin::Gui
       EM.stop
     end
 
-    # HELPERS
-
     def open_wallet(file)
       keystore = Bitcoin::Wallet::SimpleKeyStore.new(:file => file)
       @wallet = Bitcoin::Wallet::Wallet.new(@storage, keystore,
         Bitcoin::Wallet::SimpleCoinSelector)
-      update_addr_store
+      @wallet.on_tx do |type, tx|
+        puts "#{type} transaction: #{tx.hash}"
+        update_wallet_views
+        value = tx.out.select {|out| (@wallet.addrs & out.get_addresses).any? }
+          .map(&:value).inject(:+)
+        title = "#{type.to_s.capitalize} transaction"
+        message = "#{tx.hash}\nValue: #{format_value(value)}"
+        Notify.notify title, message
+      end
+      update_wallet_views
     rescue
       message(:error, "Error loading wallet", $!.message, [:ok])
-    end
-
-    def wallet_preview(dialog, *args)
-      filename = dialog.preview_filename
-      file = filename.read_string rescue nil
-      if file && File.file?(file)
-        keystore = Bitcoin::Wallet::SimpleKeyStore.new(:file => file)
-        wallet = Bitcoin::Wallet::Wallet.new(@storage, keystore,
-          Bitcoin::Wallet::SimpleCoinSelector)
-        preview = Gtk::Label.new "Keys: #{wallet.addrs.size}\n" +
-          "Balance:\n%.8f" % (wallet.get_balance / 1e8)
-      end
-      dialog.preview_widget = preview
-    end
-
-    def add_wallet_filters dialog
-      filter = Gtk::FileFilter.new
-      filter.name = "Wallet Files"
-      filter.add_pattern("*.json")
-      dialog.add_filter filter
-
-      filter = Gtk::FileFilter.new
-      filter.name = "All Files"
-      filter.add_pattern("*")
-      dialog.add_filter filter
-    end
-
-    def dialog name, opts = {}
-      @dialogs ||= {}
-      unless @dialogs[name]
-        dialog = send("#{name}_dialog")
-        send("add_#{opts[:filters]}_filters", dialog)  if opts[:filters]
-        opts[:setup].call(dialog)  if opts[:setup]
-        GObject.signal_connect(dialog, "response") do |dialog, response, *data|
-          yield(dialog, *data)  if response > 0
-          dialog.hide
-        end
-        if dialog.is_a?(Gtk::FileChooserDialog)
-          GObject.signal_connect(dialog, "file-activated") do |dialog, *data|
-            yield(dialog, *data)
-            dialog.hide
-          end
-        end
-        (opts[:callbacks] || {}).each do |name, block|
-          GObject.signal_connect(dialog, name) {|*a| block.call(*a) }
-        end
-        @dialogs[name] = dialog
-      end
-      @dialogs[name].show
-    end
-
-    def tree_view_col renderer, title, key, val, &block
-      col = Gtk::TreeViewColumn.new
-      col.pack_start renderer, true
-      col.add_attribute renderer, key, val
-      col.set_title title
-      col.set_cell_data_func(renderer, block, nil, nil)
-      col
-    end
-
-    def message(type, title, text, buttons)
-      dialog(:message, :setup => ->(dialog){
-          dialog.message_type = Gtk::MessageType.find(type.to_sym)
-          dialog.text = title
-          dialog.secondary_text = text
-          [:yes, :no, :ok].each do |n|
-            b = send("message_dialog_button_#{n}")
-            buttons.include?(n) ? b.show : b.hide
-          end
-        }) do |dialog|
-        yield(dialog)
-      end
-    end
-
-    def format_value col, renderer, model, iter, data
-      val = @addr_store.get_value(iter, 2).get_int
-      renderer.text = "%.8f" % (val / 1e8)
-      if val > 0
-        renderer.foreground = "darkgreen"
-      elsif val < 0
-        renderer.foreground = "red"
-      else
-        renderer.foreground = "black"
-      end
-    end
-
-    def format_address col, renderer, model, iter, data
-      address = @addr_store.get_value(iter, 0).get_string
-      label = @addr_store.get_value(iter, 1).get_string
-      renderer.text = "#{label} (#{address})"
-    end
-
-    def format_version col, renderer, model, iter, data
-      version = @conn_store.get_value(iter, 3).get_int.to_s
-      version.insert(-3, '.')  if version.size > 2
-      version.insert(-6, '.')  if version.size > 5
-      version.insert(0, "0.")  if version.size <= 7
-      renderer.text = version.to_s # TODO
-    end
-
-    def format_uptime col, renderer, model, iter, data
-      uptime = Time.now.to_i - iter[5]
-      mm, ss = uptime.divmod(60)       #=> [4515, 21]
-      hh, mm = mm.divmod(60)           #=> [75, 15]
-      dd, hh = hh.divmod(24)           #=> [3, 3]
-      renderer.text = "%02d:%02d:%02d:%02d" % [dd, hh, mm, ss]
-    end
-
-    def method_missing name, *args
-      @builder.get_object(name.to_s) rescue super(name, *args)
+      p $!
+      puts *$@
     end
 
   end
