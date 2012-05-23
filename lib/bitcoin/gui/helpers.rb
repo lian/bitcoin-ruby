@@ -58,7 +58,7 @@ module Bitcoin::Gui::Helpers
     (opts[:callbacks] || {}).each do |name, block|
       ids << GObject.signal_connect(dialog, name) {|*a| block.call(*a) }
     end
-    dialog.show_all
+    dialog.show
     @dialog_cb_ids[name] = ids
   rescue
     p $!
@@ -76,6 +76,8 @@ module Bitcoin::Gui::Helpers
         end
       }) do |dialog|
       yield(dialog)  if block_given?
+      dialog.show_all
+      dialog.hide
     end
   rescue
     p $!

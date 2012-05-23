@@ -1,10 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <!-- interface-requires gtk+ 3.0 -->
-  <object class="GtkAction" id="action_exit">
-    <property name="label" translatable="yes">aaa</property>
-    <signal name="activate" handler="on_exit" swapped="no"/>
-  </object>
   <object class="GtkAboutDialog" id="about_dialog">
     <property name="can_focus">False</property>
     <property name="border_width">5</property>
@@ -34,8 +30,9 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</property>
     <property name="authors">Julian Langschaedel
 Marius Hanne</property>
+    <property name="logo">bitcoin-ruby.png</property>
     <property name="wrap_license">True</property>
-    <property name="license_type">mit-x11</property>
+    <property name="license_type">artistic</property>
     <signal name="response" handler="on_about_close" swapped="no"/>
     <child internal-child="vbox">
       <object class="GtkBox" id="aboutdialog-vbox1">
@@ -65,6 +62,20 @@ Marius Hanne</property>
   <object class="GtkAccelGroup" id="accelgroup1">
     <signal name="accel-activate" handler="on_accel_activate" swapped="no"/>
   </object>
+  <object class="GtkAction" id="action_exit">
+    <property name="label" translatable="yes">aaa</property>
+    <signal name="activate" handler="on_exit" swapped="no"/>
+  </object>
+  <object class="GtkTreeStore" id="addr_store">
+    <columns>
+      <!-- column-name Address -->
+      <column type="gchararray"/>
+      <!-- column-name column1 -->
+      <column type="gchararray"/>
+      <!-- column-name Balance -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
   <object class="GtkImage" id="image_new_addr">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
@@ -75,6 +86,7 @@ Marius Hanne</property>
     <property name="can_focus">False</property>
     <property name="stock">gtk-go-forward</property>
   </object>
+  <object class="GtkListStore" id="liststore1"/>
   <object class="GtkWindow" id="main_window">
     <property name="can_focus">False</property>
     <property name="title" translatable="yes">Bitcoin-Ruby GUI</property>
@@ -177,6 +189,7 @@ Marius Hanne</property>
                         <property name="can_focus">False</property>
                         <property name="use_underline">True</property>
                         <property name="use_stock">True</property>
+                        <signal name="activate" handler="on_paste_addr" swapped="no"/>
                       </object>
                     </child>
                     <child>
@@ -208,6 +221,23 @@ Marius Hanne</property>
                 <property name="can_focus">False</property>
                 <property name="label" translatable="yes">_View</property>
                 <property name="use_underline">True</property>
+                <child type="submenu">
+                  <object class="GtkMenu" id="menu4">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <child>
+                      <object class="GtkCheckMenuItem" id="check_unconfirmed">
+                        <property name="use_action_appearance">False</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="tooltip_text" translatable="yes">Display transactions that are not yet confirmed and use unconfirmed values to calculate balances</property>
+                        <property name="label" translatable="yes">Display Unconfirmed</property>
+                        <property name="use_underline">True</property>
+                        <signal name="toggled" handler="on_check_unconfirmed_toggled" swapped="no"/>
+                      </object>
+                    </child>
+                  </object>
+                </child>
               </object>
             </child>
             <child>
@@ -227,6 +257,7 @@ Marius Hanne</property>
                         <property name="use_action_appearance">False</property>
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
+                        <property name="use_underline">True</property>
                         <property name="use_stock">True</property>
                         <property name="accel_group">accelgroup1</property>
                         <signal name="activate" handler="on_about" swapped="no"/>
@@ -256,6 +287,7 @@ Marius Hanne</property>
                   <object class="GtkTreeView" id="addr_view">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
+                    <property name="model">addr_store</property>
                     <property name="enable_grid_lines">both</property>
                     <child internal-child="selection">
                       <object class="GtkTreeSelection" id="treeview-selection1"/>
@@ -1255,7 +1287,7 @@ Marius Hanne</property>
     </action-widgets>
   </object>
   <object class="GtkStatusIcon" id="statusicon">
-    <property name="stock">gtk-yes</property>
+    <property name="pixbuf">bitcoin-ruby.png</property>
   </object>
   <object class="GtkDialog" id="tx_dialog">
     <property name="can_focus">False</property>

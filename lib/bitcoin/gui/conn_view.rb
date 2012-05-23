@@ -9,7 +9,7 @@ module Bitcoin::Gui
           [GObject::TYPE_INT, "Block"],
           [GObject::TYPE_INT, "Uptime", :format_uptime_col],
           [GObject::TYPE_STRING, "User Agent"]])
-      embed(:conn_view)
+      @view.set_model @model
     end
 
     def connected data

@@ -9,13 +9,22 @@ module Bitcoin::Gui
       @gui = gui
       @view = @gui.builder.get_object(view_name.to_s)
       @model = Gtk::TreeStore.new(columns.map{|c| c[0] })
+      @view.set_model @model
 
       columns.each_with_index do |cdef, i|
         type, label, cb = *cdef
         next  unless label
-        renderer = Gtk::CellRendererText.new
-        col = tree_view_col(renderer, label, "text", i) do |*args|
-          method(cb).call(@model, i, args[1], args[3])  if cb
+        case type
+        when GObject::TYPE_BOOLEAN
+          renderer = Gtk::CellRendererToggle.new
+          col = tree_view_col(renderer, label, "active", i) do |*args|
+            method(cb).call(@model, i, args[1], args[3])  if cb
+          end
+        when GObject::TYPE_STRING, GObject::TYPE_INT
+          renderer = Gtk::CellRendererText.new
+          col = tree_view_col(renderer, label, "text", i) do |*args|
+            method(cb).call(@model, i, args[1], args[3])  if cb
+          end
         end
         @view.append_column(col)
       end
@@ -62,6 +71,11 @@ module Bitcoin::Gui
     def format_uptime_col model, i, renderer, iter
       started = model.get_value(iter, i).get_int
       renderer.text = format_uptime(started)
+    end
+
+    def format_bool_col model, i, renderer, iter
+      active = model.get_value(iter, i).get_boolean
+      renderer.set_active active
     end
 
   end

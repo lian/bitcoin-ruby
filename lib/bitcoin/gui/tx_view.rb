@@ -18,24 +18,26 @@ module Bitcoin::Gui
     end
 
     def update txouts
-      @model.clear
-      txouts.each do |txout|
-        row = @model.append(nil)
-        @model.set_value(row, 0, txout.type.to_s)
-        @model.set_value(row, 1, txout.get_tx.hash)
-        @model.set_value(row, 2, txout.value.to_s)
-        @model.set_value(row, 3, txout.get_tx.confirmations)
-        @model.set_value(row, 4, "incoming")
-        if txin = txout.get_next_in
+      EM.defer do
+        @model.clear
+        txouts.each do |txout|
           row = @model.append(nil)
           @model.set_value(row, 0, txout.type.to_s)
-          @model.set_value(row, 1, txin.get_tx.hash)
+          @model.set_value(row, 1, txout.get_tx.hash)
           @model.set_value(row, 2, txout.value.to_s)
-          @model.set_value(row, 3, txin.get_tx.confirmations)
-          @model.set_value(row, 4, "outgoing")
+          @model.set_value(row, 3, txout.get_tx.confirmations)
+          @model.set_value(row, 4, "incoming")
+          if txin = txout.get_next_in
+            row = @model.append(nil)
+            @model.set_value(row, 0, txout.type.to_s)
+            @model.set_value(row, 1, txin.get_tx.hash)
+            @model.set_value(row, 2, (0 - txout.value).to_s)
+            @model.set_value(row, 3, txin.get_tx.confirmations)
+            @model.set_value(row, 4, "outgoing")
+          end
         end
+        @view.set_model @model
       end
-      @view.set_model @model
     end
   end
 

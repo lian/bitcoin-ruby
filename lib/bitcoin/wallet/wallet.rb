@@ -47,7 +47,6 @@ module Bitcoin::Wallet
 
         on_tx do |response|
           EM.defer do
-            p "tx: #{response['hash']}"
             relevant, tx = @args[0].check_tx(response['hash'])
             @args[0].callback(:tx, relevant, tx)  if relevant
           end
@@ -108,15 +107,15 @@ module Bitcoin::Wallet
     end
 
     # get total balance for all addresses in this wallet
-    def get_balance
-      values = get_txouts.select{|o| !o.get_next_in}.map(&:value)
+    def get_balance(unconfirmed = false)
+      values = get_txouts(unconfirmed).select{|o| !o.get_next_in}.map(&:value)
 
       ([0] + values).inject(:+)
     end
 
     # list all addresses in this wallet
     def addrs
-      @keystore.keys.map{|k| k[:key].addr}
+      @keystore.keys.map{|k| k[:addr]}
     end
 
     # add +key+ to wallet

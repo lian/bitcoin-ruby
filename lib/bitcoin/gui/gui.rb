@@ -62,12 +62,19 @@ module Bitcoin::Gui
 
     def update_wallet_views
       return  unless @wallet
-      @addr_view.update(@wallet.list)
-      @tx_view.update(@wallet.get_txouts(true))
-      wallet_text = "wallet: #{@wallet.keystore.config[:file]} | " +
-        "addresses: #{@wallet.addrs.size} | " +
-        "balance: #{"%.8f" % (@wallet.get_balance / 1e8)}"
-      status_wallet.push 0, wallet_text
+      EM.defer do
+        @addr_view.update(@wallet.keystore.keys)#.select{|k| k[:mine] == true})
+        @tx_view.update(@wallet.get_txouts(true))
+        unconfirmed = check_unconfirmed.active
+        wallet_text = "wallet: #{@wallet.keystore.config[:file]} | " +
+          "addresses: #{@wallet.addrs.size} | " +
+          "balance: #{"%.8f" % (@wallet.get_balance(unconfirmed) / 1e8)}"
+        status_wallet.push 0, wallet_text
+      end
+    end
+
+    def on_check_unconfirmed_toggled
+      update_wallet_views
     end
 
     def on_preferences
@@ -102,13 +109,27 @@ module Bitcoin::Gui
       c.set_text text, text.size
     end
 
-    def on_new_addr
+    def on_paste_addr
+      c = Gtk::Clipboard.get(Gdk::Atom.intern("PRIMARY", false))
+      c.request_text ->(clip, text, data) {
+        on_new_addr(text)  if Bitcoin.valid_address?(text)
+      }, self
+      c = Gtk::Clipboard.get(Gdk::Atom.intern("CLIPBOARD", false))
+      c.request_text ->(clip, text, data) {
+        on_new_addr(text)  if Bitcoin.valid_address?(text)
+      }, self
+    end
+
+    def on_new_addr addr = nil
       dialog(:new_addr, setup: ->(d) {
-          new_addr_check_addr.active = false
+          new_addr_check_addr.active = addr ? true : false
           new_addr_check_pubkey.active = false
-          new_addr_check_mine.active = true
-          [:label, :addr, :pubkey].each {|n| send("new_addr_entry_#{n}").text = "" }
-          [:addr, :pubkey].each {|n| send("new_addr_entry_#{n}").hide }
+          new_addr_check_mine.active = addr ? false : true
+          new_addr_entry_label.text = ""
+          new_addr_entry_addr.text = addr ? addr : ""
+          new_addr_entry_pubkey.text = ""
+          new_addr_entry_addr.hide  unless addr
+          new_addr_entry_pubkey.hide
           GObject.signal_connect(new_addr_check_addr, "toggled") do
             new_addr_check_addr.active ? new_addr_entry_addr.show :
               new_addr_entry_addr.hide
@@ -134,7 +155,7 @@ module Bitcoin::Gui
             key[:key] = k
             key[:addr] = k.addr
           end
-          if !set_addr && !set_pubkey
+          if !set_address && !set_pubkey
             key[:key] = Bitcoin::Key.generate
             key[:addr] = key[:key].addr
           end
@@ -157,25 +178,32 @@ module Bitcoin::Gui
           model = Gtk::ListStore.new([GObject::TYPE_STRING, GObject::TYPE_STRING])
           @wallet.keystore.keys.each do |key|
             row = model.append
-            model.set_value(row, 0, "#{key[:addr]}\n#{key[:label]}")
+            model.set_value(row, 0, key[:label] || "")
             model.set_value(row, 1, key[:addr])
           end
           renderer = Gtk::CellRendererText.new
           comp = Gtk::EntryCompletion.new_with_area(area)
-          comp.text_column = 0
+          comp.text_column = 1
           comp.minimum_key_length = 1
           comp.set_match_func(->(comp, text, iter, _) {
               label = comp.get_model.value(iter, 0).get_string
               addr = comp.get_model.value(iter, 1).get_string
               !!(label =~ /#{text}/ || addr =~ /#{text}/)
             }, nil, nil)
+          comp.area.pack_start renderer, false, false, false
+          comp.area.orientation = :vertical
           comp.set_model model
+          renderer.set_padding 10, 0
+          renderer.foreground = "blue"
+          comp.set_cell_data_func(renderer, ->(layout, renderer, model, iter, data) {
+              renderer.text = model.get_value(iter, 0).get_string
+            }, nil, nil)
           new_tx_entry_address.set_completion comp
-          GObject.signal_connect(comp, "match-selected") do |comp, _, iter, _|
-            addr = comp.get_model.get_value(iter, 1).get_string
-            new_tx_entry_address.text = addr
-            true
-          end
+#          GObject.signal_connect(comp, "match-selected") do |comp, _, iter, _|
+#            addr = comp.get_model.get_value(iter, 1).get_string
+#            new_tx_entry_address.text = addr
+#            true
+#          end
         }) do |dialog|
 
         address = new_tx_entry_address.text
@@ -205,9 +233,9 @@ module Bitcoin::Gui
         message(:question, "Really send transaction?",
           "Do you really want to send #{format_value value} to #{address}?", [:no, :yes]) do
           tx = @wallet.tx([[:address, *[address], value]], 0.00)
-          puts tx.to_json
+          # puts tx.to_json
           if @node.request(:relay_tx, tx)
-            p 'hoho'
+            puts "Transaction #{tx} relayed."
           end
         end
       end

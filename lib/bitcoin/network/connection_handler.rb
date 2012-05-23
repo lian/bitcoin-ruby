@@ -115,14 +115,14 @@ module Bitcoin::Network
     # received +tx+ message for given +tx+.
     # push tx to storage queue
     def on_tx(tx)
-      log.info { ">> tx: #{tx.hash} (#{tx.payload.size} bytes)" }
+      log.debug { ">> tx: #{tx.hash} (#{tx.payload.size} bytes)" }
       @node.queue.push([:tx, tx])
     end
 
     # received +block+ message for given +blk+.
     # push block to storage queue
     def on_block(blk)
-      log.info { ">> block: #{blk.hash} (#{blk.payload.size} bytes)" }
+      log.debug { ">> block: #{blk.hash} (#{blk.payload.size} bytes)" }
       @node.queue.push([:block, blk])
     end
 
@@ -159,14 +159,14 @@ module Bitcoin::Network
     # send +getdata tx+ message for given tx +hash+
     def send_getdata_tx(hash)
       pkt = Protocol.getdata_pkt(:tx, [hash])
-      log.info { "<< getdata tx: #{hth(hash)}" }
+      log.debug { "<< getdata tx: #{hth(hash)}" }
       send_data(pkt)
     end
 
     # send +getdata block+ message for given block +hash+
     def send_getdata_block(hash)
       pkt = Protocol.getdata_pkt(:block, [hash])
-      log.info { "<< getdata block: #{hth(hash)}" }
+      log.debug { "<< getdata block: #{hth(hash)}" }
       send_data(pkt)
     end
 

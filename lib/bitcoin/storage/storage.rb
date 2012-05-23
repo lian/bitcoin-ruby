@@ -147,10 +147,12 @@ module Bitcoin::Storage
       end
 
       # get balance for given +hash160+
-      def get_balance(hash160)
+      def get_balance(hash160, unconfirmed = false)
         txouts = get_txouts_for_hash160(hash160)
-        confirmed = txouts.select {|o| !!o.get_tx.get_block}
-        unspent = confirmed.select {|o| o.get_next_in.nil?}
+        unless unconfirmed
+          txouts = txouts.select {|o| !!o.get_tx.get_block}
+        end
+        unspent = txouts.select {|o| o.get_next_in.nil?}
         unspent.map(&:value).inject {|a,b| a+=b; a} || 0
       rescue
         nil

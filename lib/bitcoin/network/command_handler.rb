@@ -53,7 +53,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
       case channel.to_sym
       when :block
         head = Bitcoin::P::Block.new(@node.store.get_head.to_payload) rescue nil
-        respond("monitor", ["block", [head, @node.store.get_depth.to_s]])
+        respond("monitor", ["block", [head, @node.store.get_depth.to_s]])  if head
       when :connection
         @node.connections.select {|c| c.connected?}.each do |conn|
           respond("monitor", [:connection, [:connected, conn.info]])
