@@ -51,7 +51,7 @@ module Bitcoin::Network
 
     # receive data from peer and invoke Protocol::Parser
     def receive_data data
-      log.debug { "Receiving data (#{data.size} bytes)" }
+      #log.debug { "Receiving data (#{data.size} bytes)" }
       @parser.parse(data)
     end
 
@@ -66,7 +66,7 @@ module Bitcoin::Network
     # received +inv_tx+ message for given +hash+.
     # add to inv_queue, unlesss maximum is reached
     def on_inv_transaction(hash)
-      log.info { ">> inv transaction: #{hth(hash)}" }
+      log.debug { ">> inv transaction: #{hth(hash)}" }
       return  if @node.inv_queue.size >= @node.config[:max][:inv]
       @node.queue_inv([:tx, hash, self])
     end
@@ -74,7 +74,7 @@ module Bitcoin::Network
     # received +inv_block+ message for given +hash+.
     # add to inv_queue, unless maximum is reached
     def on_inv_block(hash)
-      log.info { ">> inv block: #{hth(hash)}" }
+      log.debug { ">> inv block: #{hth(hash)}" }
       return  if @node.inv_queue.size >= @node.config[:max][:inv]
       @node.queue_inv([:block, hash, self])
     end
@@ -82,11 +82,11 @@ module Bitcoin::Network
     # received +get_tx+ message for given +hash+.
     # send specified tx if we have it
     def on_get_transaction(hash)
-      log.info { ">> get transaction: #{hash.unpack("H*")[0]}" }
+      log.debug { ">> get transaction: #{hash.unpack("H*")[0]}" }
       tx = @node.store.get_tx(hash.unpack("H*")[0])
       return  unless tx
       pkt = Bitcoin::Protocol.pkt("tx", tx.to_payload)
-      log.info { "<< tx: #{tx.hash}" }
+      log.debug { "<< tx: #{tx.hash}" }
       send_data pkt
     end
 
@@ -94,20 +94,20 @@ module Bitcoin::Network
     # send specified block if we have it
     # TODO
     def on_get_block(hash)
-      log.info { ">> get block: #{hth(hash)}" }
+      log.debug { ">> get block: #{hth(hash)}" }
     end
 
     # send +inv+ message with given +type+ for given +obj+
     def send_inv type, obj
       pkt = Protocol.inv_pkt(type, [[obj.hash].pack("H*")])
-      log.info { "<< inv #{type}: #{obj.hash}" }
+      log.debug { "<< inv #{type}: #{obj.hash}" }
       send_data(pkt)
     end
 
     # received +addr+ message for given +addr+.
     # store addr in node and notify listeners
     def on_addr(addr)
-      log.info { ">> addr: #{addr.ip}:#{addr.port} alive: #{addr.alive?}, service: #{addr.service}" }
+      log.debug { ">> addr: #{addr.ip}:#{addr.port} alive: #{addr.alive?}, service: #{addr.service}" }
       @node.addrs << addr
       @node.notifiers[:addr].push(addr)
     end
@@ -129,7 +129,7 @@ module Bitcoin::Network
     # received +headers+ message for given +headers+.
     # push each header to storage queue
     def on_headers(headers)
-      log.info { ">> headers: #{headers.size}" }
+      log.info { ">> headers (#{headers.size})" }
       headers.each {|h| @node.queue.push([:block, h])}
     end
 
@@ -186,13 +186,13 @@ module Bitcoin::Network
       locator = @node.store.get_locator
       pkt = Protocol.pkt("getheaders", [Bitcoin::network[:magic_head],
           locator.size.chr, *locator.map{|l| htb(l).reverse}, "\x00"*32].join)
-      log.info { "<< getheaders: #{locator.first}" }
+      log.debug { "<< getheaders: #{locator.first}" }
       send_data(pkt)
     end
 
     # send +getaddr+ message
     def send_getaddr
-      log.info { "<< getaddr" }
+      log.debug { "<< getaddr" }
       send_data(Protocol.pkt("getaddr", ""))
     end
 
