@@ -16,7 +16,7 @@ module Bitcoin
     autoload :Handler, 'bitcoin/protocol/handler'
     autoload :Parser,  'bitcoin/protocol/parser'
 
-    VERSION = 31900
+    VERSION = 60001
 
     DNS_Seed = [ "bitseed.xf2.org", "bitseed.bitcoin.org.uk" ]
     Uniq = rand(0xffffffffffffffff)
@@ -71,6 +71,14 @@ module Bitcoin
     def self.version_pkt(from_id, from, to, last_block=nil, time=nil, user_agent=nil)
       payload = Protocol::Version.build_payload(from_id, from, to, last_block, time, user_agent)
       pkt("version", payload)
+    end
+
+    def self.ping_pkt(nonce = rand(0xffffffff))
+      pkt("ping", [nonce].pack("Q"))
+    end
+
+    def self.pong_pkt(nonce)
+      pkt("pong", [nonce].pack("Q"))
     end
 
     def self.verack_pkt

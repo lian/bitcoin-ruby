@@ -196,6 +196,14 @@ module Bitcoin::Network
       send_data(Protocol.pkt("getaddr", ""))
     end
 
+    # send +ping+ message
+    # TODO: wait for pong and disconnect if it doesn't arrive (and version is new enough)
+    def send_ping
+      nonce = rand(0xffffffff)
+      log.debug { "<< ping (#{nonce})" }
+      send_data(Protocol.ping_pkt(nonce))
+    end
+
     # ask for the genesis block
     def get_genesis_block
       log.info { "Asking for genesis block" }
@@ -211,7 +219,22 @@ module Bitcoin::Network
       @started = Time.now
       @node.notifiers[:connection].push([:connected, info])
       @node.addrs << addr
-      #send_getaddr
+      # send_getaddr
+      # EM.add_periodic_timer(15) { send_ping }
+    end
+
+    # received +ping+ message with given +nonce+.
+    # send +pong+ message back, if +nonce+ is set.
+    # network versions <=60000 don't set the nonce and don't expect a pong.
+    def on_ping nonce
+      log.debug { ">> ping (#{nonce})" }
+      send_data(Protocol.pong_pkt(nonce))  if nonce
+    end
+
+    # received +pong+ message with given +nonce+.
+    # TODO: see #send_ping
+    def on_pong nonce
+      log.debug { ">> pong (#{nonce})" }
     end
 
     # begin handshake; send +version+ message

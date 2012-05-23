@@ -68,6 +68,8 @@ module Bitcoin
         when 'verack';   @h.on_handshake_complete # nop
         when 'version';  parse_version(payload)
         when 'alert';    parse_alert(payload)
+        when 'ping';     @h.on_ping(payload.unpack("Q")[0])
+        when 'pong';     @h.on_pong(payload.unpack("Q")[0])
         else
           p ['unkown-packet', command, payload]
         end
