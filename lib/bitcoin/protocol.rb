@@ -85,26 +85,18 @@ module Bitcoin
       pkt("verack", "")
     end
 
+    TypeLookup = Hash[:tx, 1, :block, 2, nil, 0]
+
     def self.getdata_pkt(type, hashes)
       return if hashes.size >= 256
-      t = case type
-          when :tx;    1
-          when :block; 2
-          else         0
-          end
-      pkt("getdata", [hashes.size].pack("C") +
-        hashes.map{|hash| [t].pack("I") + hash[0..32].reverse }.join)
+      t = [ TypeLookup[type] ].pack("I")
+      pkt("getdata", [hashes.size].pack("C") + hashes.map{|hash| t + hash[0..32].reverse }.join)
     end
 
     def self.inv_pkt(type, hashes)
       return if hashes.size >= 256
-      t = case type
-          when :tx;    1
-          when :block; 2
-          else         0
-          end
-      pkt("inv", [hashes.size].pack("C") +
-        hashes.map{|hash| [t].pack("I") + hash[0..32].reverse }.join)
+      t = [ TypeLookup[type] ].pack("I")
+      pkt("inv", [hashes.size].pack("C") + hashes.map{|hash| t + hash[0..32].reverse }.join)
     end
 
   end
