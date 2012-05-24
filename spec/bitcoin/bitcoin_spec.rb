@@ -75,6 +75,17 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     Bitcoin.valid_address?("12KhCL8nGK3Luy7ehU3AxPs1mTocdessLM").should == true
     Bitcoin.valid_address?("1AnNQgfaGgSKejzR6km74tyQPDGwZBBVT").should == true
     Bitcoin.valid_address?("f0f0f0").should == false
+
+
+    Bitcoin.base58_to_int("114EpVhtPpJQKti8HiH2fvXZFPiPkgDZrE").should == 15016857106811133404017207799481956647721349092596212439
+
+    Bitcoin.network, success = :testnet, true
+    400.times{ success = false if Bitcoin.valid_address?(Bitcoin.generate_address[0]) != true }
+    success.should == true
+
+    Bitcoin.network, success = :bitcoin, true
+    400.times{ success = false if Bitcoin.valid_address?(Bitcoin.generate_address[0]) != true }
+    success.should == true
   end
 
   it 'Bitcoin#checksum' do

@@ -75,7 +75,7 @@ module Bitcoin
     end
 
     def address_checksum?(address)
-      a = base58_to_hex(address) rescue nil
+      a = base58_to_hex(address).rjust(48, '0') rescue nil
       return false  unless a
       if address_version == "00"
         Bitcoin.checksum( address_version + a[0...40] ) == a[-8..-1]
@@ -116,18 +116,20 @@ module Bitcoin
     end
 
     def encode_base58(hex)
-      int_to_base58( hex.to_i(16) )
+      leading_zero_bytes  = (hex.match(/([0]+)/) ? $1 : '').size / 2
+      leading_zero_bytes -= 1 if address_version == '00'
+      int_to_base58( hex.to_i(16), leading_zero_bytes)
     end
 
-    def int_to_base58(int_val)
+    def int_to_base58(int_val, leading_zero_bytes=0)
       alpha = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
       base58_val, base = '', alpha.size
-      while(int_val >= base)
-        mod = int_val % base
-        base58_val = alpha[mod,1] + base58_val
-        int_val = (int_val - mod)/base
+      while int_val > 0
+        int_val, remainder = int_val.divmod(base)
+        base58_val = alpha[remainder] + base58_val
       end
-      alpha[int_val,1] + base58_val
+      leading_zero_bytes.times{ base58_val = alpha[0] + base58_val }
+      base58_val
     end
 
     def base58_to_int(base58_val)
