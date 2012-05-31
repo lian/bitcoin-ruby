@@ -206,7 +206,7 @@ when "send"
     puts "Insufficient funds."; exit
   end
 
-  tx = wallet.tx(to, fee)
+  tx = wallet.new_tx(to, fee)
 
   if tx.is_a?(Bitcoin::Wallet::TxDP)
     puts "Transaction needs to be signed by additional keys."

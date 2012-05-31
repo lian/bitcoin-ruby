@@ -15,6 +15,8 @@ module Bitcoin::Wallet
   # TODO: new tx notification, keygenerators, keystore cleanup
   class Wallet
 
+    include Bitcoin::Builder
+
     # the keystore (SimpleKeyStore) managing keys/addresses/labels
     attr_reader :keystore
 
@@ -162,95 +164,54 @@ module Bitcoin::Wallet
     # 
     # change_policy controls where the change_output is spent to.
     # see #get_change_addr
-    def tx outputs, fee = 0, change_policy = :back
+    def new_tx outputs, fee = 0, change_policy = :back
       output_value = outputs.map{|o|o[-1]}.inject(:+)
 
       prev_outs = get_selector.select(output_value)
       return nil  if !prev_outs
 
-      tx = Bitcoin::Protocol::Tx.new(nil)
-
       input_value = prev_outs.map(&:value).inject(:+)
       return nil  unless input_value >= (output_value + fee)
 
-      outputs.each do |type, *addrs, value|
-        script = nil
-        case type
-        when :pubkey
-          pubkey = @keystore.key(addrs[0])
-          raise "Public key for #{addrs[0]} not known"  unless pubkey
-          script = Bitcoin::Script.to_pubkey_script(pubkey[:key].pub)
-        when :address
-          if Bitcoin.valid_address?(addrs[0])
-            addr = addrs[0]
-          else
-            addr = @keystore.key(addrs[0])[:addr] rescue nil
-          end
-          raise "Invalid address: #{addr}"  unless Bitcoin.valid_address?(addr)
-          script = Bitcoin::Script.to_address_script(addr)
-        when :multisig
-          m, *addrs = addrs
-          addrs.map!{|a| keystore.key(a)[:key].pub rescue raise("public key for #{a} not known")}
-          script = Bitcoin::Script.to_multisig_script(m, *addrs)
-        else
-          raise "unknown script type: #{type}"
-        end
-        txout = Bitcoin::Protocol::TxOut.new(value, script.bytesize, script)
-        tx.add_out(txout)
-      end
-
-      change_value = input_value - output_value - fee
-      if change_value > 0
-        change_addr = get_change_addr(change_policy,prev_outs.sample.get_address)
-        change = Bitcoin::Protocol::TxOut.value_to_address(input_value - output_value - fee, change_addr)
-        tx.add_out(change)
-      end
-
-      prev_outs.each_with_index do |prev_out, idx|
-        prev_tx = prev_out.get_tx
-        txin = Bitcoin::Protocol::TxIn.new(prev_tx.binary_hash,
-          prev_tx.out.index(prev_out), 0)
-        tx.add_in(txin)
-      end
-
-      sigs_missing = false
-      prev_outs.each_with_index do |prev_out, idx|
-        prev_tx = prev_out.get_tx
-        pk_script = Bitcoin::Script.new(prev_out.pk_script)
-        if pk_script.is_pubkey? || pk_script.is_hash160?
-          key = @keystore.key(prev_out.get_address)
-          if key && key[:key] && !key[:key].priv.nil?
-            sig_hash = tx.signature_hash_for_input(idx, prev_tx)
-            sig = key[:key].sign(sig_hash)
-            script_sig = Bitcoin::Script.to_pubkey_script_sig(sig, [key[:key].pub].pack("H*"))
-          end
-        elsif pk_script.is_multisig?
-          sigs = []
-          required_sigs = pk_script.get_signatures_required
-          pk_script.get_multisig_pubkeys.each do |pub|
-            break  if sigs.size == required_sigs
-            key = @keystore.key(pub.unpack("H*")[0])[:key] rescue nil
-            next  unless key && key.priv
-            sig_hash = tx.signature_hash_for_input(idx, prev_tx)
-            sig = [key.sign(sig_hash), "\x01"].join
-            sigs << sig
-          end
-          if sigs.size == required_sigs
-            script_sig = Bitcoin::Script.to_multisig_script_sig(*sigs)
-          else
-            puts "Need #{required_sigs} signatures, only have #{sigs.size} private keys"
-            sigs_missing = true
+      tx = tx do |t|
+        outputs.each do |type, *addrs, value|
+          t.output do |o|
+            o.value value
+            o.script do |s|
+              s.type type
+              s.recipient *addrs
+            end
           end
         end
-        if script_sig
-          tx.in[idx].script_sig_length = script_sig.bytesize
-          tx.in[idx].script_sig = script_sig
-          raise "Signature error"  unless tx.verify_input_signature(idx, prev_tx)
-        else
-          return Bitcoin::Wallet::TxDP.new([tx, *prev_outs.map(&:get_tx)])
+
+        change_value = input_value - output_value - fee
+        if change_value > 0
+          change_addr = get_change_addr(change_policy, prev_outs.sample.get_address)
+          t.output do |o|
+            o.value change_value
+            o.script do |s|
+              s.type :address
+              s.recipient change_addr
+            end
+          end
+        end
+
+        prev_outs.each_with_index do |prev_out, idx|
+          t.input do |i|
+            prev_tx = prev_out.get_tx
+            i.prev_out prev_tx
+            i.prev_out_index prev_tx.out.index(prev_out)
+            pk_script = Bitcoin::Script.new(prev_out.pk_script)
+            if pk_script.is_pubkey? || pk_script.is_hash160?
+              i.signature_key @keystore.key(prev_out.get_address)[:key]
+            elsif pk_script.is_multisig?
+              raise "multisig not implemented"
+            end
+          end
         end
       end
-
+      # TODO: spend multisig outputs again
+      # TODO: verify signatures
       Bitcoin::Protocol::Tx.new(tx.to_payload)
     end
 

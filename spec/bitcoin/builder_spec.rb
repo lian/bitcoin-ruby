@@ -11,18 +11,18 @@ describe "Bitcoin::Builder" do
 
     target = "00".ljust(32, 'f')
 
-    block = blk(target) do
-      prev_block "\x00"*32
+    block = blk(target) do |b|
+      b.prev_block "\x00"*32
 
-      tx do
-        input { coinbase "foobar" }
+      b.tx do |t|
+        t.input {|i| i.coinbase "foobar" }
 
-        output do
-          value 5000000000
+        t.output do |o|
+          o.value 5000000000
 
-          script do
-            type :address
-            recipient keys[0].addr
+          o.script do |s|
+            s.type :address
+            s.recipient keys[0].addr
           end
         end
       end
@@ -39,19 +39,19 @@ describe "Bitcoin::Builder" do
 
     tx.out[0].value.should == 5000000000
 
-    tx = tx do
-      input do
-        prev_out block.tx[0]
-        prev_out_index 0
-        signature_key keys[0]
+    tx = tx do |t|
+      t.input do |i|
+        i.prev_out block.tx[0]
+        i.prev_out_index 0
+        i.signature_key keys[0]
       end
 
-      output do
-        value 123
+      t.output do |o|
+        o.value 123
 
-        script do
-          type :address
-          recipient keys[1].addr
+        o.script do |s|
+          s.type :address
+          s.recipient keys[1].addr
         end
       end
     end
@@ -66,6 +66,25 @@ describe "Bitcoin::Builder" do
     script.get_address.should == keys[1].addr
 
     tx.verify_input_signature(0, block.tx[0]).should == true
+  end
+
+  it "should build address script" do
+    key = Bitcoin::Key.generate
+    s = script {|s| s.type :address; s.recipient key.addr }
+    Bitcoin::Script.new(s).to_string.should ==
+      "OP_DUP OP_HASH160 #{Bitcoin.hash160_from_address(key.addr)} OP_EQUALVERIFY OP_CHECKSIG"
+  end
+
+  it "should build pubkey script" do
+    key = Bitcoin::Key.generate
+    s = script {|s| s.type :pubkey; s.recipient key.pub }
+    Bitcoin::Script.new(s).to_string.should == "#{key.pub} OP_CHECKSIG"
+  end
+
+  it "should build multisig script" do
+    keys = 3.times.map { Bitcoin::Key.generate }
+    s = script {|s| s.type :multisig; s.recipient 1, keys[0].pub, keys[1].pub }
+    Bitcoin::Script.new(s).to_string.should == "1 #{keys[0].pub} #{keys[1].pub} 2 OP_CHECKMULTISIG"
   end
 
 end

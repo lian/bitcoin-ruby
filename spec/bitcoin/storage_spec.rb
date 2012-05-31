@@ -230,13 +230,13 @@ include Bitcoin::Builder
     describe "reorg" do
 
       def create_block prev, store = true
-        block = blk do
-          prev_block prev
-          tx do
-            input { coinbase }
-            output do
-              value 5000000000
-              script { type :address; recipient Bitcoin::Key.generate.addr }
+        block = blk do |b|
+          b.prev_block prev
+          b.tx do |t|
+            t.input {|i| i.coinbase }
+            t.output do |o|
+              o.value 5000000000
+              o.script {|s| s.type :address; s.recipient Bitcoin::Key.generate.addr }
             end
           end
         end

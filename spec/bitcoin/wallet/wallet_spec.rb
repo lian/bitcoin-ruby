@@ -123,7 +123,7 @@ describe Bitcoin::Wallet::Wallet do
       selector = Mock.new
       selector.expect(:select, [txout], [[txout]])
       @selector.expect(:new, selector, [[txout]])
-      @tx = @wallet.tx([[:address, '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7', 1000]])
+      @tx = @wallet.new_tx([[:address, '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7', 1000]])
     end
 
 
@@ -151,25 +151,25 @@ describe Bitcoin::Wallet::Wallet do
     end
 
     it "should leave tx fee" do
-      @tx = @wallet.tx([[:address, '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7', 1000]], 50)
+      @tx = @wallet.new_tx([[:address, '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7', 1000]], 50)
       @tx.out.last.value.should == 3950
     end
 
     it "should send change to specified address" do
-      @tx = @wallet.tx([[:address, '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7', 1000]], 50,
+      @tx = @wallet.new_tx([[:address, '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7', 1000]], 50,
         '1EAntvSjkNeaJJTBQeQcN1ieU2mYf4wU9p')
       Script.new(@tx.out.last.pk_script).get_address.should ==
         '1EAntvSjkNeaJJTBQeQcN1ieU2mYf4wU9p'
     end
 
     it "should send change to new address" do
-      @tx = @wallet.tx([[:address, '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7', 1000]], 50, :new)
+      @tx = @wallet.new_tx([[:address, '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7', 1000]], 50, :new)
       @wallet.addrs.size.should == 2
       Script.new(@tx.out.last.pk_script).get_address.should == @wallet.addrs.last
     end
 
     it "should return nil if insufficient balance" do
-      @tx = @wallet.tx([[:address, '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7', 7000]])
+      @tx = @wallet.new_tx([[:address, '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7', 7000]])
       @tx.should == nil
     end
 
@@ -194,7 +194,7 @@ describe Bitcoin::Wallet::Wallet do
       selector.expect(:select, [txout], [1000])
       @selector.expect(:new, selector, [[txout]])
       @wallet = Wallet.new(@storage, @keystore, @selector)
-      @tx = @wallet.tx([[:multisig, 1, @key2.addr, @key3.addr, 1000]])
+      @tx = @wallet.new_tx([[:multisig, 1, @key2.pub, @key3.pub, 1000]])
     end
 
     it "should have correct outputs" do

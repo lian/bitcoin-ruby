@@ -5,30 +5,41 @@ module Bitcoin
   # see also BlockBuilder, TxBuilder, TxInBuilder, TxOutBuilder, ScriptBuilder
   module Builder
 
-    # create a Bitcoin::Protocol::Block matching the given +target+.
+    # build a Bitcoin::Protocol::Block matching the given +target+.
     # see BlockBuilder for details.
-    def blk(target = "00".ljust(32, 'f'), &block)
+    def blk(target = "00".ljust(32, 'f'))
       c = BlockBuilder.new
-      c.instance_eval &block
+      yield c
       c.block(target)
     end
 
-    # create a Bitcoin::Protocol::Tx.
+    # build a Bitcoin::Protocol::Tx.
     # see TxBuilder for details.
-    def tx &block
+    def tx
       c = TxBuilder.new
-      c.instance_eval &block
+      yield c
       c.tx
     end
 
+    # build a Bitcoin::Script.
+    # see ScriptBuilder for details.
+    def script
+      c = ScriptBuilder.new
+      yield c
+      c.script
+    end
+
     # DSL to create a Bitcoin::Protocol::Block used by Builder#blk.
-    #  block = blk("00".ljust(32, 'f')) do
-    #    prev_block "\x00"*32
-    #    tx do
-    #      input { coinbase }
-    #      output do
-    #        value 5000000000;
-    #        script { type :address; recipient Bitcoin::Key.generate.addr }
+    #  block = blk("00".ljust(32, 'f')) do |b|
+    #    b.prev_block "\x00"*32
+    #    b.tx do |t|
+    #      t.input {|i| i.coinbase }
+    #      t.output do |o|
+    #        o.value 5000000000;
+    #        o.script do |s|
+    #          s.type :address
+    #          s.recipient Bitcoin::Key.generate.addr
+    #        end
     #      end
     #    end
     #  end
@@ -49,9 +60,9 @@ module Bitcoin
       end
 
       # add transactions to the block (see TxBuilder).
-      def tx &block
+      def tx
         c = TxBuilder.new
-        c.instance_eval &block
+        yield c
         @block.tx << c.tx
       end
 
@@ -94,15 +105,15 @@ module Bitcoin
     end
 
     # DSL to create Bitcoin::Protocol::Tx used by Builder#tx.
-    # tx = tx do
-    #   input do
-    #     prev_out prev_tx  # previous transaction
-    #     prev_out_index 0  # index of previous output
-    #     signature_key key # Bitcoin::Key used to sign the input
+    # tx = tx do |t|
+    #   t.input do |i|
+    #     i.prev_out prev_tx  # previous transaction
+    #     i.prev_out_index 0  # index of previous output
+    #     i.signature_key key # Bitcoin::Key used to sign the input
     #   end
-    #   output do
-    #     value 12345 # 0.00012345 BTC
-    #     script { type :address; recipient key.addr }
+    #   t.output do |o|
+    #     o.value 12345 # 0.00012345 BTC
+    #     o.script {|s| s.type :address; s.recipient key.addr }
     #   end
     # end
     class TxBuilder
@@ -124,16 +135,16 @@ module Bitcoin
       end
 
       # add an input to the transaction (see TxInBuilder).
-      def input &block
+      def input
         c = TxInBuilder.new
-        c.instance_eval &block
+        yield c
         @ins << c
       end
 
       # add an output to the transaction (see TxOutBuilder).
-      def output &block
+      def output
         c = TxOutBuilder.new
-        c.instance_eval &block
+        yield c
         @outs << c
       end
 
@@ -201,7 +212,7 @@ module Bitcoin
 
       # create the txin according to values specified via DSL
       def txin
-        @txin.prev_out = (@prev_out ? [@prev_out.hash].pack("H*").reverse : "\x00"*32)
+        @txin.prev_out = (@prev_out ? @prev_out.binary_hash : "\x00"*32)
         @txin.prev_out_index = @prev_out_index
         @txin.sequence = @sequence || "\xff\xff\xff\xff"
         @txin
@@ -217,15 +228,15 @@ module Bitcoin
         @script = nil
       end
 
-      # script type (:pubkey, :address, :hash160, :multisig).
+      # script type (:pubkey, :address/hash160, :multisig).
       def type type
         @type = type.to_sym
       end
 
       # recipient(s) of the script.
       # depending on the #type, either an address, hash160 pubkey, etc.
-      def recipient data
-        @script = Bitcoin::Script.send("to_#{@type}_script", data)
+      def recipient *data
+        @script = Bitcoin::Script.send("to_#{@type}_script", *data)
       end
     end
 
@@ -245,11 +256,11 @@ module Bitcoin
       # add a script to the output (see ScriptBuilder).
       def script &block
         c = ScriptBuilder.new
-        c.instance_eval &block
+        yield c
         @txout.pk_script = c.script
       end
 
     end
-    
+
   end
 end
