@@ -27,13 +27,13 @@ class Bitcoin::Network::CommandClient < EM::Connection
 
   # call +connected+ callback
   def post_init
-    log.info { "Connected" }
+    log.debug { "Connected" }
     callback :connected
   end
 
   # call +disconnected+ callback and try to reconnect
   def unbind
-    log.info { "Disconnected." }
+    log.debug { "Disconnected." }
     callback :disconnected
     if @connection_attempts > 1
       log.info { "Trying to start server..." }

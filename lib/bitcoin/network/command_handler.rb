@@ -145,7 +145,6 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   def handle_relay_tx data
     tx = Bitcoin::Protocol::Tx.from_hash(data)
     @node.relay_tx(tx)
-    tx
   rescue
     {:error => $!}
   end

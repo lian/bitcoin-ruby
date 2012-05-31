@@ -252,14 +252,13 @@ when "send"
   end
 
   EM.run do
-    EM.connect(*options[:command].split(":")) do |conn|
-      conn.send_data(["relay_tx", tx.to_payload.unpack("H*")[0]].to_json)
-      def conn.receive_data(data)
-        (@buf ||= BufferedTokenizer.new("\x00")).extract(data).each do |packet|
-          res = JSON.load(packet)
-          puts "Transaction relayed: #{res[1]["hash"]}"
-          EM.stop
-        end
+    Bitcoin::Network::CommandClient.connect(*options[:command].split(":")) do
+      on_connected do
+        request(:relay_tx, tx)
+      end
+      on_relay_tx do
+        puts "Transaction #{tx.hash} relayed"
+        EM.stop
       end
     end
   end
