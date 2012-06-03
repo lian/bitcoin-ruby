@@ -85,7 +85,6 @@ module Bitcoin::Storage::Backends
     # organize block +blk+.
     # determine branch/chain and dept of block. trigger reorg if side branch becomes longer
     # than current main chain.
-    # if block connects an orphan block to the main chain, recursively organize the orphan.
     def org_block(blk)
       reorg = false
       if prev_block = @db[:blk][:hash => blk[:prev_hash].to_sequel_blob]
@@ -112,15 +111,13 @@ module Bitcoin::Storage::Backends
       reorg(blk)  if reorg
       blk = @db[:blk][:id => blk[:id]]
       log.info { "new block #{hth blk[:hash]} - #{blk[:depth]} (#{['main', 'side', 'orphan'][blk[:chain]]})" }
-      if chain != ORPHAN
-        @db[:blk].where(:prev_hash => blk[:hash].to_sequel_blob, :chain => ORPHAN).each do |b|
-          org_block(b)
-        end
-      end
+
       return depth, chain
     end
 
     # store block +blk+
+    # if block connects an orphan block to the main or a side chain,
+    # recursively organize the orphan.
     def store_block(blk)
       @log.debug { "Storing block #{blk.hash} (#{blk.to_payload.bytesize} bytes)" }
       @lock.synchronize do
@@ -155,6 +152,15 @@ module Bitcoin::Storage::Backends
 
           depth, chain = org_block(@db[:blk][:id => block_id])
 
+          org_queue = [[htb(blk.hash), chain]]
+          while !org_queue.empty?
+            blk_hash, chain = *org_queue.shift
+            next  if chain == ORPHAN
+            @db[:blk].where(:prev_hash => blk_hash.to_sequel_blob,
+              :chain => ORPHAN).each do |b|
+              org_queue << [b[:hash], org_block(b)[1]]
+            end
+          end
 
           return depth, chain
         end
