@@ -105,11 +105,6 @@ module Bitcoin
 
         in_size, out_size = Protocol.pack_var_int(@in.size), Protocol.pack_var_int(@out.size)
         [[@ver].pack("I"), in_size, pin, out_size, pout, [@lock_time].pack("I")].join
-      rescue
-        # p $!
-        # puts *$@
-        binding.pry
-        raise "ERR"
       end
 
       # generate a signature hash for input +input_idx+.

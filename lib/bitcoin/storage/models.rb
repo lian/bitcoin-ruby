@@ -44,6 +44,7 @@ module Bitcoin::Storage::Models
       @store = store
       @id = data[:id]
       @blk_id = data[:blk_id]
+      super(nil)
     end
 
     # get the block this transaction is in

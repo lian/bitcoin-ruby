@@ -232,7 +232,7 @@ module Bitcoin::Gui
         end
         message(:question, "Really send transaction?",
           "Do you really want to send #{format_value value} to #{address}?", [:no, :yes]) do
-          tx = @wallet.tx([[:address, *[address], value]], 0.00)
+          tx = @wallet.new_tx([[:address, *[address], value]], 0.00)
           # puts tx.to_json
           if @node.request(:relay_tx, tx)
             puts "Transaction #{tx} relayed."

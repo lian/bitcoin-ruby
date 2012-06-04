@@ -36,6 +36,7 @@ module Bitcoin::Network
     # clients to be notified for new block/tx events
     attr_reader :notifiers
 
+    attr_reader :in_sync
 
     DEFAULT_CONFIG = {
       :listen => ["0.0.0.0", Bitcoin.network[:default_port]],

@@ -68,7 +68,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   def handle_info
     blocks = @node.connections.map(&:version).compact.map(&:block) rescue nil
     {
-      :blocks => "#{@node.store.get_depth} (#{(blocks.inject{|a,b| a+=b;a} / blocks.size rescue '?')})",
+      :blocks => "#{@node.store.get_depth} (#{(blocks.inject{|a,b| a+=b;a} / blocks.size rescue '?')})#{@node.in_sync ? ' sync' : ''}",
       :addrs => "#{@node.addrs.select{|a| a.alive?}.size} (#{@node.addrs.size})",
       :connections => "#{@node.connections.select{|c| c.state == :connected}.size} (#{@node.connections.size})",
       :queue => @node.queue.size,
