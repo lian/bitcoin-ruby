@@ -88,7 +88,10 @@ module Bitcoin::Network
 
     def set_store
       backend, config = @config[:storage].split('::')
-      @store = Bitcoin::Storage.send(backend, {:db => config})
+      @store = Bitcoin::Storage.send(backend, {:db => config}, ->(locator) {
+          peer = @connections.select(&:connected?).sample
+          peer.send_getblocks(locator)
+        })
       @store.log.level = @config[:log][:storage]
     end
 

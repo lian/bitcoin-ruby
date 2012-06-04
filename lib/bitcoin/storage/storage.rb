@@ -14,8 +14,8 @@ module Bitcoin::Storage
   BACKENDS = [:dummy, :sequel]
   BACKENDS.each do |name|
     module_eval <<-EOS
-      def self.#{name} config
-        Backends.const_get("#{name.capitalize}Store").new(config)
+      def self.#{name} config, *args
+        Backends.const_get("#{name.capitalize}Store").new(config, *args)
       end
     EOS
   end
@@ -33,8 +33,9 @@ module Bitcoin::Storage
 
       attr_reader :log
 
-      def initialize(config = {})
+      def initialize(config = {}, getblocks_callback = nil)
         @config = config
+        @getblocks_callback = getblocks_callback
         @log    = config[:log] || Bitcoin::Storage.log
       end
 
@@ -74,10 +75,9 @@ module Bitcoin::Storage
       end
 
       # compute blockchain locator
-      def get_locator
+      def get_locator pointer = get_head
         return [Bitcoin::hth("\x00"*32)]  if get_depth == -1
         locator = []
-        pointer = get_head
         step = 1
         while pointer && pointer.hash != Bitcoin::network[:genesis_hash]
           locator << pointer.hash

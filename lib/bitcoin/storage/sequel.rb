@@ -26,10 +26,10 @@ module Bitcoin::Storage::Backends
     include Bitcoin::Storage::Backends::SequelMigrations
 
     # create sequel store with given +config+
-    def initialize config
+    def initialize config, *args
       @config = config
       connect
-      super config
+      super config, *args
       if @config[:db] =~ /^sqlite/
         require 'monitor'
         @lock = Monitor.new
@@ -111,7 +111,10 @@ module Bitcoin::Storage::Backends
       reorg(blk)  if reorg
       blk = @db[:blk][:id => blk[:id]]
       log.info { "new block #{hth blk[:hash]} - #{blk[:depth]} (#{['main', 'side', 'orphan'][blk[:chain]]})" }
-
+          if chain == SIDE && @getblocks_callback
+            locator = get_locator get_block(blk[:hash])
+            @getblocks_callback.call(locator)
+          end
       return depth, chain
     end
 

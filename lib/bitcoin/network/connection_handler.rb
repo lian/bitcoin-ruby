@@ -171,9 +171,8 @@ module Bitcoin::Network
     end
 
     # send +getblocks+ message
-    def send_getblocks
+    def send_getblocks locator = @node.store.get_locator
       return get_genesis_block  if @node.store.get_depth == -1
-      locator = @node.store.get_locator
       pkt = Protocol.pkt("getblocks", [Bitcoin::network[:magic_head],
           locator.size.chr, *locator.map{|l| htb(l).reverse}, "\x00"*32].join)
       log.info { "<< getblocks: #{locator.first}" }
