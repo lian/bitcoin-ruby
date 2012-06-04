@@ -322,12 +322,16 @@ module Bitcoin::Storage::Backends
     end
 
     # get all Models::TxOut matching given +hash160+
-    def get_txouts_for_hash160(hash160)
+    def get_txouts_for_hash160(hash160, unconfirmed = false)
       addr = @db[:addr][:hash160 => hash160]
       return []  unless addr
-      @db[:addr_txout].where(:addr_id => addr[:id])
+      txouts = @db[:addr_txout].where(:addr_id => addr[:id])
         .map{|t| @db[:txout][:id => t[:txout_id]] }
         .map{|o| wrap_txout(o) }
+      unless unconfirmed
+        txouts.select!{|o| o.get_tx.get_block.chain == MAIN rescue false }
+      end
+      txouts
     end
 
     # get all unconfirmed Models::TxOut
@@ -363,8 +367,9 @@ module Bitcoin::Storage::Backends
     def wrap_tx(transaction)
       return nil  unless transaction
 
-      parent = @db[:blk_tx][:tx_id => transaction[:id]]
-      block_id = parent ? parent[:blk_id] : nil
+      parents = @db[:blk_tx].where(:tx_id => transaction[:id])
+      parent = parents.map{|m|@db[:blk][:id => m[:blk_id]]}.sort_by {|b| b[:chain]}.first
+      block_id = parent ? parent[:id] : nil
       data = {:id => transaction[:id], :blk_id => block_id}
       tx = Bitcoin::Storage::Models::Tx.new(self, data)
 

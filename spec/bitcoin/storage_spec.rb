@@ -1,7 +1,5 @@
 require_relative 'spec_helper'
 
-include Bitcoin::Builder
-
 [
 #  { :name => :dummy },
   { :name => :sequel, :db => 'sqlite:/' }, # in memory
@@ -192,13 +190,13 @@ include Bitcoin::Builder
 
     it "should get txouts for hash160" do
       @store.store_tx(@tx)
-      @store.get_txouts_for_hash160("3129d7051d509424d23d533fa2d5258977e822e3")
+      @store.get_txouts_for_hash160("3129d7051d509424d23d533fa2d5258977e822e3", true)
         .should == [@tx.out[0]]
     end
 
     it "should get txouts for address" do
       @store.store_tx(@tx)
-      @store.get_txouts_for_address("mjzuXYR2fncbPzn9nR5Ee5gBgYk9UQx36x")
+      @store.get_txouts_for_address("mjzuXYR2fncbPzn9nR5Ee5gBgYk9UQx36x", true)
         .should == [@tx.out[0]]
     end
 
@@ -216,7 +214,7 @@ include Bitcoin::Builder
       @store.store_txout(0, txout, 0)
       keys.each do |key|
         hash160 = Bitcoin.hash160(key.pub)
-        txouts = @store.get_txouts_for_hash160(hash160)
+        txouts = @store.get_txouts_for_hash160(hash160, true)
         txouts.size.should == 1
         txouts[0].pk_script.should == txout.pk_script
       end
@@ -225,89 +223,6 @@ include Bitcoin::Builder
     it "should index output script type" do
       @store.store_tx(@tx)
       @store.get_tx(@tx.hash).out.first.type.should == :hash160
-    end
-
-    describe "reorg" do
-
-      def create_block prev, store = true
-        block = blk do |b|
-          b.prev_block prev
-          b.tx do |t|
-            t.input {|i| i.coinbase }
-            t.output do |o|
-              o.value 5000000000
-              o.script {|s| s.type :address; s.recipient Bitcoin::Key.generate.addr }
-            end
-          end
-        end
-        @store.store_block(block)  if store
-        block
-      end
-
-      before do
-        @store.reset
-        @block0 = Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_0.bin'))
-        @store.store_block(@block0)
-      end
-
-      it "should reorg a single side block" do
-        @store.get_head.should == @block0
-
-        block1 = create_block @block0.hash
-        @store.get_head.should == block1
-
-        block2_0 = create_block block1.hash
-        @store.get_head.should == block2_0
-
-        block2_1 = create_block block1.hash
-        @store.get_head.should == block2_0
-
-        block3 = create_block block2_1.hash
-        @store.get_head.should == block3
-        @store.get_block_by_depth(2).hash.should == block2_1.hash
-      end
-
-      it "should reorg two side blocks" do
-        block1 = create_block @block0.hash
-        @store.get_head.should == block1
-
-        block2_0 = create_block block1.hash
-        @store.get_head.should == block2_0
-
-        block2_1 = create_block block1.hash
-        @store.get_head.should == block2_0
-
-        block3_1 = create_block block2_1.hash
-        @store.get_head.should == block3_1
-
-        block3_0 = create_block block2_0.hash
-        @store.get_head.should == block3_1
-
-        block4 = create_block block3_0.hash
-        @store.get_head.should == block4
-      end
-
-      it "should reconnect orphans" do
-        blocks = [@block0]
-        blocks << create_block(@block0.hash, false)
-        blocks << create_block(blocks[1].hash, false)
-        blocks << create_block(blocks[2].hash, false)
-
-        {
-          [0, 1, 2, 3] => [0, 1, 2, 3],
-          [0, 1, 3, 2] => [0, 1, 1, 3],
-          [0, 3, 2, 1] => [0, 0, 0, 3],
-          [0, 3, 1, 2] => [0, 0, 1, 3],
-          [0, 2, 3, 1] => [0, 0, 0, 3],
-        }.each do |order, result|
-          @store.reset
-          order.each_with_index do |n, i|
-            @store.store_block(blocks[n])
-            @store.get_head.should == blocks[result[i]]
-          end
-        end
-      end
-
     end
 
   end

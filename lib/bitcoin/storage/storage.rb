@@ -141,23 +141,32 @@ module Bitcoin::Storage
 
       # collect all txouts containing a
       # standard tx to given +address+
-      def get_txouts_for_address(address)
+      def get_txouts_for_address(address, unconfirmed = false)
         hash160 = Bitcoin.hash160_from_address(address)
-        get_txouts_for_hash160(hash160)
+        get_txouts_for_hash160(hash160, unconfirmed)
       end
 
       # get balance for given +hash160+
       def get_balance(hash160, unconfirmed = false)
-        txouts = get_txouts_for_hash160(hash160)
-        unless unconfirmed
-          txouts = txouts.select {|o| !!o.get_tx.get_block}
-        end
+        txouts = get_txouts_for_hash160(hash160, unconfirmed)
         unspent = txouts.select {|o| o.get_next_in.nil?}
         unspent.map(&:value).inject {|a,b| a+=b; a} || 0
       rescue
         nil
       end
 
+      # import satoshi bitcoind blk0001.dat blockchain file
+      def import filename
+        File.open(filename) do |file|
+          until file.eof?
+            magic = file.read(4)
+            raise "invalid network magic"  unless Bitcoin.network[:magic_head] == magic
+            size = file.read(4).unpack("L")[0]
+            blk = Bitcoin::P::Block.new(file.read(size))
+            store_block(blk)
+          end
+        end
+      end
     end
   end
 end
