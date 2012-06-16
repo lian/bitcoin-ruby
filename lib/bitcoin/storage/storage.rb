@@ -156,14 +156,15 @@ module Bitcoin::Storage
       end
 
       # import satoshi bitcoind blk0001.dat blockchain file
-      def import filename
+      def import filename, max_depth = nil
         File.open(filename) do |file|
           until file.eof?
             magic = file.read(4)
             raise "invalid network magic"  unless Bitcoin.network[:magic_head] == magic
             size = file.read(4).unpack("L")[0]
             blk = Bitcoin::P::Block.new(file.read(size))
-            store_block(blk)
+            depth, chain = store_block(blk)
+            break  if max_depth && depth >= max_depth
           end
         end
       end
