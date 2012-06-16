@@ -70,9 +70,7 @@ describe "reorg" do
 
   it "should reconnect orphans" do
     blocks = [@block0]
-    blocks << create_block(@block0.hash, false)
-    blocks << create_block(blocks[1].hash, false)
-    blocks << create_block(blocks[2].hash, false)
+    3.times { blocks << create_block(blocks.last.hash, false) }
 
     {
       [0, 1, 2, 3] => [0, 1, 2, 3],
@@ -86,6 +84,12 @@ describe "reorg" do
         @store.store_block(blocks[n])
         @store.get_head.should == blocks[result[i]]
       end
+    end
+
+    i = 3; (0..i).to_a.permutation.each do |order|
+      @store.reset
+      order.each {|n| @store.store_block(blocks[n]) }
+      @store.get_head.should == blocks[i]
     end
   end
 

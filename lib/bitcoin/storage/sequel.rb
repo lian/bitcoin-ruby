@@ -57,120 +57,103 @@ module Bitcoin::Storage::Backends
       [:blk, :blk_tx, :tx, :txin, :txout].each {|table| @db[table].delete}
     end
 
-    # reorg starting with given +blk+.
-    # determine point where +blk+'s SIDE branch splits from the MAIN chain.
-    # switch branches, setting all blocks from split-point to branch MAIN,
-    # and all blocks from split-point to the previous head to branch SIDE.
-    def reorg(blk)
-      new, old = [], []
-      while blk[:chain] != MAIN do
-        new << blk
-        blk = @db[:blk][:hash => blk[:prev_hash].to_sequel_blob]
-        return  unless blk
-      end
 
-      head = @db[:blk].filter(:chain => MAIN).order(:depth).last
-      while head != blk do
-        old << head
-        head = @db[:blk][:hash => head[:prev_hash].to_sequel_blob]
-      end
-
-      @log.info { "reorg new main: #{new.map{|b|hth(b[:hash])}.inspect} " }
-      @log.info { "reorg new side: #{old.map{|b|hth(b[:hash])}.inspect}" }
-
-      new.each {|b| @db[:blk].filter(:hash => b[:hash].to_sequel_blob).update(:chain => MAIN) }
-      old.each {|b| @db[:blk].filter(:hash => b[:hash].to_sequel_blob).update(:chain => SIDE) }
-    end
-
-    # organize block +blk+.
+    # store given block +blk+.
     # determine branch/chain and dept of block. trigger reorg if side branch becomes longer
-    # than current main chain.
-    def org_block(blk)
-      reorg = false
-      if prev_block = @db[:blk][:hash => blk[:prev_hash].to_sequel_blob]
-        depth = prev_block[:depth] + 1
-        if prev_block[:chain] == MAIN
-          if @db[:blk][:prev_hash => prev_block[:hash].to_sequel_blob, :chain => MAIN]
-            chain = SIDE
-          else
-            chain = MAIN
-          end
+    # than current main chain and connect orpans.
+    def store_block blk
+      log.debug { "new block #{blk.hash}" }
+      prev_block = @db[:blk][:hash => blk.prev_block.reverse.to_sequel_blob]
+      if !prev_block || prev_block[:chain] == ORPHAN
+
+        if blk.hash == Bitcoin.network[:genesis_hash]
+          log.debug { "=> genesis (0)" }
+          return persist_block(blk, MAIN, 0)
         else
-          chain = prev_block[:chain]
-          reorg = true  if depth > get_head.depth
+          depth = prev_block ? prev_block[:depth] + 1 : 0
+          log.debug { "=> orphan (#{depth})" }
+          return persist_block(blk, ORPHAN, depth)
+        end
+      end
+
+      if prev_block[:chain] == MAIN
+        if @db[:blk][:prev_hash => prev_block[:hash].to_sequel_blob, :chain => MAIN]
+          log.debug { "=> side (#{prev_block[:depth] + 1})" }
+          return persist_block(blk, SIDE, prev_block[:depth] + 1)
+        else
+          log.debug { "=> main (#{prev_block[:depth] + 1})" }
+          return persist_block(blk, MAIN, prev_block[:depth] + 1)
         end
       else
-        chain = ORPHAN
-        depth = 0
-      end
-      chain = MAIN  if hth(blk[:hash]) == Bitcoin.network[:genesis_hash]
-
-      @db[:blk].filter(:hash => blk[:hash].to_sequel_blob).update(:chain => chain, :depth => depth)
-
-      blk = @db[:blk][:id => blk[:id]]
-      reorg(blk)  if reorg
-      blk = @db[:blk][:id => blk[:id]]
-      log.info { "new block #{hth blk[:hash]} - #{blk[:depth]} (#{['main', 'side', 'orphan'][blk[:chain]]})" }
-          if chain == SIDE && @getblocks_callback
-            locator = get_locator get_block(blk[:hash])
-            @getblocks_callback.call(locator)
+        head = @db[:blk].filter(:chain => MAIN).order(:depth).last
+        if prev_block[:depth] + 1 <= head[:depth]
+          log.debug { "=> side (#{prev_block[:depth] + 1})" }
+          return persist_block(blk, SIDE, prev_block[:depth] + 1)
+        else
+          log.debug { "=> reorg" }
+          new_main, new_side = [], []
+          fork_block = prev_block
+          while fork_block[:chain] != MAIN
+            new_main << fork_block
+            fork_block = @db[:blk][:hash => fork_block[:prev_hash].to_sequel_blob]
           end
+          b = @db[:blk][:hash => fork_block[:hash].to_sequel_blob]
+          while b = @db[:blk][:prev_hash => b[:hash].to_sequel_blob, :chain => MAIN]
+            new_side << b
+          end
+          log.debug { "new main: #{new_main.map(&:hash).inspect}" }
+          log.debug { "new side: #{new_side.map{|b|hth(b[:hash])}.inspect}" }
+          new_main.each {|b| update_block(b[:hash], :chain => MAIN) }
+          new_side.each {|b| update_block(b[:hash], :chain => SIDE) }
+          return persist_block(blk, MAIN, prev_block[:depth] + 1)
+        end
+      end
+    end
+
+    # persist given block +blk+ to storage.
+    def persist_block blk, chain, depth
+      attrs = {
+        :hash => htb(blk.hash).to_sequel_blob,
+        :depth => depth,
+        :chain => chain,
+        :version => blk.ver,
+        :prev_hash => blk.prev_block.reverse.to_sequel_blob,
+        :mrkl_root => blk.mrkl_root.reverse.to_sequel_blob,
+        :time => blk.time,
+        :bits => blk.bits,
+        :nonce => blk.nonce,
+        :blk_size => blk.to_payload.bytesize,
+      }
+      existing = @db[:blk].filter(:hash => htb(blk.hash).to_sequel_blob)
+      if existing.any?
+        existing.update attrs
+      else
+        block_id = @db[:blk].insert(attrs)
+        blk.tx.each_with_index do |tx, idx|
+          tx_id = store_tx(tx)
+          raise "Error saving tx #{tx.hash} in block #{blk.hash}"  unless tx_id
+          @db[:blk_tx].insert({
+              :blk_id => block_id,
+              :tx_id => tx_id,
+              :idx => idx,
+            })
+        end
+      end
+      begin
+        @db[:blk].where(:prev_hash => htb(blk.hash).to_sequel_blob).each do |b|
+          log.debug { "re-org orphan #{hth(b[:hash])}" }
+          store_block(get_block(hth(b[:hash])))
+        end
+      rescue
+        p $!
+      end
+      log.info { "block #{blk.hash} (#{depth}, #{['main', 'side', 'orphan'][chain]})" } 
       return depth, chain
     end
 
-    # store block +blk+
-    # if block connects an orphan block to the main or a side chain,
-    # recursively organize the orphan.
-    def store_block(blk)
-      @log.debug { "Storing block #{blk.hash} (#{blk.to_payload.bytesize} bytes)" }
-      @lock.synchronize do
-        @db.transaction do
-          existing = @db[:blk][:hash => htb(blk.hash).to_sequel_blob]
-          if existing
-            org_block(existing)  if existing[:chain] != MAIN
-            return
-          end
-
-          block_id = @db[:blk].insert({
-              :hash => htb(blk.hash).to_sequel_blob,
-              :depth => -1,
-              :chain => 2,
-              :version => blk.ver,
-              :prev_hash => blk.prev_block.reverse.to_sequel_blob,
-              :mrkl_root => blk.mrkl_root.reverse.to_sequel_blob,
-              :time => blk.time,
-              :bits => blk.bits,
-              :nonce => blk.nonce,
-              :blk_size => blk.to_payload.bytesize,
-            })
-          blk.tx.each_with_index do |tx, idx|
-            tx_id = store_tx(tx)
-            raise "Error saving tx #{tx.hash} in block #{blk.hash}"  unless tx_id
-            @db[:blk_tx].insert({
-                :blk_id => block_id,
-                :tx_id => tx_id,
-                :idx => idx,
-              })
-          end
-
-          depth, chain = org_block(@db[:blk][:id => block_id])
-
-          org_queue = [[htb(blk.hash), chain]]
-          while !org_queue.empty?
-            blk_hash, chain = *org_queue.shift
-            next  if chain == ORPHAN
-            @db[:blk].where(:prev_hash => blk_hash.to_sequel_blob,
-              :chain => ORPHAN).each do |b|
-              org_queue << [b[:hash], org_block(b)[1]]
-            end
-          end
-
-          return depth, chain
-        end
-      end
-    rescue
-      @log.warn { "Error storing block: #{$!}" }
-      puts *$@
+    # update +attrs+ for block with given +hash+.
+    def update_block hash, attrs
+      @db[:blk].filter(:hash => hash.to_sequel_blob).update(attrs)
     end
 
     # store transaction +tx+
