@@ -8,14 +8,6 @@ module Bitcoin::Storage::Backends
   # Inherits from StoreBase and implements its interface.
   class SequelStore < StoreBase
 
-    # main branch (longest valid chain
-    MAIN = 0
-
-    # side branch (connected, valid but too short)
-    SIDE = 1
-
-    # orphan branch (not connected to main branch / genesis block)
-    ORPHAN = 2
 
     # possible script types
     SCRIPT_TYPES = [:unknown, :pubkey, :hash160, :multisig]
@@ -30,13 +22,6 @@ module Bitcoin::Storage::Backends
       @config = config
       connect
       super config, *args
-      if @config[:db] =~ /^sqlite/
-        require 'monitor'
-        @lock = Monitor.new
-      else
-        def synchronize; yield; end
-        @lock = self
-      end
     end
 
     # connect to database
@@ -58,122 +43,71 @@ module Bitcoin::Storage::Backends
     end
 
 
-    # store given block +blk+.
-    # determine branch/chain and dept of block. trigger reorg if side branch becomes longer
-    # than current main chain and connect orpans.
-    def store_block blk
-      log.debug { "new block #{blk.hash}" }
-      prev_block = @db[:blk][:hash => blk.prev_block.reverse.to_sequel_blob]
-      if !prev_block || prev_block[:chain] == ORPHAN
-
-        if blk.hash == Bitcoin.network[:genesis_hash]
-          log.debug { "=> genesis (0)" }
-          return persist_block(blk, MAIN, 0)
-        else
-          depth = prev_block ? prev_block[:depth] + 1 : 0
-          log.debug { "=> orphan (#{depth})" }
-          return persist_block(blk, ORPHAN, depth)
-        end
-      end
-
-      if prev_block[:chain] == MAIN
-        if @db[:blk][:prev_hash => prev_block[:hash].to_sequel_blob, :chain => MAIN]
-          log.debug { "=> side (#{prev_block[:depth] + 1})" }
-          return persist_block(blk, SIDE, prev_block[:depth] + 1)
-        else
-          log.debug { "=> main (#{prev_block[:depth] + 1})" }
-          return persist_block(blk, MAIN, prev_block[:depth] + 1)
-        end
-      else
-        head = @db[:blk].filter(:chain => MAIN).order(:depth).last
-        if prev_block[:depth] + 1 <= head[:depth]
-          log.debug { "=> side (#{prev_block[:depth] + 1})" }
-          return persist_block(blk, SIDE, prev_block[:depth] + 1)
-        else
-          log.debug { "=> reorg" }
-          new_main, new_side = [], []
-          fork_block = prev_block
-          while fork_block[:chain] != MAIN
-            new_main << fork_block
-            fork_block = @db[:blk][:hash => fork_block[:prev_hash].to_sequel_blob]
-          end
-          b = @db[:blk][:hash => fork_block[:hash].to_sequel_blob]
-          while b = @db[:blk][:prev_hash => b[:hash].to_sequel_blob, :chain => MAIN]
-            new_side << b
-          end
-          log.debug { "new main: #{new_main.map(&:hash).inspect}" }
-          log.debug { "new side: #{new_side.map{|b|hth(b[:hash])}.inspect}" }
-          new_main.each {|b| update_block(b[:hash], :chain => MAIN) }
-          new_side.each {|b| update_block(b[:hash], :chain => SIDE) }
-          return persist_block(blk, MAIN, prev_block[:depth] + 1)
-        end
-      end
-    end
 
     # persist given block +blk+ to storage.
     def persist_block blk, chain, depth
-      attrs = {
-        :hash => htb(blk.hash).to_sequel_blob,
-        :depth => depth,
-        :chain => chain,
-        :version => blk.ver,
-        :prev_hash => blk.prev_block.reverse.to_sequel_blob,
-        :mrkl_root => blk.mrkl_root.reverse.to_sequel_blob,
-        :time => blk.time,
-        :bits => blk.bits,
-        :nonce => blk.nonce,
-        :blk_size => blk.to_payload.bytesize,
-      }
-      existing = @db[:blk].filter(:hash => htb(blk.hash).to_sequel_blob)
-      if existing.any?
-        existing.update attrs
-      else
-        block_id = @db[:blk].insert(attrs)
-        blk.tx.each_with_index do |tx, idx|
-          tx_id = store_tx(tx)
-          raise "Error saving tx #{tx.hash} in block #{blk.hash}"  unless tx_id
-          @db[:blk_tx].insert({
-              :blk_id => block_id,
-              :tx_id => tx_id,
-              :idx => idx,
-            })
+      @db.transaction do
+        attrs = {
+          :hash => htb(blk.hash).to_sequel_blob,
+          :depth => depth,
+          :chain => chain,
+          :version => blk.ver,
+          :prev_hash => blk.prev_block.reverse.to_sequel_blob,
+          :mrkl_root => blk.mrkl_root.reverse.to_sequel_blob,
+          :time => blk.time,
+          :bits => blk.bits,
+          :nonce => blk.nonce,
+          :blk_size => blk.to_payload.bytesize,
+        }
+        existing = @db[:blk].filter(:hash => htb(blk.hash).to_sequel_blob)
+        if existing.any?
+          existing.update attrs
+        else
+          block_id = @db[:blk].insert(attrs)
+          blk.tx.each_with_index do |tx, idx|
+            tx_id = store_tx(tx)
+            raise "Error saving tx #{tx.hash} in block #{blk.hash}"  unless tx_id
+            @db[:blk_tx].insert({
+                :blk_id => block_id,
+                :tx_id => tx_id,
+                :idx => idx,
+              })
+          end
         end
-      end
-      begin
-        @db[:blk].where(:prev_hash => htb(blk.hash).to_sequel_blob).each do |b|
-          log.debug { "re-org orphan #{hth(b[:hash])}" }
-          store_block(get_block(hth(b[:hash])))
+        begin
+          @db[:blk].where(:prev_hash => htb(blk.hash).to_sequel_blob).each do |b|
+            log.debug { "re-org orphan #{hth(b[:hash])}" }
+            store_block(get_block(hth(b[:hash])))
+          end
+        rescue
+          p $!
         end
-      rescue
-        p $!
+        log.info { "block #{blk.hash} (#{depth}, #{['main', 'side', 'orphan'][chain]})" } 
+        return depth, chain
       end
-      log.info { "block #{blk.hash} (#{depth}, #{['main', 'side', 'orphan'][chain]})" } 
-      return depth, chain
     end
 
     # update +attrs+ for block with given +hash+.
     def update_block hash, attrs
-      @db[:blk].filter(:hash => hash.to_sequel_blob).update(attrs)
+      @db[:blk].filter(:hash => htb(hash).to_sequel_blob).update(attrs)
     end
 
     # store transaction +tx+
     def store_tx(tx)
       @log.debug { "Storing tx #{tx.hash} (#{tx.to_payload.bytesize} bytes)" }
-      @lock.synchronize do
-        @db.transaction do
-          transaction = @db[:tx][:hash => htb(tx.hash).to_sequel_blob]
-          return transaction[:id]  if transaction
-          tx_id = @db[:tx].insert({
-              :hash => htb(tx.hash).to_sequel_blob,
-              :version => tx.ver,
-              :lock_time => tx.lock_time,
-              :coinbase => tx.in.size==1 && tx.in[0].coinbase?,
-              :tx_size => tx.payload.bytesize,
-            })
-          tx.in.each_with_index {|i, idx| store_txin(tx_id, i, idx)}
-          tx.out.each_with_index {|o, idx| store_txout(tx_id, o, idx)}
-          tx_id
-        end
+      @db.transaction do
+        transaction = @db[:tx][:hash => htb(tx.hash).to_sequel_blob]
+        return transaction[:id]  if transaction
+        tx_id = @db[:tx].insert({
+            :hash => htb(tx.hash).to_sequel_blob,
+            :version => tx.ver,
+            :lock_time => tx.lock_time,
+            :coinbase => tx.in.size==1 && tx.in[0].coinbase?,
+            :tx_size => tx.payload.bytesize,
+          })
+        tx.in.each_with_index {|i, idx| store_txin(tx_id, i, idx)}
+        tx.out.each_with_index {|o, idx| store_txout(tx_id, o, idx)}
+        tx_id
       end
     rescue
       @log.warn { "Error storing tx: #{$!}" }
@@ -181,41 +115,37 @@ module Bitcoin::Storage::Backends
 
     # store input +txin+
     def store_txin(tx_id, txin, idx)
-      @lock.synchronize do
-        @db.transaction do
-          @db[:txin].insert({
-              :tx_id => tx_id,
-              :tx_idx => idx,
-              :script_sig => txin.script_sig.to_sequel_blob,
-              :prev_out => txin.prev_out.to_sequel_blob,
-              :prev_out_index => txin.prev_out_index,
-              :sequence => txin.sequence.unpack("I")[0],
-            })
-        end
+      @db.transaction do
+        @db[:txin].insert({
+            :tx_id => tx_id,
+            :tx_idx => idx,
+            :script_sig => txin.script_sig.to_sequel_blob,
+            :prev_out => txin.prev_out.to_sequel_blob,
+            :prev_out_index => txin.prev_out_index,
+            :sequence => txin.sequence.unpack("I")[0],
+          })
       end
     end
 
     # store output +txout+
     def store_txout(tx_id, txout, idx)
-      @lock.synchronize do
-        @db.transaction do
-          script = Bitcoin::Script.new(txout.pk_script)
-          txout_id = @db[:txout].insert({
-              :tx_id => tx_id,
-              :tx_idx => idx,
-              :pk_script => txout.pk_script.to_sequel_blob,
-              :value => txout.value,
-              :type => SCRIPT_TYPES.index(script.type)
-            })
-          if script.is_hash160? || script.is_pubkey?
-            store_addr(txout_id, script.get_hash160)
-          elsif script.is_multisig?
-            script.get_multisig_pubkeys.map do |pubkey|
-              store_addr(txout_id, Bitcoin.hash160(pubkey.unpack("H*")[0]))
-            end
+      @db.transaction do
+        script = Bitcoin::Script.new(txout.pk_script)
+        txout_id = @db[:txout].insert({
+            :tx_id => tx_id,
+            :tx_idx => idx,
+            :pk_script => txout.pk_script.to_sequel_blob,
+            :value => txout.value,
+            :type => SCRIPT_TYPES.index(script.type)
+          })
+        if script.is_hash160? || script.is_pubkey?
+          store_addr(txout_id, script.get_hash160)
+        elsif script.is_multisig?
+          script.get_multisig_pubkeys.map do |pubkey|
+            store_addr(txout_id, Bitcoin.hash160(pubkey.unpack("H*")[0]))
           end
-          txout_id
         end
+        txout_id
       end
     end
 

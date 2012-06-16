@@ -31,6 +31,15 @@ module Bitcoin::Storage
     # inside the appropriate Bitcoin::Storage::Models class.
     class StoreBase
 
+      # main branch (longest valid chain)
+      MAIN = 0
+
+      # side branch (connected, valid, but too short)
+      SIDE = 1
+
+      # orphan branch (not connected to main branch / genesis block)
+      ORPHAN = 2
+
       attr_reader :log
 
       def initialize(config = {}, getblocks_callback = nil)
@@ -44,8 +53,66 @@ module Bitcoin::Storage
         raise "Not implemented"
       end
 
-      # store given +block+
-      def store_block(blk)
+      # store given block +blk+.
+      # determine branch/chain and dept of block. trigger reorg if side branch becomes longer
+      # than current main chain and connect orpans.
+      def store_block blk
+        log.debug { "new block #{blk.hash}" }
+        prev_block = get_block(hth(blk.prev_block.reverse))
+        if !prev_block || prev_block.chain == ORPHAN
+          if blk.hash == Bitcoin.network[:genesis_hash]
+            log.debug { "=> genesis (0)" }
+            return persist_block(blk, MAIN, 0)
+          else
+            depth = prev_block ? prev_block.depth + 1 : 0
+            log.debug { "=> orphan (#{depth})" }
+            return persist_block(blk, ORPHAN, depth)
+          end
+        end
+        depth = prev_block.depth + 1
+        if prev_block.chain == MAIN
+          next_block = prev_block.get_next_block
+          if next_block && next_block.chain == MAIN
+            log.debug { "=> side (#{depth})" }
+            return persist_block(blk, SIDE, depth)
+          else
+            log.debug { "=> main (#{depth})" }
+            return persist_block(blk, MAIN, depth)
+          end
+        else
+          head = get_head
+          if prev_block.depth + 1 <= head.depth
+            log.debug { "=> side (#{depth})" }
+            return persist_block(blk, SIDE, depth)
+          else
+            log.debug { "=> reorg" }
+            new_main, new_side = [], []
+            fork_block = prev_block
+            while fork_block.chain != MAIN
+              new_main << fork_block
+              fork_block = fork_block.get_prev_block
+            end
+            b = fork_block
+            while b = b.get_next_block
+              new_side << b
+            end
+            log.debug { "new main: #{new_main.map(&:hash).inspect}" }
+            log.debug { "new side: #{new_side.map(&:hash)}.inspect}" }
+            new_main.each {|b| update_block(b.hash, :chain => MAIN) }
+            new_side.each {|b| update_block(b.hash, :chain => SIDE) }
+            return persist_block(blk, MAIN, depth)
+          end
+        end
+      end
+
+      # persist given block +blk+ to storage.
+      def persist_block(blk)
+        raise "Not implemented"
+      end
+
+      # update +attrs+ for block with given +hash+.
+      # typically used to update chain.
+      def update_block(hash, attrs)
         raise "Not implemented"
       end
 
