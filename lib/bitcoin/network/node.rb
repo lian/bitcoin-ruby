@@ -298,11 +298,14 @@ module Bitcoin::Network
       EM.defer(nil, proc { work_inv_queue }) do
         sleep @config[:intervals][:inv_queue]  if @inv_queue.size == 0
         @log.debug { "inv queue worker running" }
-        next  if @queue.size >= @config[:max][:queue]
-        while inv = @inv_queue.shift
-          next  if !@in_sync && inv[0] == :tx
-          # next  if @store.send("has_#{inv[0]}", inv[1])
-          inv[2].send("send_getdata_#{inv[0]}", inv[1])
+        if @queue.size >= @config[:max][:queue]
+          sleep @config[:intervals][:inv_queue]
+        else
+          while inv = @inv_queue.shift
+            next  if !@in_sync && inv[0] == :tx
+            # next  if @store.send("has_#{inv[0]}", inv[1])
+            inv[2].send("send_getdata_#{inv[0]}", inv[1])
+          end
         end
       end
     end
