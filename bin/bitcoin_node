@@ -144,20 +144,12 @@ options[:connect] = options[:connect] == "" ? [] : options[:connect].split(',').
 if ARGV.any?
   EM.run do
     Bitcoin::Network::CommandClient.connect(*options[:command]) do
-
       on_response do |cmd, data|
-        EM.stop  unless cmd == "monitor"
+        unless cmd == "monitor"
+          puts JSON.pretty_generate data
+          EM.stop
+        end
       end
-      on_info do |info|
-        puts JSON.pretty_generate(info)
-      end
-      on_connections do |connections|
-        puts *connections
-      end
-      [:connect, :disconnect, :getblocks, :getaddr, :relay_tx, :stop].each do |req|
-        send("on_#{req}") {|res| p res}
-      end
-
       on_block do |block, depth|
         puts "block: #{block['hash']} (#{depth})"
       end
@@ -171,11 +163,9 @@ if ARGV.any?
           puts "Disconnected: #{host.inspect}"
         end
       end
-
       on_connected do
         request(ARGV[0], *(ARGV[1] || "").split(" "))
       end
-
     end
   end
 else
