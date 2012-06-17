@@ -73,7 +73,7 @@ module Bitcoin::Storage::Backends
           end
         end
         begin
-          @db[:blk].where(:prev_hash => htb(blk.hash).to_sequel_blob).each do |b|
+          @db[:blk].where(:prev_hash => htb(blk.hash).to_sequel_blob, :chain => ORPHAN).each do |b|
             log.debug { "re-org orphan #{hth(b[:hash])}" }
             begin
               store_block(get_block(hth(b[:hash])))
@@ -90,8 +90,12 @@ module Bitcoin::Storage::Backends
     end
 
     # update +attrs+ for block with given +hash+.
-    def update_block hash, attrs
-      @db[:blk].filter(:hash => htb(hash).to_sequel_blob).update(attrs)
+    def update_blocks updates
+      @db.transaction do
+        updates.each do |blocks, attrs|
+          @db[:blk].filter(:hash => blocks.map{|h| htb(h)}).update(attrs)
+        end
+      end
     end
 
     # store transaction +tx+

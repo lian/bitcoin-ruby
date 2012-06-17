@@ -89,17 +89,16 @@ module Bitcoin::Storage
             new_main, new_side = [], []
             fork_block = prev_block
             while fork_block.chain != MAIN
-              new_main << fork_block
+              new_main << fork_block.hash
               fork_block = fork_block.get_prev_block
             end
             b = fork_block
             while b = b.get_next_block
-              new_side << b
+              new_side << b.hash
             end
-            log.debug { "new main: #{new_main.map(&:hash).inspect}" }
-            log.debug { "new side: #{new_side.map(&:hash)}.inspect}" }
-            new_main.each {|b| update_block(b.hash, :chain => MAIN) }
-            new_side.each {|b| update_block(b.hash, :chain => SIDE) }
+            log.debug { "new main: #{new_main.inspect}" }
+            log.debug { "new side: #{new_side.inspect}" }
+            update_blocks([[new_main, {:chain => MAIN}], [new_side, {:chain => SIDE}]])
             return persist_block(blk, MAIN, depth)
           end
         end
