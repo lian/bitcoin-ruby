@@ -35,7 +35,7 @@ intentionally kept to a minimum, so nobody has to install unneeded dependencies.
 * +eventmachine+ to run a node / connect to peers
 * +sequel+, +sqlite3+/+pg+/+mysql+ to use a storage backend
 * +em-dns+ or +nslookup+ to get peer addrs from DNS seeds
-* +ruby-gnome2+, +glib2+ and +pango+ for the gui
+* +gir_ffi+ for the gui
 * +bacon+ to run the specs
 
 == Client
