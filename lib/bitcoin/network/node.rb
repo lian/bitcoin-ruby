@@ -312,8 +312,10 @@ module Bitcoin::Network
 
     # queue inv, caching the most current ones
     def queue_inv inv
-      128.times { @inv_cache.shift }  if @inv_cache.size > @config[:max][:inv_cache]
-      return  if @inv_cache.include?([inv[0], inv[1]])
+      @inv_cache.shift(128)  if @inv_cache.size > @config[:max][:inv_cache]
+      return  if @inv_cache.include?([inv[0], inv[1]]) ||
+        @inv_queue.size >= @config[:max][:inv] ||
+        (!@in_sync && inv[0] == :tx)
       @inv_cache << [inv[0], inv[1]]
       @inv_queue << inv
     end
