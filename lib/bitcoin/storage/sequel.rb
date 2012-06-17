@@ -42,8 +42,6 @@ module Bitcoin::Storage::Backends
       [:blk, :blk_tx, :tx, :txin, :txout].each {|table| @db[table].delete}
     end
 
-
-
     # persist given block +blk+ to storage.
     def persist_block blk, chain, depth
       @db.transaction do
@@ -77,7 +75,11 @@ module Bitcoin::Storage::Backends
         begin
           @db[:blk].where(:prev_hash => htb(blk.hash).to_sequel_blob).each do |b|
             log.debug { "re-org orphan #{hth(b[:hash])}" }
-            store_block(get_block(hth(b[:hash])))
+            begin
+              store_block(get_block(hth(b[:hash])))
+            rescue SystemStackError
+              EM.defer { store_block(get_block(hth(b[:hash]))) }  if EM.reactor_running?
+            end
           end
         rescue
           p $!
