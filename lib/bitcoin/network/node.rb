@@ -333,7 +333,7 @@ module Bitcoin::Network
     def relay_tx(tx)
       return false  unless @in_sync
       @store.store_tx(tx)
-      @connections.sample((@connections.size / 2) + 1).each do |peer|
+      @connections.select(&:connected?).sample((@connections.size / 2) + 1).each do |peer|
         peer.send_inv(:tx, tx)
       end
     end
