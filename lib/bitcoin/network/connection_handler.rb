@@ -180,9 +180,8 @@ module Bitcoin::Network
     end
 
     # send +getheaders+ message
-    def send_getheaders
+    def send_getheaders locator = @node.store.get_locator
       return get_genesis_block  if @node.store.get_depth == -1
-      locator = @node.store.get_locator
       pkt = Protocol.pkt("getheaders", [Bitcoin::network[:magic_head],
           locator.size.chr, *locator.map{|l| htb(l).reverse}, "\x00"*32].join)
       log.debug { "<< getheaders: #{locator.first}" }

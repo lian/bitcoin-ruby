@@ -242,14 +242,14 @@ module Bitcoin::Network
     end
 
     # query blocks from random peer
-    def getblocks
+    def getblocks locator = store.get_locator
       peer = @connections.select(&:connected?).sample
       return  unless peer
       log.info { "querying blocks from #{peer.host}:#{peer.port}" }
       if @config[:headers_only]
-        peer.send_getheaders  unless @queue.size >= @config[:max][:queue]
+        peer.send_getheaders locator  unless @queue.size >= @config[:max][:queue]
       else
-        peer.send_getblocks  unless @inv_queue.size >= @config[:max][:inv]
+        peer.send_getblocks locator  unless @inv_queue.size >= @config[:max][:inv]
       end
     end
 
