@@ -121,38 +121,34 @@ module Bitcoin::Storage::Backends
 
     # store input +txin+
     def store_txin(tx_id, txin, idx)
-      @db.transaction do
-        @db[:txin].insert({
-            :tx_id => tx_id,
-            :tx_idx => idx,
-            :script_sig => txin.script_sig.to_sequel_blob,
-            :prev_out => txin.prev_out.to_sequel_blob,
-            :prev_out_index => txin.prev_out_index,
-            :sequence => txin.sequence.unpack("I")[0],
-          })
-      end
+      @db[:txin].insert({
+          :tx_id => tx_id,
+          :tx_idx => idx,
+          :script_sig => txin.script_sig.to_sequel_blob,
+          :prev_out => txin.prev_out.to_sequel_blob,
+          :prev_out_index => txin.prev_out_index,
+          :sequence => txin.sequence.unpack("I")[0],
+        })
     end
 
     # store output +txout+
     def store_txout(tx_id, txout, idx)
-      @db.transaction do
-        script = Bitcoin::Script.new(txout.pk_script)
-        txout_id = @db[:txout].insert({
-            :tx_id => tx_id,
-            :tx_idx => idx,
-            :pk_script => txout.pk_script.to_sequel_blob,
-            :value => txout.value,
-            :type => SCRIPT_TYPES.index(script.type)
-          })
-        if script.is_hash160? || script.is_pubkey?
-          store_addr(txout_id, script.get_hash160)
-        elsif script.is_multisig?
-          script.get_multisig_pubkeys.map do |pubkey|
-            store_addr(txout_id, Bitcoin.hash160(pubkey.unpack("H*")[0]))
-          end
+      script = Bitcoin::Script.new(txout.pk_script)
+      txout_id = @db[:txout].insert({
+          :tx_id => tx_id,
+          :tx_idx => idx,
+          :pk_script => txout.pk_script.to_sequel_blob,
+          :value => txout.value,
+          :type => SCRIPT_TYPES.index(script.type)
+        })
+      if script.is_hash160? || script.is_pubkey?
+        store_addr(txout_id, script.get_hash160)
+      elsif script.is_multisig?
+        script.get_multisig_pubkeys.map do |pubkey|
+          store_addr(txout_id, Bitcoin.hash160(pubkey.unpack("H*")[0]))
         end
-        txout_id
       end
+      txout_id
     end
 
     # store address +hash160+

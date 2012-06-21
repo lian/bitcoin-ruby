@@ -93,6 +93,17 @@ describe "reorg" do
     end
   end
 
+  it "should handle existing blocks" do
+    Bitcoin.network = :testnet
+    blocks = [@block0]
+    3.times { blocks << create_block(blocks.last.hash, false) }
+    3.times do
+      @store.store_block(blocks[1]).should == [1, 0]
+      @store.store_block(blocks[2]).should == [2, 0]
+      @store.get_head.should == blocks[2]
+    end
+  end
+
   # see https://bitcointalk.org/index.php?topic=46370.0
   it "should pass reorg unit tests" do
     Bitcoin.network = :bitcoin

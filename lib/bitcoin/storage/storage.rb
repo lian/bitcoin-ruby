@@ -58,6 +58,10 @@ module Bitcoin::Storage
       # than current main chain and connect orpans.
       def store_block blk
         log.debug { "new block #{blk.hash}" }
+
+        existing = get_block(blk.hash)
+        return [existing.depth, existing.chain]  if existing && existing.chain == MAIN
+
         prev_block = get_block(hth(blk.prev_block.reverse))
         if !prev_block || prev_block.chain == ORPHAN
           if blk.hash == Bitcoin.network[:genesis_hash]
