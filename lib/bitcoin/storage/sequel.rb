@@ -93,7 +93,7 @@ module Bitcoin::Storage::Backends
     def update_blocks updates
       @db.transaction do
         updates.each do |blocks, attrs|
-          @db[:blk].filter(:hash => blocks.map{|h| htb(h)}).update(attrs)
+          @db[:blk].filter(:hash => blocks.map{|h| htb(h).to_sequel_blob}).update(attrs)
         end
       end
     end
