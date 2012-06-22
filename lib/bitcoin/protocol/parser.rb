@@ -57,6 +57,15 @@ module Bitcoin
         @h.on_headers(headers)
       end
 
+      def parse_getblocks(payload)
+        version, payload = payload.unpack('a4a*')
+        count,   payload = Protocol.unpack_var_int(payload)
+        buf,     payload = payload.unpack("a#{count*32}a*")
+        hashes    = buf.each_byte.each_slice(32).map{|i| hash = Protocol.hth(i.reverse.pack("C32")) }
+        stop_hash = Protocol.hth(payload[0..32].reverse)
+        [version, hashes, stop_hash]
+      end
+
       def process_pkt(command, payload)
         case command
         when 'tx';       @h.on_tx( Tx.new(payload) )
@@ -70,6 +79,8 @@ module Bitcoin
         when 'alert';    parse_alert(payload)
         when 'ping';     @h.on_ping(payload.unpack("Q")[0])
         when 'pong';     @h.on_pong(payload.unpack("Q")[0])
+        when 'getblocks';   @h.on_getblocks(*parse_getblocks(payload))
+        when 'getheaders';  @h.on_getheaders(*parse_getblocks(payload))
         else
           p ['unkown-packet', command, payload]
         end

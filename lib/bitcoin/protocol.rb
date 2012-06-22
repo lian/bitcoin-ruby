@@ -60,6 +60,7 @@ module Bitcoin
       [(0...size).map{ i, payload = unpack_var_int(payload); i }, payload]
     end
 
+
     def self.pkt(command, payload)
       cmd      = command.ljust(12, "\x00")[0...12]
       length   = [payload.bytesize].pack("I")
@@ -99,6 +100,27 @@ module Bitcoin
       pkt("inv", [hashes.size].pack("C") + hashes.map{|hash| t + hash[0..32].reverse }.join)
     end
 
+    DEFAULT_STOP_HASH = "00"*32
+
+    def self.locator_payload(locator_hashes, stop_hash)
+      payload = [
+        Bitcoin.network[:magic_head],
+        pack_var_int(locator_hashes.size),
+        locator_hashes.map{|l| htb(l).reverse }.join,
+        htb(stop_hash).reverse
+      ].join
+    end
+
+    def self.getblocks_pkt(locator_hashes, stop_hash=DEFAULT_STOP_HASH)
+      pkt "getblocks",  locator_payload(locator_hashes, stop_hash)
+    end
+
+    def self.getheaders_pkt(locator_hashes, stop_hash=DEFAULT_STOP_HASH)
+      pkt "getheaders", locator_payload(locator_hashes, stop_hash)
+    end
+
+    def self.hth(h); h.unpack("H*")[0]; end
+    def self.htb(h); [h].pack("H*"); end
   end
 
   P = Protocol
