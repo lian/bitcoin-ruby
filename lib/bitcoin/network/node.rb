@@ -303,6 +303,7 @@ module Bitcoin::Network
         else
           while inv = @inv_queue.shift
             next  if !@in_sync && inv[0] == :tx
+            next  if @queue.map{|i|i[1]}.map(&:hash).include?(inv[1])
             # next  if @store.send("has_#{inv[0]}", inv[1])
             inv[2].send("send_getdata_#{inv[0]}", inv[1])
           end
