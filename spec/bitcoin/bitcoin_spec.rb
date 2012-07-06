@@ -30,6 +30,11 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     Bitcoin::network = :bitcoin
     Bitcoin.hash160_from_address("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa")
       .should == "62e907b15cbf27d5425399ebf6f0fb50ebb88f18"
+
+    Bitcoin.hash160_from_address("11ofrrzv87Ls97jN4TUetfQp4gEsUSL7A")
+      .should == "0026f5494b39ea04b7bcb05e583acf3b0102d61f"
+    Bitcoin.hash160_from_address("11122RGUQSszAsTpptd2h8sdyYGR6nKs6f")
+      .should == "0000daec8d6f05e949710f202c4f73258aa7791e"
   end
 
   it 'should survive rounds of hash160 <-> address' do
@@ -80,11 +85,21 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     Bitcoin.base58_to_int("114EpVhtPpJQKti8HiH2fvXZFPiPkgDZrE").should == 15016857106811133404017207799481956647721349092596212439
 
     Bitcoin.network, success = :testnet, true
-    400.times{ success = false if Bitcoin.valid_address?(Bitcoin.generate_address[0]) != true }
+    400.times{
+      addr = Bitcoin.generate_address
+      success = false if Bitcoin.hash160_from_address(addr[0])  != addr[-1]
+      success = false if Bitcoin.hash160_to_address(addr[-1])   != addr[0]
+      success = false if Bitcoin.valid_address?(addr[0]) != true
+    }
     success.should == true
 
     Bitcoin.network, success = :bitcoin, true
-    400.times{ success = false if Bitcoin.valid_address?(Bitcoin.generate_address[0]) != true }
+    400.times{
+      addr = Bitcoin.generate_address
+      success = false if Bitcoin.hash160_from_address(addr[0]) != addr[-1]
+      success = false if Bitcoin.hash160_to_address(addr[-1])  != addr[0]
+      success = false if Bitcoin.valid_address?(addr[0]) != true
+    }
     success.should == true
   end
 

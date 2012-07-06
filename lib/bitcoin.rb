@@ -116,9 +116,9 @@ module Bitcoin
     end
 
     def encode_base58(hex)
-      leading_zero_bytes  = (hex.match(/([0]+)/) ? $1 : '').size / 2
+      leading_zero_bytes  = (hex.match(/^([0]+)/) ? $1 : '').size / 2
       leading_zero_bytes -= 1 if address_version == '00'
-      int_to_base58( hex.to_i(16), leading_zero_bytes)
+      ("1"*leading_zero_bytes) + int_to_base58( hex.to_i(16) )
     end
 
     def int_to_base58(int_val, leading_zero_bytes=0)
@@ -128,7 +128,6 @@ module Bitcoin
         int_val, remainder = int_val.divmod(base)
         base58_val = alpha[remainder] + base58_val
       end
-      leading_zero_bytes.times{ base58_val = alpha[0] + base58_val }
       base58_val
     end
 
@@ -143,8 +142,11 @@ module Bitcoin
     end
 
     def base58_to_hex(base58_val)
-      #[base58_to_int(base58_val).to_s(2).reverse].pack("b*").reverse.unpack("H*")[0]
-      s = base58_to_int(base58_val).to_s(16); s.bytesize.odd? ? '0'+s : s
+      s = base58_to_int(base58_val).to_s(16); s = (s.bytesize.odd? ? '0'+s : s)
+      # restore leading zero bytes
+      leading_zero_bytes  = (base58_val.match(/^1([1]+)/) ? $1 : '').size
+      s = (("00"*leading_zero_bytes) + s) if leading_zero_bytes > 0
+      s
     end
 
     # target compact bits (int) to bignum hex
