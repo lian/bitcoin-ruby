@@ -98,7 +98,8 @@ module Bitcoin
     # See also Key.from_base58
     def to_base58
       data = Bitcoin.network[:privkey_version] + priv
-      Bitcoin.encode_base58(data + Bitcoin.checksum(data))
+      hex  = data + Bitcoin.checksum(data)
+      Bitcoin.int_to_base58( hex.to_i(16) )
     end
 
     protected
