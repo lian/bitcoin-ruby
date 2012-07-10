@@ -35,6 +35,10 @@ describe 'Bitcoin Address/Hash160/PubKey' do
       .should == "0026f5494b39ea04b7bcb05e583acf3b0102d61f"
     Bitcoin.hash160_from_address("11122RGUQSszAsTpptd2h8sdyYGR6nKs6f")
       .should == "0000daec8d6f05e949710f202c4f73258aa7791e"
+    Bitcoin.hash160_from_address("11119uLoMQCBHmKevdsFKHMaUoyrwLa9Y")
+      .should == "00000090c66372823859c935149e2e32d276a1e6"
+    Bitcoin.hash160_from_address("1111136sgL8UNSTVL9ize2uGFPxFDGwFp")
+      .should == "0000000096d3ad65d030a36e2c23f7fdd5dfcadb"
   end
 
   it 'should survive rounds of hash160 <-> address' do
@@ -55,21 +59,27 @@ describe 'Bitcoin Address/Hash160/PubKey' do
       Bitcoin.hash160_from_address(addr)).should == addr
   end
 
-  it 'validate bitcoin-address' do # TODO extend it.
-
+  it '#address_checksum?' do
     Bitcoin::network = :testnet
     Bitcoin.address_checksum?("mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt").should == true
-    Bitcoin.address_checksum?("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW").should == false
+    Bitcoin.address_checksum?("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW").should == true
     Bitcoin.address_checksum?("f0f0f0").should == false
+
+    Bitcoin::network = :bitcoin
+    Bitcoin.address_checksum?("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa").should == true
+    Bitcoin.address_checksum?("mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt").should == true
+    Bitcoin.address_checksum?("f0f0f0").should == false
+  end
+
+  it 'validate bitcoin-address' do
+
+    Bitcoin::network = :testnet
 
     Bitcoin.valid_address?("mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt").should == true
     Bitcoin.valid_address?("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW").should == false
     Bitcoin.valid_address?("f0f0f0").should == false
 
     Bitcoin::network = :bitcoin
-    Bitcoin.address_checksum?("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa").should == true
-    Bitcoin.address_checksum?("mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt").should == false
-    Bitcoin.address_checksum?("f0f0f0").should == false
 
     Bitcoin.valid_address?("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW").should == true
     Bitcoin.valid_address?("mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt").should == false
@@ -82,7 +92,8 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     Bitcoin.valid_address?("f0f0f0").should == false
 
 
-    Bitcoin.base58_to_int("114EpVhtPpJQKti8HiH2fvXZFPiPkgDZrE").should == 15016857106811133404017207799481956647721349092596212439
+    Bitcoin.base58_to_int("114EpVhtPpJQKti8HiH2fvXZFPiPkgDZrE").should \
+      == 15016857106811133404017207799481956647721349092596212439
 
     Bitcoin.network, success = :testnet, true
     400.times{
@@ -318,6 +329,43 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     public_key.size   .should == 130  # bytes in hex
     #Bitcoin.valid_address?(address).should == true # fix/extend
     Bitcoin.hash160_to_address(Bitcoin.hash160(public_key)).should == address
+  end
+
+  it 'encodes and decodes base58' do
+    # fixtures from: https://github.com/bitcoin/bitcoin/blob/master/src/test/base58_tests.cpp
+    bin = [
+            "",
+            "\x61",
+            "\x62\x62\x62",
+            "\x63\x63\x63",
+            "\x73\x69\x6d\x70\x6c\x79\x20\x61\x20\x6c\x6f\x6e\x67\x20\x73\x74\x72\x69\x6e\x67",
+            "\x00\xeb\x15\x23\x1d\xfc\xeb\x60\x92\x58\x86\xb6\x7d\x06\x52\x99\x92\x59\x15\xae\xb1\x72\xc0\x66\x47",
+            "\x51\x6b\x6f\xcd\x0f",
+            "\xbf\x4f\x89\x00\x1e\x67\x02\x74\xdd",
+            "\x57\x2e\x47\x94",
+            "\xec\xac\x89\xca\xd9\x39\x23\xc0\x23\x21",
+            "\x10\xc8\x51\x1e",
+            "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+          ]
+    out = [
+            "",
+            "2g",
+            "a3gV",
+            "aPEr",
+            "2cFupjhnEsSn59qHXstmK2ffpLv2",
+            "1NS17iag9jJgTHD1VXjvLCEnZuQ3rJDE9L",
+            "ABnLTmg",
+            "3SEo3LWLoPntC",
+            "3EFU7m",
+            "EJDM8drfXA6uyA",
+            "Rt5zm",
+            "1111111111"
+          ]
+
+    fixtures = bin.zip(out).map{|b,out| [ b.unpack("H*")[0], out ] }
+    #fixtures.each{|hex,out| p [hex, out, Bitcoin.encode_base58(hex), Bitcoin.decode_base58(out)] }
+    fixtures.all?{|hex,out| Bitcoin.encode_base58(hex) == out }.should == true
+    fixtures.all?{|hex,out| Bitcoin.decode_base58(out) == hex }.should == true
   end
 
 end

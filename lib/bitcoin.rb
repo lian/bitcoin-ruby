@@ -75,29 +75,22 @@ module Bitcoin
     end
 
     def address_checksum?(address)
-      a = base58_to_hex(address).rjust(48, '0') rescue nil
-      return false  unless a
-      if address_version == "00"
-        Bitcoin.checksum( address_version + a[0...40] ) == a[-8..-1]
-      else
-        Bitcoin.checksum( a[0...42] ) == a[-8..-1]
-      end
+      hex = decode_base58(address) rescue nil
+      return false unless hex
+      Bitcoin.checksum( hex[0...42] ) == hex[-8..-1]
     end
 
     def valid_address?(address)
-      if address_version == "00"
-        return false if address[0] != "1"
-      else
-        a = base58_to_hex(address) rescue nil
-        return false unless a && a[0..1] == address_version
-      end
+      hex = decode_base58(address) rescue nil
+      return false unless hex
+      return false unless hex[0...2] == address_version
       address_checksum?(address)
     end
 
     def hash160_from_address(address)
-      return nil  unless address_checksum?(address)
-      a = base58_to_hex(address)
-      address_version == "00" ? a[0...40] : a[2...42]
+      return nil  unless valid_address?(address)
+      hex = decode_base58(address)
+      hex[2...42]
     end
 
     def sha256(hex)
@@ -106,19 +99,11 @@ module Bitcoin
 
     def hash160_to_address(hex)
       hex = address_version + hex
-      addr = encode_base58(hex + checksum(hex))
-      addr = "1" + addr  if address_version == "00"
-      addr
+      encode_base58(hex + checksum(hex))
     end
 
     def pubkey_to_address(pubkey)
       hash160_to_address( hash160(pubkey) )
-    end
-
-    def encode_base58(hex)
-      leading_zero_bytes  = (hex.match(/^([0]+)/) ? $1 : '').size / 2
-      leading_zero_bytes -= 1 if address_version == '00'
-      ("1"*leading_zero_bytes) + int_to_base58( hex.to_i(16) )
     end
 
     def int_to_base58(int_val, leading_zero_bytes=0)
@@ -141,13 +126,20 @@ module Bitcoin
       int_val
     end
 
-    def base58_to_hex(base58_val)
+    def encode_base58(hex)
+      leading_zero_bytes  = (hex.match(/^([0]+)/) ? $1 : '').size / 2
+      ("1"*leading_zero_bytes) + int_to_base58( hex.to_i(16) )
+    end
+
+
+    def decode_base58(base58_val)
       s = base58_to_int(base58_val).to_s(16); s = (s.bytesize.odd? ? '0'+s : s)
-      # restore leading zero bytes
-      leading_zero_bytes  = (base58_val.match(/^1([1]+)/) ? $1 : '').size
-      s = (("00"*leading_zero_bytes) + s) if leading_zero_bytes > 0
+      s = '' if s == '00'
+      leading_zero_bytes = (base58_val.match(/^([1]+)/) ? $1 : '').size
+      s = ("00"*leading_zero_bytes) + s  if leading_zero_bytes > 0
       s
     end
+    alias_method :base58_to_hex, :decode_base58
 
     # target compact bits (int) to bignum hex
     def decode_compact_bits(bits)
