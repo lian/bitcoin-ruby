@@ -1,4 +1,5 @@
 require 'json'
+require 'stringio'
 
 module Bitcoin::Wallet
 
@@ -100,14 +101,20 @@ module Bitcoin::Wallet
     # If file is empty this will generate a new key
     # and store it, creating the file.
     def load_keys
-      if File.exist?(@config[:file])
-        keys = JSON.load(File.read(@config[:file]))
+      loader = proc{|keys|
         keys.map!{|k| Hash[k.map{|k,v| [k.to_sym, v] }]}
         keys.map do |key|
           key[:key] = Bitcoin::Key.new(key[:priv], key[:pub])
           key[:priv], key[:pub] = nil
           @keys << key
         end
+      }
+      if @config[:file].is_a?(StringIO)
+        json = JSON.load(@config[:file].read)
+        loader.call(json)
+      elsif File.exist?(@config[:file])
+        json = JSON.load(File.read(@config[:file]))
+        loader.call(json)
       else
         new_key; save_keys
       end
@@ -115,7 +122,7 @@ module Bitcoin::Wallet
 
     # Save keys to file.
     def save_keys
-      File.open(@config[:file], 'w') do |file|
+      dumper = proc{|file|
         keys = @keys.map do |key|
           key = key.dup
           if key[:key]
@@ -126,6 +133,14 @@ module Bitcoin::Wallet
           key
         end
         file.write(JSON.pretty_generate(keys))
+      }
+
+      if @config[:file].is_a?(StringIO)
+        @config[:file].reopen
+        dumper.call(@config[:file])
+        @config[:file].rewind
+      elsif File.exists?(@config[:file])
+        File.open(@config[:file], 'w'){|file| dumper.call(file) }
       end
     end
 

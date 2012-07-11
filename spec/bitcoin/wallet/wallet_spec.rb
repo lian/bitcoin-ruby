@@ -52,11 +52,9 @@ describe Bitcoin::Wallet::Wallet do
     @key3 = Key.from_base58('5JFcJByQvwYnWjQ2RHTTu6LLGiBj9oPQYsHqKWuKLDVAvv4cQ7E')
     @addr3 = '1EnrPVaRiRgrs1D7pujYZNN1N6iD9unZV6'
     keystore_data = [{:addr => @key.addr, :priv => @key.priv, :pub => @key.pub}]
-    spec_dir = File.join(File.dirname(__FILE__), '../fixtures/wallet')
-    FileUtils.mkdir_p(spec_dir)
-    @filename = File.join(spec_dir, 'test1.json')
-    File.open(@filename, 'w') {|f| f.write(keystore_data.to_json) }
-    @keystore = SimpleKeyStore.new(file: @filename)
+    file_stub = StringIO.new
+    file_stub.write(keystore_data.to_json); file_stub.rewind
+    @keystore = SimpleKeyStore.new(file: file_stub)
     @selector = MiniTest::Mock.new
     @wallet = Wallet.new(@storage, @keystore, @selector)
   end

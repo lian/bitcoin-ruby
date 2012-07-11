@@ -25,24 +25,17 @@ describe "Bitcoin::Wallet::SimpleKeyStore" do
 
   before do
     Bitcoin.network = :bitcoin
-    spec_dir = File.join(File.dirname(__FILE__), '../fixtures/wallet')
-    FileUtils.mkdir_p(spec_dir)
-    @filename = File.join(spec_dir, 'test1.json')
-    File.open(@filename, 'w') {|f| f.write(@test1.to_json) }
-    @ks = SimpleKeyStore.new(file: @filename)
+    file_stub = StringIO.new
+    file_stub.write(@test1.to_json); file_stub.rewind
+    @ks = SimpleKeyStore.new(file: file_stub)
     @key = Bitcoin::Key.generate
   end
 
-  after do
-    File.delete(@filename) rescue nil
-  end
-
   it "should create new store" do
-    filename = @filename.sub('test1', 'test2')
-    File.open(filename, 'w') {|f| f.write(@test1.to_json) }
-    ks = SimpleKeyStore.new(file: filename)
+    file_stub = StringIO.new
+    file_stub.write(@test1.to_json); file_stub.rewind
+    ks = SimpleKeyStore.new(file: file_stub)
     ks.keys.size.should == 6
-    File.delete(filename) rescue nil
   end
 
   it "should load store" do
@@ -50,13 +43,12 @@ describe "Bitcoin::Wallet::SimpleKeyStore" do
   end
 
   it "should save store" do
-    filename = @filename.sub('test1', 'test2')
-    File.open(filename, 'w') {|f| f.write(@test1.to_json) }
-    ks = SimpleKeyStore.new(file: filename)
+    file_stub = StringIO.new
+    file_stub.write(@test1.to_json); file_stub.rewind
+    ks = SimpleKeyStore.new(file: file_stub)
     ks.save_keys
-    ks2 = SimpleKeyStore.new(file: filename)
+    ks2 = SimpleKeyStore.new(file: file_stub)
     ks2.keys.should == ks.keys
-    File.delete(filename) rescue nil
   end
 
   it "should create new key" do
