@@ -85,9 +85,9 @@ module Bitcoin
     # this means having a correct version byte, length and checksum.
     def valid_address?(address)
       hex = decode_base58(address) rescue nil
-      return false unless hex && hex.bytesize == 50 &&
-        [address_version, p2sh_version].include?(hex[0...2])
-      base58_checksum?(address)
+      return false unless hex && hex.bytesize == 50
+      return false unless [address_version, p2sh_version].include?(hex[0...2])
+      address_checksum?(address)
     end
 
     # get hash160 for given +address+. returns nil if address is invalid.
@@ -97,13 +97,11 @@ module Bitcoin
     end
 
     # get type of given +address+.
-    def address_type?(address)
-      return nil  unless valid_address?(address)
-      hex = decode_base58(address) rescue nil
-      case hex[0...2]
-      when address_version then :hash160
-      when p2sh_version then :p2sh
-      else nil
+    def address_type(address)
+      return nil unless valid_address?(address)
+      case decode_base58(address)[0...2]
+      when address_version; :hash160
+      when p2sh_version;    :p2sh
       end
     end
 

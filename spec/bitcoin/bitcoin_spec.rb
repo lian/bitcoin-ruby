@@ -74,6 +74,7 @@ describe 'Bitcoin Address/Hash160/PubKey' do
 
     Bitcoin.valid_address?("mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt").should == true
     Bitcoin.valid_address?("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW").should == false
+    Bitcoin.valid_address?("1moYFpRM4LkTV4Ho5eCxiEPB2bSm3AsJNGj").should == false
     Bitcoin.valid_address?("f0f0f0").should == false
 
     Bitcoin::network = :bitcoin
@@ -82,6 +83,7 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     Bitcoin.valid_address?("mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt").should == false
     Bitcoin.valid_address?("2D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW").should == false
     Bitcoin.valid_address?("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cX").should == false
+    Bitcoin.valid_address?("1moYFpRM4LkTV4Ho5eCxiEPB2bSm3AsJNGj").should == false
 
     Bitcoin.valid_address?("1ZQxJYBRmbb2rDNYPhd96x3eMbNnPD98q").should == true
     Bitcoin.valid_address?("12KhCL8nGK3Luy7ehU3AxPs1mTocdessLM").should == true
@@ -118,15 +120,15 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     Bitcoin.valid_address?("3CkxTG25waxsmd13FFgRChPuGYba3ar36B").should == true
   end
 
-  it 'address type?' do
+  it '#address_type' do
     Bitcoin.network = :testnet
-    Bitcoin.address_type?("2MyLngQnhzjzatKsB7XfHYoP9e2XUXSiBMM").should == :p2sh
-    Bitcoin.address_type?("mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt").should == :hash160
-    Bitcoin.address_type?("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW").should == nil
+    Bitcoin.address_type("2MyLngQnhzjzatKsB7XfHYoP9e2XUXSiBMM").should == :p2sh
+    Bitcoin.address_type("mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt").should == :hash160
+    Bitcoin.address_type("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW").should == nil
     Bitcoin.network = :bitcoin
-    Bitcoin.address_type?("3CkxTG25waxsmd13FFgRChPuGYba3ar36B").should == :p2sh
-    Bitcoin.address_type?("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW").should == :hash160
-    Bitcoin.address_type?("mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt").should == nil
+    Bitcoin.address_type("3CkxTG25waxsmd13FFgRChPuGYba3ar36B").should == :p2sh
+    Bitcoin.address_type("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW").should == :hash160
+    Bitcoin.address_type("mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt").should == nil
   end
 
   it 'Bitcoin#checksum' do

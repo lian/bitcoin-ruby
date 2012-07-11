@@ -126,6 +126,8 @@ class Bitcoin::Script
     script_string.split(" ").map{|i|
       case i
       when *OPCODES.values;          OPCODES.find{|k,v| v == i }.first
+      #when *(OPCODES.values-["OP_PUSHDATA1", "OP_PUSHDATA2", "OP_PUSHDATA4"]);          OPCODES.find{|k,v| v == i }.first
+      #when *["OP_PUSHDATA1", "OP_PUSHDATA2", "OP_PUSHDATA4"];          # skip
       when *OPCODES_ALIAS.keys;      OPCODES_ALIAS.find{|k,v| k == i }.last
       when /^([2-9]$|1[0-7])$/;      OP_2_16[$1.to_i-2]
       when /\(opcode (\d+)\)/;       $1.to_i
@@ -308,15 +310,19 @@ class Bitcoin::Script
     #  DUP   HASH160  length  hash160    EQUALVERIFY  CHECKSIG
     [ ["76", "a9",    "14",   hash160,   "88",        "ac"].join ].pack("H*")
   end
+
   def self.to_p2sh_script(p2sh)
     return nil  unless p2sh
     # HASH160  length  hash  EQUAL
     [ ["a9",   "14",   p2sh, "87"].join ].pack("H*")
   end
+
   def self.to_address_script(address)
-    type = Bitcoin.address_type?(address)
-    return nil  unless type
-    send("to_#{type}_script", Bitcoin.hash160_from_address(address))
+    hash160 = Bitcoin.hash160_from_address(address)
+    case Bitcoin.address_type(address)
+    when :hash160; to_hash160_script(hash160)
+    when :p2sh;    to_p2sh_script(hash160)
+    end
   end
 
   # generate multisig tx for given +pubkeys+, expecting +m+ signatures
