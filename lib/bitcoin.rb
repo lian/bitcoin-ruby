@@ -58,9 +58,8 @@ module Bitcoin
     def hth(h); h.unpack("H*")[0]; end
     def htb(h); [h].pack("H*"); end
 
-    def address_version
-      Bitcoin::network[:address_version]
-    end
+    def address_version; Bitcoin.network[:address_version]; end
+    def p2sh_version; Bitcoin.network[:p2sh_version]; end
 
     # hash160 is a 20 bytes (160bits) rmd610-sha256 hexdigest.
     def hash160(hex)
@@ -74,23 +73,38 @@ module Bitcoin
       Digest::SHA256.hexdigest( Digest::SHA256.digest(b) )[0...8]
     end
 
-    def address_checksum?(address)
-      hex = decode_base58(address) rescue nil
+    # verify base58 checksum for given +base58+ data.
+    def base58_checksum?(base58)
+      hex = decode_base58(base58) rescue nil
       return false unless hex
       Bitcoin.checksum( hex[0...42] ) == hex[-8..-1]
     end
+    alias :address_checksum? :base58_checksum?
 
+    # check if given +address+ is valid.
+    # this means having a correct version byte, length and checksum.
     def valid_address?(address)
       hex = decode_base58(address) rescue nil
-      return false unless hex
-      return false unless hex[0...2] == address_version
-      address_checksum?(address)
+      return false unless hex && hex.bytesize == 50 &&
+        [address_version, p2sh_version].include?(hex[0...2])
+      base58_checksum?(address)
     end
 
+    # get hash160 for given +address+. returns nil if address is invalid.
     def hash160_from_address(address)
       return nil  unless valid_address?(address)
-      hex = decode_base58(address)
-      hex[2...42]
+      decode_base58(address)[2...42]
+    end
+
+    # get type of given +address+.
+    def address_type?(address)
+      return nil  unless valid_address?(address)
+      hex = decode_base58(address) rescue nil
+      case hex[0...2]
+      when address_version then :hash160
+      when p2sh_version then :p2sh
+      else nil
+      end
     end
 
     def sha256(hex)
@@ -276,6 +290,7 @@ module Bitcoin
     :bitcoin => {
       :magic_head => "\xF9\xBE\xB4\xD9",
       :address_version => "00",
+      :p2sh_version => "05",
       :privkey_version => "80",
       :default_port => 8333,
       :dns_seeds => ["bitseed.xf2.org", "dnsseed.bluematt.me",
@@ -286,6 +301,7 @@ module Bitcoin
     :testnet => {
       :magic_head => "\xFA\xBF\xB5\xDA",
       :address_version => "6f",
+      :p2sh_version => "c4",
       :privkey_version => "ef",
       :default_port => 18333,
       :dns_seeds => ["testseed.bitcoin.interesthings.de"],

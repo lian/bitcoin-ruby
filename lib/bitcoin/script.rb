@@ -308,8 +308,15 @@ class Bitcoin::Script
     #  DUP   HASH160  length  hash160    EQUALVERIFY  CHECKSIG
     [ ["76", "a9",    "14",   hash160,   "88",        "ac"].join ].pack("H*")
   end
+  def self.to_p2sh_script(p2sh)
+    return nil  unless p2sh
+    # HASH160  length  hash  EQUAL
+    [ ["a9",   "14",   p2sh, "87"].join ].pack("H*")
+  end
   def self.to_address_script(address)
-    to_hash160_script(Bitcoin.hash160_from_address(address))
+    type = Bitcoin.address_type?(address)
+    return nil  unless type
+    send("to_#{type}_script", Bitcoin.hash160_from_address(address))
   end
 
   # generate multisig tx for given +pubkeys+, expecting +m+ signatures

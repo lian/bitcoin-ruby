@@ -191,6 +191,25 @@ describe 'Bitcoin::Script' do
         Script.from_string("1 #{PUBKEYS[0..1].join(' ')} 2 OP_CHECKMULTISIG").raw
     end
 
+    it "should generate p2sh script" do
+      address = "3CkxTG25waxsmd13FFgRChPuGYba3ar36B"
+      hash160 = Bitcoin.hash160_from_address address
+      Script.to_p2sh_script(hash160).should == 
+        Script.from_string("OP_HASH160 #{hash160} OP_EQUAL").raw
+    end
+
+    it "should determine type for address script" do
+      address = '16Tc7znw2mfpWcqS84vBFfJ7PyoeHaXSz9'
+      hash160 = Bitcoin.hash160_from_address address
+      Script.to_address_script(address).should ==
+        Script.from_string("OP_DUP OP_HASH160 #{hash160} OP_EQUALVERIFY OP_CHECKSIG").raw
+
+      address = "3CkxTG25waxsmd13FFgRChPuGYba3ar36B"
+      hash160 = Bitcoin.hash160_from_address address
+      Script.to_p2sh_script(hash160).should == 
+        Script.from_string("OP_HASH160 #{hash160} OP_EQUAL").raw
+    end
+
   end
 
   describe "generate script sigs" do

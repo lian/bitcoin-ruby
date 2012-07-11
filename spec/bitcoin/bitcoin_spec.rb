@@ -26,7 +26,8 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     Bitcoin::network = :testnet
     Bitcoin.hash160_from_address("mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt")
       .should == "62e907b15cbf27d5425399ebf6f0fb50ebb88f18"
-    
+    Bitcoin.hash160_from_address("totally-invalid").should == nil
+
     Bitcoin::network = :bitcoin
     Bitcoin.hash160_from_address("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa")
       .should == "62e907b15cbf27d5425399ebf6f0fb50ebb88f18"
@@ -46,17 +47,13 @@ describe 'Bitcoin Address/Hash160/PubKey' do
 
     Bitcoin::network = :testnet
     addr = "mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt"
-    Bitcoin.hash160_from_address(
-      Bitcoin.hash160_to_address(hex)).should == hex
-    Bitcoin.hash160_to_address(
-      Bitcoin.hash160_from_address(addr)).should == addr
+    Bitcoin.hash160_from_address(Bitcoin.hash160_to_address(hex)).should == hex
+    Bitcoin.hash160_to_address(Bitcoin.hash160_from_address(addr)).should == addr
 
     Bitcoin::network = :bitcoin
     addr = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
-    Bitcoin.hash160_from_address(
-      Bitcoin.hash160_to_address(hex)).should == hex
-    Bitcoin.hash160_to_address(
-      Bitcoin.hash160_from_address(addr)).should == addr
+    Bitcoin.hash160_from_address(Bitcoin.hash160_to_address(hex)).should == hex
+    Bitcoin.hash160_to_address(Bitcoin.hash160_from_address(addr)).should == addr
   end
 
   it '#address_checksum?' do
@@ -114,10 +111,26 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     success.should == true
   end
 
+  it 'validate p2sh address' do
+    Bitcoin.network = :testnet
+    Bitcoin.valid_address?("2MyLngQnhzjzatKsB7XfHYoP9e2XUXSiBMM").should == true
+    Bitcoin.network = :bitcoin
+    Bitcoin.valid_address?("3CkxTG25waxsmd13FFgRChPuGYba3ar36B").should == true
+  end
+
+  it 'address type?' do
+    Bitcoin.network = :testnet
+    Bitcoin.address_type?("2MyLngQnhzjzatKsB7XfHYoP9e2XUXSiBMM").should == :p2sh
+    Bitcoin.address_type?("mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt").should == :hash160
+    Bitcoin.address_type?("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW").should == nil
+    Bitcoin.network = :bitcoin
+    Bitcoin.address_type?("3CkxTG25waxsmd13FFgRChPuGYba3ar36B").should == :p2sh
+    Bitcoin.address_type?("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW").should == :hash160
+    Bitcoin.address_type?("mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt").should == nil
+  end
+
   it 'Bitcoin#checksum' do
-    Bitcoin.checksum(
-      "0062e907b15cbf27d5425399ebf6f0fb50ebb88f18"
-    ).should == "c29b7d93"
+    Bitcoin.checksum("0062e907b15cbf27d5425399ebf6f0fb50ebb88f18").should == "c29b7d93"
   end
 
   it '#bitcoin_mrkl' do
