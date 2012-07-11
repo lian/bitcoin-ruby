@@ -182,6 +182,12 @@ describe "Bitcoin::Script OPCODES" do
     @script.op_ifdup
     @script.stack.should == [0]
   end
+
+  it "should do op_1negate" do
+    @script.instance_eval { @stack = [] }
+    @script.op_1negate
+    @script.stack.should == [ -1 ]
+  end
   
   it "should do op_depth" do
     @script.instance_eval { @stack = [] }

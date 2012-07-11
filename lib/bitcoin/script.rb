@@ -42,6 +42,7 @@ class Bitcoin::Script
   OP_2SWAP        = 114
   OP_IFDUP        = 115
   OP_DEPTH        = 116
+  OP_1NEGATE      = 79
   # OP_IF           = 99
   # OP_NOTIF        = 100
   # OP_ELSE         = 103
@@ -502,6 +503,11 @@ class Bitcoin::Script
     if @stack.last != 0
       @stack << @stack.last
     end
+  end
+
+  # The number -1 is pushed onto the stack.
+  def op_1negate
+    @stack << -1
   end
   
   # Puts the number of stack items onto the stack.
