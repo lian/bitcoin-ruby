@@ -20,7 +20,7 @@ require 'bitcoin'
 
 def fixtures_file(relative_path)
   basedir = File.join(File.dirname(__FILE__), 'fixtures')
-  File.open(File.join( basedir, relative_path ), 'rb'){|f| f.read }
+  Bitcoin::Protocol.read_binary_file( File.join(basedir, relative_path) )
 end
 
 Bitcoin::network = :bitcoin

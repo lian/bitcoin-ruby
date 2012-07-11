@@ -121,6 +121,10 @@ module Bitcoin
 
     def self.hth(h); h.unpack("H*")[0]; end
     def self.htb(h); [h].pack("H*"); end
+
+    def self.read_binary_file(path)
+      File.open(path, 'rb'){|f| f.read }
+    end
   end
 
   P = Protocol

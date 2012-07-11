@@ -198,6 +198,12 @@ module Bitcoin
         JSON.pretty_generate( to_hash, options )
       end
 
+      # write json representation to a file
+      # (see also #to_json)
+      def to_json_file(path)
+        File.open(path, 'wb'){|f| f.print to_json; }
+      end
+
       # parse ruby hash (see also #to_hash)
       def self.from_hash(h)
         tx = new(nil)
@@ -238,6 +244,12 @@ module Bitcoin
 
       # convert json representation to raw binary
       def self.binary_from_json(json_string); from_json(json_string).to_payload; end
+
+      # read binary block from a file
+      def self.from_file(path); new( Bitcoin::Protocol.read_binary_file(path) ); end
+
+      # read json block from a file
+      def self.from_json_file(path); from_json( Bitcoin::Protocol.read_binary_file(path) ); end
 
       def self.htb(s)
         [s].pack('H*').reverse
