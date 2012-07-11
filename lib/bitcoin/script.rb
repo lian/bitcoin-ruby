@@ -125,11 +125,10 @@ class Bitcoin::Script
   def self.binary_from_string(script_string)
     script_string.split(" ").map{|i|
       case i
+      when /^OP_PUSHDATA[124]$/;     # skip
       when *OPCODES.values;          OPCODES.find{|k,v| v == i }.first
-      #when *(OPCODES.values-["OP_PUSHDATA1", "OP_PUSHDATA2", "OP_PUSHDATA4"]);          OPCODES.find{|k,v| v == i }.first
-      #when *["OP_PUSHDATA1", "OP_PUSHDATA2", "OP_PUSHDATA4"];          # skip
       when *OPCODES_ALIAS.keys;      OPCODES_ALIAS.find{|k,v| k == i }.last
-      when /^([2-9]$|1[0-7])$/;      OP_2_16[$1.to_i-2]
+      when /^([2-9]|1[0-6])$/;       OP_2_16[$1.to_i-2]
       when /\(opcode (\d+)\)/;       $1.to_i
       when /OP_(.+)$/;               raise ScriptOpcodeError, "#{i} not defined!"
       else 

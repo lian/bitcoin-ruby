@@ -52,6 +52,10 @@ describe 'Bitcoin::Script' do
 
       Script.from_string("0 ffff OP_CODESEPARATOR 1 ffff 1 OP_CHECKMULTISIG").to_string.should == "0 ffff OP_CODESEPARATOR 1 ffff 1 OP_CHECKMULTISIG"
 
+      [1,2,4].all?{|n| script = "OP_PUSHDATA#{n} 01 ff"
+        Bitcoin::Script.binary_from_string(script) == Bitcoin::Script.binary_from_string( Bitcoin::Script.from_string(script).to_string )
+      }.should == true
+
       proc{ Script.from_string("OP_NOP OP_UNKOWN") }.should.raise(Script::ScriptOpcodeError).message.should == "OP_UNKOWN not defined!"
     end
   end
