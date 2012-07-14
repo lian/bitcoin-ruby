@@ -159,6 +159,7 @@ class Bitcoin::Script
 
   # run the script. +check_callback+ is called for OP_CHECKSIG operations
   def run(&check_callback)
+    return pay_to_script_hash(check_callback)  if is_p2sh?
     @debug = []
     @chunks.each{|chunk|
       break if invalid?
@@ -214,10 +215,29 @@ class Bitcoin::Script
     script_pubkey = binary_from_string(script)
   end
 
+  # pay_to_script_hash: https://en.bitcoin.it/wiki/BIP_0016
+  #
+  # <sig> {<pub> OP_CHECKSIG} | OP_HASH160 <script_hash> OP_EQUAL
+  def pay_to_script_hash(check_callback)
+    return false  unless @chunks.size == 5
+    script_hash = @chunks[-2]
+    script = @chunks[-4]
+    sig = self.class.from_string(@chunks[0].unpack("H*")[0]).raw
+
+    return false unless Bitcoin.hash160(script.unpack("H*")[0]) == script_hash.unpack("H*")[0]
+    script = self.class.new(sig + script)
+    script.run(&check_callback)
+  end
+
+  def is_pay_to_script_hash?
+    @chunks.size >= 3 && @chunks[-3] == OP_HASH160 &&
+      @chunks[-2].bytesize == 20 && @chunks[-1] == OP_EQUAL
+  end
+  alias :is_p2sh? :is_pay_to_script_hash?
 
   # check if script is in one of the recognized standard formats
   def is_standard?
-    is_pubkey? || is_hash160? || is_multisig?
+    is_pubkey? || is_hash160? || is_multisig? || is_p2sh?
   end
 
   # is this a pubkey tx
@@ -242,14 +262,11 @@ class Bitcoin::Script
   end
 
   def type
-    if is_hash160?
-      return :hash160
-    elsif is_pubkey?
-      return :pubkey
-    elsif is_multisig?
-      return :multisig
-    else
-      return :unknown
+       if is_hash160?;   :hash160
+    elsif is_pubkey?;    :pubkey
+    elsif is_multisig?;  :multisig
+    elsif is_p2sh?;      :p2sh
+    else;                :unknown
     end
   end
 

@@ -395,4 +395,23 @@ describe "Bitcoin::Script OPCODES" do
     run_script(script, "foobar").should == false
   end
 
+  it "should do P2SH" do
+    k1 = Bitcoin::Key.new; k1.generate
+    sig = (k1.sign("foobar") + "\x01").unpack("H*")[0]
+    inner_script = Bitcoin::Script.from_string("#{k1.pub} OP_CHECKSIG").raw.unpack("H*")[0]
+    script_hash = Bitcoin.hash160(inner_script)
+    script = Bitcoin::Script.from_string("#{sig} #{inner_script} OP_HASH160 #{script_hash} OP_EQUAL")
+    script.is_p2sh?.should == true
+    run_script(script.to_string, "foobar").should == true
+    run_script(script.to_string, "barbaz").should == false
+
+    script = Bitcoin::Script.from_string("OP_HASH160 #{script_hash} OP_EQUAL")
+    script.is_p2sh?.should == true
+    run_script(script.to_string, "foobar").should == false
+
+    address = "3CkxTG25waxsmd13FFgRChPuGYba3ar36B"
+    script = Bitcoin::Script.new(Bitcoin::Script.to_address_script(address))
+    script.type.should == :p2sh
+  end
+
 end
