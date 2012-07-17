@@ -383,6 +383,49 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     fixtures.all?{|hex,out| Bitcoin.decode_base58(out) == hex }.should == true
   end
 
+  it '#block_next_retarget' do
+    Bitcoin.block_next_retarget(189408).should == 189503
+    Bitcoin.block_next_retarget(189503).should == 189503
+    Bitcoin.block_next_retarget(189504).should == 191519
+  end
+
+  it '#block_difficulty' do
+    ("%.7f" % Bitcoin.block_difficulty(436835377)).should == "1751454.5353407"
+  end
+
+  it '#block_hashes_to_win' do
+    (Bitcoin.block_hashes_to_win(436835377)-1).should == 7522554734795001
+  end
+
+  it '#block_probability' do
+    ("%.55f" % Bitcoin.block_probability(436835377)).should == "0.0000000000000001329335625003267087884673003372881794348"
+  end
+
+  it '#block_target_stats' do
+    Bitcoin.block_target_stats(436835377).should == {
+      "probability" => "0.0000000000000001329335625003267087884673003372881794348",
+      "difficulty"  => "1751454.5353407",
+      "hashestowin" => "7522554734795001"
+    }
+  end
+
+  it '#blockchain_total_btc' do
+    # 0.step(6930000, 210000){|height|
+    #   p total_btc(height-1) unless height == 0
+    #   p total_btc(height)
+    # }
+    [0, 209999, 210000, 419999, 420000, 1680000].map{|height|
+      Bitcoin.blockchain_total_btc(height)
+    }.should == [
+      [5000000000,       1, 5000000000,       0],
+      [1050000000000000, 1, 5000000000,  209999],
+      [1050005000000000, 2, 2500000000,  210000],
+      [1575002500000000, 2, 2500000000,  419999],
+      [1575005000000000, 3, 1250000000,  420000],
+      [2091801875000000, 9,   19531250, 1680000]
+    ]
+  end
+
 end
 
 
