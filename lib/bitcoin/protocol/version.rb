@@ -1,29 +1,56 @@
 module Bitcoin
   module Protocol
 
-    class Version < Struct.new(:version, :services, :timestamp, :to, :from,
-        :nonce, :user_agent, :block)
+    class Version
+      attr_reader :fields
+      def initialize(opts={})
+        @fields = {
+          :version    => Bitcoin::Protocol::VERSION,
+          :services   => 1,
+          :time       => Time.now.tv_sec,
+          :from       => "127.0.0.1:8333",
+          :to         => "127.0.0.1:8333",
+          :nonce      => Bitcoin::Protocol::Uniq,
+          :user_agent => "/bitcoin-ruby:#{Bitcoin::VERSION}/",
+          :last_block => 0 # 188617
+        }.merge( opts.reject{|k,v| v == nil } )
+      end
 
-      #
-      # parse packet
-      #
-      def self.parse(payload)
+      def to_payload
+        payload = [
+          @fields.values_at(:version, :services, :time).pack("IQQ"),
+          pack_address_field(@fields[:from]),
+          pack_address_field(@fields[:to]),
+          @fields.values_at(:nonce).pack("Q"),
+          Protocol.pack_var_string(@fields[:user_agent]),
+          @fields.values_at(:last_block).pack("I")
+        ].join
+      end
+
+      def to_pkt
+        Bitcoin::Protocol.pkt("version", to_payload)
+      end
+
+      def parse(payload)
         version, services, timestamp, to, from, nonce, payload = payload.unpack("Ia8Qa26a26Qa*")
+        to, from = unpack_address_field(to), unpack_address_field(from)
         user_agent, payload = Protocol.unpack_var_string(payload)
-        block = payload.unpack("I")[0]
-        to, from = parse_ip(to), parse_ip(from)
-        new(version, services, timestamp, to, from, nonce, user_agent, block)
+        last_block = payload.unpack("I")[0]
+
+        @fields = {
+         :version => version, :services => services, :time => timestamp,
+         :from => from, :to => to, :nonce => nonce,
+         :user_agent => user_agent, :last_block => last_block
+        }
+        self
       end
 
-      def self.parse_ip(payload)
-        service, ip, port = payload.unpack("Qx12a4n")
-        { :service => service, :ip => ip.unpack("C*"), :port => port }
+      def unpack_address_field(payload)
+        ip, port = payload.unpack("x8x12a4n")
+        "#{ip.unpack("C*").join(".")}:#{port}"
       end
 
-      #
-      # build packet
-      #
-      def self.build_address(addr_str)
+      def pack_address_field(addr_str)
         host, port = addr_str.split(":")
         port = port ? port.to_i : 8333
         sockaddr = Socket.pack_sockaddr_in(port, host)
@@ -32,17 +59,11 @@ module Bitcoin
         [[1].pack("Q"), "\x00"*10, "\xFF\xFF",  host, port].join
       end
 
-      def self.build_payload(from_id, from, to, last_block=nil, time=nil, user_agent = nil)
-        ver, services, time = [Bitcoin::Protocol::VERSION, 1, time || Time.now.tv_sec].pack("IQQ")
-        payload = [
-          ver, services, time,
-          build_address(from),  # me
-          build_address(to),    # you
-          [ from_id ].pack("Q"),
-          Protocol.pack_var_string(user_agent || "/bitcoin-ruby:#{Bitcoin::VERSION}/"),
-          [last_block || 0].pack("I")
-        ].join
+      def uptime
+        @fields[:time] - Time.now.tv_sec
       end
+
+      def self.parse(payload); new.parse(payload); end
     end
 
   end

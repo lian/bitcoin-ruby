@@ -69,9 +69,18 @@ module Bitcoin
       [Bitcoin.network[:magic_head], cmd, length, checksum, payload].join
     end
 
-    def self.version_pkt(from_id, from, to, last_block=nil, time=nil, user_agent=nil)
-      payload = Protocol::Version.build_payload(from_id, from, to, last_block, time, user_agent)
-      pkt("version", payload)
+    def self.version_pkt(from_id, from=nil, to=nil, last_block=nil, time=nil, user_agent=nil, version=nil)
+      opts = if from_id.is_a?(Hash)
+        from_id
+      else
+        STDERR.puts "Bitcoin::Protocol.version_pkt - API deprecated. please change it soon.."
+        {
+          :nonce => from_id, :from => from, :to => to, :last_block => last_block,
+          :time => time, :user_agent => user_agent, :version => version
+        }
+      end
+      version = Protocol::Version.new(opts)
+      version.to_pkt
     end
 
     def self.ping_pkt(nonce = rand(0xffffffff))
