@@ -33,6 +33,10 @@ module Bitcoin
         [ time, service, ("\x00"*10)+"\xff\xff", *ip, port ].pack("IQa12C4n")
       end
 
+      def string
+        "#{self[:ip]}:#{self[:port]}"
+      end
+
       def self.pkt(*addrs)
         addrs = addrs.select{|i| i.is_a?(Bitcoin::Protocol::Addr) }
         length = Bitcoin::Protocol.pack_var_int(addrs.size)

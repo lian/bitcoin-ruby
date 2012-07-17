@@ -89,6 +89,18 @@ module Bitcoin
         }
       end
 
+      def hextarget
+        Bitcoin.decode_compact_bits(@bits)
+      end
+
+      def decimaltarget
+        Bitcoin.decode_compact_bits(@bits).to_i(16)
+      end
+
+      def difficulty
+        Bitcoin.block_difficulty(@bits)
+      end
+
       # convert to json representation as seen in the block explorer.
       # (see also #from_json)
       def to_json(options = {:space => ''}, *a)

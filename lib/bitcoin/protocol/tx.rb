@@ -230,7 +230,6 @@ module Bitcoin
           value = output['value'].gsub('.','').to_i
           script_data = Script.binary_from_string(output['scriptPubKey'])
           tx.add_out( TxOut.new(value, script_data.bytesize, script_data) )
-
         }
         tx.instance_eval{ @hash = hash_from_payload(@payload = to_payload) }
         tx
