@@ -141,9 +141,9 @@ class Bitcoin::Script
                elsif size > OP_PUSHDATA1 && size <= 0xff
                  [OP_PUSHDATA1, size].pack("CC")
                elsif size > 0xff && size <= 0xffff
-                 [OP_PUSHDATA2, size].pack("Cn")
+                 [OP_PUSHDATA2, size].pack("Cv")
                elsif size > 0xffff && size <= 0xffffffff
-                 [OP_PUSHDATA4, size].pack("CN")
+                 [OP_PUSHDATA4, size].pack("CV")
                end
 
         head + data

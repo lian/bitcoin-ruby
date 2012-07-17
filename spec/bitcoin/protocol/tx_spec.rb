@@ -97,6 +97,10 @@ describe 'Tx' do
     tx = Tx.from_json( json_string = fixtures_file('rawtx-testnet-e232e0055dbdca88bbaa79458683195a0b7c17c5b6c524a8d146721d4d4d652f.json') )
     tx.to_payload.should == fixtures_file('rawtx-testnet-e232e0055dbdca88bbaa79458683195a0b7c17c5b6c524a8d146721d4d4d652f.bin')
     tx.to_json.should    == json_string
+
+    tx = Tx.from_json( fixtures_file('rawtx-ba1ff5cd66713133c062a871a8adab92416f1e38d17786b2bf56ac5f6ffdfdf5.json') )
+    Tx.new( tx.to_payload ).to_json.should == tx.to_json
+    tx.hash.should == 'ba1ff5cd66713133c062a871a8adab92416f1e38d17786b2bf56ac5f6ffdfdf5'
   end
 
   it 'Tx.binary_from_json' do
@@ -209,6 +213,11 @@ describe 'Tx' do
       # checkmultisig without checkhashverify
       tx = Tx.from_json(fixtures_file('23b397edccd3740a74adb603c9756370fafcde9bcc4483eb271ecad09a94dd63.json'))
       prev_tx = Tx.from_json(fixtures_file('60a20bd93aa49ab4b28d514ec10b06e1829ce6818ec06cd3aabd013ebcdc4bb1.json'))
+      tx.verify_input_signature(0, prev_tx).should == true
+
+      # p2sh + multisig transaction from mainnet
+      tx      = Tx.from_json( fixtures_file('rawtx-ba1ff5cd66713133c062a871a8adab92416f1e38d17786b2bf56ac5f6ffdfdf5.json') )
+      prev_tx = Tx.from_json( fixtures_file("rawtx-de35d060663750b3975b7997bde7fb76307cec5b270d12fcd9c4ad98b279c28c.json") )
       tx.verify_input_signature(0, prev_tx).should == true
     end
 
