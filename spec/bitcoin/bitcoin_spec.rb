@@ -390,23 +390,20 @@ describe 'Bitcoin Address/Hash160/PubKey' do
   end
 
   it '#block_difficulty' do
-    ("%.7f" % Bitcoin.block_difficulty(436835377)).should == "1751454.5353407"
+    Bitcoin.block_difficulty(436835377).should == "1751454.5353407"
   end
 
   it '#block_hashes_to_win' do
-    (Bitcoin.block_hashes_to_win(436835377)-1).should == 7522554734795001
+    Bitcoin.block_hashes_to_win(436835377).should == 7522554734795001
   end
 
   it '#block_probability' do
-    ("%.55f" % Bitcoin.block_probability(436835377)).should == "0.0000000000000001329335625003267087884673003372881794348"
+    Bitcoin.block_probability(436835377).should ==
+      "0.0000000000000001329335625003267087884673003372881794348"
   end
 
-  it '#block_target_stats' do
-    Bitcoin.block_target_stats(436835377).should == {
-      "probability" => "0.0000000000000001329335625003267087884673003372881794348",
-      "difficulty"  => "1751454.5353407",
-      "hashestowin" => "7522554734795001"
-    }
+  it '#block_average_hashing_time' do
+    Bitcoin.block_average_hashing_time(436835377, 630_000_000).should == 11940563
   end
 
   it '#blockchain_total_btc' do

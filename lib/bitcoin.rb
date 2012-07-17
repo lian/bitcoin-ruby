@@ -259,35 +259,26 @@ module Bitcoin
 
     # current difficulty as a multiple of the minimum difficulty (highest target).
     def block_difficulty(target_nbits)
-      max_target      = Bitcoin.decode_compact_bits(0x1d00ffff).to_i(16)
+      max_target      = 0x00000000ffff0000000000000000000000000000000000000000000000000000
       current_target  = Bitcoin.decode_compact_bits(target_nbits).to_i(16)
-      max_target / current_target.to_f
+      "%.7f" % (max_target / current_target.to_f)
     end
 
     # average number of hashes required to win a block with the current target. (nbits)
     def block_hashes_to_win(target_nbits)
-      (block_difficulty(target_nbits) * (2**48) / 0xffff).to_i
+      current_target  = Bitcoin.decode_compact_bits(target_nbits).to_i(16)
+      0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff / current_target
     end
 
     # probability of a single hash solving a block with the current difficulty.
     def block_probability(target_nbits)
-      1.0 / block_hashes_to_win(target_nbits)
+      current_target  = Bitcoin.decode_compact_bits(target_nbits).to_i(16)
+      "%.55f" % (current_target.to_f / 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)
     end
 
-    # # average hash rate of the network with the current target. (nbits)
-    # def block_network_hashrate(target_nbits)
-    #   block_average_mining_time(target_nbits, 600) # 10 minutes
-    # end
-    #
-    # # average time to find a block in seconds with the current target. (nbits)
-    # def block_average_mining_time(target_nbits, hashrate)
-    #   (block_difficulty(target_nbits) * (2**48) / hashrate).to_i
-    # end
-
-    def block_target_stats(target_nbits)
-      { 'probability' => ("%.55f" % block_probability(target_nbits)),
-        'difficulty'  => ("%.7f"  % block_difficulty(target_nbits)),
-        'hashestowin' => ("%d"    % (block_hashes_to_win(target_nbits)-1)) }
+    # average time to find a block in seconds with the current target. (nbits)
+    def block_average_hashing_time(target_nbits, hashes_per_second)
+      block_hashes_to_win(target_nbits) / hashes_per_second
     end
 
     # shows the total number of Bitcoins in circulation, reward era and reward in that era.
