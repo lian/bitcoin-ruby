@@ -18,6 +18,7 @@ module Bitcoin
       def initialize *args
         @prev_out, @prev_out_index, @script_sig_length,
         @script_sig, @sequence = *args
+        @sequence ||= "\xff\xff\xff\xff"
       end
 
       # compare to another txout
