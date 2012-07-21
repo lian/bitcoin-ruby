@@ -259,9 +259,11 @@ module Bitcoin
 
     # current difficulty as a multiple of the minimum difficulty (highest target).
     def block_difficulty(target_nbits)
-      max_target      = 0x00000000ffff0000000000000000000000000000000000000000000000000000
-      current_target  = Bitcoin.decode_compact_bits(target_nbits).to_i(16)
-      "%.7f" % (max_target / current_target.to_f)
+      # max_target      = 0x00000000ffff0000000000000000000000000000000000000000000000000000
+      # current_target  = Bitcoin.decode_compact_bits(target_nbits).to_i(16)
+      # "%.7f" % (max_target / current_target.to_f)
+      bits, max_body, scaland = target_nbits, Math.log(0x00ffff), Math.log(256)
+      "%.7f" % Math.exp(max_body - Math.log(bits&0x00ffffff) + scaland * (0x1d - ((bits&0xff000000)>>24)))
     end
 
     # average number of hashes required to win a block with the current target. (nbits)
