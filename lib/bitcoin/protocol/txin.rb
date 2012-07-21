@@ -15,10 +15,12 @@ module Bitcoin
       # sequence
       attr_accessor :sequence
 
+      DEFAULT_SEQUENCE = "\xff\xff\xff\xff"
+
       def initialize *args
         @prev_out, @prev_out_index, @script_sig_length,
         @script_sig, @sequence = *args
-        @sequence ||= "\xff\xff\xff\xff"
+        @sequence ||= DEFAULT_SEQUENCE
       end
 
       # compare to another txout
@@ -38,6 +40,38 @@ module Bitcoin
         @script_sig = data[idx...idx+=@script_sig_length]
         @sequence = data[idx...idx+=4]
         idx
+      end
+
+      alias :parse_payload :parse_data
+
+      def to_payload(script=@script_sig, sequence=@sequence)
+        buf =  [ @prev_out, @prev_out_index ].pack("a32I")
+        buf << Protocol.pack_var_int(script.bytesize)
+        buf << script if script.bytesize > 0
+        buf << (sequence || DEFAULT_SEQUENCE)
+      end
+
+      def to_hash
+        t = { 'prev_out'  => { 'hash' => @prev_out.reverse.unpack("H*")[0], 'n' => @prev_out_index } }
+        if coinbase?
+          t['coinbase']  = @script_sig.unpack("H*")[0]
+        else # coinbase tx
+          t['scriptSig'] = Bitcoin::Script.new(@script_sig).to_string
+          t['sequence']  = @sequence.unpack("I")[0] unless @sequence == "\xff\xff\xff\xff"
+        end
+        t
+      end
+
+      def self.from_hash(input)
+        txin = TxIn.new([ input['prev_out']['hash'] ].pack('H*').reverse, input['prev_out']['n'])
+        if input['coinbase']
+          txin.script_sig = [ input['coinbase'] ].pack("H*")
+          txin.sequence = "\xff\xff\xff\xff"
+        else
+          txin.script_sig = Script.binary_from_string(input['scriptSig'])
+          txin.sequence = [ input['sequence'] || 0xffffffff ].pack("I")
+        end
+        txin
       end
 
       # previous output in hex

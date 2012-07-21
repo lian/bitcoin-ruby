@@ -91,19 +91,8 @@ module Bitcoin
 
       # output transaction in raw binary format
       def to_payload
-        pin = @in.map{|i|
-          buf =  [ i.prev_out, i.prev_out_index ].pack("a32I")
-          buf << Protocol.pack_var_int(i.script_sig_length)
-          buf << i.script_sig if i.script_sig_length > 0
-          buf << (i.sequence || "\xff\xff\xff\xff")
-        }.join
-
-        pout = @out.map{|o|
-          buf =  [ o.value ].pack("Q")
-          buf << Protocol.pack_var_int(o.pk_script_length)
-          buf << o.pk_script if o.pk_script_length > 0
-          buf
-        }.join
+        pin  =  @in.map(&:to_payload).join
+        pout = @out.map(&:to_payload).join
 
         in_size, out_size = Protocol.pack_var_int(@in.size), Protocol.pack_var_int(@out.size)
         [[@ver].pack("I"), in_size, pin, out_size, pout, [@lock_time].pack("I")].join
@@ -119,25 +108,21 @@ module Bitcoin
 
         hash_type ||= 1 # 1: ALL, 2: NONE, 3: SINGLE
 
-        pin  = @in.map.with_index{|i,idx|
+        pin  = @in.map.with_index{|input,idx|
           if idx == input_idx
-            script_pubkey ||= outpoint_tx.out[ i.prev_out_index ].pk_script
+            script_pubkey ||= outpoint_tx.out[ input.prev_out_index ].pk_script
             script_pubkey = Bitcoin::Script.binary_from_string(script)                if script    # force this string a script
             script_pubkey = Bitcoin::Script.drop_signatures(script_pubkey, drop_sigs) if drop_sigs # array of signature to drop
-            length = script_pubkey.bytesize
-            [ i.prev_out, i.prev_out_index, length, script_pubkey, i.sequence || "\xff\xff\xff\xff" ].pack("a32ICa#{length}a4")
+            input.to_payload(script_pubkey)
           else
             case hash_type
-            when 2
-              [ i.prev_out, i.prev_out_index, 0, "\x00\x00\x00\x00" ].pack("a32ICa4")
-            else
-              [ i.prev_out, i.prev_out_index, 0, i.sequence || "\xff\xff\xff\xff" ].pack("a32ICa4")
+            when 2; input.to_payload("", "\x00\x00\x00\x00")
+            else;   input.to_payload("")
             end
           end
         }.join
-        pout = @out.map{|o|
-          [ o.value, o.pk_script_length, o.pk_script ].pack("QCa#{o.pk_script_length}")
-        }.join
+
+        pout = @out.map(&:to_payload).join
 
         case hash_type
         when 2
@@ -146,7 +131,8 @@ module Bitcoin
         else
           in_size, out_size = Protocol.pack_var_int(@in.size), Protocol.pack_var_int(@out.size)
         end
-        buf = [[@ver].pack("I"), in_size, pin, out_size, pout, [@lock_time].pack("I")].join + [hash_type].pack("I")
+
+        buf = [ [@ver].pack("I"), in_size, pin, out_size, pout, [@lock_time, hash_type].pack("II") ].join
         Digest::SHA256.digest( Digest::SHA256.digest( buf ) )
       end
 
@@ -160,7 +146,6 @@ module Bitcoin
 
         Bitcoin::Script.new(script).run do |pubkey,sig,hash_type,drop_sigs,script|
           # this IS the checksig callback, must return true/false
-          #p ['checksig', pubkey, sig, hash_type, drop_sigs, script]
           hash = signature_hash_for_input(in_idx, outpoint_tx, nil, hash_type, drop_sigs, script)
           #hash = signature_hash_for_input(in_idx, nil, script_pubkey, hash_type, drop_sigs, script)
           Bitcoin.verify_signature( hash, sig, pubkey.unpack("H*")[0] )
@@ -174,25 +159,9 @@ module Bitcoin
           'hash' => @hash, 'ver' => @ver,
           'vin_sz' => @in.size, 'vout_sz' => @out.size,
           'lock_time' => @lock_time, 'size' => (@payload ||= to_payload).bytesize,
-          'in' => @in.map.with_index{|i,idx|
-            t = { 'prev_out'  => { 'hash' => hth(i.prev_out), 'n' => i.prev_out_index } }
-            unless (idx == 0) && i.coinbase?
-              t['scriptSig'] = Bitcoin::Script.new(i.script_sig).to_string
-              t['sequence']  = i.sequence.unpack("I")[0] unless i.sequence == "\xff\xff\xff\xff"
-            else # coinbase tx
-              t['coinbase']  = i.script_sig.unpack("H*")[0]
-            end
-            t
-          },
-          'out' => @out.map{|o|{
-            'value' => "%.8f" % (o.value / 100000000.0),
-            'scriptPubKey' => Bitcoin::Script.new(o.pk_script).to_string
-          }}
+          'in'  =>  @in.map(&:to_hash),
+          'out' => @out.map(&:to_hash)
         }
-      end
-
-      def hth(s)
-        s.reverse.unpack('H*')[0]
       end
 
       # generates rawblock json as seen in the block explorer.
@@ -210,24 +179,8 @@ module Bitcoin
       def self.from_hash(h)
         tx = new(nil)
         tx.ver, tx.lock_time = *h.values_at('ver', 'lock_time')
-        h['in'].each{|input|
-          txin = TxIn.new(htb(input['prev_out']['hash']), input['prev_out']['n'])
-
-          if input['coinbase']
-            txin.script_sig = [ input['coinbase'] ].pack("H*")
-            txin.sequence = "\xff\xff\xff\xff"
-          else
-            txin.script_sig = Script.binary_from_string(input['scriptSig'])
-            txin.sequence = [ input['sequence'] || 0xffffffff ].pack("I")
-          end
-
-          tx.add_in(txin)
-        }
-        h['out'].each{|output|
-          amount = output['value'].gsub('.','').to_i
-          script_data = Script.binary_from_string(output['scriptPubKey'])
-          tx.add_out( TxOut.new(amount, script_data) )
-        }
+        h['in'] .each{|input|   tx.add_in  TxIn.from_hash(input)   }
+        h['out'].each{|output|  tx.add_out TxOut.from_hash(output) }
         tx.instance_eval{ @hash = hash_from_payload(@payload = to_payload) }
         tx
       end
@@ -246,10 +199,6 @@ module Bitcoin
 
       # read json block from a file
       def self.from_json_file(path); from_json( Bitcoin::Protocol.read_binary_file(path) ); end
-
-      def self.htb(s)
-        [s].pack('H*').reverse
-      end
     end
 
   end

@@ -31,6 +31,25 @@ module Bitcoin
         idx
       end
 
+      alias :parse_payload :parse_data
+
+      def to_payload
+        buf =  [ @value ].pack("Q")
+        buf << Protocol.pack_var_int(@pk_script_length)
+        buf << @pk_script if @pk_script_length > 0
+        buf
+      end
+
+      def to_hash
+        { 'value' => "%.8f" % (@value / 100000000.0),
+          'scriptPubKey' => Bitcoin::Script.new(@pk_script).to_string }
+      end
+
+      def self.from_hash(output)
+        amount = output['value'].gsub('.','').to_i
+        script = Script.binary_from_string(output['scriptPubKey'])
+        new(amount, script)
+      end
       # set pk_script and pk_script_length
       def pk_script=(script)
         @pk_script_length, @pk_script = script.bytesize, script
