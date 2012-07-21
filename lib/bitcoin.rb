@@ -295,6 +295,10 @@ module Bitcoin
       total_btc += remainder * reward
       [total_btc, reward_era+1, reward, height]
     end
+
+    def block_creation_reward(block_height)
+      5000000000 / (2 ** (block_height / 210000.0).floor)
+    end
   end
 
   module ::OpenSSL

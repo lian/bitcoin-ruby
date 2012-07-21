@@ -423,6 +423,12 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     ]
   end
 
+  it '#block_creation_reward' do
+    [0, 209999, 210000, 419999, 420000, 1680000].map{|height|
+      Bitcoin.block_creation_reward(height)
+    }.should == [ 5000000000, 5000000000, 2500000000, 2500000000, 1250000000, 19531250 ]
+  end
+
 end
 
 
