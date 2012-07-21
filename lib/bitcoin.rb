@@ -159,7 +159,7 @@ module Bitcoin
       bytes[0] = (bits >> 16) & 255 if size >= 1
       bytes[1] = (bits >>  8) & 255 if size >= 2
       bytes[2] = (bits      ) & 255 if size >= 3
-      bytes.map{|i| "%02x" % [i] }.join.rjust(64, '0')
+      bytes.pack("C*").unpack("H*")[0].rjust(64, '0')
     end
 
     # target bignum hex to compact bits (int)
