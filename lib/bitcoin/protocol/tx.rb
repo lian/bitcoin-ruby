@@ -23,6 +23,9 @@ module Bitcoin
       # lock time
       attr_accessor :lock_time
 
+      alias :inputs  :in
+      alias :outputs :out
+
       # compare to another tx
       def ==(other)
         @hash == other.hash
@@ -36,7 +39,6 @@ module Bitcoin
       # create tx from raw binary +data+
       def initialize(data=nil)
         @ver, @lock_time, @in, @out = 1, 0, [], []
-
         parse_data(data) if data
       end
 
@@ -212,24 +214,19 @@ module Bitcoin
           txin = TxIn.new(htb(input['prev_out']['hash']), input['prev_out']['n'])
 
           if input['coinbase']
-            coinbase_data = [ input['coinbase'] ].pack("H*")
-            txin.script_sig_length = coinbase_data.bytesize
-            txin.script_sig = coinbase_data
+            txin.script_sig = [ input['coinbase'] ].pack("H*")
             txin.sequence = "\xff\xff\xff\xff"
           else
-            script_data = Script.binary_from_string(input['scriptSig'])
-            txin.script_sig_length = script_data.bytesize
-            txin.script_sig = script_data
+            txin.script_sig = Script.binary_from_string(input['scriptSig'])
             txin.sequence = [ input['sequence'] || 0xffffffff ].pack("I")
           end
 
-          # txin.sequence = ??
           tx.add_in(txin)
         }
         h['out'].each{|output|
-          value = output['value'].gsub('.','').to_i
+          amount = output['value'].gsub('.','').to_i
           script_data = Script.binary_from_string(output['scriptPubKey'])
-          tx.add_out( TxOut.new(value, script_data.bytesize, script_data) )
+          tx.add_out( TxOut.new(amount, script_data) )
         }
         tx.instance_eval{ @hash = hash_from_payload(@payload = to_payload) }
         tx

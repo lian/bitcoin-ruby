@@ -29,26 +29,6 @@ module Bitcoin
           @sequence == other.sequence
       end
 
-      def [] idx
-        case idx
-        when 0 then @prev_out
-        when 1 then @prev_out_index
-        when 2 then @script_sig_length
-        when 3 then @script_sig
-        when 4 then @sequence
-        end
-      end
-
-      def []= idx, val
-        case idx
-        when 0 then @prev_out = val
-        when 1 then @prev_out_index = val
-        when 2 then @script_sig_length = val
-        when 3 then @script_sig = val
-        when 4 then @sequence = val
-        end
-      end
-
       # parse raw binary data for transaction input
       def parse_data(data)
         idx = 0
@@ -75,6 +55,7 @@ module Bitcoin
         @script_sig_length = script_sig.bytesize
         @script_sig = script_sig
       end
+      alias :script= :script_sig=
 
     end
 
