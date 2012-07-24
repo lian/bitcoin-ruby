@@ -10,7 +10,7 @@ module Bitcoin::Storage::Backends
 
 
     # possible script types
-    SCRIPT_TYPES = [:unknown, :pubkey, :hash160, :multisig]
+    SCRIPT_TYPES = [:unknown, :pubkey, :hash160, :multisig, :p2sh]
 
     # sequel database connection
     attr_accessor :db
