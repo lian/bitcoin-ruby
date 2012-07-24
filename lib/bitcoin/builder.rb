@@ -224,7 +224,7 @@ module Bitcoin
       attr_reader :script
 
       def initialize
-        @type = nil
+        @type = :address
         @script = nil
       end
 
