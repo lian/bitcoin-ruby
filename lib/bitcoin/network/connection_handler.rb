@@ -238,14 +238,9 @@ module Bitcoin::Network
     # begin handshake; send +version+ message
     def on_handshake_begin
       @state = :handshake
-      block   = @node.store.get_depth
-      from    = "127.0.0.1:8333"
-      from_id = Bitcoin::Protocol::Uniq
-      to      = @node.config[:listen].join(':')
-
-      pkt = Protocol.version_pkt(from_id, from, to, block)
+      send_data(Protocol.version_pkt(to: @node.config[:listen].join(':'),
+          last_block: @node.store.get_depth))
       log.info { "<< version (#{Bitcoin::Protocol::VERSION})" }
-      send_data(pkt)
     end
 
     # get Addr object for this connection
@@ -265,7 +260,7 @@ module Bitcoin::Network
     def info
       {
         :host => @host, :port => @port, :state => @state,
-        :version => @version.version, :block => @version.block, :started => @started.to_i,
+        :version => @version.version, :block => @version.last_block, :started => @started.to_i,
         :user_agent => @version.user_agent
       }
     end

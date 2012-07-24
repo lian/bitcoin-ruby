@@ -40,7 +40,7 @@ module Bitcoin
         @fields = {
          :version => version, :services => services, :time => timestamp,
          :from => from, :to => to, :nonce => nonce,
-         :user_agent => user_agent, :last_block => last_block
+         :user_agent => user_agent.to_s, :last_block => last_block
         }
         self
       end
@@ -62,6 +62,8 @@ module Bitcoin
       def uptime
         @fields[:time] - Time.now.tv_sec
       end
+
+      def method_missing(*a); @fields[a.first]  or super(*a); end
 
       def self.parse(payload); new.parse(payload); end
     end

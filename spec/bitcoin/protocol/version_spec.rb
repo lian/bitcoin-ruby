@@ -44,7 +44,7 @@ describe 'Bitcoin::Protocol::Parser (version)' do
       :from        => "127.0.0.1:18333",
       :to          => "127.0.0.1:1234",
       :nonce       => 8210299263586646091,
-      :user_agent  => nil,
+      :user_agent  => '',
       :last_block  => 250
     }
   end
