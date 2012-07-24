@@ -33,6 +33,9 @@ module OpenSSL_EC
   attach_function :EC_KEY_free, [:pointer], :int
   attach_function :i2o_ECPublicKey, [:pointer, :pointer], :uint
   attach_function :i2d_ECPrivateKey, [:pointer, :pointer], :int
+  attach_function :d2i_ECPrivateKey, [:pointer, :pointer, :long], :pointer
+  attach_function :EC_KEY_get0_private_key, [:pointer], :pointer
+  attach_function :BN_bn2bin, [:pointer, :pointer], :void
 
 
   # resolve public from private key, using ffi and libssl.so
@@ -70,6 +73,7 @@ module OpenSSL_EC
     priv_hex = if i2d_ECPrivateKey(eckey, ptr) == length
       size = ptr.read_pointer.get_array_of_uint8(8, 1)[0]
       ptr.read_pointer.get_array_of_uint8(9, size).pack("C*").rjust(32, "\x00").unpack("H*")[0]
+      #der_to_private_key( ptr.read_pointer.read_string(length).unpack("H*")[0] )
     end
 
     if priv_hex != private_key_hex
@@ -86,6 +90,23 @@ module OpenSSL_EC
     EC_KEY_free(eckey)
 
     [ priv_hex, pub_hex ]
+  end
+
+  # extract private key from uncompressed DER format
+  def self.der_to_private_key(der_hex)
+    init_ffi_ssl
+    #k  = EC_KEY_new_by_curve_name(NID_secp256k1)
+    #kp = FFI::MemoryPointer.new(:pointer).put_pointer(0, eckey)
+
+    buf = FFI::MemoryPointer.from_string([der_hex].pack("H*"))
+    ptr = FFI::MemoryPointer.new(:pointer).put_pointer(0, buf)
+
+    #ec_key = d2i_ECPrivateKey(kp, ptr, buf.size-1)
+    ec_key = d2i_ECPrivateKey(nil, ptr, buf.size-1)
+    return nil if ec_key.null?
+    bn = EC_KEY_get0_private_key(ec_key)
+    BN_bn2bin(bn, buf)
+    buf.read_string(32).unpack("H*")[0]
   end
 
   def self.init_ffi_ssl

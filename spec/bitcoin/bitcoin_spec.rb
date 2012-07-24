@@ -334,6 +334,12 @@ describe 'Bitcoin Address/Hash160/PubKey' do
       key = Bitcoin.open_key(private_key)
       [ key.private_key_hex, key.public_key_hex ].should == [ private_key, public_key ]
     end
+
+    it 'extract private key from uncompressed DER format' do
+      der = "308201130201010420a29fe0f28b2936dbc89f889f74cd1f0662d18a873ac15d6cd417b808db1ccd0aa081a53081a2020101302c06072a8648ce3d0101022100fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f300604010004010704410479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8022100fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141020101a14403420004768cfc6c44b927b0e69e9dd343e96132f7cd1d360d8cb8d65c83d89d7beaceadfd19918e076606a099344156acdb026b1065a958e39f098cfd0a34dd976291d6"
+
+      Bitcoin::OpenSSL_EC.der_to_private_key(der).should == "a29fe0f28b2936dbc89f889f74cd1f0662d18a873ac15d6cd417b808db1ccd0a"
+    end
   rescue LoadError
   end
 
