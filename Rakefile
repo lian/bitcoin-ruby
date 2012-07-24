@@ -4,13 +4,15 @@ rescue LoadError
 end
 
 
-PROJECT_SPECS = FileList['spec/bitcoin/protocol/*_spec.rb'] +
-                FileList['spec/bitcoin/script/*_spec.rb'] +
-                FileList['spec/bitcoin/wallet/*_spec.rb'] +
-                FileList['spec/bitcoin/*_spec.rb']
+PROJECT_SPECS = ( FileList['spec/bitcoin/bitcoin_spec.rb'] +
+                  FileList['spec/bitcoin/protocol/*_spec.rb'] +
+                  FileList['spec/bitcoin/script/*_spec.rb'] +
+                  FileList['spec/bitcoin/wallet/*_spec.rb'] +
+                  FileList['spec/bitcoin/*_spec.rb'] ).uniq
 
 RUBY = 'ruby' unless defined?(RUBY)
 
+task :default => :bacon
 #
 # test runner
 #
