@@ -74,7 +74,7 @@ module Bitcoin
         @block.time = Time.now.to_i
         @block.nonce = 0
         @block.mrkl_root = [Bitcoin.hash_mrkl_tree(@block.tx.map {|t|
-              t.hash }).last].pack("H*")
+              t.hash }).last].pack("H*").reverse
         find_hash(target)
         Bitcoin::P::Block.new(@block.to_payload)
       end
