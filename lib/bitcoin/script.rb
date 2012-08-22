@@ -219,10 +219,10 @@ class Bitcoin::Script
   #
   # <sig> {<pub> OP_CHECKSIG} | OP_HASH160 <script_hash> OP_EQUAL
   def pay_to_script_hash(check_callback)
-    return false  unless @chunks.size == 5
+    return false  unless [5,6].include?(@chunks.size)
     script_hash = @chunks[-2]
     script = @chunks[-4]
-    sig = self.class.from_string(@chunks[0].unpack("H*")[0]).raw
+    sig = self.class.from_string(@chunks[-5].unpack("H*")[0]).raw
 
     return false unless Bitcoin.hash160(script.unpack("H*")[0]) == script_hash.unpack("H*")[0]
     script = self.class.new(sig + script)
