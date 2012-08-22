@@ -287,6 +287,9 @@ describe "Bitcoin::Script OPCODES" do
     sig2 = (k2.sign("foobar") + "\x01").unpack("H*")[0]
     sig3 = (k3.sign("foobar") + "\x01").unpack("H*")[0]
 
+    script = "0 #{sig1} 1 #{k1.pub} 1 OP_CHECKMULTISIG"
+    run_script(script, "foobar").should == true
+
     script = "0 #{sig1} #{sig2} 2 #{k1.pub} #{k2.pub} 2 OP_CHECKMULTISIG"
     run_script(script, "foobar").should == true
 
@@ -404,6 +407,10 @@ describe "Bitcoin::Script OPCODES" do
     script.is_p2sh?.should == true
     run_script(script.to_string, "foobar").should == true
     run_script(script.to_string, "barbaz").should == false
+
+    script = Bitcoin::Script.from_string("0 #{sig} #{inner_script} OP_HASH160 #{script_hash} OP_EQUAL")
+    script.is_p2sh?.should == true
+    run_script(script.to_string, "foobar").should == true
 
     script = Bitcoin::Script.from_string("OP_HASH160 #{script_hash} OP_EQUAL")
     script.is_p2sh?.should == true
