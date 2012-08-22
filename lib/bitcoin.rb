@@ -215,6 +215,7 @@ module Bitcoin
     end
 
     def hash_mrkl_tree(tx)
+      return [nil]  if tx != tx.uniq
       chunks = [ tx.dup ]
       while chunks.last.size >= 2
         chunks << chunks.last.each_slice(2).map{|i|

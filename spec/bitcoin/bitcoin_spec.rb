@@ -249,6 +249,11 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     Bitcoin.hash_mrkl_tree(mrkl_tree[0...9]).should == mrkl_tree
   end
 
+  it 'should not allow duplicate hash in merkle trees' do
+    Bitcoin.hash_mrkl_tree(["aa", "bb", "cc"]).last.should !=
+      Bitcoin.hash_mrkl_tree(["aa", "bb", "cc", "cc"]).last
+  end
+
   it 'nonce compact bits to bignum hex' do
     Bitcoin.decode_compact_bits( "1b00b5ac".to_i(16) ).index(/[^0]/).should == 12
     Bitcoin.decode_compact_bits( "1b00b5ac".to_i(16) ).to_i(16).should ==
