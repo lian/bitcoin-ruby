@@ -11,7 +11,7 @@ require 'digest/sha2'
 
 def do_work(data, target, nonce=0)
   found = nil
-  while !found
+  until found
       d = data + [nonce].pack("I")
       h = Digest::SHA256.hexdigest( Digest::SHA256.digest( d ) ).to_i(16)
 
