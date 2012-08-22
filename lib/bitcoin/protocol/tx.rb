@@ -98,6 +98,9 @@ module Bitcoin
         [[@ver].pack("I"), in_size, pin, out_size, pout, [@lock_time].pack("I")].join
       end
 
+
+      SIGHASH_TYPE = { all: 1, none: 2, single: 3, anyonecanpay: 128 }
+
       # generate a signature hash for input +input_idx+.
       # either pass the +outpoint_tx+ or the +script_pubkey+ directly.
       def signature_hash_for_input(input_idx, outpoint_tx, script_pubkey=nil, hash_type=nil, drop_sigs=nil, script=nil)
@@ -105,8 +108,9 @@ module Bitcoin
         # http://code.google.com/p/bitcoinj/source/browse/trunk/src/com/google/bitcoin/core/Script.java#318
         # https://en.bitcoin.it/wiki/OP_CHECKSIG#How_it_works
         # https://github.com/bitcoin/bitcoin/blob/c2e8c8acd8ae0c94c70b59f55169841ad195bb99/src/script.cpp#L1058
+        # https://en.bitcoin.it/wiki/OP_CHECKSIG
 
-        hash_type ||= 1 # 1: ALL, 2: NONE, 3: SINGLE
+        hash_type ||= SIGHASH_TYPE[:all]
 
         pin  = @in.map.with_index{|input,idx|
           if idx == input_idx
@@ -116,8 +120,8 @@ module Bitcoin
             input.to_payload(script_pubkey)
           else
             case hash_type
-            when 2; input.to_payload("", "\x00\x00\x00\x00")
-            else;   input.to_payload("")
+            when SIGHASH_TYPE[:none]; input.to_payload("", "\x00\x00\x00\x00")
+            else;                     input.to_payload("")
             end
           end
         }.join
@@ -125,7 +129,7 @@ module Bitcoin
         pout = @out.map(&:to_payload).join
 
         case hash_type
-        when 2
+        when SIGHASH_TYPE[:none]
           pout = ""
           in_size, out_size = Protocol.pack_var_int(@in.size), Protocol.pack_var_int(0)
         else
