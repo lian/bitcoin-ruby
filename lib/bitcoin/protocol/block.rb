@@ -37,6 +37,10 @@ module Bitcoin
         @hash == other.hash
       end
 
+      def binary_hash
+        [@hash].pack("H*")
+      end
+
       # create block from raw binary +data+
       def initialize(data)
         @tx = []
