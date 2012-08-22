@@ -11,11 +11,16 @@ require 'bitcoin'
 require 'open-uri'
 
 tx_hash = ARGV[0]
-$testnet = ARGV[1]
+$testnet = ARGV.select{|i| i.downcase == 'testnet' }[0] ? true : false
+$use_coinbase_bbe = ARGV.select{|i| i.downcase == 'coinbase' }[0] ? true : false
 
 # fetch transaction from bbe as json and deserialize into Bitcoin::Protocol::Tx object
 def get_tx(hash)
-  url = "http://blockexplorer.com/%srawtx/%s" % [$testnet ? 'testnet/' : '',  hash]
+  if $use_coinbase_bbe && !$testnet
+    url = "https://coinbase.com/network/tx/%s.json" % [hash]
+  else
+    url = "http://blockexplorer.com/%srawtx/%s" % [$testnet ? 'testnet/' : '',  hash]
+  end
   json = open(url).read
   Bitcoin::Protocol::Tx.from_json(json)
 rescue Exception
