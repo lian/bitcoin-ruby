@@ -112,16 +112,16 @@ module Bitcoin
         payload = @buf[head_size...head_size+length]
 
         unless magic == head_magic
-          handle_error(:close, "head_magic not found")
+          handle_stream_error(:close, "head_magic not found")
           @buf = ''
         else
 
           if Digest::SHA256.digest(Digest::SHA256.digest( payload ))[0...4] != checksum
             if (length < 50000) && (payload.size < length)
               size_info = [payload.size, length].join('/')
-              handle_error(:debug, "chunked packet stream (#{size_info})")
+              handle_stream_error(:debug, "chunked packet stream (#{size_info})")
             else
-              handle_error(:close, "checksum mismatch")
+              handle_stream_error(:close, "checksum mismatch")
             end
             return
           end
@@ -134,7 +134,7 @@ module Bitcoin
         @buf[0] != nil
       end
 
-      def handle_error(type, msg)
+      def handle_stream_error(type, msg)
         case type
         when :close
           log.debug {"closing packet stream (#{msg})"}
