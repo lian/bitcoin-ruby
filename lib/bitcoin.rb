@@ -365,6 +365,17 @@ module Bitcoin
       :genesis_hash => "00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008",
       :proof_of_work_limit => 0x1d07fff8,
       :known_nodes => []
+    },
+    :testnet3 => {
+      :magic_head => "\x0b\x11\x09\x07",
+      :address_version => "6f",
+      :p2sh_version => "c4",
+      :privkey_version => "ef",
+      :default_port => 18333,
+      :dns_seeds => [],
+      :genesis_hash => "000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943",
+      :proof_of_work_limit => 0x1d07fff8,
+      :known_nodes => []
     }
   }
   
