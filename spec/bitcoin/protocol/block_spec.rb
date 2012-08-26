@@ -98,4 +98,15 @@ describe 'Bitcoin::Protocol::Block' do
     JSON
   end
 
+  it '#verify_mrkl_root' do
+    block0 = Bitcoin::Protocol::Block.from_json(fixtures_file('rawblock-0.json'))
+    block1 = Bitcoin::Protocol::Block.from_json(fixtures_file('rawblock-1.json'))
+    block0.tx.size.should == 1
+    block0.verify_mrkl_root.should == true
+    block0.tx << block.tx.last # test against CVE-2012-2459
+    block0.verify_mrkl_root.should == false
+    block0.tx = block1.tx
+    block0.verify_mrkl_root.should == false
+  end
+
 end

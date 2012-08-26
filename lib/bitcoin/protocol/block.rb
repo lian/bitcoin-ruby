@@ -68,6 +68,11 @@ module Bitcoin
         @hash = Bitcoin.block_hash(hth(@prev_block), hth(@mrkl_root), @time, @bits, @nonce, @ver)
       end
 
+      # verify mrkl tree
+      def verify_mrkl_root
+        @mrkl_root.reverse.unpack("H*")[0] == Bitcoin.hash_mrkl_tree( @tx.map(&:hash) ).last
+      end
+
       # get the block header info
       # [<version>, <prev_block>, <merkle_root>, <time>, <bits>, <nonce>, <txcount>, <size>]
       def header_info
