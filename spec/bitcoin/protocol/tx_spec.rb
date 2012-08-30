@@ -228,6 +228,16 @@ describe 'Tx' do
       tx.verify_input_signature(0, prev_tx).should == true
     end
 
+    it "should do P2SH with inner OP_CHECKMULTISIG (BIP 0016)" do
+      tx = Tx.from_json(fixtures_file('3a17dace09ffb919ed627a93f1873220f4c975c1248558b18d16bce25d38c4b7.json'))
+      prev_tx = Tx.from_json(fixtures_file('35e2001b428891fefa0bfb73167c7360669d3cbd7b3aa78e7cad125ddfc51131.json'))
+      tx.verify_input_signature(0, prev_tx).should == true
+
+      tx = Tx.from_json(fixtures_file('bd1715f1abfdc62bea3f605bdb461b3ba1f2cca6ec0d73a18a548b7717ca8531.json'))
+      prev_tx = Tx.from_json(fixtures_file('ce5fad9b4ef094d8f4937b0707edaf0a6e6ceeaf67d5edbfd51f660eac8f398b.json'))
+      tx.verify_input_signature(1, prev_tx).should == true
+    end
+
   end
 
 end

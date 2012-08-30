@@ -115,6 +115,32 @@ class Bitcoin::Script
     }.join(" ")
   end
 
+  def to_binary(chunks=nil)
+    (chunks || @chunks).map{|chunk|
+      case chunk
+      when Fixnum; [chunk].pack("C*")
+      when String; self.class.pack_pushdata(chunk)
+      end
+    }.join
+  end
+  alias :to_payload :to_binary
+
+  def self.pack_pushdata(data)
+    size = data.bytesize
+
+    head = if size < OP_PUSHDATA1
+             [size].pack("C")
+           elsif size > OP_PUSHDATA1 && size <= 0xff
+             [OP_PUSHDATA1, size].pack("CC")
+           elsif size > 0xff && size <= 0xffff
+             [OP_PUSHDATA2, size].pack("Cv")
+           elsif size > 0xffff && size <= 0xffffffff
+             [OP_PUSHDATA4, size].pack("CV")
+           end
+
+    head + data
+  end
+
   # script object of a string representation
   def self.from_string(script_string)
     new(binary_from_string(script_string))
@@ -134,19 +160,7 @@ class Bitcoin::Script
       when /OP_(.+)$/;               raise ScriptOpcodeError, "#{i} not defined!"
       else 
         data = [i].pack("H*")
-        size = data.bytesize
-
-        head = if size < OP_PUSHDATA1
-                 [size].pack("C")
-               elsif size > OP_PUSHDATA1 && size <= 0xff
-                 [OP_PUSHDATA1, size].pack("CC")
-               elsif size > 0xff && size <= 0xffff
-                 [OP_PUSHDATA2, size].pack("Cv")
-               elsif size > 0xffff && size <= 0xffffffff
-                 [OP_PUSHDATA4, size].pack("CV")
-               end
-
-        head + data
+        pack_pushdata(data)
       end
     }.map{|i|
       i.is_a?(Fixnum) ? [i].pack("C*") : i # TODO yikes, implement/pack 2 byte opcodes.
@@ -219,15 +233,19 @@ class Bitcoin::Script
   #
   # <sig> {<pub> OP_CHECKSIG} | OP_HASH160 <script_hash> OP_EQUAL
   def pay_to_script_hash(check_callback)
-    return false  unless [5,6].include?(@chunks.size)
-    script_hash = @chunks[-2]
-    script = @chunks[-4]
-    sig = self.class.from_string(@chunks[-5].unpack("H*")[0]).raw
+    return false if @chunks.size < 4
+    *rest, script, _, script_hash, _ = @chunks
 
+    return false unless [script, script_hash].all?{|i| i.is_a?(String) }
     return false unless Bitcoin.hash160(script.unpack("H*")[0]) == script_hash.unpack("H*")[0]
-    script = self.class.new(sig + script)
+    rest.delete_at(0) if rest[0] == 0
+
+    script = self.class.new(to_binary(rest) + script).inner_p2sh!
     script.run(&check_callback)
   end
+
+  def inner_p2sh!; @inner_p2sh = true; self; end
+  def inner_p2sh?; @inner_p2sh; end
 
   def is_pay_to_script_hash?
     @chunks.size >= 3 && @chunks[-3] == OP_HASH160 &&
@@ -558,6 +576,8 @@ class Bitcoin::Script
     if @chunks.include?(OP_CHECKHASHVERIFY)
       # Subset of script starting at the most recent codeseparator to OP_CHECKSIG
       script_code, @checkhash = codehash_script(OP_CHECKSIG)
+    elsif inner_p2sh?
+      script_code = to_string
     else
       script_code, drop_sigs = nil, nil
     end
@@ -599,13 +619,15 @@ class Bitcoin::Script
     return invalid  unless (0..n_pubkeys).include?(n_sigs)
     return invalid  unless @stack.last(n_sigs).all?{|e| e.is_a?(String) && e != '' }
     sigs = (drop_sigs = @stack.pop(n_sigs)).map{|s| parse_sig(s) }
+    drop_sigs.map!{|i| i.unpack("H*")[0] }
 
     @stack.pop if @stack[-1] == '' # remove OP_NOP from stack
 
     if @chunks.include?(OP_CHECKHASHVERIFY)
       # Subset of script starting at the most recent codeseparator to OP_CHECKMULTISIG
       script_code, @checkhash = codehash_script(OP_CHECKMULTISIG)
-      drop_sigs.map!{|i| i.unpack("H*")[0] }
+    elsif inner_p2sh?
+      script_code = to_string
     else
       script_code, drop_sigs = nil, nil
     end
