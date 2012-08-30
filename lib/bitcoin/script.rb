@@ -494,12 +494,12 @@ class Bitcoin::Script
 
   # Returns the smaller of a and b.
   def op_min
-    @stack << @stack.pop(2).min
+    @stack << @stack.pop(2).map{|i| (i.is_a?(String) && i.bytesize == 1) ? i.ord : i }.min
   end
 
   # Returns the larger of a and b.
   def op_max
-    @stack << @stack.pop(2).max
+    @stack << @stack.pop(2).map{|i| (i.is_a?(String) && i.bytesize == 1) ? i.ord : i }.max
   end
   
   # Copies the pair of items two spaces back in the stack to the front.

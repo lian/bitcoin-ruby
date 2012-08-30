@@ -1,0 +1,27 @@
+{
+  "hash":"aea682d68a3ea5e3583e088dcbd699a5d44d4b083f02ad0aaf2598fe1fa4dfd4",
+  "ver":1,
+  "vin_sz":1,
+  "vout_sz":2,
+  "lock_time":0,
+  "size":278,
+  "in":[
+    {
+      "prev_out":{
+        "hash":"652dabe4857210c93785c692644789d9949474374569155dcaaee87e9399654a",
+        "n":1
+      },
+      "scriptSig":"3045022100fdc1046ae3262c75161ca84ae9e7348bb80f8f20bcacfee7256c28842127108402201ff562446840ad055cdc2975fa41f30ce260e23e97b2d5b859bd365d2fbd3f5501 048b65a0e6bb200e6dac05e74281b1ab9a41e80006d6b12d8521e09981da97dd96ac72d24d1a7ded9493a9fc20fdb4a714808f0b680f1f1d93527748b5e3f629ff"
+    }
+  ],
+  "out":[
+    {
+      "value":"0.10000000",
+      "scriptPubKey":"04a39b9e4fbd213ef24bb9be69de4a118dd0644082e47c01fd9159d38637b83fbcdc115a5d6e970586a012d1cfe3e3a8b1a3d04e763bdc5a071c0e827c0bd834a5 OP_CHECKSIG"
+    },
+    {
+      "value":"0.01000000",
+      "scriptPubKey":"OP_MIN 3 OP_EQUAL"
+    }
+  ]
+}

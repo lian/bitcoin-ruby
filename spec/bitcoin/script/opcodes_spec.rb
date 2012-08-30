@@ -139,7 +139,7 @@ describe "Bitcoin::Script OPCODES" do
 
   it "should do OP_MIN" do
     [
-      [4, 5], [5, 4], [4, 4]
+      [4, 5], [5, 4], [4, 4], ["\x04", "\x05"]
     ].each{|s|
       @script.instance_eval { @stack = s }
       @script.op_min
@@ -149,7 +149,7 @@ describe "Bitcoin::Script OPCODES" do
 
   it "should do OP_MAX" do
     [
-      [4, 5], [5, 4], [5, 5]
+      [4, 5], [5, 4], [5, 5], ["\x04", "\x05"]
     ].each{|s|
       @script.instance_eval { @stack = s }
       @script.op_max

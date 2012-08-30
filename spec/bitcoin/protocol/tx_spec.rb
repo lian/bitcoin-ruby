@@ -127,6 +127,13 @@ describe 'Tx' do
     outpoint_tx.hash.should == '406b2b06bcd34d3c8733e6b79f7a394c8a431fbf4ff5ac705c93f4076bb77602'
 
     tx.verify_input_signature(0, outpoint_tx).should == true
+
+
+    tx = Bitcoin::Protocol::Tx.from_json(fixtures_file('0f24294a1d23efbb49c1765cf443fba7930702752aba6d765870082fe4f13cae.json'))
+    tx.hash.should == '0f24294a1d23efbb49c1765cf443fba7930702752aba6d765870082fe4f13cae'
+    outpoint_tx = Bitcoin::Protocol::Tx.from_json(fixtures_file('aea682d68a3ea5e3583e088dcbd699a5d44d4b083f02ad0aaf2598fe1fa4dfd4.json'))
+    outpoint_tx.hash.should == 'aea682d68a3ea5e3583e088dcbd699a5d44d4b083f02ad0aaf2598fe1fa4dfd4'
+    tx.verify_input_signature(0, outpoint_tx).should == true
   end
 
   it '#sign_input_signature' do
