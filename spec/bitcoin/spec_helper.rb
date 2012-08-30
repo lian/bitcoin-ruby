@@ -23,6 +23,32 @@ def fixtures_file(relative_path)
   Bitcoin::Protocol.read_binary_file( File.join(basedir, relative_path) )
 end
 
+# create block for given +prev+ block
+# if +store+ is true, save it to @store
+# accepts an array of +tx+ callbacks
+def create_block prev, store = true, tx = [], key = Bitcoin::Key.new
+  block = blk do |b|
+    b.prev_block prev
+    b.tx do |t|
+      t.input {|i| i.coinbase }
+      t.output {|o| o.value 5000000000; o.script {|s| s.recipient key.addr } }
+    end
+    tx.each {|cb| b.tx {|t| cb.call(t) } }
+  end
+  @store.store_block(block)  if store
+  block
+end
+
+# create transaction given builder +tx+
+# +outputs+ is an array of [value, key] pairs
+def create_tx(tx, prev_tx, prev_out_index, outputs)
+  tx.input {|i| i.prev_out prev_tx; i.prev_out_index prev_out_index; i.signature_key @key }
+  outputs.each do |value, key|
+    tx.output {|o| o.value value; o.script {|s| s.recipient key.addr } }
+  end
+end
+
+
 Bitcoin::network = :bitcoin
 
 begin

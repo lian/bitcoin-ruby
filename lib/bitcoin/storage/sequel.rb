@@ -17,9 +17,11 @@ module Bitcoin::Storage::Backends
 
     include Bitcoin::Storage::Backends::SequelMigrations
 
+    DEFAULT_CONFIG = {mode: :full}
+
     # create sequel store with given +config+
     def initialize config, *args
-      @config = config
+      @config = DEFAULT_CONFIG.merge(config)
       connect
       super config, *args
     end
@@ -129,6 +131,16 @@ module Bitcoin::Storage::Backends
           :prev_out_index => txin.prev_out_index,
           :sequence => txin.sequence.unpack("I")[0],
         })
+
+      if @config[:mode] == :pruned
+        # delete previous transaction if all its outputs are spent now
+        prev_tx = @db[:tx][:hash => txin.prev_out.reverse.to_sequel_blob]
+        return  unless prev_tx
+        if @db[:txout].where(:tx_id => prev_tx[:id]).map.with_index{|o, i|
+            @db[:txin].where(:prev_out => prev_tx[:hash].reverse.to_sequel_blob, :prev_out_index => i).any? }.all?
+          delete_tx(hth(prev_tx[:hash]))
+        end
+      end
     end
 
     # store output +txout+
@@ -157,6 +169,16 @@ module Bitcoin::Storage::Backends
       addr_id = addr[:id]  if addr
       addr_id ||= @db[:addr].insert({:hash160 => hash160})
       @db[:addr_txout].insert({:addr_id => addr_id, :txout_id => txout_id})
+    end
+
+    def delete_tx(hash)
+      log.debug { "Deleting tx #{hash} since all its outputs are spent" }
+      @db.transaction do
+        tx = get_tx(hash)
+        tx.in.each {|i| @db[:txin].where(:id => i.id).delete }
+        tx.out.each {|o| @db[:txout].where(:id => o.id).delete }
+        @db[:tx].where(:id => tx.id).delete
+      end
     end
 
     # check if block +blk_hash+ exists

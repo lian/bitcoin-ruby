@@ -43,7 +43,7 @@ module Bitcoin::Network
       :connect => [],
       :command => "",
       :storage => Bitcoin::Storage.dummy({}),
-      :headers_only => false,
+      :mode => :full,
       :dns => true,
       :epoll => false,
       :epoll_limit => 10000,
@@ -88,7 +88,7 @@ module Bitcoin::Network
 
     def set_store
       backend, config = @config[:storage].split('::')
-      @store = Bitcoin::Storage.send(backend, {:db => config}, ->(locator) {
+      @store = Bitcoin::Storage.send(backend, {db: config, mode: :pruned}, ->(locator) {
           peer = @connections.select(&:connected?).sample
           peer.send_getblocks(locator)
         })
@@ -246,9 +246,10 @@ module Bitcoin::Network
       peer = @connections.select(&:connected?).sample
       return  unless peer
       log.info { "querying blocks from #{peer.host}:#{peer.port}" }
-      if @config[:headers_only]
+      case @config[:mode]
+      when /lite/
         peer.send_getheaders locator  unless @queue.size >= @config[:max][:queue]
-      else
+      when /full|pruned/
         peer.send_getblocks locator  unless @inv_queue.size >= @config[:max][:inv]
       end
     end

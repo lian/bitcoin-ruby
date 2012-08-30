@@ -4,21 +4,6 @@ include Bitcoin::Builder
 
 describe "reorg" do
 
-  def create_block prev, store = true
-    block = blk do |b|
-      b.prev_block prev
-      b.tx do |t|
-        t.input {|i| i.coinbase }
-        t.output do |o|
-          o.value 5000000000
-          o.script {|s| s.type :address; s.recipient Bitcoin::Key.generate.addr }
-        end
-      end
-    end
-    @store.store_block(block)  if store
-    block
-  end
-
   def balance addr
     @store.get_balance(Bitcoin.hash160_from_address(addr))
   end
