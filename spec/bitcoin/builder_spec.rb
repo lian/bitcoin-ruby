@@ -9,10 +9,10 @@ describe "Bitcoin::Builder" do
     keys = []
     5.times { keys << Bitcoin::Key.generate }
 
-    target = "00".ljust(32, 'f')
+    target = "00".ljust(64, 'f')
 
     block = blk(target) do |b|
-      b.prev_block "\x00"*32
+      b.prev_block "\x00" * 32
 
       b.tx do |t|
         t.input {|i| i.coinbase "foobar" }

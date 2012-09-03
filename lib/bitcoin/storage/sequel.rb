@@ -85,6 +85,7 @@ module Bitcoin::Storage::Backends
           end
         rescue
           p $!
+          puts *$@
         end
         log.info { "block #{blk.hash} (#{depth}, #{['main', 'side', 'orphan'][chain]})" } 
         return depth, chain
@@ -101,8 +102,10 @@ module Bitcoin::Storage::Backends
     end
 
     # store transaction +tx+
-    def store_tx(tx)
+    def store_tx(tx, validate = false)
       @log.debug { "Storing tx #{tx.hash} (#{tx.to_payload.bytesize} bytes)" }
+      prev_txs = tx.in.map {|i| get_tx(i.prev_out.reverse.unpack("H*")[0]) }
+      tx.validate(prev_txs) if validate
       @db.transaction do
         transaction = @db[:tx][:hash => htb(tx.hash).to_sequel_blob]
         return transaction[:id]  if transaction
@@ -117,8 +120,6 @@ module Bitcoin::Storage::Backends
         tx.out.each_with_index {|o, idx| store_txout(tx_id, o, idx)}
         tx_id
       end
-    rescue
-      @log.warn { "Error storing tx: #{$!}" }
     end
 
     # store input +txin+

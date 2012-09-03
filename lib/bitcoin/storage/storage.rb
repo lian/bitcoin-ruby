@@ -59,6 +59,8 @@ module Bitcoin::Storage
       def store_block blk
         log.debug { "new block #{blk.hash}" }
 
+        blk.validate
+
         existing = get_block(blk.hash)
         return [existing.depth, existing.chain]  if existing && existing.chain == MAIN
 

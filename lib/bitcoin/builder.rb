@@ -7,7 +7,7 @@ module Bitcoin
 
     # build a Bitcoin::Protocol::Block matching the given +target+.
     # see BlockBuilder for details.
-    def blk(target = "00".ljust(32, 'f'))
+    def blk(target = "00".ljust(64, 'f'))
       c = BlockBuilder.new
       yield c
       c.block(target)
