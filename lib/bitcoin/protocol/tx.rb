@@ -205,11 +205,9 @@ module Bitcoin
       # read json block from a file
       def self.from_json_file(path); from_json( Bitcoin::Protocol.read_binary_file(path) ); end
 
-      def method_missing name, *args
-        return super(name, *args)  unless name =~ /^validate/
-        extend Validation::Tx; send(name, *args)
+      def validator(store, block = nil)
+        @validator ||= Bitcoin::Validation::Tx.new(self, store, block)
       end
-
     end
 
   end

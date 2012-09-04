@@ -1,5 +1,8 @@
 require_relative '../spec_helper'
+
 include Bitcoin::Builder
+include Bitcoin::Validation
+
 [
 #  { :name => :dummy },
   { :name => :sequel, :db => 'sqlite:/' }, # in memory
@@ -225,6 +228,53 @@ include Bitcoin::Builder
       @store.get_tx(@tx.hash).out.first.type.should == :hash160
     end
 
+    describe "validation" do
+
+      before do
+        @key = Bitcoin::Key.generate
+        @store.store_block @blk
+        @block = create_block @blk.hash, false, [], @key
+        @tx = tx {|t| create_tx(t, @block.tx.first, 0, [[50, @key]]) }
+        @tx.instance_eval { @in = [] }
+      end
+
+      it "should validate transactions" do
+        @store.store_block @block
+        -> { @store.store_tx(@tx, true) }.should.raise(ValidationError)
+      end
+
+      it "should validate blocks" do
+        @block.tx << @tx
+        -> { @store.store_block(@block) }.should
+          .raise(ValidationError).message.should =~ /mrkl_root/
+      end
+
+      it "should validate transactions for blocks added to main chain" do
+        @store.store_block(@block)
+        block = create_block @block.hash, false, [->(tx) {
+            create_tx(tx, @block.tx.first, 0, [[50, @key]]) }], @key
+        block.tx.last.in[0].prev_out_index = 5
+        -> { @store.store_block(block) }.should
+          .raise(ValidationError).message.should =~ /tx error.*hash/
+      end
+
+      it "should not validate transactions for blocks added to a side or orphan chain" do
+        @store.store_block(@block)
+        block = create_block @blk.hash, false, [->(tx) {
+            create_tx(tx, @block.tx.first, 0, [[50, @key]]) }], @key
+        @store.store_block(block).should == [5, 1]
+      end
+
+      it "should validate transactions for new main blocks on reorg" do
+        @store.store_block(@block)
+        block = create_block @blk.hash, true, [->(tx) {
+            create_tx(tx, @block.tx.first, 0, [[50, @key]]) }], @key
+        block2 = create_block block.hash, false, [], @key
+        -> { @store.store_block(block2) }.should
+          .raise(ValidationError).message.should =~ /prev_out/
+      end
+
+    end
   end
 
 
@@ -251,7 +301,7 @@ include Bitcoin::Builder
       @store.get_tx(block2.tx.first.hash).should == block2.tx.first
       # spend first output of second tx
       block3 = create_block block2.hash, true, [
-        ->(tx) { create_tx(tx, block2.tx.last, 0, [[40, @key], [10, @key]]) } ]
+        ->(tx) { create_tx(tx, block2.tx.last, 0, [[40, @key]]) } ]
       # second tx should still be there
       @store.get_tx(block2.tx.last.hash).should == block2.tx.last
       # spend second output of second tx

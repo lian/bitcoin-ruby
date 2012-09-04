@@ -1,132 +1,159 @@
 module Bitcoin::Validation
 
-  MAX_BLOCK_SIZE = 1024 * 1024
-  MAX_MONEY = 21e14
-  INT_MAX = 2**32
+  MAX_BLOCK_SIZE = 1_000_000
+  MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE / 50
+  COIN = 100_000_000
+  MAX_MONEY = 21_000_000 * COIN
+  INT_MAX = 0xffffffff
+  COINBASE_MATURITY = 100
 
   class ValidationError < StandardError
   end
 
-  module Block
-    def validate
-      validate_rule :hash
-      validate_rule :tx_list
-      validate_rule :bits
-      validate_rule :timestamp
-      validate_rule :coinbase
-      validate_rule :coinbase_scriptsig
-      validate_rule :mrkl_root
+  class Block
+    attr_accessor :block, :store
+
+    RULES = [:hash, :tx_list, :bits, :timestamp, :coinbase, :coinbase_scriptsig, :mrkl_root]
+
+    def initialize block, store
+      @block, @store = block, store
     end
 
-    def validate_rule method, *args
-      raise ValidationError, "#{method} failed"  unless send("validate_#{method}", *args)
+    def validate validate_tx = true
+      run_validation(validate_tx) {|rule, i|
+        raise ValidationError, "block error: rule #{i} - #{rule} failed" }
     end
 
-    def validate_hash
-      hash == recalc_block_hash
+    def valid? validate_tx = true
+      run_validation(validate_tx) { return false }
     end
 
-    def validate_tx_list
-      tx.any?
+    def run_validation validate_tx
+      RULES.each.with_index {|rule, i| yield(rule, i)  unless send(rule) }
+      yield(:transactions, RULES.size)  if validate_tx && !transactions.all?(&:valid?)
+      true
     end
 
-    def validate_bits
-      hash.to_i(16) <= Bitcoin.decode_compact_bits(bits).to_i(16)
+    def hash
+      block.hash == block.recalc_block_hash
     end
 
-    def validate_timestamp
-      Time.at(time) < Time.now + 2*60*60
+    def tx_list
+      block.tx.any?
     end
 
-    def validate_coinbase
-      coinbases = tx.map{|t| t.inputs.size == 1 && t.inputs.first.coinbase? }
-      coinbases[0] == true && coinbases[1..-1].none?
+    def bits
+      block.hash.to_i(16) <= Bitcoin.decode_compact_bits(block.bits).to_i(16)
     end
 
-    def validate_coinbase_scriptsig
-      (2..100).include?(tx.first.in.first.script_sig.bytesize)
+    def timestamp
+      Time.at(block.time) < Time.now + 2*60*60
     end
 
-    def validate_mrkl_root
-      mrkl_root.reverse.unpack("H*")[0] == Bitcoin.hash_mrkl_tree(tx.map(&:hash))[-1]
+    def coinbase
+      coinbase, *rest = block.tx.map{|t| t.inputs.size == 1 && t.inputs.first.coinbase? }
+      coinbase && rest.none?
+    end
+
+    def coinbase_scriptsig
+      block.tx.first.in.first.script_sig.bytesize.between?(2,100)
+    end
+
+    def mrkl_root
+      block.mrkl_root.reverse.unpack("H*")[0] == Bitcoin.hash_mrkl_tree(block.tx.map(&:hash))[-1]
+    end
+
+    def transactions
+      block.tx[1..-1].map {|tx| tx.validator(store, block) }  if block.tx.any?
     end
   end
 
-  module Tx
-    def validate(prev_txs)
-      validate_rule :hash
-      validate_rule :lists
-      validate_rule :max_size
-      validate_rule :output_values
-      validate_rule :inputs
-      validate_rule :lock_time
-      validate_rule :min_size
-      validate_rule :standard
-      validate_rule :prev_out, prev_txs
-      validate_rule :signatures, prev_txs
-      validate_rule :spent, prev_txs
-      validate_rule :input_values, prev_txs
-      validate_rule :output_sum, prev_txs
+  class Tx
+    attr_accessor :tx, :store
+
+    RULES = [:hash, :lists, :max_size, :output_values, :inputs, :lock_time, :min_size, :standard,
+      :prev_out, :signatures, :spent, :input_values, :output_sum]
+
+    def initialize tx, store, block = nil
+      @tx, @store, @block = tx, store, block
+      @prev_txs = tx.in.map {|i|
+        prev_tx = store.get_tx(i.prev_out.reverse.unpack("H*")[0])
+        next nil  if prev_tx && (!prev_tx.get_block || prev_tx.get_block.chain != 0)
+        next nil  if !prev_tx && !@block
+        prev_tx || @block.tx.find {|t| t.binary_hash == i.prev_out }
+      }.compact
     end
 
-    def validate_rule method, *args
-      raise ValidationError, "#{method} failed"  unless send("validate_#{method}", *args)
+    def validate; run_validation {|rule, i| raise ValidationError, "tx error: rule #{i} - #{rule} failed" }; end
+
+    def valid?; run_validation { return false }; end
+
+    def run_validation
+      RULES.each {|rule, i| yield(rule, i)  unless send(rule) }
+      true
     end
 
-    def validate_hash
-      hash == generate_hash(to_payload)
+    def hash
+      tx.hash == tx.generate_hash(tx.to_payload)
     end
 
-    def validate_lists
-      self.in.any? && self.out.any?
+    def lists
+      tx.in.any? && tx.out.any?
     end
 
-    def validate_max_size
-      to_payload.bytesize <= MAX_BLOCK_SIZE
+    def max_size
+      tx.to_payload.bytesize <= MAX_BLOCK_SIZE
     end
 
-    def validate_output_values
-      out.map(&:value).inject(:+) <= MAX_MONEY
+    def output_values
+      tx.out.inject(0) {|e, out| e + out.value } <= MAX_MONEY
     end
 
-    def validate_inputs
-      inputs.map(&:coinbase?).none?
+    def inputs
+      tx.inputs.none?(&:coinbase?)
     end
 
-    def validate_lock_time
-      lock_time <= INT_MAX
+    def lock_time
+      tx.lock_time <= INT_MAX
     end
 
-    def validate_min_size
-      to_payload.bytesize >= 100
+    def min_size
+      tx.to_payload.bytesize >= 100
     end
 
-    def validate_standard
-      out.map {|o| Bitcoin::Script.new(o.pk_script).is_standard? }.all?
+    def standard
+      tx.out.all? {|o| Bitcoin::Script.new(o.pk_script).is_standard? }
     end
 
-    def validate_prev_out prev_txs
-      @in.map.with_index {|txin, idx| !!prev_txs[idx].out[txin.prev_out_index] }.all?
+    def prev_out
+      return false  unless @prev_txs.size == tx.in.size
+      tx.in.reject.with_index {|txin, idx| @prev_txs[idx].out[txin.prev_out_index] rescue false }.empty?
     end
 
     # TODO: validate coinbase maturity
 
-    def validate_signatures prev_txs
-      @in.map.with_index {|txin, idx| verify_input_signature(idx, prev_txs[idx]) }.all?
+    def signatures
+      tx.in.map.with_index {|txin, idx| tx.verify_input_signature(idx, @prev_txs[idx]) }.all?
     end
 
-    def validate_spent prev_txs
-      @in.map.with_index {|txin, idx| !!prev_txs[idx].out[txin.prev_out_index].get_next_in }.none?
+    def spent
+      tx.in.map.with_index {|txin, idx|
+        next false  if @block && @block.tx.include?(@prev_txs[idx])
+        next false  unless next_in = @prev_txs[idx].out[txin.prev_out_index].get_next_in
+        next false  unless next_tx = next_in.get_tx
+        next false  unless next_block = next_tx.get_block
+        next_block.chain == Bitcoin::Storage::Backends::StoreBase::MAIN
+      }.none?
     end
 
-    def validate_input_values prev_txs
-      @in.map.with_index {|txin, idx| prev_txs[idx].out[txin.prev_out_index].value }
+    def input_values
+      tx.in.map.with_index {|txin, idx| @prev_txs[idx].out[txin.prev_out_index].value }
         .inject(:+) < MAX_MONEY
     end
 
-    def validate_output_sum prev_txs
-      @in.map.with_index {|txin, idx| prev_txs[idx].out[txin.prev_out_index].value }
-        .inject(:+) >= @out.map(&:value).inject(:+)
+    def output_sum
+      tx.in.map.with_index {|txin, idx| @prev_txs[idx].out[txin.prev_out_index].value }
+        .inject(:+) >= tx.out.map(&:value).inject(:+)
     end
   end
 end

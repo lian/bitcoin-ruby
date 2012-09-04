@@ -2,6 +2,7 @@ require_relative '../spec_helper'
 
 include Bitcoin::Builder
 include Bitcoin::Storage
+include Bitcoin::Validation
 
 describe "block rules" do
 
@@ -25,16 +26,16 @@ describe "block rules" do
     if block_given?
       yield(b); b.bits = Bitcoin.encode_compact_bits("f"*64); b.recalc_block_hash
     end
-    -> { @store.store_block b }.should.raise(Bitcoin::Validation::ValidationError)
-      .message.should =~ msg
+    -> { b.validator(@store).validate }.should
+      .raise(ValidationError).message.should =~ msg
   end
 
   it "1. Check syntactic correctness" do
     block = create_block @block1.hash, false
     block.hash = "\x00" * 32
     block.bits = Bitcoin.encode_compact_bits("f"*64)
-    -> { @store.store_block block }
-      .should.raise(Bitcoin::Validation::ValidationError).message.should =~ /hash/
+    -> { block.validator(@store).validate }
+      .should.raise(ValidationError).message.should =~ /hash/
   end
 
   it "3. Transaction list must be non-empty" do
@@ -65,6 +66,17 @@ describe "block rules" do
   it "10. Verify Merkle hash" do
     check_block(@block, /mrkl_root/) {|b| b.mrkl_root = "\x00" * 32 }
   end
+
+  it "should allow chains of unconfirmed transactions" do
+    tx1 = tx {|t| create_tx(t, @block1.tx.first, 0, [[50, @key]]) }
+    tx2 = tx {|t| create_tx(t, tx1, 0, [[50, @key]]) }
+    block = create_block(@block1.hash, false, [], @key)
+    block.tx << tx1; block.tx << tx2
+    block.bits = Bitcoin.encode_compact_bits("f"*64)
+    block.mrkl_root = [Bitcoin.hash_mrkl_tree(block.tx.map(&:hash)).last].pack("H*").reverse
+    block.recalc_block_hash
+    @store.store_block(block).should == [2, 0]
+  end
 end
 
 describe "tx rules" do
@@ -82,14 +94,23 @@ describe "tx rules" do
   def check_tx tx, msg
     t = tx.dup
     yield(t) && t.instance_eval { @hash = generate_hash(to_payload) }  if block_given?
-    -> { @store.store_tx t, true }.should.raise(Bitcoin::Validation::ValidationError)
-      .message.should =~ msg
+    -> { t.validator(@store).validate }.should.raise(ValidationError).message.should =~ msg
+  end
+
+  it "should validate" do
+    validator = @tx.validator(@store)
+    validator.validate.should == true
+    validator.valid?.should == true
+    @tx.instance_eval { @hash = "f"*64 }
+    validator = @tx.validator(@store)
+    -> { validator.validate }.should.raise(ValidationError)
+    validator.valid?.should == false
   end
 
   it "1. Check syntactic correctness" do
     @tx.instance_eval { @hash = "f"*64 }
-    -> { @store.store_tx @tx, true }
-      .should.raise(Bitcoin::Validation::ValidationError).message.should =~ /hash/
+    -> { @tx.validator(@store).validate }
+      .should.raise(ValidationError).message.should =~ /hash/
   end
 
   it "2. Make sure neither in or out lists are empty" do
@@ -98,14 +119,13 @@ describe "tx rules" do
   end
 
   it "3. Size in bytes < MAX_BLOCK_SIZE" do
-    s = Bitcoin::Validation::MAX_BLOCK_SIZE; Bitcoin::Validation::MAX_BLOCK_SIZE = 1000
-    check_tx(@tx, /size/) {|tx|
-      tx.out[0].pk_script = "f" * (Bitcoin::Validation::MAX_BLOCK_SIZE + 1) }
+    s = MAX_BLOCK_SIZE; Bitcoin::Validation::MAX_BLOCK_SIZE = 1000
+    check_tx(@tx, /size/) {|tx| tx.out[0].pk_script = "f" * 1001 }
     Bitcoin::Validation::MAX_BLOCK_SIZE = s
   end
 
   it "4. Each output value, as well as the total, must be in legal money range" do
-    check_tx(@tx, /output_values/) {|tx| tx.out[0].value = Bitcoin::Validation::MAX_MONEY + 1 }
+    check_tx(@tx, /output_values/) {|tx| tx.out[0].value = MAX_MONEY + 1 }
   end
 
   it "5. Make sure none of the inputs have hash=0, n=-1" do
@@ -116,7 +136,7 @@ describe "tx rules" do
   end
 
   it "6. Check that nLockTime <= INT_MAX, size in bytes >= 100, and sig opcount <= 2" do
-    check_tx(@tx, /lock_time/) {|tx| tx.lock_time = Bitcoin::Validation::INT_MAX + 1 }
+    check_tx(@tx, /lock_time/) {|tx| tx.lock_time = INT_MAX + 1 }
     check_tx(@tx, /size/) {|tx| tx.in[0].script_sig = ""; tx.out[0].pk_script = "" }
     # TODO: validate sig opcount
   end
@@ -125,13 +145,7 @@ describe "tx rules" do
     check_tx(@tx, /standard/) {|tx| tx.out[0].pk_script = Bitcoin::Script.from_string("OP_ADD OP_DUP OP_DROP").raw }
   end
 
-  it "9. Reject if any other tx in the pool uses the same transaction output as one used by this tx." do
-    @store.store_tx @tx
-    check_tx(@tx, /spent/)
-  end
-
-  # it "10. For each input, look in the main branch and the transaction pool to find the referenced output transaction. If the output transaction is missing for any input, this will be an orphan transaction. Add to the orphan transactions, if a matching transaction is not in there already." do
-
+  # it "9. Reject if any other tx in the pool uses the same transaction output as one used by this tx." do
   # end
 
   it "11. For each input, if we are using the nth output of the earlier transaction, but it has fewer than n+1 outputs, reject this transaction" do
@@ -143,7 +157,8 @@ describe "tx rules" do
   end
 
   it "14. For each input, if the referenced output has already been spent by a transaction in the main branch, reject this transaction" do
-    @store.store_tx @tx
+    block2 = create_block(@block1.hash, true, [
+        ->(tx) {create_tx(tx, @block1.tx.first, 0, [[50, @key]])}], @key)
     check_tx(@tx, /spent/)
   end
 

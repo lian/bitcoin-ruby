@@ -59,7 +59,8 @@ module Bitcoin::Storage
       def store_block blk
         log.debug { "new block #{blk.hash}" }
 
-        blk.validate
+        validator = blk.validator(self)
+        validator.validate(false)
 
         existing = get_block(blk.hash)
         return [existing.depth, existing.chain]  if existing && existing.chain == MAIN
@@ -83,6 +84,7 @@ module Bitcoin::Storage
             return persist_block(blk, SIDE, depth)
           else
             log.debug { "=> main (#{depth})" }
+            validator.transactions.map(&:validate)
             return persist_block(blk, MAIN, depth)
           end
         else
@@ -104,7 +106,9 @@ module Bitcoin::Storage
             end
             log.debug { "new main: #{new_main.inspect}" }
             log.debug { "new side: #{new_side.inspect}" }
-            update_blocks([[new_main, {:chain => MAIN}], [new_side, {:chain => SIDE}]])
+            update_blocks([[new_side, {:chain => SIDE}]])
+            new_main.each {|b| get_block(b).validator(self).transactions.map(&:validate) }
+            update_blocks([[new_main, {:chain => MAIN}]])
             return persist_block(blk, MAIN, depth)
           end
         end

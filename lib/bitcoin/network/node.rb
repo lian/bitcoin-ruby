@@ -88,7 +88,7 @@ module Bitcoin::Network
 
     def set_store
       backend, config = @config[:storage].split('::')
-      @store = Bitcoin::Storage.send(backend, {db: config, mode: :pruned}, ->(locator) {
+      @store = Bitcoin::Storage.send(backend, {db: config, mode: :full}, ->(locator) {
           peer = @connections.select(&:connected?).sample
           peer.send_getblocks(locator)
         })
@@ -284,6 +284,11 @@ module Bitcoin::Network
                 @notifiers[:tx].push([obj[1]])
               end
             end
+          rescue Bitcoin::Validation::ValidationError
+            @log.warn { "ValiationError storing #{obj[0]} #{obj[1].hash}: #{$!.message}" }
+            File.open("./validation_error_#{obj[0]}_#{obj[1].hash}.bin", "w") {|f|
+              f.write(obj[1].to_payload) }
+            EM.stop
           rescue
             @log.warn { $!.inspect }
             puts *$@
