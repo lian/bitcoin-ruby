@@ -292,25 +292,22 @@ module Bitcoin::Storage::Backends
       blk.time = block[:time].to_i
       blk.bits = block[:bits]
       blk.nonce = block[:nonce]
-      parents = db[:blk_tx].filter(:blk_id => block[:id])
-        .order(:idx) rescue []
-      parents.each do |parent|
-        transaction = db[:tx][:id => parent[:tx_id]]
-        blk.tx << wrap_tx(transaction)
-      end
+
+      db[:blk_tx].join(:tx, id: :tx_id).filter(blk_id: block[:id])
+        .order(:idx).each {|tx| blk.tx << wrap_tx(tx, block[:id]) }
 
       blk.recalc_block_hash
       blk
     end
 
     # wrap given +transaction+ into Models::Transaction
-    def wrap_tx(transaction)
+    def wrap_tx(transaction, block_id = nil)
       return nil  unless transaction
 
-      parents = @db[:blk_tx].where(:tx_id => transaction[:id])
-      parent = parents.map{|m|@db[:blk][:id => m[:blk_id]]}.sort_by {|b| b[:chain]}.first
-      block_id = parent ? parent[:id] : nil
-      data = {:id => transaction[:id], :blk_id => block_id}
+      block_id ||= @db[:blk_tx].join(:blk, id: :blk_id)
+        .where(tx_id: transaction[:id], chain: 0).first[:blk_id] rescue nil
+
+      data = {id: transaction[:id], blk_id: block_id}
       tx = Bitcoin::Storage::Models::Tx.new(self, data)
 
       inputs = db[:txin].filter(:tx_id => transaction[:id]).order(:tx_idx)

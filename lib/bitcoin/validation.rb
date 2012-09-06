@@ -29,6 +29,7 @@ module Bitcoin::Validation
     end
 
     def run_validation validate_tx
+      store.log.info { "validating block #{block.hash}" }
       RULES.each.with_index {|rule, i| yield(rule, i)  unless send(rule) }
       yield(:transactions, RULES.size)  if validate_tx && !transactions.all?(&:valid?)
       true
@@ -76,12 +77,7 @@ module Bitcoin::Validation
 
     def initialize tx, store, block = nil
       @tx, @store, @block = tx, store, block
-      @prev_txs = tx.in.map {|i|
-        prev_tx = store.get_tx(i.prev_out.reverse.unpack("H*")[0])
-        next nil  if prev_tx && (!prev_tx.get_block || prev_tx.get_block.chain != 0)
-        next nil  if !prev_tx && !@block
-        prev_tx || @block.tx.find {|t| t.binary_hash == i.prev_out }
-      }.compact
+      store.log.debug { "initializing validator for tx #{@tx.hash}" }
     end
 
     def validate; run_validation {|rule, i| raise ValidationError, "tx error: rule #{i} - #{rule} failed" }; end
@@ -89,6 +85,7 @@ module Bitcoin::Validation
     def valid?; run_validation { return false }; end
 
     def run_validation
+      store.log.info { "validating tx #{@tx.hash}" }
       RULES.each {|rule, i| yield(rule, i)  unless send(rule) }
       true
     end
@@ -126,20 +123,20 @@ module Bitcoin::Validation
     end
 
     def prev_out
-      return false  unless @prev_txs.size == tx.in.size
-      tx.in.reject.with_index {|txin, idx| @prev_txs[idx].out[txin.prev_out_index] rescue false }.empty?
+      return false  unless prev_txs.size == tx.in.size
+      tx.in.reject.with_index {|txin, idx| prev_txs[idx].out[txin.prev_out_index] rescue false }.empty?
     end
 
     # TODO: validate coinbase maturity
 
     def signatures
-      tx.in.map.with_index {|txin, idx| tx.verify_input_signature(idx, @prev_txs[idx]) }.all?
+      tx.in.map.with_index {|txin, idx| tx.verify_input_signature(idx, prev_txs[idx]) }.all?
     end
 
     def spent
       tx.in.map.with_index {|txin, idx|
-        next false  if @block && @block.tx.include?(@prev_txs[idx])
-        next false  unless next_in = @prev_txs[idx].out[txin.prev_out_index].get_next_in
+        next false  if @block && @block.tx.include?(prev_txs[idx])
+        next false  unless next_in = prev_txs[idx].out[txin.prev_out_index].get_next_in
         next false  unless next_tx = next_in.get_tx
         next false  unless next_block = next_tx.get_block
         next_block.chain == Bitcoin::Storage::Backends::StoreBase::MAIN
@@ -147,13 +144,25 @@ module Bitcoin::Validation
     end
 
     def input_values
-      tx.in.map.with_index {|txin, idx| @prev_txs[idx].out[txin.prev_out_index].value }
+      tx.in.map.with_index {|txin, idx| prev_txs[idx].out[txin.prev_out_index].value }
         .inject(:+) < MAX_MONEY
     end
 
     def output_sum
-      tx.in.map.with_index {|txin, idx| @prev_txs[idx].out[txin.prev_out_index].value }
+      tx.in.map.with_index {|txin, idx| prev_txs[idx].out[txin.prev_out_index].value }
         .inject(:+) >= tx.out.map(&:value).inject(:+)
     end
+
+    private
+
+    def prev_txs
+      prev_txs ||= tx.in.map {|i|
+        prev_tx = store.get_tx(i.prev_out.reverse.unpack("H*")[0])
+        next nil  if prev_tx && (!prev_tx.get_block || prev_tx.get_block.chain != 0)
+        next nil  if !prev_tx && !@block
+        prev_tx || @block.tx.find {|t| t.binary_hash == i.prev_out }
+      }.compact
+    end
+
   end
 end

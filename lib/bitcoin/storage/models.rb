@@ -101,7 +101,7 @@ module Bitcoin::Storage::Models
     end
 
     def hash160
-      Bitcoin::Script.new(@pk_script).get_hash160
+      script.get_hash160
     end
 
     # get the transaction this output is in
@@ -116,16 +116,20 @@ module Bitcoin::Storage::Models
 
     # get all addresses this txout corresponds to (if possible)
     def get_address
-      Bitcoin::Script.new(@pk_script).get_address
+      script.get_address
     end
 
     # get the single address this txout corresponds to (first for multisig tx)
     def get_addresses
-      Bitcoin::Script.new(@pk_script).get_addresses
+      script.get_addresses
     end
 
     def type
-      Bitcoin::Script.new(@pk_script).type
+      script.type
+    end
+
+    def script
+      @_script = Bitcoin::Script.new(@pk_script)
     end
 
   end
