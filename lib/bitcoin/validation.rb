@@ -119,6 +119,7 @@ module Bitcoin::Validation
     end
 
     def standard
+      return true  # not enforced by all miners
       tx.out.all? {|o| Bitcoin::Script.new(o.pk_script).is_standard? }
     end
 

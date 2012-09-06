@@ -141,9 +141,9 @@ describe "tx rules" do
     # TODO: validate sig opcount
   end
 
-  it "7. Reject 'nonstandard' transactions: scriptSig doing anything other than pushing numbers on the stack, or scriptPubkey not matching the two usual forms" do
-    check_tx(@tx, /standard/) {|tx| tx.out[0].pk_script = Bitcoin::Script.from_string("OP_ADD OP_DUP OP_DROP").raw }
-  end
+  # it "7. Reject 'nonstandard' transactions: scriptSig doing anything other than pushing numbers on the stack, or scriptPubkey not matching the two usual forms" do
+  #   check_tx(@tx, /standard/) {|tx| tx.out[0].pk_script = Bitcoin::Script.from_string("OP_ADD OP_DUP OP_DROP").raw }
+  # end
 
   # it "9. Reject if any other tx in the pool uses the same transaction output as one used by this tx." do
   # end
