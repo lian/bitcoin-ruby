@@ -109,4 +109,15 @@ describe 'Bitcoin::Protocol::Block' do
     block0.verify_mrkl_root.should == false
   end
 
+  it '#bip34_block_height' do
+    # block version 1
+    block = Bitcoin::Protocol::Block.from_json(fixtures_file('rawblock-131025.json'))
+    block.ver.should == 1
+    block.bip34_block_height.should == nil
+    # block version 2 (introduced by BIP_0034)
+    block = Bitcoin::Protocol::Block.from_json(fixtures_file('000000000000056b1a3d84a1e2b33cde8915a4b61c0cae14fca6d3e1490b4f98.json'))
+    block.ver.should == 2
+    block.bip34_block_height.should == 1639427
+  end
+
 end

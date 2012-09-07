@@ -112,6 +112,17 @@ module Bitcoin
         Bitcoin.block_difficulty(@bits)
       end
 
+      # introduced in block version 2 by BIP_0034
+      # blockchain height as seen by the block itself.
+      # do not trust this value, instead verify with chain storage.
+      def bip34_block_height
+        return nil unless @ver >= 2
+        coinbase = @tx.first.inputs.first.script_sig
+        coinbase.unpack("xH#{ coinbase.unpack("C")[0]*2 }")[0].to_i(16)
+      rescue
+        nil
+      end
+
       # convert to json representation as seen in the block explorer.
       # (see also #from_json)
       def to_json(options = {:space => ''}, *a)
