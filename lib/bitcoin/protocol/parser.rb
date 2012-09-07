@@ -82,19 +82,27 @@ module Bitcoin
         when 'pong';     @h.on_pong(payload.unpack("Q")[0])
         when 'getblocks';   @h.on_getblocks(*parse_getblocks(payload))
         when 'getheaders';  @h.on_getheaders(*parse_getblocks(payload))
+        when 'mempool';  handle_mempool_request(payload)
         else
           p ['unkown-packet', command, payload]
         end
       end
 
       def parse_version(payload)
-        version = Bitcoin::Protocol::Version.parse(payload)
-        @h.on_version(version)
+        @version = Bitcoin::Protocol::Version.parse(payload)
+        @h.on_version(@version)
       end
 
       def parse_alert(payload)
         return unless @h.respond_to?(:on_alert)
         @h.on_alert Bitcoin::Protocol::Alert.parse(payload)
+      end
+
+      # https://en.bitcoin.it/wiki/BIP_0035
+      def handle_mempool_request(payload)
+        return unless @version[:version] >= 60002           # Protocol version >= 60002
+        return unless (@version[:services] & (1 << 0)) == 1 # NODE_NETWORK bit set in Services
+        @h.on_mempool if @h.respond_to?(:on_mempool)
       end
 
       def parse(buf)
