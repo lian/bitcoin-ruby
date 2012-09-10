@@ -115,7 +115,7 @@ module Bitcoin::Validation
     end
 
     def min_size
-      tx.to_payload.bytesize >= 100
+      tx.to_payload.bytesize >= 86
     end
 
     def standard
