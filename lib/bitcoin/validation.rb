@@ -29,7 +29,7 @@ module Bitcoin::Validation
     end
 
     def run_validation validate_tx
-      store.log.info { "validating block #{block.hash}" }
+      store.log.info { "validating block #{block.hash} (#{block.to_payload.bytesize} bytes)" }
       RULES.each.with_index {|rule, i| yield(rule, i)  unless send(rule) }
       yield(:transactions, RULES.size)  if validate_tx && !transactions.all?(&:valid?)
       true
@@ -89,8 +89,8 @@ module Bitcoin::Validation
     def valid?; run_validation { return false }; end
 
     def run_validation
-      store.log.info { "validating tx #{@tx.hash}" }
       return true  if matches_known_exception
+      store.log.info { "validating tx #{@tx.hash} (#{tx.to_payload.bytesize} bytes)" }
       RULES.each {|rule, i| yield(rule, i)  unless send(rule) }
       true
     end
@@ -166,9 +166,15 @@ module Bitcoin::Validation
     private
 
     def prev_txs
-      prev_txs ||= tx.in.map {|i|
+      @prev_txs ||= tx.in.map {|i|
         prev_tx = store.get_tx(i.prev_out.reverse.unpack("H*")[0])
-        next nil  if prev_tx && (!prev_tx.get_block || prev_tx.get_block.chain != 0)
+
+        if store.db && store.db.is_a?(Sequel::Database)
+          block = store.db[:blk][id: prev_tx.blk_id]  if prev_tx
+          next nil  if prev_tx && (!block || block[:chain] != 0)
+        else
+          next nil  if prev_tx && (!prev_tx.get_block || prev_tx.get_block.chain != 0)
+        end
         next nil  if !prev_tx && !@block
         prev_tx || @block.tx.find {|t| t.binary_hash == i.prev_out }
       }.compact
