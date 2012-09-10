@@ -75,9 +75,13 @@ module Bitcoin::Validation
     RULES = [:hash, :lists, :max_size, :output_values, :inputs, :lock_time, :min_size, :standard,
       :prev_out, :signatures, :spent, :input_values, :output_sum]
 
+    KNOWN_EXCEPTIONS = [
+      # p2sh with invalid inner script, accepted by old miner before 4-2012 switchover
+      "6a26d2ecb67f27d1fa5524763b49029d7106e91e3cc05743073461a719776192"
+    ]
+
     def initialize tx, store, block = nil
       @tx, @store, @block = tx, store, block
-      store.log.debug { "initializing validator for tx #{@tx.hash}" }
     end
 
     def validate; run_validation {|rule, i| raise ValidationError, "tx error: rule #{i} - #{rule} failed" }; end
@@ -86,8 +90,13 @@ module Bitcoin::Validation
 
     def run_validation
       store.log.info { "validating tx #{@tx.hash}" }
+      return true  if matches_known_exception
       RULES.each {|rule, i| yield(rule, i)  unless send(rule) }
       true
+    end
+
+    def matches_known_exception
+      KNOWN_EXCEPTIONS.include?(@tx.hash)
     end
 
     def hash
