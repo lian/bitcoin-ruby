@@ -104,7 +104,7 @@ module Bitcoin::Storage::Backends
     # store transaction +tx+
     def store_tx(tx, validate = false)
       @log.debug { "Storing tx #{tx.hash} (#{tx.to_payload.bytesize} bytes)" }
-      tx.validator(self).validate  if validate
+      tx.validator(self).validate(raise_errors: true)  if validate
       @db.transaction do
         transaction = @db[:tx][:hash => htb(tx.hash).to_sequel_blob]
         return transaction[:id]  if transaction

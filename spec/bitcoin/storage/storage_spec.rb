@@ -255,7 +255,7 @@ include Bitcoin::Validation
             create_tx(tx, @block.tx.first, 0, [[50, @key]]) }], @key
         block.tx.last.in[0].prev_out_index = 5
         -> { @store.store_block(block) }.should
-          .raise(ValidationError).message.should =~ /tx error.*hash/
+          .raise(ValidationError).message.should =~ /transactions_syntax/
       end
 
       it "should not validate transactions for blocks added to a side or orphan chain" do
@@ -271,7 +271,7 @@ include Bitcoin::Validation
             create_tx(tx, @block.tx.first, 0, [[50, @key]]) }], @key
         block2 = create_block block.hash, false, [], @key
         -> { @store.store_block(block2) }.should
-          .raise(ValidationError).message.should =~ /prev_out/
+          .raise(ValidationError).message.should =~ /transactions_context/
       end
 
     end

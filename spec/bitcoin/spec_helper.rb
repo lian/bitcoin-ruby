@@ -26,12 +26,12 @@ end
 # create block for given +prev+ block
 # if +store+ is true, save it to @store
 # accepts an array of +tx+ callbacks
-def create_block prev, store = true, tx = [], key = Bitcoin::Key.new
+def create_block prev, store = true, tx = [], key = Bitcoin::Key.new, coinbase_value = 50e8
   block = blk do |b|
     b.prev_block prev
     b.tx do |t|
       t.input {|i| i.coinbase }
-      t.output {|o| o.value 5000000000; o.script {|s| s.recipient key.addr } }
+      t.output {|o| o.value coinbase_value; o.script {|s| s.recipient key.addr } }
     end
     tx.each {|cb| b.tx {|t| cb.call(t) } }
   end

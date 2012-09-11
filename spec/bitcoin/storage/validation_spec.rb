@@ -12,6 +12,8 @@ describe "block rules" do
 
   before do
     Bitcoin.network = :testnet
+    Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("f"*64)
+
     @store = Bitcoin::Storage.sequel(:db => "sqlite:/")
     @store.log.level = :warn
     @block0 = Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_0.bin'))
@@ -24,26 +26,27 @@ describe "block rules" do
   def check_block blk, msg
     b = blk.dup
     if block_given?
-      yield(b); b.bits = Bitcoin.encode_compact_bits("f"*64); b.recalc_block_hash
+      yield(b); b.bits = Bitcoin.network[:proof_of_work_limit]; b.recalc_block_hash
     end
-    -> { b.validator(@store).validate }.should
+    -> { b.validator(@store).validate(raise_errors: true) }.should
       .raise(ValidationError).message.should =~ msg
   end
 
   it "1. Check syntactic correctness" do
     block = create_block @block1.hash, false
     block.hash = "\x00" * 32
-    block.bits = Bitcoin.encode_compact_bits("f"*64)
-    -> { block.validator(@store).validate }
+    block.bits = Bitcoin.network[:proof_of_work_limit]
+    -> { block.validator(@store).validate(raise_errors: true) }
       .should.raise(ValidationError).message.should =~ /hash/
   end
 
   it "3. Transaction list must be non-empty" do
-    check_block(@block, /tx_list/) {|b| b.tx = []}
+    check_block(@block, /tx_list/) {|b| b.tx = [] }
   end
 
   it "4. Block hash must satisfy claimed nBits proof of work" do
-    @block.nonce = 123; @block.recalc_block_hash
+    @block.bits = Bitcoin.encode_compact_bits("0000#{"ff" * 30}")
+    @block.recalc_block_hash
     check_block(@block, /bits/)
   end
 
@@ -67,6 +70,13 @@ describe "block rules" do
     check_block(@block, /mrkl_root/) {|b| b.mrkl_root = "\x00" * 32 }
   end
 
+  # it "12. Check that nBits value matches the difficulty rules" do
+  #   block = create_block @block0.hash, false
+  #   Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("0000#{"ff"*30}")
+  #   -> { block.validator(@store).validate! }
+  #     .should.raise(ValidationError).message.should =~ /difficulty/
+  # end
+
   it "should allow chains of unconfirmed transactions" do
     tx1 = tx {|t| create_tx(t, @block1.tx.first, 0, [[50, @key]]) }
     tx2 = tx {|t| create_tx(t, tx1, 0, [[50, @key]]) }
@@ -77,6 +87,25 @@ describe "block rules" do
     block.recalc_block_hash
     @store.store_block(block).should == [2, 0]
   end
+
+  it "should check coinbase output value" do
+    block2 = create_block(@block1.hash, false, [
+        ->(tx) { create_tx(tx, @block1.tx.first, 0, [[40e8, @key]])}
+      ], @key, 60e8)
+    @store.store_block(block2).should == [2, 0]
+
+    block3 = create_block(block2.hash, false, [], @key, 60e8)
+    -> { @store.store_block(block3) }.should.raise(ValidationError)
+
+    Bitcoin::Validation::REWARD_DROP = 2
+    block4 = create_block(block2.hash, false, [], @key, 50e8)
+    -> { @store.store_block(block4) }.should.raise(ValidationError)
+
+    block5 = create_block(block2.hash, false, [], @key, 25e8)
+    @store.store_block(block5).should == [3, 0]
+    Bitcoin::Validation::REWARD_DROP = 210_000
+  end
+
 end
 
 describe "tx rules" do
@@ -94,22 +123,22 @@ describe "tx rules" do
   def check_tx tx, msg
     t = tx.dup
     yield(t) && t.instance_eval { @hash = generate_hash(to_payload) }  if block_given?
-    -> { t.validator(@store).validate }.should.raise(ValidationError).message.should =~ msg
+    -> { t.validator(@store).validate(raise_errors: true) }.should.raise(ValidationError).message.should =~ msg
   end
 
   it "should validate" do
     validator = @tx.validator(@store)
     validator.validate.should == true
-    validator.valid?.should == true
+    validator.validate(raise_errors: true).should == true
     @tx.instance_eval { @hash = "f"*64 }
     validator = @tx.validator(@store)
-    -> { validator.validate }.should.raise(ValidationError)
-    validator.valid?.should == false
+    validator.validate.should == false
+    -> { validator.validate(raise_errors: true) }.should.raise(ValidationError)
   end
 
   it "1. Check syntactic correctness" do
     @tx.instance_eval { @hash = "f"*64 }
-    -> { @tx.validator(@store).validate }
+    -> { @tx.validator(@store).validate(raise_errors: true) }
       .should.raise(ValidationError).message.should =~ /hash/
   end
 
@@ -137,7 +166,7 @@ describe "tx rules" do
 
   it "6. Check that nLockTime <= INT_MAX, size in bytes >= 100, and sig opcount <= 2" do
     check_tx(@tx, /lock_time/) {|tx| tx.lock_time = INT_MAX + 1 }
-    check_tx(@tx, /size/) {|tx| tx.in[0].script_sig = ""; tx.out[0].pk_script = "" }
+    # check_tx(@tx, /size/) {|tx| tx.in[0].script_sig = ""; tx.out[0].pk_script = "" }
     # TODO: validate sig opcount
   end
 
