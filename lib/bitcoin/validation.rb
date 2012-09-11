@@ -12,33 +12,31 @@ module Bitcoin::Validation
   class ValidationError < StandardError
   end
 
-  class Base
 
-    # validate all rules. if +error+ is true, raise errors when rules fail
-    def validate opts = {}
-      opts[:rules] ||= [:syntax, :context]
-      klass = self.is_a?(Block) ? :block : :tx; obj = send(klass)
-      return true  if klass == :block && block.hash == Bitcoin.network[:genesis_hash]
-      opts[:rules].each do |name|
-        store.log.info { "validating #{klass} #{name} #{obj.hash} (#{obj.to_payload.bytesize} bytes)" }
-        self.class::RULES[name].each.with_index do |rule, i|
-          unless send(rule)
-            raise ValidationError, "#{klass} error: context check #{i} - #{rule} failed"  if opts[:raise_errors]
-            return false
-          end
-        end
-      end
-      true
-    end
-  end
-
-  class Block < Base
+  class Block
     attr_accessor :block, :store, :prev_block
 
     RULES = {
       syntax: [:hash, :tx_list, :bits, :max_timestamp, :coinbase, :coinbase_scriptsig, :mrkl_root, :transactions_syntax],
       context: [:prev_hash, :difficulty, :coinbase_value, :min_timestamp, :transactions_context]
     }
+
+    # validate all rules. if +error+ is true, raise errors when rules fail
+    def validate(opts = {})
+      return true if block.hash == Bitcoin.network[:genesis_hash]
+      opts[:rules] ||= [:syntax, :context]
+
+      opts[:rules].each do |name|
+        store.log.info { "validating block #{name} #{block.hash} (#{block.to_payload.bytesize} bytes)" }
+        RULES[name].each.with_index do |rule, i|
+          unless send(rule)
+            raise ValidationError, "block error: context check #{i} - #{rule} failed"  if opts[:raise_errors]
+            return false
+          end
+        end
+      end
+      true
+    end
 
     def initialize block, store, prev_block = nil
       @block, @store = block, store
@@ -160,13 +158,29 @@ module Bitcoin::Validation
 
   end
 
-  class Tx < Base
+  class Tx
     attr_accessor :tx, :store
 
     RULES = {
       syntax: [:hash, :lists, :max_size, :output_values, :inputs, :lock_time, :min_size, :standard],
       context: [:prev_out, :signatures, :spent, :input_values, :output_sum]
     }
+
+    # validate all rules. if +error+ is true, raise errors when rules fail
+    def validate(opts = {})
+      opts[:rules] ||= [:syntax, :context]
+
+      opts[:rules].each do |name|
+        store.log.info { "validating tx #{name} #{tx.hash} (#{tx.to_payload.bytesize} bytes)" }
+        RULES[name].each.with_index do |rule, i|
+          unless send(rule)
+            raise ValidationError, "#tx error: context check #{i} - #{rule} failed"  if opts[:raise_errors]
+            return false
+          end
+        end
+      end
+      true
+    end
 
     KNOWN_EXCEPTIONS = [
       # p2sh with invalid inner script, accepted by old miner before 4-2012 switchover
