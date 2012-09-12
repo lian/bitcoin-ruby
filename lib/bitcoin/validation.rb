@@ -175,6 +175,11 @@ module Bitcoin::Validation
     #   end
     # end
 
+    KNOWN_EXCEPTIONS = [
+      "00000000000a4d0a398161ffc163c503763b1f4360639393e0e4c8e300e0caec", # BIP30 exception
+      "00000000000743f190a18c5577a3c2d2a1f610ae9601ac046a38084ccb7cd721", # BIP30 exception
+    ]
+
   end
 
   class Tx
