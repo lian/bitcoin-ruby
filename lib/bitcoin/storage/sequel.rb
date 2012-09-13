@@ -48,7 +48,7 @@ module Bitcoin::Storage::Backends
     def persist_block blk, chain, depth
       @db.transaction do
         attrs = {
-          :hash => htb(blk.hash).to_sequel_blob,
+          :hash => blk.hash.htb.to_sequel_blob,
           :depth => depth,
           :chain => chain,
           :version => blk.ver,
@@ -59,7 +59,7 @@ module Bitcoin::Storage::Backends
           :nonce => blk.nonce,
           :blk_size => blk.to_payload.bytesize,
         }
-        existing = @db[:blk].filter(:hash => htb(blk.hash).to_sequel_blob)
+        existing = @db[:blk].filter(:hash => blk.hash.htb.to_sequel_blob)
         if existing.any?
           existing.update attrs
         else
@@ -74,12 +74,12 @@ module Bitcoin::Storage::Backends
               })
           end
         end
-        @db[:blk].where(:prev_hash => htb(blk.hash).to_sequel_blob, :chain => ORPHAN).each do |b|
-          log.debug { "re-org orphan #{hth(b[:hash])}" }
+        @db[:blk].where(:prev_hash => blk.hash.hth.to_sequel_blob, :chain => ORPHAN).each do |b|
+          log.debug { "re-org orphan #{b[:hash].hth}" }
           begin
-            store_block(get_block(hth(b[:hash])))
+            store_block(get_block(b[:hash].hth))
           rescue SystemStackError
-            EM.defer { store_block(get_block(hth(b[:hash]))) }  if EM.reactor_running?
+            EM.defer { store_block(get_block(b[:hash].hth)) }  if EM.reactor_running?
           end
         end
         log.info { "block #{blk.hash} (#{depth}, #{['main', 'side', 'orphan'][chain]})" } 
@@ -91,7 +91,7 @@ module Bitcoin::Storage::Backends
     def update_blocks updates
       @db.transaction do
         updates.each do |blocks, attrs|
-          @db[:blk].filter(:hash => blocks.map{|h| htb(h).to_sequel_blob}).update(attrs)
+          @db[:blk].filter(:hash => blocks.map{|h| h.htb.to_sequel_blob}).update(attrs)
         end
       end
     end
@@ -101,10 +101,10 @@ module Bitcoin::Storage::Backends
       @log.debug { "Storing tx #{tx.hash} (#{tx.to_payload.bytesize} bytes)" }
       tx.validator(self).validate(raise_errors: true)  if validate
       @db.transaction do
-        transaction = @db[:tx][:hash => htb(tx.hash).to_sequel_blob]
+        transaction = @db[:tx][:hash => tx.hash.htb.to_sequel_blob]
         return transaction[:id]  if transaction
         tx_id = @db[:tx].insert({
-            :hash => htb(tx.hash).to_sequel_blob,
+            :hash => tx.hash.htb.to_sequel_blob,
             :version => tx.ver,
             :lock_time => tx.lock_time,
             :coinbase => tx.in.size==1 && tx.in[0].coinbase?,
@@ -133,7 +133,7 @@ module Bitcoin::Storage::Backends
         return  unless prev_tx
         if @db[:txout].where(:tx_id => prev_tx[:id]).map.with_index{|o, i|
             @db[:txin].where(:prev_out => prev_tx[:hash].reverse.to_sequel_blob, :prev_out_index => i).any? }.all?
-          delete_tx(hth(prev_tx[:hash]))
+          delete_tx(prev_tx[:hash].hth)
         end
       end
     end
@@ -178,12 +178,12 @@ module Bitcoin::Storage::Backends
 
     # check if block +blk_hash+ exists
     def has_block(blk_hash)
-      !!@db[:blk].where(:hash => htb(blk_hash).to_sequel_blob).get(1)
+      !!@db[:blk].where(:hash => blk_hash.htb.to_sequel_blob).get(1)
     end
 
     # check if transaction +tx_hash+ exists
     def has_tx(tx_hash)
-      !!@db[:tx].where(:hash => htb(tx_hash).to_sequel_blob).get(1)
+      !!@db[:tx].where(:hash => tx_hash.htb.to_sequel_blob).get(1)
     end
 
     # get head block (highest block from the MAIN chain)
@@ -194,12 +194,12 @@ module Bitcoin::Storage::Backends
     # get depth of MAIN chain
     def get_depth
       return -1  unless get_head
-      @db[:blk][:hash => htb(get_head.hash).to_sequel_blob][:depth]
+      @db[:blk][:hash => get_head.hash.htb.to_sequel_blob][:depth]
     end
 
     # get block for given +blk_hash+
     def get_block(blk_hash)
-      wrap_block(@db[:blk][:hash => htb(blk_hash).to_sequel_blob])
+      wrap_block(@db[:blk][:hash => blk_hash.htb.to_sequel_blob])
     end
 
     # get block by given +depth+
@@ -209,12 +209,12 @@ module Bitcoin::Storage::Backends
 
     # get block by given +prev_hash+
     def get_block_by_prev_hash(prev_hash)
-      wrap_block(@db[:blk][:prev_hash => htb(prev_hash).to_sequel_blob, :chain => MAIN])
+      wrap_block(@db[:blk][:prev_hash => prev_hash.htb.to_sequel_blob, :chain => MAIN])
     end
 
     # get block by given +tx_hash+
     def get_block_by_tx(tx_hash)
-      tx = @db[:tx][:hash => htb(tx_hash).to_sequel_blob]
+      tx = @db[:tx][:hash => tx_hash.htb.to_sequel_blob]
       return nil  unless tx
       parent = @db[:blk_tx][:tx_id => tx[:id]]
       return nil  unless parent
@@ -228,7 +228,7 @@ module Bitcoin::Storage::Backends
 
     # get transaction for given +tx_hash+
     def get_tx(tx_hash)
-      wrap_tx(@db[:tx][:hash => htb(tx_hash).to_sequel_blob])
+      wrap_tx(@db[:tx][:hash => tx_hash.htb.to_sequel_blob])
     end
 
     # get transaction by given +tx_id+
@@ -239,7 +239,7 @@ module Bitcoin::Storage::Backends
     # get corresponding Models::TxIn for the txout in transaction
     # +tx_hash+ with index +txout_idx+
     def get_txin_for_txout(tx_hash, txout_idx)
-      tx_hash = htb(tx_hash).reverse.to_sequel_blob
+      tx_hash = tx_hash.htb_reverse.to_sequel_blob
       wrap_txin(@db[:txin][:prev_out => tx_hash, :prev_out_index => txout_idx])
     end
 
@@ -339,10 +339,6 @@ module Bitcoin::Storage::Backends
       txout.pk_script = output[:pk_script]
       txout
     end
-
-
-    def hth(bin); bin.unpack("H*")[0]; end
-    def htb(hex); [hex].pack("H*"); end
 
   end
 

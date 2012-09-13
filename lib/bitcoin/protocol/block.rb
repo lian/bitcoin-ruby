@@ -65,22 +65,19 @@ module Bitcoin
 
       # recalculate the block hash
       def recalc_block_hash
-        @hash = Bitcoin.block_hash(hth(@prev_block), hth(@mrkl_root), @time, @bits, @nonce, @ver)
+        @hash = Bitcoin.block_hash(@prev_block.reverse_hth, @mrkl_root.reverse_hth, @time, @bits, @nonce, @ver)
       end
 
       # verify mrkl tree
       def verify_mrkl_root
-        @mrkl_root.reverse.unpack("H*")[0] == Bitcoin.hash_mrkl_tree( @tx.map(&:hash) ).last
+        @mrkl_root.reverse_hth == Bitcoin.hash_mrkl_tree( @tx.map(&:hash) ).last
       end
 
       # get the block header info
       # [<version>, <prev_block>, <merkle_root>, <time>, <bits>, <nonce>, <txcount>, <size>]
       def header_info
-        [@ver, hth(@prev_block), hth(@mrkl_root), Time.at(@time), @bits, @nonce, @tx.size, @payload.size]
+        [@ver, @prev_block.reverse_hth, @mrkl_root.reverse_hth, Time.at(@time), @bits, @nonce, @tx.size, @payload.size]
       end
-
-      def hth(h); h.reverse.unpack("H*")[0]; end
-      def htb(s); [s].pack('H*').reverse; end
 
       # convert to raw binary format
       def to_payload
@@ -92,7 +89,7 @@ module Bitcoin
       def to_hash
         {
           'hash' => @hash, 'ver' => @ver,
-          'prev_block' => hth(@prev_block), 'mrkl_root' => hth(@mrkl_root),
+          'prev_block' => @prev_block.reverse_hth, 'mrkl_root' => @mrkl_root.reverse_hth,
           'time' => @time, 'bits' => @bits, 'nonce' => @nonce,
           'n_tx' => @tx.size, 'size' => (@payload||to_payload).bytesize,
           'tx' => @tx.map{|i| i.to_hash },
@@ -140,7 +137,7 @@ module Bitcoin
         blk = new(nil)
         blk.instance_eval{
           @ver, @time, @bits, @nonce = h.values_at('ver', 'time', 'bits', 'nonce')
-          @prev_block, @mrkl_root = h.values_at('prev_block', 'mrkl_root').map{|i| htb(i) }
+          @prev_block, @mrkl_root = h.values_at('prev_block', 'mrkl_root').map{|i| i.htb_reverse }
           recalc_block_hash
           h['tx'].each{|tx| @tx << Tx.from_hash(tx) }
         }

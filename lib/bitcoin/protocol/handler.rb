@@ -3,19 +3,19 @@ module Bitcoin
 
     class Handler
       def on_inv_transaction(hash)
-        p ['inv transaction', hth(hash)]
+        p ['inv transaction', hash.hth]
       end
 
       def on_inv_block(hash)
-        p ['inv block', hth(hash)]
+        p ['inv block', hash.hth]
       end
 
       def on_get_transaction(hash)
-        p ['get transaction', hth(hash)]
+        p ['get transaction', hash.hth]
       end
 
       def on_get_block(hash)
-        p ['get block', hth(hash)]
+        p ['get block', hash.hth]
       end
 
       def on_addr(addr)
@@ -30,8 +30,7 @@ module Bitcoin
         #p ['block', block]
         puts block.to_json
       end
-
-      def hth(h); h.unpack("H*")[0]; end
+      
     end
 
   end

@@ -65,7 +65,7 @@ module Bitcoin::Storage
           return [existing.depth, existing.chain]
         end
 
-        prev_block = get_block(hth(blk.prev_block.reverse))
+        prev_block = get_block(blk.prev_block.reverse_hth)
         validator = blk.validator(self, prev_block)
         validator.validate(rules: [:syntax], raise_errors: true)
 
@@ -154,7 +154,7 @@ module Bitcoin::Storage
 
       # compute blockchain locator
       def get_locator pointer = get_head
-        return [Bitcoin::hth("\x00"*32)]  if get_depth == -1
+        return [("\x00"*32).hth]  if get_depth == -1
         locator = []
         step = 1
         while pointer && pointer.hash != Bitcoin::network[:genesis_hash]

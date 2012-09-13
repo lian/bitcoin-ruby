@@ -19,7 +19,7 @@ module Bitcoin::Storage::Backends
         return false
       end
 
-      prev_block = get_block(Bitcoin::hth(blk.prev_block.reverse))
+      prev_block = get_block(blk.prev_block.reverse_hth)
       unless prev_block
         unless blk.hash == Bitcoin.network[:genesis_hash]
           log.warn { "INVALID BLOCK: #{blk.hash}" }

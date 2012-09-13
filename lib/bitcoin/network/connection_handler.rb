@@ -11,9 +11,6 @@ module Bitcoin::Network
 
     attr_reader :host, :port, :state, :version
 
-    def hth(h); h.unpack("H*")[0]; end
-    def htb(h); [h].pack("H*"); end
-
     def log
       @log ||= Logger::LogWrapper.new("#@host:#@port", @node.log)
     end
@@ -66,7 +63,7 @@ module Bitcoin::Network
     # received +inv_tx+ message for given +hash+.
     # add to inv_queue, unlesss maximum is reached
     def on_inv_transaction(hash)
-      log.debug { ">> inv transaction: #{hth(hash)}" }
+      log.debug { ">> inv transaction: #{hash.hth}" }
       return  if @node.inv_queue.size >= @node.config[:max][:inv]
       @node.queue_inv([:tx, hash, self])
     end
@@ -74,7 +71,7 @@ module Bitcoin::Network
     # received +inv_block+ message for given +hash+.
     # add to inv_queue, unless maximum is reached
     def on_inv_block(hash)
-      log.debug { ">> inv block: #{hth(hash)}" }
+      log.debug { ">> inv block: #{hash.hth}" }
       return  if @node.inv_queue.size >= @node.config[:max][:inv]
       @node.queue_inv([:block, hash, self])
     end
@@ -82,8 +79,8 @@ module Bitcoin::Network
     # received +get_tx+ message for given +hash+.
     # send specified tx if we have it
     def on_get_transaction(hash)
-      log.debug { ">> get transaction: #{hash.unpack("H*")[0]}" }
-      tx = @node.store.get_tx(hash.unpack("H*")[0])
+      log.debug { ">> get transaction: #{hash.hth}" }
+      tx = @node.store.get_tx(hash.hth)
       return  unless tx
       pkt = Bitcoin::Protocol.pkt("tx", tx.to_payload)
       log.debug { "<< tx: #{tx.hash}" }
@@ -94,7 +91,7 @@ module Bitcoin::Network
     # send specified block if we have it
     # TODO
     def on_get_block(hash)
-      log.debug { ">> get block: #{hth(hash)}" }
+      log.debug { ">> get block: #{hash.hth}" }
     end
 
     # send +inv+ message with given +type+ for given +obj+
@@ -159,14 +156,14 @@ module Bitcoin::Network
     # send +getdata tx+ message for given tx +hash+
     def send_getdata_tx(hash)
       pkt = Protocol.getdata_pkt(:tx, [hash])
-      log.debug { "<< getdata tx: #{hth(hash)}" }
+      log.debug { "<< getdata tx: #{hash.hth}" }
       send_data(pkt)
     end
 
     # send +getdata block+ message for given block +hash+
     def send_getdata_block(hash)
       pkt = Protocol.getdata_pkt(:block, [hash])
-      log.debug { "<< getdata block: #{hth(hash)}" }
+      log.debug { "<< getdata block: #{hash.hth}" }
       send_data(pkt)
     end
 
@@ -174,7 +171,7 @@ module Bitcoin::Network
     def send_getblocks locator = @node.store.get_locator
       return get_genesis_block  if @node.store.get_depth == -1
       pkt = Protocol.pkt("getblocks", [Bitcoin::network[:magic_head],
-          locator.size.chr, *locator.map{|l| htb(l).reverse}, "\x00"*32].join)
+          locator.size.chr, *locator.map{|l| l.htb_reverse}, "\x00"*32].join)
       log.info { "<< getblocks: #{locator.first}" }
       send_data(pkt)
     end
@@ -183,7 +180,7 @@ module Bitcoin::Network
     def send_getheaders locator = @node.store.get_locator
       return get_genesis_block  if @node.store.get_depth == -1
       pkt = Protocol.pkt("getheaders", [Bitcoin::network[:magic_head],
-          locator.size.chr, *locator.map{|l| htb(l).reverse}, "\x00"*32].join)
+          locator.size.chr, *locator.map{|l| l.htb_reverse}, "\x00"*32].join)
       log.debug { "<< getheaders: #{locator.first}" }
       send_data(pkt)
     end
@@ -205,7 +202,7 @@ module Bitcoin::Network
     # ask for the genesis block
     def get_genesis_block
       log.info { "Asking for genesis block" }
-      pkt = Protocol.getdata_pkt(:block, [htb(Bitcoin::network[:genesis_hash])])
+      pkt = Protocol.getdata_pkt(:block, [Bitcoin::network[:genesis_hash].htb])
       send_data(pkt)
     end
 

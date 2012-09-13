@@ -24,7 +24,7 @@ module Bitcoin::Storage::Models
 
     # get the block this one builds upon
     def get_prev_block
-      @store.get_block(hth(@prev_block))
+      @store.get_block(@prev_block.reverse_hth)
     end
 
     # get the block that builds upon this one
@@ -80,7 +80,7 @@ module Bitcoin::Storage::Models
 
     # get the previous output referenced by this input
     def get_prev_out
-      prev_tx = @store.get_tx(@prev_out.reverse.unpack("H*")[0])
+      prev_tx = @store.get_tx(@prev_out.reverse_hth)
       return nil  unless prev_tx
       prev_tx.out[@prev_out_index]
     end

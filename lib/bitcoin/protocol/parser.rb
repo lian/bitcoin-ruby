@@ -37,8 +37,6 @@ module Bitcoin
         }
       end
 
-      def hth(h); h.unpack("H*")[0]; end
-
       def parse_addr(payload)
         count, payload = Protocol.unpack_var_int(payload)
         payload.each_byte.each_slice(30){|i|
@@ -62,8 +60,8 @@ module Bitcoin
         version, payload = payload.unpack('a4a*')
         count,   payload = Protocol.unpack_var_int(payload)
         buf,     payload = payload.unpack("a#{count*32}a*")
-        hashes    = buf.each_byte.each_slice(32).map{|i| hash = Protocol.hth(i.reverse.pack("C32")) }
-        stop_hash = Protocol.hth(payload[0..32].reverse)
+        hashes    = buf.each_byte.each_slice(32).map{|i| hash = i.reverse.pack("C32").hth }
+        stop_hash = payload[0..32].reverse_hth
         [version, hashes, stop_hash]
       end
 

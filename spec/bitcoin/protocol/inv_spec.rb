@@ -5,10 +5,10 @@ describe 'Bitcoin::Protocol::Parser - Inventory Vectors' do
   class Test_Handler < Bitcoin::Protocol::Handler
     attr_reader :tx_inv
     attr_reader :block_inv
-    def on_inv_transaction(hash); (@tx_inv ||= []) << hth(hash); end
-    def on_get_transaction(hash); (@tx_inv ||= []) << hth(hash); end
-    def on_inv_block(hash); (@block_inv ||= []) << hth(hash); end
-    def on_get_block(hash); (@block_inv ||= []) << hth(hash); end
+    def on_inv_transaction(hash); (@tx_inv ||= []) << hash.hth; end
+    def on_get_transaction(hash); (@tx_inv ||= []) << hash.hth; end
+    def on_inv_block(hash); (@block_inv ||= []) << hash.hth; end
+    def on_get_block(hash); (@block_inv ||= []) << hash.hth; end
   end
 
 

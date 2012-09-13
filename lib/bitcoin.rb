@@ -56,9 +56,6 @@ module Bitcoin
 
   module Util
 
-    def hth(h); h.unpack("H*")[0]; end
-    def htb(h); [h].pack("H*"); end
-
     def address_version; Bitcoin.network[:address_version]; end
     def p2sh_version; Bitcoin.network[:p2sh_version]; end
 
@@ -303,6 +300,28 @@ module Bitcoin
     end
   end
 
+  extend Util
+
+  module  BinaryExtensions
+    extend self
+
+    def hth
+      unpack("H*")[0]
+    end
+    
+    def reverse_hth
+      reverse.hth
+    end
+
+    def htb
+      Array(self).pack("H*")
+    end
+
+    def htb_reverse
+      htb.reverse
+    end
+  end
+
   module ::OpenSSL
     class BN
       def self.from_hex(hex); new(hex, 16); end
@@ -323,9 +342,6 @@ module Bitcoin
   end
 
   autoload :OpenSSL_EC, "bitcoin/ffi/openssl"
-
-
-  extend Util
 
   @network = :bitcoin
 
@@ -380,4 +396,8 @@ module Bitcoin
     }
   }
   
+end
+
+class String
+  include Bitcoin::BinaryExtensions
 end

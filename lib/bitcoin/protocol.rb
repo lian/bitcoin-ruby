@@ -115,8 +115,8 @@ module Bitcoin
       payload = [
         Bitcoin.network[:magic_head],
         pack_var_int(locator_hashes.size),
-        locator_hashes.map{|l| htb(l).reverse }.join,
-        htb(stop_hash).reverse
+        locator_hashes.map{|l| l.htb_reverse }.join,
+        stop_hash.htb_reverse
       ].join
     end
 
@@ -127,9 +127,6 @@ module Bitcoin
     def self.getheaders_pkt(locator_hashes, stop_hash=DEFAULT_STOP_HASH)
       pkt "getheaders", locator_payload(locator_hashes, stop_hash)
     end
-
-    def self.hth(h); h.unpack("H*")[0]; end
-    def self.htb(h); [h].pack("H*"); end
 
     def self.read_binary_file(path)
       File.open(path, 'rb'){|f| f.read }
