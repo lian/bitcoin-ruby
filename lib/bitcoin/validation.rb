@@ -194,13 +194,13 @@ module Bitcoin::Validation
     # rules:: which rulesets to validate (default: [:syntax, :context])
     # raise_errors:: whether to raise ValidationError on failure (default: false)
     def validate(opts = {})
+      return true  if matches_known_exception
       opts[:rules] ||= [:syntax, :context]
-
       opts[:rules].each do |name|
         store.log.info { "validating tx #{name} #{tx.hash} (#{tx.to_payload.bytesize} bytes)" }
         RULES[name].each.with_index do |rule, i|
           unless send(rule)
-            raise ValidationError, "#tx error: #{name} check #{i} - #{rule} failed"  if opts[:raise_errors]
+            raise ValidationError, "tx error: #{name} check #{i} - #{rule} failed"  if opts[:raise_errors]
             return false
           end
         end
