@@ -101,6 +101,10 @@ describe 'Tx' do
     tx = Tx.from_json( fixtures_file('rawtx-ba1ff5cd66713133c062a871a8adab92416f1e38d17786b2bf56ac5f6ffdfdf5.json') )
     Tx.new( tx.to_payload ).to_json.should == tx.to_json
     tx.hash.should == 'ba1ff5cd66713133c062a871a8adab92416f1e38d17786b2bf56ac5f6ffdfdf5'
+
+    # coinbase tx with non-default sequence
+    tx = Tx.from_json( json=fixtures_file('0961c660358478829505e16a1f028757e54b5bbf9758341a7546573738f31429.json'))
+    Tx.new( tx.to_payload ).to_json.should == json
   end
 
   it 'Tx.binary_from_json' do
