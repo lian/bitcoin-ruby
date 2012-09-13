@@ -78,14 +78,13 @@ module Bitcoin::Storage
         end
         depth = prev_block.depth + 1
         if prev_block.chain == MAIN
-          next_block = prev_block.get_next_block
-          if next_block && next_block.chain == MAIN
-            log.debug { "=> side (#{depth})" }
-            return persist_block(blk, SIDE, depth)
-          else
+          if prev_block == get_head
             log.debug { "=> main (#{depth})" }
             validator.validate(rules: [:context], raise_errors: true)
             return persist_block(blk, MAIN, depth)
+          else
+            log.debug { "=> side (#{depth})" }
+            return persist_block(blk, SIDE, depth)
           end
         else
           head = get_head
