@@ -214,7 +214,7 @@ module Bitcoin::Storage::Backends
 
     # get block by given +prev_hash+
     def get_block_by_prev_hash(prev_hash)
-      wrap_block(@db[:blk][:prev_hash => htb(prev_hash).to_sequel_blob])
+      wrap_block(@db[:blk][:prev_hash => htb(prev_hash).to_sequel_blob, :chain => MAIN])
     end
 
     # get block by given +tx_hash+
