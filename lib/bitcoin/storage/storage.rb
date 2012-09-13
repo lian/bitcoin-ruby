@@ -60,7 +60,10 @@ module Bitcoin::Storage
         log.debug { "new block #{blk.hash}" }
 
         existing = get_block(blk.hash)
-        return [existing.depth, existing.chain]  if existing && existing.chain == MAIN
+        if existing && existing.chain == MAIN
+          log.debug { "=> exists (#{existing.depth}, #{existing.chain})" }
+          return [existing.depth, existing.chain]
+        end
 
         prev_block = get_block(hth(blk.prev_block.reverse))
         validator = blk.validator(self, prev_block)

@@ -74,18 +74,13 @@ module Bitcoin::Storage::Backends
               })
           end
         end
-        begin
-          @db[:blk].where(:prev_hash => htb(blk.hash).to_sequel_blob, :chain => ORPHAN).each do |b|
-            log.debug { "re-org orphan #{hth(b[:hash])}" }
-            begin
-              store_block(get_block(hth(b[:hash])))
-            rescue SystemStackError
-              EM.defer { store_block(get_block(hth(b[:hash]))) }  if EM.reactor_running?
-            end
+        @db[:blk].where(:prev_hash => htb(blk.hash).to_sequel_blob, :chain => ORPHAN).each do |b|
+          log.debug { "re-org orphan #{hth(b[:hash])}" }
+          begin
+            store_block(get_block(hth(b[:hash])))
+          rescue SystemStackError
+            EM.defer { store_block(get_block(hth(b[:hash]))) }  if EM.reactor_running?
           end
-        rescue
-          p $!
-          puts *$@
         end
         log.info { "block #{blk.hash} (#{depth}, #{['main', 'side', 'orphan'][chain]})" } 
         return depth, chain
