@@ -76,6 +76,7 @@ module Bitcoin::Storage
           else
             depth = prev_block ? prev_block.depth + 1 : 0
             log.debug { "=> orphan (#{depth})" }
+            return  unless in_sync?
             return persist_block(blk, ORPHAN, depth)
           end
         end

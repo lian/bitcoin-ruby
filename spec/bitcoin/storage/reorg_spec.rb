@@ -11,6 +11,7 @@ describe "reorg" do
   before do
     Bitcoin.network = :testnet
     @store = Bitcoin::Storage.sequel(:db => "sqlite:/")
+    def @store.in_sync?; true; end
     @store.log.level = :warn
     @block0 = Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_0.bin'))
     @store.store_block(@block0)

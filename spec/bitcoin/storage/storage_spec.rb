@@ -15,6 +15,7 @@ include Bitcoin::Validation
       Bitcoin::network = :testnet
       Bitcoin::Storage.log.level = 3
       @store = Bitcoin::Storage.send(configuration[:name], configuration)
+      def @store.in_sync?; true; end
       @store.reset
 
       @store.store_block(Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_0.bin')))
