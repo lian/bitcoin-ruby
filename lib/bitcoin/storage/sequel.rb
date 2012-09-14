@@ -42,6 +42,7 @@ module Bitcoin::Storage::Backends
     # reset database; delete all data
     def reset
       [:blk, :blk_tx, :tx, :txin, :txout].each {|table| @db[table].delete}
+      @head = nil
     end
 
     # persist given block +blk+ to storage.
@@ -62,8 +63,10 @@ module Bitcoin::Storage::Backends
         existing = @db[:blk].filter(:hash => blk.hash.htb.to_sequel_blob)
         if existing.any?
           existing.update attrs
+          block_id = existing.first[:id]
         else
           block_id = @db[:blk].insert(attrs)
+
           blk.tx.each_with_index do |tx, idx|
             tx_id = store_tx(tx)
             raise "Error saving tx #{tx.hash} in block #{blk.hash}"  unless tx_id
@@ -74,6 +77,7 @@ module Bitcoin::Storage::Backends
               })
           end
         end
+        @head = wrap_block(attrs.merge(id: block_id))  if chain == MAIN
         @db[:blk].where(:prev_hash => blk.hash.htb.to_sequel_blob, :chain => ORPHAN).each do |b|
           log.debug { "re-org orphan #{b[:hash].hth}" }
           begin
@@ -82,7 +86,7 @@ module Bitcoin::Storage::Backends
             EM.defer { store_block(get_block(b[:hash].hth)) }  if EM.reactor_running?
           end
         end
-        log.info { "block #{blk.hash} (#{depth}, #{['main', 'side', 'orphan'][chain]})" } 
+        log.info { "block #{blk.hash} (#{depth}, #{['main', 'side', 'orphan'][chain]})" }
         return depth, chain
       end
     end
@@ -188,13 +192,13 @@ module Bitcoin::Storage::Backends
 
     # get head block (highest block from the MAIN chain)
     def get_head
-      wrap_block(@db[:blk].filter(:chain => MAIN).order(:depth).last)
+      @head ||= wrap_block(@db[:blk].filter(:chain => MAIN).order(:depth).last)
     end
 
     # get depth of MAIN chain
     def get_depth
       return -1  unless get_head
-      @db[:blk][:hash => get_head.hash.htb.to_sequel_blob][:depth]
+      get_head.depth
     end
 
     # get block for given +blk_hash+
@@ -288,7 +292,7 @@ module Bitcoin::Storage::Backends
       blk.bits = block[:bits]
       blk.nonce = block[:nonce]
 
-      db[:blk_tx].join(:tx, id: :tx_id).filter(blk_id: block[:id])
+      db[:blk_tx].filter(blk_id: block[:id]).join(:tx, id: :tx_id)
         .order(:idx).each {|tx| blk.tx << wrap_tx(tx, block[:id]) }
 
       blk.recalc_block_hash
