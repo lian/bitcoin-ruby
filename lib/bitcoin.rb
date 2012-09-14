@@ -302,25 +302,18 @@ module Bitcoin
 
   extend Util
 
+
   module  BinaryExtensions
-    extend self
-
-    def hth
-      unpack("H*")[0]
-    end
-    
-    def reverse_hth
-      reverse.hth
-    end
-
-    def htb
-      Array(self).pack("H*")
-    end
-
-    def htb_reverse
-      htb.reverse
-    end
+    def hth; unpack("H*")[0]; end
+    def reverse_hth; reverse.hth; end
+    def htb; [self].pack("H*"); end
+    def htb_reverse; htb.reverse; end
   end
+
+  class ::String
+    include Bitcoin::BinaryExtensions
+  end
+
 
   module ::OpenSSL
     class BN
@@ -396,8 +389,4 @@ module Bitcoin
     }
   }
   
-end
-
-class String
-  include Bitcoin::BinaryExtensions
 end
