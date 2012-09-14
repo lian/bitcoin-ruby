@@ -36,8 +36,6 @@ module Bitcoin::Network
     # clients to be notified for new block/tx events
     attr_reader :notifiers
 
-    attr_reader :in_sync
-
     DEFAULT_CONFIG = {
       :listen => ["0.0.0.0", Bitcoin.network[:default_port]],
       :connect => [],
@@ -83,7 +81,6 @@ module Bitcoin::Network
       @timers = {}
       @inv_cache = []
       @notifiers = Hash[[:block, :tx, :connection, :addr].map {|n| [n, EM::Channel.new]}]
-      @in_sync = false
     end
 
     def set_store
@@ -271,7 +268,7 @@ module Bitcoin::Network
       @log.debug { "queue worker running" }
       EM.defer(nil, proc { work_queue }) do
         if @queue.size == 0
-          getblocks  if @inv_queue.size == 0 && !@in_sync
+          getblocks  if @inv_queue.size == 0 && !@store.in_sync?
           sleep @config[:intervals][:queue]
         end
         while obj = @queue.shift
@@ -294,7 +291,6 @@ module Bitcoin::Network
             puts *$@
           end
         end
-        @in_sync = (@store.get_head && (Time.now - @store.get_head.time).to_i < 3600) ? true : false
       end
     end
 
@@ -308,7 +304,7 @@ module Bitcoin::Network
           sleep @config[:intervals][:inv_queue]
         else
           while inv = @inv_queue.shift
-            next  if !@in_sync && inv[0] == :tx
+            next  if !@store.in_sync? && inv[0] == :tx
             next  if @queue.map{|i|i[1]}.map(&:hash).include?(inv[1])
             # next  if @store.send("has_#{inv[0]}", inv[1])
             inv[2].send("send_getdata_#{inv[0]}", inv[1])
@@ -322,7 +318,7 @@ module Bitcoin::Network
       @inv_cache.shift(128)  if @inv_cache.size > @config[:max][:inv_cache]
       return  if @inv_cache.include?([inv[0], inv[1]]) ||
         @inv_queue.size >= @config[:max][:inv] ||
-        (!@in_sync && inv[0] == :tx)
+        (!@store.in_sync? && inv[0] == :tx)
       @inv_cache << [inv[0], inv[1]]
       @inv_queue << inv
     end
@@ -340,7 +336,7 @@ module Bitcoin::Network
     end
 
     def relay_tx(tx)
-      return false  unless @in_sync
+      return false  unless @store.in_sync?
       @store.store_tx(tx)
       @connections.select(&:connected?).sample((@connections.size / 2) + 1).each do |peer|
         peer.send_inv(:tx, tx)

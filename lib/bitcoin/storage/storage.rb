@@ -246,6 +246,10 @@ module Bitcoin::Storage
           end
         end
       end
+
+      def in_sync?
+        (get_head && (Time.now - get_head.time).to_i < 3600) ? true : false
+      end
     end
   end
 end
