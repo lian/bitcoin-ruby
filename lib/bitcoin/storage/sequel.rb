@@ -74,7 +74,7 @@ module Bitcoin::Storage::Backends
               })
           end
         end
-        @db[:blk].where(:prev_hash => blk.hash.hth.to_sequel_blob, :chain => ORPHAN).each do |b|
+        @db[:blk].where(:prev_hash => blk.hash.htb.to_sequel_blob, :chain => ORPHAN).each do |b|
           log.debug { "re-org orphan #{b[:hash].hth}" }
           begin
             store_block(get_block(b[:hash].hth))
