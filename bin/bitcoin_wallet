@@ -294,8 +294,8 @@ when "relay"
   end
   tx.in.each_with_index do |txin, i|
     p txdp.tx.map(&:hash)
-    prev_tx = storage.get_tx(txin.prev_out.reverse.unpack("H*")[0])
-    raise "prev tx #{txin.prev_out.reverse.unpack("H*")[0]} not found"  unless prev_tx
+    prev_tx = storage.get_tx(txin.prev_out.reverse_hth)
+    raise "prev tx #{txin.prev_out.reverse_hth} not found"  unless prev_tx
     raise "signature error"  unless tx.verify_input_signature(i, prev_tx)
   end
 

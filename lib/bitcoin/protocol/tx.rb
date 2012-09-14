@@ -44,7 +44,7 @@ module Bitcoin
 
       # generate the tx hash for given +payload+ in hex format
       def hash_from_payload(payload)
-        Digest::SHA256.digest(Digest::SHA256.digest( payload )).reverse.unpack("H*")[0]
+        Digest::SHA256.digest(Digest::SHA256.digest( payload )).reverse_hth
       end
       alias generate_hash hash_from_payload
 

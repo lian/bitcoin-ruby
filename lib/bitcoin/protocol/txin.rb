@@ -52,7 +52,7 @@ module Bitcoin
       end
 
       def to_hash
-        t = { 'prev_out'  => { 'hash' => @prev_out.reverse.unpack("H*")[0], 'n' => @prev_out_index } }
+        t = { 'prev_out'  => { 'hash' => @prev_out.reverse_hth, 'n' => @prev_out_index } }
         if coinbase?
           t['coinbase']  = @script_sig.unpack("H*")[0]
         else # coinbase tx
@@ -75,7 +75,7 @@ module Bitcoin
 
       # previous output in hex
       def previous_output
-        @prev_out.reverse.unpack("H*")[0]
+        @prev_out.reverse_hth
       end
 
       # check if input is coinbase

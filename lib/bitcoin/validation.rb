@@ -59,7 +59,7 @@ module Bitcoin::Validation
     # optionally passing the +prev_block+ for optimization.
     def initialize block, store, prev_block = nil
       @block, @store = block, store
-      @prev_block = prev_block || store.get_block(block.prev_block.reverse.unpack("H*")[0])
+      @prev_block = prev_block || store.get_block(block.prev_block.reverse_hth)
     end
 
     # check that block hash matches header
@@ -108,11 +108,11 @@ module Bitcoin::Validation
 
     # check that merkle root matches transaction hashes
     def mrkl_root
-      block.mrkl_root.reverse.unpack("H*")[0] == Bitcoin.hash_mrkl_tree(block.tx.map(&:hash))[-1]
+      block.mrkl_root.reverse_hth == Bitcoin.hash_mrkl_tree(block.tx.map(&:hash))[-1]
     end
 
     def prev_hash
-      @prev_block && @prev_block.hash == block.prev_block.reverse.unpack("H*")[0]
+      @prev_block && @prev_block.hash == block.prev_block.reverse_hth
     end
 
     # check that bits satisfy required difficulty
@@ -309,7 +309,7 @@ module Bitcoin::Validation
     # only returns tx that are in a block in the main chain or the current block.
     def prev_txs
       @prev_txs ||= tx.in.map {|i|
-        prev_tx = store.get_tx(i.prev_out.reverse.unpack("H*")[0])
+        prev_tx = store.get_tx(i.prev_out.reverse_hth)
         next nil  if !prev_tx && !@block
 
         if store.db && store.db.is_a?(Sequel::Database)

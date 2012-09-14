@@ -7,7 +7,7 @@ class Bitcoin::Wallet::TxDP
     @inputs = []
     return  unless tx.any?
     @tx[0].in.each_with_index do |input, i|
-      prev_out_hash = input.prev_out.reverse.unpack("H*")[0]
+      prev_out_hash = input.prev_out.reverse_hth
       prev_tx = @tx[1..-1].find {|tx| tx.hash == prev_out_hash}
       raise "prev tx #{prev_out_hash} not found"  unless prev_tx
       prev_out = prev_tx.out[input.prev_out_index]
@@ -27,7 +27,7 @@ class Bitcoin::Wallet::TxDP
   def sign_inputs
     @inputs.each_with_index do |txin, i|
       input = @tx[0].in[i]
-      prev_out_hash = input.prev_out.reverse.unpack("H*")[0]
+      prev_out_hash = input.prev_out.reverse_hth
       prev_tx = @tx[1..-1].find {|tx| tx.hash == prev_out_hash}
       raise "prev tx #{prev_out_hash} not found"  unless prev_tx
       prev_out = prev_tx.out[input.prev_out_index]
@@ -47,7 +47,7 @@ class Bitcoin::Wallet::TxDP
   def serialize
     lines = []
     lines << "-----BEGIN-TRANSACTION-#{@id}".ljust(80, '-')
-    size = [@tx.first.to_payload.bytesize].pack("C").ljust(2, "\x00").reverse.unpack("H*")[0]
+    size = [@tx.first.to_payload.bytesize].pack("C").ljust(2, "\x00").reverse_hth
     lines << "_TXDIST_#{Bitcoin.network[:magic_head].unpack("H*")[0]}_#{@id}_#{size}"
     tx = @tx.map(&:to_payload).join.unpack("H*")[0]
     tx_str = ""; tx.split('').each_with_index{|c,i| tx_str << (i % 80 == 0 ? "\n#{c}" : c)}
@@ -57,7 +57,7 @@ class Bitcoin::Wallet::TxDP
       next  unless input[1]
       input[1].each do |sig|
         size = [sig[1]].pack("H*").bytesize
-        size = [size].pack("C").ljust(2, "\x00").reverse.unpack("H*")[0]
+        size = [size].pack("C").ljust(2, "\x00").reverse_hth
         lines << "_SIG_#{sig[0]}_#{idx.to_s.rjust(2, '0')}_#{size}"
         sig_str = ""; sig[1].split('').each_with_index{|c,i| sig_str << (i % 80 == 0 ? "\n#{c}" : c)}
         lines << sig_str.strip
