@@ -208,7 +208,37 @@ module Bitcoin
       def validator(store, block = nil)
         @validator ||= Bitcoin::Validation::Tx.new(self, store, block)
       end
-    end
 
+      def minimum_relay_fee; calculate_minimum_fee(1_000, true, :relay); end
+      def minimum_block_fee; calculate_minimum_fee(1_000, true, :block); end
+
+      def calculate_minimum_fee(block_size=1, allow_free=true, mode=:block)
+        base_fee       = (mode == :relay) ? Bitcoin::MIN_RELAY_TX_FEE : Bitcoin::MIN_TX_FEE
+        tx_size        = to_payload.bytesize
+        new_block_size = block_size + tx_size
+        min_fee       = (1 + tx_size / 1_000) * base_fee
+
+        if allow_free
+          if block_size == 1
+            min_fee = 0 if tx_size < 10_000
+          else
+            min_fee = 0 if new_block_size < 27_000
+          end
+        end
+
+        if min_fee < base_fee
+          outputs.each{|output| (min_fee = base_fee; break) if output.value < Bitcoin::CENT }
+        end
+
+        if block_size != 1 && new_block_size >= (Bitcoin::MAX_BLOCK_SIZE_GEN/2)
+          #return Bitcoin::MAX_MONEY if new_block_size >= Bitcoin::MAX_BLOCK_SIZE_GEN
+          min_fee *= Bitcoin::MAX_BLOCK_SIZE_GEN / (Bitcoin::MAX_BLOCK_SIZE_GEN - new_block_size)
+        end
+
+        min_fee = Bitcoin::MAX_MONEY unless min_fee.between?(0, Bitcoin::MAX_MONEY)
+        min_fee
+      end
+
+    end
   end
 end

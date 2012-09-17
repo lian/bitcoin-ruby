@@ -346,6 +346,18 @@ module Bitcoin
     @network = name.to_sym
   end
 
+  CENT =   1_000_000
+  COIN = 100_000_000
+  MAX_MONEY = 21_000_000 * COIN
+  MAX_BLOCK_SIZE = 1_000_000
+  MAX_BLOCK_SIZE_GEN = MAX_BLOCK_SIZE/2
+  MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE/50
+  MAX_ORPHAN_TRANSACTIONS = MAX_BLOCK_SIZE/100
+
+  MIN_FEE_MODE     = [ :block, :relay, :send ]
+  MIN_TX_FEE       = 50_000
+  MIN_RELAY_TX_FEE = 10_000
+
   NETWORKS = {
     :bitcoin => {
       :magic_head => "\xF9\xBE\xB4\xD9",

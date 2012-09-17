@@ -200,6 +200,14 @@ describe 'Tx' do
     #File.open("rawtx-#{prev_tx.hash}.json",'wb'){|f| f.print prev_tx.to_json }
   end
 
+  it '#calculate_minimum_fee' do
+    tx = Tx.new( fixtures_file('rawtx-b5d4e8883533f99e5903ea2cf001a133a322fa6b1370b18a16c57c946a40823d.bin') )
+    tx.minimum_relay_fee.should == 0
+    tx.minimum_block_fee.should == 0
+    tx = Tx.from_json(fixtures_file('bc179baab547b7d7c1d5d8d6f8b0cc6318eaa4b0dd0a093ad6ac7f5a1cb6b3ba.json'))
+    tx.minimum_relay_fee.should == 10_000
+    tx.minimum_block_fee.should == 50_000
+  end
 
   describe "Tx - BIP Scripts" do
 
