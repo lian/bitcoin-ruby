@@ -104,6 +104,9 @@ module Bitcoin::Network
         addr
       end
       log.info { "Initialized #{@addrs.size} addrs from #{@config[:addr_file]}." }
+    rescue
+      @addrs = []
+      log.warn { "Error loading addrs from #{@config[:addr_file]}" }
     end
 
     def store_addrs
@@ -283,9 +286,9 @@ module Bitcoin::Network
             end
           rescue Bitcoin::Validation::ValidationError
             @log.warn { "ValiationError storing #{obj[0]} #{obj[1].hash}: #{$!.message}" }
-            File.open("./validation_error_#{obj[0]}_#{obj[1].hash}.bin", "w") {|f|
-              f.write(obj[1].to_payload) }
-            EM.stop
+            # File.open("./validation_error_#{obj[0]}_#{obj[1].hash}.bin", "w") {|f|
+            #   f.write(obj[1].to_payload) }
+            # EM.stop
           rescue
             @log.warn { $!.inspect }
             puts *$@
@@ -341,6 +344,9 @@ module Bitcoin::Network
       @connections.select(&:connected?).sample((@connections.size / 2) + 1).each do |peer|
         peer.send_inv(:tx, tx)
       end
+    rescue Bitcoin::Validation::ValidationError
+      @log.warn { "ValiationError storing tx #{tx.hash}: #{$!.message}" }
+      false
     end
 
     def work_relay

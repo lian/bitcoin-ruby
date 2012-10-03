@@ -68,7 +68,7 @@ module Bitcoin::Storage::Backends
           block_id = @db[:blk].insert(attrs)
 
           blk.tx.each_with_index do |tx, idx|
-            tx_id = store_tx(tx)
+            tx_id = store_tx(tx, false)
             raise "Error saving tx #{tx.hash} in block #{blk.hash}"  unless tx_id
             @db[:blk_tx].insert({
                 :blk_id => block_id,
@@ -101,7 +101,7 @@ module Bitcoin::Storage::Backends
     end
 
     # store transaction +tx+
-    def store_tx(tx, validate = false)
+    def store_tx(tx, validate = true)
       @log.debug { "Storing tx #{tx.hash} (#{tx.to_payload.bytesize} bytes)" }
       tx.validator(self).validate(raise_errors: true)  if validate
       @db.transaction do

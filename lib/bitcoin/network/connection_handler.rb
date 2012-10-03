@@ -215,6 +215,7 @@ module Bitcoin::Network
       @node.notifiers[:connection].push([:connected, info])
       @node.addrs << addr
       # send_getaddr
+      send_getblocks  if @node.store.in_sync?
       # EM.add_periodic_timer(15) { send_ping }
     end
 

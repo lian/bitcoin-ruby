@@ -318,6 +318,7 @@ module Bitcoin::Validation
         else
           next prev_tx  if prev_tx.get_block && prev_tx.get_block.chain == 0
         end
+        next  nil if !@block
         @block.tx.find {|t| t.binary_hash == i.prev_out }
       }.compact
     end

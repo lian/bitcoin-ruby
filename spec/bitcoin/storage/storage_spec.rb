@@ -23,8 +23,9 @@ include Bitcoin::Validation
       @store.store_block(Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_2.bin')))
       @store.store_block(Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_3.bin')))
 
-      @store.store_tx(Bitcoin::Protocol::Tx.new(fixtures_file('rawtx-01.bin')))
-      @store.store_tx(Bitcoin::Protocol::Tx.new(fixtures_file('rawtx-02.bin')))
+
+      @store.store_tx(Bitcoin::Protocol::Tx.new(fixtures_file('rawtx-01.bin')), false)
+      @store.store_tx(Bitcoin::Protocol::Tx.new(fixtures_file('rawtx-02.bin')), false)
 
 
       @blk = Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_4.bin'))
@@ -121,28 +122,28 @@ include Bitcoin::Validation
     end
 
     it "should store tx" do
-      @store.store_tx(@tx).should != false
+      @store.store_tx(@tx, false).should != false
     end
 
     it "should not store tx if already stored and return existing id" do
-      id = @store.store_tx(@tx)
-      @store.store_tx(@tx).should == id
+      id = @store.store_tx(@tx, false)
+      @store.store_tx(@tx, false).should == id
     end
 
     it "should check if tx is already stored" do
       @store.has_tx(@tx.hash).should == false
-      @store.store_tx(@tx)
+      @store.store_tx(@tx, false)
       @store.has_tx(@tx.hash).should == true
     end
 
     it "should store hash160 for txout" do
-      @store.store_tx(@tx)
+      @store.store_tx(@tx, false)
       @store.get_tx(@tx.hash).out[0].hash160
         .should == "3129d7051d509424d23d533fa2d5258977e822e3"
     end
 
     it "should get tx" do
-      @store.store_tx(@tx)
+      @store.store_tx(@tx, false)
       @store.get_tx(@tx.hash).should == @tx
     end
 
@@ -165,47 +166,47 @@ include Bitcoin::Validation
     end
 
     it "should get tx for txin" do
-      @store.store_tx(@tx)
+      @store.store_tx(@tx, false)
       @store.get_tx(@tx.hash).in[0].get_tx.should == @tx
     end
 
     it "should get prev out for txin" do
       tx = Bitcoin::Protocol::Tx.new(fixtures_file('rawtx-f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16.bin'))
       outpoint_tx = Bitcoin::Protocol::Tx.new(fixtures_file('rawtx-0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9.bin'))
-      @store.store_tx(outpoint_tx)
-      @store.store_tx(tx)
+      @store.store_tx(outpoint_tx, false)
+      @store.store_tx(tx, false)
 
       @store.get_tx(tx.hash).in[0].get_prev_out.should == outpoint_tx.out[0]
     end
 
     it "should get tx for txout" do
-      @store.store_tx(@tx)
+      @store.store_tx(@tx, false)
       @store.get_tx(@tx.hash).out[0].get_tx.should == @tx
     end
 
     it "should get next in for txin" do
       tx = Bitcoin::Protocol::Tx.new(fixtures_file('rawtx-f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16.bin'))
       outpoint_tx = Bitcoin::Protocol::Tx.new(fixtures_file('rawtx-0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9.bin'))
-      @store.store_tx(outpoint_tx)
-      @store.store_tx(tx)
+      @store.store_tx(outpoint_tx, false)
+      @store.store_tx(tx, false)
 
       @store.get_tx(outpoint_tx.hash).out[0].get_next_in.should == tx.in[0]
     end
 
     it "should get txouts for hash160" do
-      @store.store_tx(@tx)
+      @store.store_tx(@tx, false)
       @store.get_txouts_for_hash160("3129d7051d509424d23d533fa2d5258977e822e3", true)
         .should == [@tx.out[0]]
     end
 
     it "should get txouts for address" do
-      @store.store_tx(@tx)
+      @store.store_tx(@tx, false)
       @store.get_txouts_for_address("mjzuXYR2fncbPzn9nR5Ee5gBgYk9UQx36x", true)
         .should == [@tx.out[0]]
     end
 
     it "should get balance for address" do
-      @store.store_tx(@tx)
+      @store.store_tx(@tx, false)
       @store.get_balance("62e907b15cbf27d5425399ebf6f0fb50ebb88f18").should == 5000000000
       @store.get_balance("4580f1b3632948202655fd555fdaaf9b9ef5ac0d").should == 0
     end
@@ -225,7 +226,7 @@ include Bitcoin::Validation
     end
 
     it "should index output script type" do
-      @store.store_tx(@tx)
+      @store.store_tx(@tx, false)
       @store.get_tx(@tx.hash).out.first.type.should == :hash160
     end
 
