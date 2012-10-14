@@ -268,7 +268,7 @@ module Bitcoin::Storage::Backends
         .map{|t| @db[:txout][:id => t[:txout_id]] }
         .map{|o| wrap_txout(o) }
       unless unconfirmed
-        txouts.select!{|o| o.get_tx.get_block.chain == MAIN rescue false }
+        txouts.select!{|o| @db[:blk][:id => o.get_tx.blk_id][:chain] == MAIN rescue false }
       end
       txouts
     end
