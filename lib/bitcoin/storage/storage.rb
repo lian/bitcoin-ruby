@@ -62,7 +62,7 @@ module Bitcoin::Storage
         existing = get_block(blk.hash)
         if existing && existing.chain == MAIN
           log.debug { "=> exists (#{existing.depth}, #{existing.chain})" }
-          return [existing.depth, existing.chain]
+          return [existing.depth]
         end
 
         prev_block = get_block(blk.prev_block.reverse_hth)

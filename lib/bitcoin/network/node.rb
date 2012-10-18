@@ -276,10 +276,11 @@ module Bitcoin::Network
         end
         while obj = @queue.shift
           begin
-            if @store.send("store_#{obj[0]}", obj[1])
+            if res = @store.send("store_#{obj[0]}", obj[1])
               if obj[0].to_sym == :block
-                block = @store.get_block(obj[1].hash)
-                @notifiers[:block].push([obj[1], block.depth])  if block.chain == 0
+                if res[1] == 0  && obj[1].hash == @store.get_head.hash
+                  @notifiers[:block].push([obj[1], res[0]])
+                end
               else
                 @notifiers[:tx].push([obj[1]])
               end
@@ -309,7 +310,6 @@ module Bitcoin::Network
           while inv = @inv_queue.shift
             next  if !@store.in_sync? && inv[0] == :tx
             next  if @queue.map{|i|i[1]}.map(&:hash).include?(inv[1])
-            # next  if @store.send("has_#{inv[0]}", inv[1])
             inv[2].send("send_getdata_#{inv[0]}", inv[1])
           end
         end
@@ -318,6 +318,12 @@ module Bitcoin::Network
 
     # queue inv, caching the most current ones
     def queue_inv inv
+      hash = inv[1].unpack("H*")[0]
+      return  if inv[0] == :tx
+      return  if @inv_queue.include?(inv) || @queue.select {|i| i[1].hash == hash }.any?
+
+      return  if @store.send("has_#{inv[0]}", hash)
+
       @inv_cache.shift(128)  if @inv_cache.size > @config[:max][:inv_cache]
       return  if @inv_cache.include?([inv[0], inv[1]]) ||
         @inv_queue.size >= @config[:max][:inv] ||
@@ -340,6 +346,7 @@ module Bitcoin::Network
 
     def relay_tx(tx)
       return false  unless @store.in_sync?
+      log.info { "relaying tx #{tx.hash}" }
       @store.store_tx(tx)
       @connections.select(&:connected?).sample((@connections.size / 2) + 1).each do |peer|
         peer.send_inv(:tx, tx)
@@ -352,7 +359,6 @@ module Bitcoin::Network
     def work_relay
       log.debug { "relay worker running" }
       @store.get_unconfirmed_tx.each do |tx|
-        log.info { "relaying tx #{tx.hash}" }
         relay_tx(tx)
       end
     end
