@@ -210,7 +210,9 @@ module Bitcoin::Validation
 
     KNOWN_EXCEPTIONS = [
       # p2sh with invalid inner script, accepted by old miner before 4-2012 switchover
-      "6a26d2ecb67f27d1fa5524763b49029d7106e91e3cc05743073461a719776192"
+      "6a26d2ecb67f27d1fa5524763b49029d7106e91e3cc05743073461a719776192",
+      # p2sh with invalid inner script, accepted by old miner before 4-2012 switchover (testnet)
+      "b3c19d78b4953b694717a47d9852f8ea1ccd4cf93a45ba2e43a0f97d7cdb2655"
     ]
 
     # setup new validator for given +tx+, validating context with +store+.
