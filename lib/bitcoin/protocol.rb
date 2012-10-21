@@ -60,13 +60,14 @@ module Bitcoin
       [(0...size).map{ i, payload = unpack_var_int(payload); i }, payload]
     end
 
+    BINARY = Encoding.find('ASCII-8BIT')
 
     def self.pkt(command, payload)
       cmd      = command.ljust(12, "\x00")[0...12]
       length   = [payload.bytesize].pack("I")
       checksum = Digest::SHA256.digest(Digest::SHA256.digest(payload))[0...4]
 
-      [Bitcoin.network[:magic_head], cmd, length, checksum, payload].join
+      [Bitcoin.network[:magic_head].force_encoding(BINARY), cmd.force_encoding(BINARY), length, checksum, payload.force_encoding(BINARY)].join
     end
 
     def self.version_pkt(from_id, from=nil, to=nil, last_block=nil, time=nil, user_agent=nil, version=nil)
