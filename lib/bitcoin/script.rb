@@ -241,7 +241,9 @@ class Bitcoin::Script
     rest.delete_at(0) if rest[0] == 0
 
     script = self.class.new(to_binary(rest) + script).inner_p2sh!
-    script.run(&check_callback)
+    result = script.run(&check_callback)
+    @debug = script.debug
+    result
   end
 
   def inner_p2sh!; @inner_p2sh = true; self; end
