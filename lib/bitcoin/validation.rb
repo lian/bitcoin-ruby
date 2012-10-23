@@ -40,7 +40,7 @@ module Bitcoin::Validation
     # rules:: which rulesets to validate (default: [:syntax, :context])
     # raise_errors:: whether to raise ValidationError on failure (default: false)
     def validate(opts = {})
-      return true if block.hash == Bitcoin.network[:genesis_hash]
+      return true  if KNOWN_EXCEPTIONS.include?(block.hash)
       opts[:rules] ||= [:syntax, :context]
 
       opts[:rules].each do |name|
@@ -176,6 +176,7 @@ module Bitcoin::Validation
     # end
 
     KNOWN_EXCEPTIONS = [
+      Bitcoin.network[:genesis_hash], # genesis block
       "00000000000a4d0a398161ffc163c503763b1f4360639393e0e4c8e300e0caec", # BIP30 exception
       "00000000000743f190a18c5577a3c2d2a1f610ae9601ac046a38084ccb7cd721", # BIP30 exception
     ]
@@ -194,7 +195,7 @@ module Bitcoin::Validation
     # rules:: which rulesets to validate (default: [:syntax, :context])
     # raise_errors:: whether to raise ValidationError on failure (default: false)
     def validate(opts = {})
-      return true  if matches_known_exception
+      return true  if KNOWN_EXCEPTIONS.include?(tx.hash)
       opts[:rules] ||= [:syntax, :context]
       opts[:rules].each do |name|
         store.log.info { "validating tx #{name} #{tx.hash} (#{tx.to_payload.bytesize} bytes)" }
@@ -219,11 +220,6 @@ module Bitcoin::Validation
     # also needs the +block+ to find prev_outs for chains of tx inside one block.
     def initialize tx, store, block = nil
       @tx, @store, @block = tx, store, block
-    end
-
-    # check if hash matches one of the KNOWN_EXCEPTIONS.
-    def matches_known_exception
-      KNOWN_EXCEPTIONS.include?(@tx.hash)
     end
 
     # check that tx hash matches data
