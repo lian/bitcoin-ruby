@@ -212,17 +212,39 @@ module Bitcoin
       bitcoin_hash(h)
     end
 
+    # get merkle tree for given +tx+ list.
     def hash_mrkl_tree(tx)
       return [nil]  if tx != tx.uniq
       chunks = [ tx.dup ]
       while chunks.last.size >= 2
-        chunks << chunks.last.each_slice(2).map{|i|
-          Bitcoin.bitcoin_mrkl( i[0], i[1] || i[0] )
-        }
+        chunks << chunks.last.each_slice(2).map {|a, b|
+          Bitcoin.bitcoin_mrkl( a, b || a ) }
       end
       chunks.flatten
     end
 
+    # get merkle branch connecting given +target+ to the merkle root of +tx+ list
+    def hash_mrkl_branch(tx, target)
+      return [ nil ]  if tx != tx.uniq
+      branch, chunks = [], [ tx.dup ]
+      while chunks.last.size >= 2
+        chunks << chunks.last.each_slice(2).map {|a, b|
+          hash = Bitcoin.bitcoin_mrkl( a, b || a )
+          next hash  unless [a, b].include?(target)
+          branch << (a == target ? (b || a) : a)
+          target = hash
+        }
+      end
+      branch
+    end
+
+    # get merkle root from +branch+ and +target+.
+    def mrkl_branch_root(branch, target, idx)
+      branch.map do |hash|
+        a, b = *( idx & 1 == 0 ? [target, hash] : [hash, target] )
+        idx >>= 1; target = Bitcoin.bitcoin_mrkl( a, b )
+      end.last
+    end
 
     def sign_data(key, data)
       key.dsa_sign_asn1(data)

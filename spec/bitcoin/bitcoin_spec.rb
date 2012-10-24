@@ -164,6 +164,7 @@ describe 'Bitcoin Address/Hash160/PubKey' do
 
       "688c53517f62f7a65c0e87519c18a4de98f2ccafbf389b269d0bb867f88d166a",
       "01889506f7fe9210045f588361881e2d16a034a62bc48ebd7b6b0a3edeaf5a6d",
+
       "74f3a7df861d6a58957b84a3e425a8cf57e1e2e3a3def046dd200baeb8714f00"
     ]
 
@@ -173,6 +174,10 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     Bitcoin.bitcoin_mrkl( mrkl_tree[2], mrkl_tree[2] ).should == mrkl_tree[4]
     Bitcoin.bitcoin_mrkl( mrkl_tree[3], mrkl_tree[4] ).should == mrkl_tree[5]
 
+    mrkl_tree[0...3].each.with_index do |target, idx|
+      branch = Bitcoin.hash_mrkl_branch( mrkl_tree[0...3], target )
+      Bitcoin.mrkl_branch_root( branch, target, idx ).should == mrkl_tree[-1]
+    end
 
     mrkl_tree = [
       "349f717b6630e1f305f95964a2d94117dacca76e0b715d4d7a5657698ec96c6c", # 0
@@ -203,6 +208,10 @@ describe 'Bitcoin Address/Hash160/PubKey' do
 
     Bitcoin.hash_mrkl_tree(mrkl_tree[0...6]).should == mrkl_tree
 
+    mrkl_tree[0...5].each.with_index do |target, idx|
+      branch = Bitcoin.hash_mrkl_branch( mrkl_tree[0..5], target )
+      Bitcoin.mrkl_branch_root( branch, target, idx ).should == mrkl_tree[-1]
+    end
 
     mrkl_tree = [
       "627c859b5af6d537930fd16148eb0597542bea543f65fc2b0e5f188b5a458529", # 0
@@ -247,6 +256,12 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     Bitcoin.bitcoin_mrkl( mrkl_tree[17], mrkl_tree[18] ).should == mrkl_tree[19]
 
     Bitcoin.hash_mrkl_tree(mrkl_tree[0...9]).should == mrkl_tree
+
+    mrkl_tree[0..8].each.with_index do |target, idx|
+      branch = Bitcoin.hash_mrkl_branch( mrkl_tree[0..8], target )
+      Bitcoin.mrkl_branch_root( branch, target, idx ).should == mrkl_tree[-1]
+    end
+
   end
 
   it 'should not allow duplicate hash in merkle trees' do
