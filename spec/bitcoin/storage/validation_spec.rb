@@ -12,14 +12,16 @@ describe "block rules" do
 
   before do
     Bitcoin.network = :testnet
-    Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("f"*64)
-
     @store = Bitcoin::Storage.sequel(:db => "sqlite:/")
     @store.log.level = :warn
-    @block0 = Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_0.bin'))
-    @store.store_block(@block0)
+    Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("f"*64)
     @key = Bitcoin::Key.generate
+    @block0 = create_block "00"*32, false, [], @key
+    Bitcoin.network[:genesis_hash] = @block0.hash
+    @store.store_block(@block0)
+    @store.get_head.should == @block0
     @block1 = create_block @block0.hash, true, [], @key
+    @store.get_head.should == @block1
     @block = create_block @block1.hash, false
   end
 
@@ -70,12 +72,12 @@ describe "block rules" do
     check_block(@block, /mrkl_root/) {|b| b.mrkl_root = "\x00" * 32 }
   end
 
-  # it "12. Check that nBits value matches the difficulty rules" do
-  #   block = create_block @block0.hash, false
-  #   Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("0000#{"ff"*30}")
-  #   -> { block.validator(@store).validate! }
-  #     .should.raise(ValidationError).message.should =~ /difficulty/
-  # end
+  it "12. Check that nBits value matches the difficulty rules" do
+    block = create_block @block1.hash, false, [], @key
+    Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("0000#{"ff"*30}")
+    -> { block.validator(@store).validate(raise_errors: true) }
+      .should.raise(ValidationError).message.should =~ /difficulty/
+  end
 
   it "should allow chains of unconfirmed transactions" do
     tx1 = tx {|t| create_tx(t, @block1.tx.first, 0, [[50, @key]]) }
@@ -113,10 +115,15 @@ describe "tx rules" do
     Bitcoin.network = :testnet
     @store = Bitcoin::Storage.sequel(:db => "sqlite:/")
     @store.log.level = :warn
-    @block0 = Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_0.bin'))
-    @store.store_block(@block0)
+
+    Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("f"*64)
     @key = Bitcoin::Key.generate
+    @block0 = create_block "00"*32, false, [], @key
+    Bitcoin.network[:genesis_hash] = @block0.hash
+    @store.store_block(@block0)
+    @store.get_head.should == @block0
     @block1 = create_block @block0.hash, true, [], @key
+    @store.get_head.should == @block1
     @tx = tx {|t| create_tx(t, @block1.tx.first, 0, [[50, @key]]) }
   end
 

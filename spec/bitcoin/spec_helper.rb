@@ -27,7 +27,7 @@ end
 # if +store+ is true, save it to @store
 # accepts an array of +tx+ callbacks
 def create_block prev, store = true, tx = [], key = Bitcoin::Key.new, coinbase_value = 50e8
-  block = blk do |b|
+  block = blk(Bitcoin.decode_compact_bits(Bitcoin.network[:proof_of_work_limit])) do |b|
     b.prev_block prev
     b.tx do |t|
       t.input {|i| i.coinbase }

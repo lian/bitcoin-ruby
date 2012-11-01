@@ -13,8 +13,12 @@ describe "reorg" do
     @store = Bitcoin::Storage.sequel(:db => "sqlite:/")
     def @store.in_sync?; true; end
     @store.log.level = :warn
-    @block0 = Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_0.bin'))
+    Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("f"*64)
+    @key = Bitcoin::Key.generate
+    @block0 = create_block "00"*32, false, [], @key
+    Bitcoin.network[:genesis_hash] = @block0.hash
     @store.store_block(@block0)
+    @store.get_head.should == @block0
   end
 
   it "should reorg a single side block" do
@@ -83,11 +87,9 @@ describe "reorg" do
     Bitcoin.network = :testnet
     blocks = [@block0]
     3.times { blocks << create_block(blocks.last.hash, false) }
-    3.times do
-      @store.store_block(blocks[1]).should == [1, 0]
-      @store.store_block(blocks[2]).should == [2, 0]
-      @store.get_head.should == blocks[2]
-    end
+    blocks[1..-1].each.with_index {|b, idx| @store.store_block(b).should == [idx+1, 0] }
+    3.times {|i| @store.store_block(blocks[i]).should == [i] }
+    @store.get_head.should == blocks[-1]
   end
 
   # see https://bitcointalk.org/index.php?topic=46370.0

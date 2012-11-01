@@ -117,7 +117,7 @@ module Bitcoin::Validation
 
     # check that bits satisfy required difficulty
     def difficulty
-      true # next_bits_required == block.bits
+      next_bits_required == block.bits
     end
 
     # check that timestamp is not too old
@@ -154,26 +154,26 @@ module Bitcoin::Validation
       @tx_validators ||= block.tx[1..-1].map {|tx| tx.validator(store, block) }
     end
 
-    # def next_bits_required
-    #   limit = Bitcoin.network[:proof_of_work_limit]
-    #   return limit  if prev_block.hash == Bitcoin.network[:genesis_hash]
-    #   return block.bits  if (prev_block.depth + 1) % RETARGET != 0
+    def next_bits_required
+      index = (prev_block.depth + 1) / 2016
+      max_target = Bitcoin.decode_compact_bits(Bitcoin.network[:proof_of_work_limit]).to_i(16)
 
-    #   target = 2 * 60 * 60 * 24
-    #   min = target / 4
-    #   max = target * 4
-    #   diff = prev_block.time - store.get_block_by_depth(prev_block.depth - RETARGET + 1).time
-    #   diff = min  if diff < min
-    #   diff = max  if diff > max
+      return Bitcoin.network[:proof_of_work_limit]  if index == 0
+      first = store.db[:blk][depth: (index-1)*2016, chain: 0]
+      last = store.db[:blk][depth: index*2016-1, chain: 0]
 
-    #   retarget = Bitcoin.decode_compact_bits(prev_block.bits).to_i(16) * diff / target
+      nActualTimespan = last[:time] - first[:time]
+      nTargetTimespan = 14*24*60*60
+      nActualTimespan = [nActualTimespan, nTargetTimespan/4].max
+      nActualTimespan = [nActualTimespan, nTargetTimespan*4].min
 
-    #   if retarget > Bitcoin.decode_compact_bits(limit).to_i(16)
-    #     limit
-    #   else
-    #     Bitcoin.encode_compact_bits(retarget.to_s(16))
-    #   end
-    # end
+      target = Bitcoin.decode_compact_bits(last[:bits]).to_i(16)
+      new_target = [max_target, (target * nActualTimespan)/nTargetTimespan].min
+      Bitcoin.encode_compact_bits new_target.to_s(16)
+    rescue
+      p $!
+      binding.pry
+    end
 
     KNOWN_EXCEPTIONS = [
       Bitcoin.network[:genesis_hash], # genesis block

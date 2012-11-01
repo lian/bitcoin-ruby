@@ -23,13 +23,14 @@ include Bitcoin::Validation
       @store.store_block(Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_2.bin')))
       @store.store_block(Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_3.bin')))
 
-
       @store.store_tx(Bitcoin::Protocol::Tx.new(fixtures_file('rawtx-01.bin')), false)
       @store.store_tx(Bitcoin::Protocol::Tx.new(fixtures_file('rawtx-02.bin')), false)
 
-
       @blk = Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_4.bin'))
       @tx = Bitcoin::Protocol::Tx.new(fixtures_file('rawtx-03.bin'))
+
+      class Bitcoin::Validation::Block; def difficulty; true; end; end
+      Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("f"*64)
     end
 
     it "should get depth" do
