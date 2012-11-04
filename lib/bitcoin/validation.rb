@@ -198,7 +198,7 @@ module Bitcoin::Validation
       return true  if KNOWN_EXCEPTIONS.include?(tx.hash)
       opts[:rules] ||= [:syntax, :context]
       opts[:rules].each do |name|
-        store.log.info { "validating tx #{name} #{tx.hash} (#{tx.to_payload.bytesize} bytes)" }
+        store.log.debug { "validating tx #{name} #{tx.hash} (#{tx.to_payload.bytesize} bytes)" }
         RULES[name].each.with_index do |rule, i|
           unless send(rule)
             raise ValidationError, "tx error: #{name} check #{i} - #{rule} failed"  if opts[:raise_errors]
@@ -269,8 +269,11 @@ module Bitcoin::Validation
     # check that all prev_outs exist
     # (and are in a block in the main chain, or the current block; see #prev_txs)
     def prev_out
-      return false  unless prev_txs.size == tx.in.size
-      tx.in.reject.with_index {|txin, idx| prev_txs[idx].out[txin.prev_out_index] rescue false }.empty?
+      missing = tx.in.reject.with_index {|txin, idx|
+        prev_txs[idx].out[txin.prev_out_index] rescue false }
+      return true  if prev_txs.size == tx.in.size && missing.empty?
+      missing.each {|i| store.log.warn { "prev out #{i.prev_out.reverse_hth}:#{i.prev_out_index}" } }
+      false
     end
 
     # TODO: validate coinbase maturity
