@@ -63,7 +63,7 @@ module Bitcoin::Network
         :inv_queue => 5,
         :addrs => 5,
         :connect => 15,
-        :relay => 600,
+        :relay => 0,
       },
     }
 
@@ -143,7 +143,7 @@ module Bitcoin::Network
       init_epoll  if @config[:epoll]
 
       EM.run do
-        [:addrs, :connect, :relay].each do |name|
+        [:queue, :inv_queue, :addrs, :connect, :relay].each do |name|
           interval = @config[:intervals][name]
           next  if !interval || interval == 0
           @timers[name] = EM.add_periodic_timer(interval, method("work_#{name}"))
@@ -167,8 +167,6 @@ module Bitcoin::Network
 
         work_connect if @addrs.any?
         connect_dns  if @config[:dns]
-        work_inv_queue
-        work_queue
       end
     end
 
@@ -269,31 +267,29 @@ module Bitcoin::Network
     # check for new items in the queue and process them
     def work_queue
       @log.debug { "queue worker running" }
-      EM.defer(nil, proc { work_queue }) do
-        if @queue.size == 0
-          getblocks  if @inv_queue.size == 0 && !@store.in_sync?
-          sleep @config[:intervals][:queue]
-        end
-        while obj = @queue.shift
-          begin
-            if res = @store.send("store_#{obj[0]}", obj[1])
-              if obj[0].to_sym == :block
-                if res[1] == 0  && obj[1].hash == @store.get_head.hash
-                  @notifiers[:block].push([obj[1], res[0]])
-                end
-              else
-                @notifiers[:tx].push([obj[1]])
+      if @queue.size == 0
+        getblocks  if @inv_queue.size == 0 && !@store.in_sync?
+        return
+      end
+      while obj = @queue.shift
+        begin
+          if res = @store.send("store_#{obj[0]}", obj[1])
+            if obj[0].to_sym == :block
+              if res[1] == 0  && obj[1].hash == @store.get_head.hash
+                @notifiers[:block].push([obj[1], res[0]])
               end
+            else
+              @notifiers[:tx].push([obj[1]])
             end
-          rescue Bitcoin::Validation::ValidationError
-            @log.warn { "ValiationError storing #{obj[0]} #{obj[1].hash}: #{$!.message}" }
-            # File.open("./validation_error_#{obj[0]}_#{obj[1].hash}.bin", "w") {|f|
-            #   f.write(obj[1].to_payload) }
-            # EM.stop
-          rescue
-            @log.warn { $!.inspect }
-            puts *$@
           end
+        rescue Bitcoin::Validation::ValidationError
+          @log.warn { "ValiationError storing #{obj[0]} #{obj[1].hash}: #{$!.message}" }
+          # File.open("./validation_error_#{obj[0]}_#{obj[1].hash}.bin", "w") {|f|
+          #   f.write(obj[1].to_payload) }
+          # EM.stop
+        rescue
+          @log.warn { $!.inspect }
+          puts *$@
         end
       end
     end
@@ -301,18 +297,13 @@ module Bitcoin::Network
     # check for new items in the inv queue and process them,
     # unless the queue is already full
     def work_inv_queue
-      EM.defer(nil, proc { work_inv_queue }) do
-        sleep @config[:intervals][:inv_queue]  if @inv_queue.size == 0
-        @log.debug { "inv queue worker running" }
-        if @queue.size >= @config[:max][:queue]
-          sleep @config[:intervals][:inv_queue]
-        else
-          while inv = @inv_queue.shift
-            next  if !@store.in_sync? && inv[0] == :tx
-            next  if @queue.map{|i|i[1]}.map(&:hash).include?(inv[1])
-            inv[2].send("send_getdata_#{inv[0]}", inv[1])
-          end
-        end
+      return  if @inv_queue.size == 0
+      @log.debug { "inv queue worker running" }
+      return  if @queue.size >= @config[:max][:queue]
+      while inv = @inv_queue.shift
+        next  if !@store.in_sync? && inv[0] == :tx
+        next  if @queue.map{|i|i[1]}.map(&:hash).include?(inv[1])
+        inv[2].send("send_getdata_#{inv[0]}", inv[1])
       end
     end
 
