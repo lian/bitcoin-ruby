@@ -40,6 +40,14 @@ module Bitcoin::Storage
       # orphan branch (not connected to main branch / genesis block)
       ORPHAN = 2
 
+      CHECKPOINTS = {
+        1 => "00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048",
+        50000 => "000000001aeae195809d120b5d66a39c83eb48792e068f8ea1fea19d84a4278a",
+        100000 => "000000000003ba27aa200b1cecaad478d2b00432346c3f1f3986da1afd33e506",
+        150000 => "0000000000000a3290f20e75860d505ce0e948a1d1d846bec7e39015d242884b",
+        200000 => "000000000000034a7dedef4a161fa058a2d67a173a90155f3a2fe6fc132e0ebf",
+      }
+
       attr_reader :log
 
       def initialize(config = {}, getblocks_callback = nil)
@@ -81,10 +89,19 @@ module Bitcoin::Storage
           end
         end
         depth = prev_block.depth + 1
+
+        checkpoint = CHECKPOINTS[depth]
+        if checkpoint && blk.hash != checkpoint
+          log.warn "Block #{depth} doesn't match checkpoint #{checkpoint}"
+          exit
+        end
+
         if prev_block.chain == MAIN
           if prev_block == get_head
             log.debug { "=> main (#{depth})" }
-            validator.validate(rules: [:context], raise_errors: true)
+            if depth > CHECKPOINTS.keys.last
+              validator.validate(rules: [:context], raise_errors: true)
+            end
             return persist_block(blk, MAIN, depth)
           else
             log.debug { "=> side (#{depth})" }

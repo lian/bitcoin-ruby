@@ -51,6 +51,8 @@ end
 
 Bitcoin::network = :bitcoin
 
+Bitcoin::Storage::Backends::StoreBase::CHECKPOINTS = {-1 => ""}
+
 begin
   require 'bacon'
 rescue LoadError
