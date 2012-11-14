@@ -125,9 +125,9 @@ module Bitcoin
             else;                     input.to_payload("")
             end
           end
-        }.join
+        }
 
-        pout = @out.map(&:to_payload).join
+        pout = @out.map(&:to_payload)
 
         case hash_type
         when SIGHASH_TYPE[:none]
@@ -135,6 +135,10 @@ module Bitcoin
           in_size, out_size = Protocol.pack_var_int(@in.size), Protocol.pack_var_int(0)
         else
           in_size, out_size = Protocol.pack_var_int(@in.size), Protocol.pack_var_int(@out.size)
+        end
+
+        if (hash_type & SIGHASH_TYPE[:anyonecanpay]) != 0
+          in_size, pin = Protocol.pack_var_int(1), [ pin[input_idx] ]
         end
 
         buf = [ [@ver].pack("I"), in_size, pin, out_size, pout, [@lock_time, hash_type].pack("II") ].join

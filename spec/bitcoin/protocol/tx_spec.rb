@@ -138,6 +138,13 @@ describe 'Tx' do
     outpoint_tx = Bitcoin::Protocol::Tx.from_json(fixtures_file('aea682d68a3ea5e3583e088dcbd699a5d44d4b083f02ad0aaf2598fe1fa4dfd4.json'))
     outpoint_tx.hash.should == 'aea682d68a3ea5e3583e088dcbd699a5d44d4b083f02ad0aaf2598fe1fa4dfd4'
     tx.verify_input_signature(0, outpoint_tx).should == true
+
+    # SIGHASH_ANYONECANPAY transaction
+    tx = Bitcoin::Protocol::Tx.from_json(fixtures_file('51bf528ecf3c161e7c021224197dbe84f9a8564212f6207baa014c01a1668e1e.json'))
+    tx.hash.should == '51bf528ecf3c161e7c021224197dbe84f9a8564212f6207baa014c01a1668e1e'
+    outpoint_tx = Bitcoin::Protocol::Tx.from_json(fixtures_file('761d8c5210fdfd505f6dff38f740ae3728eb93d7d0971fb433f685d40a4c04f6.json'))
+    outpoint_tx.hash.should == '761d8c5210fdfd505f6dff38f740ae3728eb93d7d0971fb433f685d40a4c04f6'
+    tx.verify_input_signature(0, outpoint_tx).should == true
   end
 
   it '#sign_input_signature' do
