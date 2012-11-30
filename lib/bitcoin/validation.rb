@@ -120,9 +120,13 @@ module Bitcoin::Validation
       next_bits_required == block.bits
     end
 
-    # check that timestamp is not too old
+    # check that timestamp is newer than the median of the last 11 blocks
     def min_timestamp
-      true # TODO
+      return true  if store.get_depth <= 11
+      d = store.get_depth
+      times = store.db[:blk].where(chain: 0, depth: (d-10..d)).map {|b| b[:time] }.sort
+      mid, rem = times.size.divmod(2)
+      block.time > (rem == 0 ? times[mid-1, 2].inject(:+) / 2.0 : times[mid])
     end
 
     # check transactions

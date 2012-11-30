@@ -79,6 +79,20 @@ describe "block rules" do
       .should.raise(ValidationError).message.should =~ /difficulty/
   end
 
+  it "13. Reject if timestamp is the median time of the last 11 blocks or before" do
+    prev_block = @block1
+    12.times do |i|
+      prev_block = create_block(prev_block.hash, false, [])
+      prev_block.time = Time.now.to_i - (12-i)
+      prev_block.recalc_block_hash
+      @store.store_block(prev_block).should == [i+2, 0]
+    end
+    block = create_block(prev_block.hash, false, [], @key)
+    check_block(block, /min_timestamp/) {|b| b.time = Time.now.to_i - 100 }
+    check_block(block, /min_timestamp/) {|b| b.time = @store.get_block_by_depth(8).time }
+    @store.store_block(block).should == [14, 0]
+  end
+
   it "should allow chains of unconfirmed transactions" do
     tx1 = tx {|t| create_tx(t, @block1.tx.first, 0, [[50, @key]]) }
     tx2 = tx {|t| create_tx(t, tx1, 0, [[50, @key]]) }
