@@ -55,13 +55,22 @@ module Bitcoin
     # In case the key was initialized with only
     # a private key, the public key is regenerated.
     def pub
-      unless @key.public_key
-        if @key.private_key
-          set_pub(Bitcoin::OpenSSL_EC.regenerate_key(priv)[1])
-        else
-          return nil
-        end
-      end
+      @pubkey_compressed ? pub_compressed : pub_uncompressed
+    end
+
+    def pub_compressed
+      regenerate_pubkey unless @key.public_key
+      return nil        unless @key.public_key
+      @key.public_key.group.point_conversion_form = :compressed
+      hex = @key.public_key.to_hex.rjust(66, '0')
+      @key.public_key.group.point_conversion_form = :uncompressed
+      hex
+    end
+
+    def pub_uncompressed
+      regenerate_pubkey unless @key.public_key
+      return nil        unless @key.public_key
+      @key.public_key.group.point_conversion_form = :uncompressed
       @key.public_key.to_hex.rjust(130, '0')
     end
 
@@ -106,6 +115,7 @@ module Bitcoin
 
     # Regenerate public key from the private key.
     def regenerate_pubkey
+      return nil unless @key.private_key
       set_pub(Bitcoin::OpenSSL_EC.regenerate_key(priv)[1])
     end
 
@@ -116,6 +126,7 @@ module Bitcoin
 
     # Set +pub+ as the new public key (converting from hex).
     def set_pub(pub)
+      @pubkey_compressed ||= pub[0..1] == "03"
       @key.public_key = OpenSSL::PKey::EC::Point.from_hex(@key.group, pub)
     end
 

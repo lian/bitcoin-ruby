@@ -63,8 +63,8 @@ describe "Bitcoin::Key" do
 
   it "should verify signature" do
     sig = @key.sign("foobar")
-    key2 = Bitcoin::Key.new(nil, @key.pub)
-    @key.verify("foobar", sig).should == true
+    key = Bitcoin::Key.new(nil, @key.pub)
+    key.verify("foobar", sig).should == true
   end
 
   it "should export private key in base58 format" do
@@ -88,6 +88,24 @@ describe "Bitcoin::Key" do
     key.addr.should == "n3eH91H14mSnGx4Va2ngtLFCeLPRyYymRg"
     Bitcoin.network = :bitcoin
   end
+
+
+ it "should hanlde compressed and uncompressed pubkeys" do
+   compressed   = "0351efb6e91a31221652105d032a2508275f374cea63939ad72f1b1e02f477da78"
+   uncompressed = "0451efb6e91a31221652105d032a2508275f374cea63939ad72f1b1e02f477da787f71a2e8ac5aacedab47904d4bd42f636429e9ce069ebcb99f675aad31306a53"
+   Bitcoin::Key.new(nil, compressed).pub.should  == compressed
+   Bitcoin::Key.new(nil, compressed).addr.should == "1NdB761LmTmrJixxp93nz7pEiCx5cKPW44"
+   Bitcoin::Key.new(nil, uncompressed).pub.should == uncompressed
+   Bitcoin::Key.new(nil, uncompressed).addr.should == "19FBCg9295EBQ4P6bSLTGyz2BdbbPcqQD"
+
+   key = Bitcoin::Key.new(nil, compressed)
+   key.pub_compressed.should   == compressed
+   key.pub_uncompressed.should == uncompressed
+
+   sig = @key.sign(msg="foobar")
+   Bitcoin::Key.new(nil, @key.pub_compressed  ).verify(msg, sig).should == true
+   Bitcoin::Key.new(nil, @key.pub_uncompressed).verify(msg, sig).should == true
+ end
 
 end
 
