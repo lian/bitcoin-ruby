@@ -317,7 +317,14 @@ class Bitcoin::Script
 
   # get the pubkey addresses for this multisig script
   def get_multisig_addresses
-    get_multisig_pubkeys.map {|p| Bitcoin::Key.new(nil, p.unpack("H*")[0]).addr}
+    addrs = []
+    get_multisig_pubkeys.each{|pub|
+      begin
+        addrs << Bitcoin::Key.new(nil, pub.unpack("H*")[0]).addr
+      rescue OpenSSL::PKey::ECError, OpenSSL::PKey::EC::Point::Error
+      end
+    }
+    addrs
   end
 
   # get all addresses this script corresponds to (if possible)

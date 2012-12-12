@@ -101,6 +101,10 @@ describe 'Bitcoin::Script' do
         "1B6k6g1d2L975i7beAbiBRxfBWhxomPxvy"]
       Script.new(SCRIPT[4]).get_multisig_addresses.should == [
         "1F2Nnyn7niMcheiYhkHrkc18aDxEkFowy5", "1EE7JGimkV7QqyHwXDJvk3b1yEN4ZUWeqx"]
+
+      # from tx 274f8be3b7b9b1a220285f5f71f61e2691dd04df9d69bb02a8b3b85f91fb1857, second pubkey has invalid encoding.
+      output = "1 0351efb6e91a31221652105d032a2508275f374cea63939ad72f1b1e02f477da78 00f2b7816db49d55d24df7bdffdbc1e203b424e8cd39f5651ab938e5e4a193569e 2 OP_CHECKMULTISIG"
+      Bitcoin::Script.from_string(output).get_multisig_addresses.should == ["1NdB761LmTmrJixxp93nz7pEiCx5cKPW44"]
     end
 
     it "#get_address" do
