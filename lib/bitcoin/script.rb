@@ -32,7 +32,7 @@ class Bitcoin::Script
   OP_SHA256       = 168
   OP_SHA1         = 167
   OP_RIPEMD160    = 166
-  OP_EVAL         = 176
+  OP_NOP1         = 176
   OP_NOP2         = 177
   OP_CHECKHASHVERIFY = 177
   OP_CODESEPARATOR = 171
@@ -55,7 +55,7 @@ class Bitcoin::Script
   OPCODES_ALIAS = {
     "OP_TRUE"  => OP_1,
     "OP_FALSE" => OP_0,
-    "OP_NOP1" => OP_EVAL,
+    "OP_EVAL" => OP_NOP1,
     "OP_NOP2" => OP_CHECKHASHVERIFY
   }
 
@@ -209,7 +209,7 @@ class Bitcoin::Script
 
     @debug << "RESULT"
     return false if @stack.empty?
-    return false if @stack.pop == 0
+    return false if [0, ''].include?(@stack.pop)
     true
   end
 
@@ -645,6 +645,11 @@ class Bitcoin::Script
       }}
 
     @stack << ((valid_sigs == n_sigs) ? 1 : (invalid; 0))
+  end
+
+  # op_eval: https://en.bitcoin.it/wiki/BIP_0012
+  #   the BIP was never accepted and must be handled as old OP_NOP1
+  def op_nop1
   end
 
   OPCODES_METHOD = Hash[*instance_methods.grep(/^op_/).map{|m|

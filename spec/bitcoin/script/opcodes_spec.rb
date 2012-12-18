@@ -421,4 +421,10 @@ describe "Bitcoin::Script OPCODES" do
     script.type.should == :p2sh
   end
 
+  it "should skip OP_EVAL" do
+    Bitcoin::Script.from_string("1 OP_EVAL").to_string.should == "1 OP_NOP1"
+    Bitcoin::Script.from_string("1 OP_EVAL").run.should == true
+    Bitcoin::Script.from_string("0 OP_EVAL").run.should == false
+  end
+
 end

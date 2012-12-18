@@ -25,7 +25,7 @@ describe 'Bitcoin::Script' do
         "304402204e45e16932b8af514961a1d3a1a25fdf3f4f7732e9d624c6c61548ab5fb8cd410220181522ec8eca07de4860a4acdd12909d831cc56cbbac4622082221a8768d1d0901"
 
       Script.new([123].pack("C")).to_string.should == "(opcode 123)"
-      Script.new([176].pack("C")).to_string.should == "OP_EVAL"
+      Script.new([176].pack("C")).to_string.should == "OP_NOP1"
 
       Script.from_string("1 OP_DROP 2").to_string.should == "1 OP_DROP 2"
     end
@@ -45,8 +45,8 @@ describe 'Bitcoin::Script' do
 
       Script.from_string("0 OP_DROP 2 3 4").to_string.should == "0 OP_DROP 2 3 4"
 
-      Script.from_string("OP_EVAL").to_string.should == "OP_EVAL"
-      Script.from_string("OP_NOP1").to_string.should == "OP_EVAL" # test opcodes_alias table
+      Script.from_string("OP_EVAL").to_string.should == "OP_NOP1"
+      Script.from_string("OP_NOP1").to_string.should == "OP_NOP1" # test opcodes_alias table
       Script.from_string("OP_NOP").to_string.should == "OP_NOP"
       Script.from_string("1").to_string.should == "1"
 
