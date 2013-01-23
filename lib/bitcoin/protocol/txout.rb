@@ -40,6 +40,10 @@ module Bitcoin
         buf
       end
 
+      def to_null_payload
+        Txout.new(-1, '').to_payload
+      end
+
       def to_hash
         { 'value' => "%.8f" % (@value / 100000000.0),
           'scriptPubKey' => Bitcoin::Script.new(@pk_script).to_string }

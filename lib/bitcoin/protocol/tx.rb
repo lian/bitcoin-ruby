@@ -120,21 +120,24 @@ module Bitcoin
             #p Bitcoin::Script.new(script_pubkey).to_string
             input.to_payload(script_pubkey)
           else
-            case hash_type
-            when SIGHASH_TYPE[:none]; input.to_payload("", "\x00\x00\x00\x00")
-            else;                     input.to_payload("")
+            case (hash_type & 0x1f)
+            when SIGHASH_TYPE[:none];   input.to_payload("", "\x00\x00\x00\x00")
+            when SIGHASH_TYPE[:single]; input.to_payload("", "\x00\x00\x00\x00")
+            else;                       input.to_payload("")
             end
           end
         }
 
         pout = @out.map(&:to_payload)
+        in_size, out_size = Protocol.pack_var_int(@in.size), Protocol.pack_var_int(@out.size)
 
-        case hash_type
+        case (hash_type & 0x1f)
         when SIGHASH_TYPE[:none]
           pout = ""
-          in_size, out_size = Protocol.pack_var_int(@in.size), Protocol.pack_var_int(0)
-        else
-          in_size, out_size = Protocol.pack_var_int(@in.size), Protocol.pack_var_int(@out.size)
+          out_size = Protocol.pack_var_int(0)
+        when SIGHASH_TYPE[:single]
+          pout = @out[0...(input_idx+1)].map.with_index{|out,idx| (idx==input_idx) ? out.to_payload : out.to_null_payload }.join
+          out_size = Protocol.pack_var_int(input_idx+1)
         end
 
         if (hash_type & SIGHASH_TYPE[:anyonecanpay]) != 0
