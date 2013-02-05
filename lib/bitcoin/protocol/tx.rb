@@ -150,13 +150,13 @@ module Bitcoin
 
       # verify input signature +in_idx+ against the corresponding
       # output in +outpoint_tx+
-      def verify_input_signature(in_idx, outpoint_tx)
+      def verify_input_signature(in_idx, outpoint_tx, block_timestamp=Time.now.to_i)
         outpoint_idx  = @in[in_idx].prev_out_index
         script_sig    = @in[in_idx].script_sig
         script_pubkey = outpoint_tx.out[outpoint_idx].pk_script
         script        = script_sig + script_pubkey
 
-        Bitcoin::Script.new(script).run do |pubkey,sig,hash_type,drop_sigs,script|
+        Bitcoin::Script.new(script).run(block_timestamp) do |pubkey,sig,hash_type,drop_sigs,script|
           # this IS the checksig callback, must return true/false
           hash = signature_hash_for_input(in_idx, outpoint_tx, nil, hash_type, drop_sigs, script)
           #hash = signature_hash_for_input(in_idx, nil, script_pubkey, hash_type, drop_sigs, script)

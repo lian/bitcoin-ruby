@@ -172,8 +172,13 @@ class Bitcoin::Script
   end
 
   # run the script. +check_callback+ is called for OP_CHECKSIG operations
-  def run(&check_callback)
-    return pay_to_script_hash(check_callback)  if is_p2sh?
+  def run(block_timestamp=Time.now.to_i, &check_callback)
+    #p [to_string, block_timestamp, is_p2sh?]
+
+    if block_timestamp >= 1333238400 # Pay to Script Hash (BIP 0016)
+      return pay_to_script_hash(check_callback)  if is_p2sh?
+    end
+
     @debug = []
     @chunks.each{|chunk|
       break if invalid?
