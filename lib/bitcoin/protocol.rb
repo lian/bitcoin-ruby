@@ -16,7 +16,7 @@ module Bitcoin
     autoload :Handler, 'bitcoin/protocol/handler'
     autoload :Parser,  'bitcoin/protocol/parser'
 
-    VERSION = 60001
+    VERSION = 60002
 
     DNS_Seed = [ "bitseed.xf2.org", "bitseed.bitcoin.org.uk" ]
     Uniq = rand(0xffffffffffffffff)
