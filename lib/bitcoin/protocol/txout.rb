@@ -68,6 +68,7 @@ module Bitcoin
       # create output spending +value+ btc (base units) to +address+
       def self.value_to_address(value, address)
         pk_script = Bitcoin::Script.to_address_script(address)
+        raise "Script#pk_script nil with address #{address}" unless pk_script
         new(value, pk_script)
       end
 
