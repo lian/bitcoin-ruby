@@ -81,6 +81,7 @@ module Bitcoin
         when 'getblocks';   @h.on_getblocks(*parse_getblocks(payload))
         when 'getheaders';  @h.on_getheaders(*parse_getblocks(payload))
         when 'mempool';  handle_mempool_request(payload)
+        when 'notfound'; handle_notfound_reply(payload)
         else
           p ['unkown-packet', command, payload]
         end
@@ -101,6 +102,20 @@ module Bitcoin
         return unless @version[:version] >= 60002           # Protocol version >= 60002
         return unless (@version[:services] & (1 << 0)) == 1 # NODE_NETWORK bit set in Services
         @h.on_mempool if @h.respond_to?(:on_mempool)
+      end
+
+      def handle_notfound_reply(payload)
+        return unless @h.respond_to?(:on_notfound)
+        count, payload = Protocol.unpack_var_int(payload)
+        payload.each_byte.each_slice(36){|i|
+          hash = i[4..-1].reverse.pack("C32")
+          case i[0]
+          when 1; @h.on_notfound(:tx, hash)
+          when 2; @h.on_notfound(:block, hash)
+          else
+            p ['handle_notfound_reply error', i, hash]
+          end
+        }
       end
 
       def parse(buf)
