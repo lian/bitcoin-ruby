@@ -90,6 +90,10 @@ module Bitcoin
       end
       alias :script= :script_sig=
 
+      def add_signature_pubkey_script(sig, pubkey_hex)
+        self.script = Bitcoin::Script.to_signature_pubkey_script(sig, [pubkey_hex].pack("H*"))
+      end
+
     end
 
   end
