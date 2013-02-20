@@ -394,7 +394,6 @@ module Bitcoin
       :known_nodes => [
         'relay.eligius.st',
         'mining.bitcoin.cz',
-        'bitcoins.lc',
         'blockchain.info',
         'blockexplorer.com',
       ]
