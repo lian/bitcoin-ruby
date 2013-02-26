@@ -36,6 +36,12 @@ module Bitcoin::Validation
       context: [:prev_hash, :difficulty, :coinbase_value, :min_timestamp, :transactions_context]
     }
 
+    # TODO merged mining validations
+    if Bitcoin.network_name == :namecoin
+      RULES[:syntax] -= [:bits, :coinbase, :coinbase_scriptsig, :mrkl_root]
+      RULES[:context] -= [:difficulty, :coinbase_value]
+    end
+
     # validate block rules. +opts+ are:
     # rules:: which rulesets to validate (default: [:syntax, :context])
     # raise_errors:: whether to raise ValidationError on failure (default: false)
@@ -282,7 +288,7 @@ module Bitcoin::Validation
       missing = tx.in.reject.with_index {|txin, idx|
         prev_txs[idx].out[txin.prev_out_index] rescue false }
       return true  if prev_txs.size == tx.in.size && missing.empty?
-      missing.each {|i| store.log.warn { "prev out #{i.prev_out.reverse_hth}:#{i.prev_out_index}" } }
+      missing.each {|i| store.log.warn { "prev out #{i.prev_out.reverse_hth}:#{i.prev_out_index} missing" } }
       false
     end
 

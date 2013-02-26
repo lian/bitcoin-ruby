@@ -11,6 +11,9 @@ module Bitcoin::Storage::Backends
 
     # possible script types
     SCRIPT_TYPES = [:unknown, :pubkey, :hash160, :multisig, :p2sh]
+    if Bitcoin.network_name == :namecoin
+      SCRIPT_TYPES += [:name_new, :name_firstupdate, :name_update]
+    end
 
     # sequel database connection
     attr_accessor :db
@@ -153,12 +156,15 @@ module Bitcoin::Storage::Backends
           :value => txout.value,
           :type => SCRIPT_TYPES.index(script.type)
         })
+
       if script.is_hash160? || script.is_pubkey?
         store_addr(txout_id, script.get_hash160)
       elsif script.is_multisig?
         script.get_multisig_pubkeys.map do |pubkey|
           store_addr(txout_id, Bitcoin.hash160(pubkey.unpack("H*")[0]))
         end
+      else
+        index_name(script, txout_id)  if Bitcoin.network_name == :namecoin
       end
       txout_id
     end
@@ -171,6 +177,22 @@ module Bitcoin::Storage::Backends
       @db[:addr_txout].insert({:addr_id => addr_id, :txout_id => txout_id})
     end
 
+    # if this is a namecoin script, update the names index
+    def index_name(script, txout_id)
+      if script.type == :name_new
+        log.debug { "ignoring name_new #{script.get_name_hash}" } # TODO
+      elsif script.type == :name_firstupdate || script.type == :name_update
+        log.info { "#{script.type}: #{script.get_name}" }
+        @db[:names].insert({
+            :txout_id => txout_id,
+            :name => script.get_name.to_s.to_sequel_blob,
+            :value => script.get_value.to_s.to_sequel_blob
+          })
+      end
+    end
+
+    # delete transaction
+    # TODO: also delete blk_tx mapping
     def delete_tx(hash)
       log.debug { "Deleting tx #{hash} since all its outputs are spent" }
       @db.transaction do

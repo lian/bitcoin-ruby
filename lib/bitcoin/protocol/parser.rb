@@ -78,8 +78,8 @@ module Bitcoin
         when 'alert';    parse_alert(payload)
         when 'ping';     @h.on_ping(payload.unpack("Q")[0])
         when 'pong';     @h.on_pong(payload.unpack("Q")[0])
-        when 'getblocks';   @h.on_getblocks(*parse_getblocks(payload))
-        when 'getheaders';  @h.on_getheaders(*parse_getblocks(payload))
+        when 'getblocks';   @h.on_getblocks(*parse_getblocks(payload))  if @h.respond_to?(:on_getblocks)
+        when 'getheaders';  @h.on_getheaders(*parse_getblocks(payload))  if @h.respond_to?(:on_getheaders)
         when 'mempool';  handle_mempool_request(payload)
         when 'notfound'; handle_notfound_reply(payload)
         else

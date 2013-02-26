@@ -5,7 +5,7 @@ module Bitcoin
       attr_reader :fields
       def initialize(opts={})
         @fields = {
-          :version    => Bitcoin::Protocol::VERSION,
+          :version    => Bitcoin.network[:protocol_version],
           :services   => 1,
           :time       => Time.now.tv_sec,
           :from       => "127.0.0.1:8333",

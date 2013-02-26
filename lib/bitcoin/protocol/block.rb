@@ -3,6 +3,11 @@ module Bitcoin
 
     class Block
 
+      BLOCK_VERSION_DEFAULT     = (1 << 0)
+      BLOCK_VERSION_AUXPOW      = (1 << 8)
+      BLOCK_VERSION_CHAIN_START = (1 << 16)
+      BLOCK_VERSION_CHAIN_END   = (1 << 30)
+
       # block hash
       attr_accessor :hash
 
@@ -55,6 +60,13 @@ module Bitcoin
       def parse_data(data)
         @ver, @prev_block, @mrkl_root, @time, @bits, @nonce, payload = data.unpack("Va32a32VVVa*")
         recalc_block_hash
+
+        if (@ver & BLOCK_VERSION_AUXPOW) > 0
+          aux_pow = AuxPow.new(nil)
+          payload = aux_pow.parse_data(payload)
+        end
+
+        return  unless payload.size > 0
 
         tx_size, payload = Protocol.unpack_var_int(payload)
         (0...tx_size).each{  break if payload == true

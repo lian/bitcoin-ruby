@@ -63,7 +63,7 @@ describe 'Bitcoin::Protocol::Parser (version)' do
 
     pkt = handler.pkt
     pkt.fields.should == {
-      :version    => Bitcoin::Protocol::VERSION,
+      :version    => Bitcoin.network[:protocol_version],
       :services    => "\x01\x00\x00\x00\x00\x00\x00\x00",
       :time       => 1337,
       :to         => "127.0.0.1:8333",

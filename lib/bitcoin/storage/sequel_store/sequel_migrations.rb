@@ -80,6 +80,14 @@ module Bitcoin::Storage::Backends::SequelMigrations
         "(SELECT 1 FROM blk_tx WHERE blk_tx.tx_id = tx.id)" +
         "ORDER BY tx.id DESC")
     end
+
+    unless @db.tables.include?(:names)
+      @db.create_table :names do
+        column :txout_id, :int, :null => false, :index => true
+        column :name, :bytea, :null => false, :index => true
+        column :value, :bytea, :null => false
+      end
+    end
   end
 
 end

@@ -67,7 +67,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   #  bitcoin_node info
   def handle_info
     blocks = @node.connections.map(&:version).compact.map(&:last_block) rescue nil
-    {
+    info = {
       :blocks => "#{@node.store.get_depth} (#{(blocks.inject{|a,b| a+=b; a } / blocks.size rescue '?' )})#{@node.store.in_sync? ? ' sync' : ''}",
       :addrs => "#{@node.addrs.select{|a| a.alive?}.size} (#{@node.addrs.size})",
       :connections => "#{@node.connections.select{|c| c.state == :connected}.size} (#{@node.connections.size})",
@@ -76,9 +76,10 @@ class Bitcoin::Network::CommandHandler < EM::Connection
       :inv_cache => @node.inv_cache.size,
       :network => @node.config[:network],
       :storage => @node.config[:storage],
-      :version => Bitcoin::Protocol::VERSION,
+      :version => Bitcoin.network[:protocol_version],
       :uptime => format_uptime(@node.uptime),
     }
+    Bitcoin.network_name == :namecoin ? {:names => @node.store.db[:names].count}.merge(info) : info
   end
 
   # display configuration hash currently used
@@ -147,6 +148,18 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     @node.relay_tx(tx)
   rescue
     {:error => $!}
+  end
+
+
+  def handle_name_show name
+    data = @node.store.db[:names][:name => name]
+    return {:error => "Name not found"}  unless data
+    txout = @node.store.db[:txout][:id => data[:txout_id]]
+    tx = @node.store.db[:tx][:id => txout[:tx_id]]
+    blk_tx = @node.store.db[:blk_tx][:tx_id => tx[:id]]
+    blk = @node.store.db[:blk][:id => blk_tx[:blk_id]]
+    { :name => data[:name], :value => data[:value], :txid => tx[:hash].hth,
+      :expires_in => 12000 - (@node.store.get_depth - blk[:depth]) }
   end
 
   # stop bitcoin node

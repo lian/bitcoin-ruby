@@ -12,11 +12,10 @@ module Bitcoin
     autoload :Addr,    'bitcoin/protocol/address'
     autoload :Alert,   'bitcoin/protocol/alert'
     autoload :Version, 'bitcoin/protocol/version'
+    autoload :AuxPow,  'bitcoin/protocol/aux_pow'
 
     autoload :Handler, 'bitcoin/protocol/handler'
     autoload :Parser,  'bitcoin/protocol/parser'
-
-    VERSION = 60002
 
     DNS_Seed = [ "bitseed.xf2.org", "bitseed.bitcoin.org.uk" ]
     Uniq = rand(0xffffffffffffffff)

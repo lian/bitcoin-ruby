@@ -238,7 +238,7 @@ module Bitcoin::Network
       @state = :handshake
       send_data(Protocol.version_pkt(to: @node.config[:listen].join(':'),
           last_block: @node.store.get_depth))
-      log.info { "<< version (#{Bitcoin::Protocol::VERSION})" }
+      log.info { "<< version (#{Bitcoin.network[:protocol_version]})" }
     end
 
     # get Addr object for this connection

@@ -307,4 +307,52 @@ describe 'Bitcoin::Script' do
     Script.from_string("1 OP_DROP 2").run.should == true
   end
 
+  describe :namecoin do
+
+    before :each do
+      @name_new = Script.from_string("3045022007248cfc6221a6cdc8553243079e2f2651a92d066ee7cfaeb63741acc0f4d77e022100d7fda81f938ee0f7ee78c185c3017cdcf5b1a43d7000bd7078808b7b32e9591301 04b57ed172c944d6b702af2fa116762114d38332bab8f8a99296332dcf58b98d50bfef40803b50d23382fb436a155b56853791f453e391b84c4026425b57f116ae 1 326db71639a17a9147b65871d938e4d670092509 OP_2DROP OP_DUP OP_HASH160 5f6a2a3e42fe9ad797234b83e670cb39da9d2aef OP_EQUALVERIFY OP_CHECKSIG")
+      @name_firstupdate = Script.from_string("3046022100ec2d5448686a3d7ae9433d9d0d77e0c73bba39b0bbfb272dfe0f8c117f2d8f2202210085a2419ac2e5d7fa45a14395b4065fd521aef0302ee8df19b6e25821bde523b201 04ae0a73c776db6a6435366f2086034f122b971eaba1a9fc08f9220cd0be2c23db2a2aa88c2bebcfca52c128b80c75621251e6201007b67e5bb7db8c2d233f94d0 2 642f636f6e66656465726174696f f305a0534369a872 7b226970223a2239352e3130352e3130352e313535222c20226d6170223a207b222a223a207b226970223a2239352e3130352e3130352e313535227d7d7d OP_2DROP OP_2DROP OP_DUP OP_HASH160 6d28726cdf48cd7844ca4ba29496ab6f69f992da OP_EQUALVERIFY OP_CHECKSIG")
+      @name_update = Script.from_string("3 642f636f6e66656465726174696f 7b226970223a2239352e3130352e3130352e313535222c20226d6170223a207b222a223a207b226970223a2239352e3130352e3130352e313535227d7d7d OP_2DROP OP_DROP OP_DUP OP_HASH160 be8356675b2af92e209fc101dceea66acad8eb68 OP_EQUALVERIFY OP_CHECKSIG")
+    end
+
+    it 'should parse name_new script' do
+      @name_new.is_name_new?.should == true
+      @name_firstupdate.is_name_new?.should == false
+      @name_update.is_name_new?.should == false
+    end
+
+    it 'should parse name_firstupdate script' do
+      @name_new.is_name_firstupdate?.should == false
+      @name_firstupdate.is_name_firstupdate?.should == true
+      @name_update.is_name_firstupdate?.should == false
+    end
+
+    it 'should parse name_update script' do
+      @name_new.is_name_update?.should == false
+      @name_firstupdate.is_name_update.should == false
+      @name_update.is_name_update?.should == true
+    end
+
+    it 'should run scripts' do
+      @name_new.run { true }.should == true
+      @name_firstupdate.run { true }.should == true
+      @name_update.run { true }.should == true
+    end
+
+    it 'should get name_hash' do
+      @name_new.get_name_hash.should == ""
+    end
+
+    it 'should get name' do
+      @name_firstupdate.get_name.should == "d/confederatio"
+      @name_update.get_name.should == "d/confederatio"
+    end
+
+    it 'should get value' do
+      @name_firstupdate.get_value.should == "{\"ip\":\"95.105.105.155\", \"map\": {\"*\": {\"ip\":\"95.105.105.155\"}}}"
+      @name_update.get_value.should == @name_firstupdate.get_value
+    end
+
+  end
+
 end

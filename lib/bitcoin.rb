@@ -386,6 +386,10 @@ module Bitcoin
     @network
   end
 
+  def self.network_name
+    @network
+  end
+
   CENT =   1_000_000
   COIN = 100_000_000
   MAX_MONEY = 21_000_000 * COIN
@@ -407,6 +411,7 @@ module Bitcoin
       :p2sh_version => "05",
       :privkey_version => "80",
       :default_port => 8333,
+      :protocol_version => 60002,
       :dns_seeds => [
         "seed.bitcoin.sipa.be",
         "dnsseed.bluematt.me",
@@ -422,18 +427,18 @@ module Bitcoin
         'blockchain.info',
         'blockexplorer.com',
       ],
-      :checkpoints => [
-        [ 11111, "0000000069e244f73d78e8fd29ba2fd2ed618bd6fa2ee92559f542fdb26e7c1d"],
-        [ 33333, "000000002dd5588a74784eaa7ab0507a18ad16a236e7b1ce69f00d7ddfb5d0a6"],
-        [ 74000, "0000000000573993a3c9e41ce34471c079dcf5f52a0e824a81e7f953b8661a20"],
-        [105000, "00000000000291ce28027faea320c8d2b054b2e0fe44a773f3eefb151d6bdc97"],
-        [134444, "00000000000005b12ffd4cd315cd34ffd4a594f430ac814c91184a0d42d2b0fe"],
-        [168000, "000000000000099e61ea72015e79632f216fe6cb33d7899acb35b75c8303b763"],
-        [193000, "000000000000059f452a5f7340de6682a977387c17010ff6e6c3bd83ca8b1317"],
-        [210000, "000000000000048b95347e83192f69cf0366076336c639f9b7228e9ba171342e"],
-        [216116, "00000000000001b4f4b433e81ee46494af945cf96014816a4e2370f11b23df4e"],
-        [225430, "00000000000001c108384350f74090433e7fcf79a606b8e797f065b130575932"],
-      ]
+      :checkpoints => {
+         11111 => "0000000069e244f73d78e8fd29ba2fd2ed618bd6fa2ee92559f542fdb26e7c1d",
+         33333 => "000000002dd5588a74784eaa7ab0507a18ad16a236e7b1ce69f00d7ddfb5d0a6",
+         74000 => "0000000000573993a3c9e41ce34471c079dcf5f52a0e824a81e7f953b8661a20",
+        105000 => "00000000000291ce28027faea320c8d2b054b2e0fe44a773f3eefb151d6bdc97",
+        134444 => "00000000000005b12ffd4cd315cd34ffd4a594f430ac814c91184a0d42d2b0fe",
+        168000 => "000000000000099e61ea72015e79632f216fe6cb33d7899acb35b75c8303b763",
+        193000 => "000000000000059f452a5f7340de6682a977387c17010ff6e6c3bd83ca8b1317",
+        210000 => "000000000000048b95347e83192f69cf0366076336c639f9b7228e9ba171342e",
+        216116 => "00000000000001b4f4b433e81ee46494af945cf96014816a4e2370f11b23df4e",
+        225430 => "00000000000001c108384350f74090433e7fcf79a606b8e797f065b130575932",
+      }
     },
     :testnet => {
       :project => :bitcoin,
@@ -447,7 +452,7 @@ module Bitcoin
       :proof_of_work_limit => 0x1d07fff8,
       :alert_pubkeys => ["04302390343f91cc401d56d68b123028bf52e5fca1939df127f63c6467cdf9c8e2c14b61104cf817d0b780da337893ecc4aaff1309e536162dabbdb45200ca2b0a"],
       :known_nodes => [],
-      :checkpoints => []
+      :checkpoints => {}
     },
     :testnet3 => {
       :project => :bitcoin,
@@ -456,6 +461,7 @@ module Bitcoin
       :p2sh_version => "c4",
       :privkey_version => "ef",
       :default_port => 18333,
+      :protocol_version => 60002,
       :dns_seeds => [
         "testnet-seed.bitcoin.petertodd.org",
         "bitcoin-seednode.bluematt.me",
@@ -464,10 +470,8 @@ module Bitcoin
       :proof_of_work_limit => 0x1d07fff8,
       :alert_pubkeys => ["04302390343f91cc401d56d68b123028bf52e5fca1939df127f63c6467cdf9c8e2c14b61104cf817d0b780da337893ecc4aaff1309e536162dabbdb45200ca2b0a"],
       :known_nodes => [],
-      :checkpoints => []
+      :checkpoints => {}
     },
-
-
     :ppcoin => {
       :project => :ppcoin,
       :magic_head => "\xe6\xe8\xe9\xe5",
@@ -480,10 +484,10 @@ module Bitcoin
       :proof_of_work_limit => 0,
       :alert_pubkeys => [],
       :known_nodes => [ "theseven.bounceme.net", "cryptocoinexplorer.com" ],
-      :checkpoints => [
-        [19080, "000000000000bca54d9ac17881f94193fd6a270c1bb21c3bf0b37f588a40dbd7"],
-        [30583, "d39d1481a7eecba48932ea5913be58ad3894c7ee6d5a8ba8abeb772c66a6696e"],
-      ]
+      :checkpoints => {
+        19080 => "000000000000bca54d9ac17881f94193fd6a270c1bb21c3bf0b37f588a40dbd7",
+        30583 => "d39d1481a7eecba48932ea5913be58ad3894c7ee6d5a8ba8abeb772c66a6696e",
+      }
     },
     :ppcoin_testnet => {
       :project => :ppcoin,
@@ -497,7 +501,7 @@ module Bitcoin
       :proof_of_work_limit => 0,
       :alert_pubkeys => [],
       :known_nodes => [],
-      :checkpoints => []
+      :checkpoints => {}
     },
 
 
@@ -518,18 +522,18 @@ module Bitcoin
       :alert_pubkeys => [],
       :known_nodes => [],
       :checkpoints => [
-        [     1, "0x80ca095ed10b02e53d769eb6eaf92cd04e9e0759e5be4a8477b42911ba49c78f"],
-        [     2, "0x13957807cdd1d02f993909fa59510e318763f99a506c4c426e3b254af09f40d7"],
-        [  1500, "0x841a2965955dd288cfa707a755d05a54e45f8bd476835ec9af4402a2b59a2967"],
-        [  4032, "0x9ce90e427198fc0ef05e5905ce3503725b80e26afd35a987965fd7e3d9cf0846"],
-        [  8064, "0xeb984353fc5190f210651f150c40b8a4bab9eeeff0b729fcb3987da694430d70"],
-        [ 16128, "0x602edf1859b7f9a6af809f1d9b0e6cb66fdc1d4d9dcd7a4bec03e12a1ccd153d"],
-        [ 23420, "0xd80fdf9ca81afd0bd2b2a90ac3a9fe547da58f2530ec874e978fce0b5101b507"],
-        [ 50000, "0x69dc37eb029b68f075a5012dcc0419c127672adb4f3a32882b2b3e71d07a20a6"],
-        [ 80000, "0x4fcb7c02f676a300503f49c764a89955a8f920b46a8cbecb4867182ecdb2e90a"],
-        [120000, "0xbd9d26924f05f6daa7f0155f32828ec89e8e29cee9e7121b026a7a3552ac6131"],
-        [161500, "0xdbe89880474f4bb4f75c227c77ba1cdc024991123b28b8418dbbf7798471ff43"],
-        [179620, "0x2ad9c65c990ac00426d18e446e0fd7be2ffa69e9a7dcb28358a50b2b78b9f709"],
+             1 => "0x80ca095ed10b02e53d769eb6eaf92cd04e9e0759e5be4a8477b42911ba49c78f",
+             2 => "0x13957807cdd1d02f993909fa59510e318763f99a506c4c426e3b254af09f40d7",
+          1500 => "0x841a2965955dd288cfa707a755d05a54e45f8bd476835ec9af4402a2b59a2967",
+          4032 => "0x9ce90e427198fc0ef05e5905ce3503725b80e26afd35a987965fd7e3d9cf0846",
+          8064 => "0xeb984353fc5190f210651f150c40b8a4bab9eeeff0b729fcb3987da694430d70",
+         16128 => "0x602edf1859b7f9a6af809f1d9b0e6cb66fdc1d4d9dcd7a4bec03e12a1ccd153d",
+         23420 => "0xd80fdf9ca81afd0bd2b2a90ac3a9fe547da58f2530ec874e978fce0b5101b507",
+         50000 => "0x69dc37eb029b68f075a5012dcc0419c127672adb4f3a32882b2b3e71d07a20a6",
+         80000 => "0x4fcb7c02f676a300503f49c764a89955a8f920b46a8cbecb4867182ecdb2e90a",
+        120000 => "0xbd9d26924f05f6daa7f0155f32828ec89e8e29cee9e7121b026a7a3552ac6131",
+        161500 => "0xdbe89880474f4bb4f75c227c77ba1cdc024991123b28b8418dbbf7798471ff43",
+        179620 => "0x2ad9c65c990ac00426d18e446e0fd7be2ffa69e9a7dcb28358a50b2b78b9f709",
       ]
     },
     :litecoin_testnet => {
@@ -544,7 +548,7 @@ module Bitcoin
       :proof_of_work_limit => 0,
       :alert_pubkeys => [],
       :known_nodes => [],
-      :checkpoints => []
+      :checkpoints => {}
     },
 
 
@@ -560,12 +564,28 @@ module Bitcoin
       :proof_of_work_limit => 0,
       :alert_pubkeys => [],
       :known_nodes => [],
-      :checkpoints => [
-        [10080, "0x00000000003ff9c4b806639ec4376cc9acafcdded0e18e9dbcc2fc42e8e72331"],
-        [15779, "0x000000000003eb31742b35f5efd8ffb5cdd19dcd8e82cdaad90e592c450363b6"],
-      ]
+      :checkpoints => {
+        10080 => "00000000003ff9c4b806639ec4376cc9acafcdded0e18e9dbcc2fc42e8e72331",
+        15779 => "000000000003eb31742b35f5efd8ffb5cdd19dcd8e82cdaad90e592c450363b6",
+      }
     },
 
+    :namecoin => {
+      :magic_head => "\xF9\xBE\xB4\xFE",
+      :address_version => "6f",
+      :default_port => 8334,
+      :protocol_version => 35000,
+      :dns_seeds => [],
+      :genesis_hash => "000000000062b72c5e2ceb45fbc8587e807c155b0da735e6483dfba2f0a9c770",
+      :proof_of_work_limit => 0x1d00ffff,
+      :known_nodes => ["127.0.0.1"],
+      :checkpoints => {
+        0 => "000000000062b72c5e2ceb45fbc8587e807c155b0da735e6483dfba2f0a9c770",
+        19200 => "d8a7c3e01e1e95bcee015e6fcc7583a2ca60b79e5a3aa0a171eddd344ada903d",
+        24000 => "425ab0983cf04f43f346a4ca53049d0dc2db952c0a68eb0b55c3bb64108d5371",
+        97778 => "7553b1e43da01cfcda4335de1caf623e941d43894bd81c2af27b6582f9d83c6f",
+      }
+    },
   }
-  
+
 end
