@@ -51,6 +51,7 @@ module Bitcoin
     # otherwise, the internal dummy logger is used which only logs to stdout.
     def self.create name, level = :info
       if defined?(Log4r)
+        FileUtils.mkdir_p("log")
         @log = Log4r::Logger.new(name.to_s)
         @log.level = level
         @log.outputters << Log4r::Outputter.stdout
