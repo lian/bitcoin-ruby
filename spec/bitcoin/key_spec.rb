@@ -89,23 +89,45 @@ describe "Bitcoin::Key" do
     Bitcoin.network = :bitcoin
   end
 
+  it "should export private key in compressed base58 format" do
+    Bitcoin.network = :bitcoin
+    Bitcoin::Key.new("98e4483a197fb686fe9afb51389f329aabc67964b1d0e0a5340c962a0d63c44a",
+      nil, true).to_base58.should == "L2LusdhGSagfUVvNWrUuPDygn5mdAhxUDEANfABvBj36Twn1mKgQ"
+    Bitcoin.network = :testnet3
+    Bitcoin::Key.new("e3ff5d7e592669d0c1714f1496b260815edd0c3a00186e896dc7f36ede914dd2",
+      nil, true).to_base58.should == "cVDu6aXUWHTM2vpztZW14BMnKkCcd5th6177VnCsa8XozoMyp73C"
+    Bitcoin.network = :bitcoin  end
 
- it "should hanlde compressed and uncompressed pubkeys" do
-   compressed   = "0351efb6e91a31221652105d032a2508275f374cea63939ad72f1b1e02f477da78"
-   uncompressed = "0451efb6e91a31221652105d032a2508275f374cea63939ad72f1b1e02f477da787f71a2e8ac5aacedab47904d4bd42f636429e9ce069ebcb99f675aad31306a53"
-   Bitcoin::Key.new(nil, compressed).pub.should  == compressed
-   Bitcoin::Key.new(nil, compressed).addr.should == "1NdB761LmTmrJixxp93nz7pEiCx5cKPW44"
-   Bitcoin::Key.new(nil, uncompressed).pub.should == uncompressed
-   Bitcoin::Key.new(nil, uncompressed).addr.should == "19FBCg9295EBQ4P6bSLTGyz2BdbbPcqQD"
+  it "should import private key in compressed base58 format" do
+    Bitcoin.network = :bitcoin
+    key = Bitcoin::Key.from_base58("L2LusdhGSagfUVvNWrUuPDygn5mdAhxUDEANfABvBj36Twn1mKgQ")
+    key.priv.should == "98e4483a197fb686fe9afb51389f329aabc67964b1d0e0a5340c962a0d63c44a"
+    key.pub.should == "02e054ee811165ac294c992ff410067db6491228725fe09db2a415493c897973a8"
+    key.addr.should == "1C7Ni4zuV3zfLs8T1S7s29wNAtRoDHHnpw"
+    Bitcoin.network = :testnet3
+    key = Bitcoin::Key.from_base58("cVDu6aXUWHTM2vpztZW14BMnKkCcd5th6177VnCsa8XozoMyp73C")
+    key.priv.should == "e3ff5d7e592669d0c1714f1496b260815edd0c3a00186e896dc7f36ede914dd2"
+    key.pub.should == "0390bb61c062266a1e8460ec902379749ae30f569013d82bd448a61591f20b8ee2"
+    key.addr.should == "mjh9RgZh14FfJQ2pFpRSqEQ5BH1nHo5To7"
+    Bitcoin.network = :bitcoin
+  end
 
-   key = Bitcoin::Key.new(nil, compressed)
-   key.pub_compressed.should   == compressed
-   key.pub_uncompressed.should == uncompressed
+  it "should hanlde compressed and uncompressed pubkeys" do
+    compressed   = "0351efb6e91a31221652105d032a2508275f374cea63939ad72f1b1e02f477da78"
+    uncompressed = "0451efb6e91a31221652105d032a2508275f374cea63939ad72f1b1e02f477da787f71a2e8ac5aacedab47904d4bd42f636429e9ce069ebcb99f675aad31306a53"
+    Bitcoin::Key.new(nil, compressed).pub.should  == compressed
+    Bitcoin::Key.new(nil, compressed).addr.should == "1NdB761LmTmrJixxp93nz7pEiCx5cKPW44"
+    Bitcoin::Key.new(nil, uncompressed).pub.should == uncompressed
+    Bitcoin::Key.new(nil, uncompressed).addr.should == "19FBCg9295EBQ4P6bSLTGyz2BdbbPcqQD"
 
-   sig = @key.sign(msg="foobar")
-   Bitcoin::Key.new(nil, @key.pub_compressed  ).verify(msg, sig).should == true
-   Bitcoin::Key.new(nil, @key.pub_uncompressed).verify(msg, sig).should == true
- end
+    key = Bitcoin::Key.new(nil, compressed)
+    key.pub_compressed.should   == compressed
+    key.pub_uncompressed.should == uncompressed
+
+    sig = @key.sign(msg="foobar")
+    Bitcoin::Key.new(nil, @key.pub_compressed  ).verify(msg, sig).should == true
+    Bitcoin::Key.new(nil, @key.pub_uncompressed).verify(msg, sig).should == true
+  end
 
 end
 

@@ -15,10 +15,11 @@ module Bitcoin
     # See also #to_base58
     def self.from_base58(str)
       hex = Bitcoin.decode_base58(str)
-      version, key, checksum = hex.unpack("a2a64a8")
+      compressed = hex.size == 76
+      version, key, flag, checksum = hex.unpack("a2a64a#{compressed ? 2 : 0}a8")
       raise "Invalid version"   unless version == Bitcoin.network[:privkey_version]
-      raise "Invalid checksum"  unless Bitcoin.checksum(version + key) == checksum
-      new(key)
+      raise "Invalid checksum"  unless Bitcoin.checksum(version + key + flag) == checksum
+      key = new(key, nil, compressed)
     end
 
     def == other
@@ -29,8 +30,9 @@ module Bitcoin
     #  Bitcoin::Key.new
     #  Bitcoin::Key.new(privkey)
     #  Bitcoin::Key.new(nil, pubkey)
-    def initialize privkey = nil, pubkey = nil
+    def initialize privkey = nil, pubkey = nil, compressed = false
       @key = Bitcoin.bitcoin_elliptic_curve
+      @pubkey_compressed = compressed
       set_priv(privkey)  if privkey
       set_pub(pubkey)  if pubkey
     end
@@ -107,6 +109,7 @@ module Bitcoin
     # See also Key.from_base58
     def to_base58
       data = Bitcoin.network[:privkey_version] + priv
+      data += "01"  if @pubkey_compressed
       hex  = data + Bitcoin.checksum(data)
       Bitcoin.int_to_base58( hex.to_i(16) )
     end
