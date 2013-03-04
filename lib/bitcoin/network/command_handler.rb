@@ -79,7 +79,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
       :version => Bitcoin.network[:protocol_version],
       :uptime => format_uptime(@node.uptime),
     }
-    Bitcoin.network_name == :namecoin ? {:names => @node.store.db[:names].count}.merge(info) : info
+    Bitcoin.namecoin? ? {:names => @node.store.db[:names].count}.merge(info) : info
   end
 
   # display configuration hash currently used
@@ -152,14 +152,11 @@ class Bitcoin::Network::CommandHandler < EM::Connection
 
 
   def handle_name_show name
-    data = @node.store.db[:names][:name => name]
+    data = @node.store.name_show name
     return {:error => "Name not found"}  unless data
-    txout = @node.store.db[:txout][:id => data[:txout_id]]
-    tx = @node.store.db[:tx][:id => txout[:tx_id]]
-    blk_tx = @node.store.db[:blk_tx][:tx_id => tx[:id]]
-    blk = @node.store.db[:blk][:id => blk_tx[:blk_id]]
-    { :name => data[:name], :value => data[:value], :txid => tx[:hash].hth,
-      :expires_in => 12000 - (@node.store.get_depth - blk[:depth]) }
+    tx = data.get_txout.get_tx
+    { :name => data.name, :value => data.value, :txid => tx[:hash].hth,
+      :expires_in => data.expires_in }
   end
 
   # stop bitcoin node

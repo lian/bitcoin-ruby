@@ -84,8 +84,9 @@ module Bitcoin::Storage::Backends::SequelMigrations
     unless @db.tables.include?(:names)
       @db.create_table :names do
         column :txout_id, :int, :null => false, :index => true
-        column :name, :bytea, :null => false, :index => true
-        column :value, :bytea, :null => false
+        column :hash, :bytea, :index => true
+        column :name, :bytea, :index => true
+        column :value, :bytea
       end
     end
   end

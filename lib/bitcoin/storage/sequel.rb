@@ -11,7 +11,7 @@ module Bitcoin::Storage::Backends
 
     # possible script types
     SCRIPT_TYPES = [:unknown, :pubkey, :hash160, :multisig, :p2sh]
-    if Bitcoin.network_name == :namecoin
+    if Bitcoin.namecoin?
       SCRIPT_TYPES += [:name_new, :name_firstupdate, :name_update]
     end
 
@@ -163,8 +163,11 @@ module Bitcoin::Storage::Backends
         script.get_multisig_pubkeys.map do |pubkey|
           store_addr(txout_id, Bitcoin.hash160(pubkey.unpack("H*")[0]))
         end
+      elsif script.is_namecoin?
+        store_addr(txout_id, script.get_hash160)
+        store_name(script, txout_id)  if Bitcoin.namecoin?
       else
-        index_name(script, txout_id)  if Bitcoin.network_name == :namecoin
+        log.warn { "Unknown script type: #{script.to_string}" }
       end
       txout_id
     end
@@ -178,15 +181,41 @@ module Bitcoin::Storage::Backends
     end
 
     # if this is a namecoin script, update the names index
-    def index_name(script, txout_id)
+    def store_name(script, txout_id)
       if script.type == :name_new
-        log.debug { "ignoring name_new #{script.get_name_hash}" } # TODO
-      elsif script.type == :name_firstupdate || script.type == :name_update
+        log.info { "name_new #{script.get_name_hash}" } # TODO
+        @db[:names].insert({
+            :txout_id => txout_id,
+            :hash => script.get_name_hash
+          })
+
+      elsif script.type == :name_firstupdate
+        name_hash = script.get_name_hash
+        name_new = wrap_name(@db[:names].where(:hash => name_hash).order(:txout_id).first)
+        unless name_new && name_new.get_block
+          log.warn { "name_new not found: #{name_hash}" }
+          return nil
+        end
+        unless name_new.get_block.depth <= get_depth - 12
+          log.warn { "name_new not yet valid: #{name_hash}" }
+          return nil
+        end
+
+        log.info { "#{script.type}: #{script.get_name}" }
+        @db[:names].where(:txout_id => name_new.txout_id, :name => nil).update({
+            :name => script.get_name.to_s.to_sequel_blob })
+        @db[:names].insert({
+            :txout_id => txout_id,
+            :hash => name_hash,
+            :name => script.get_name.to_s.to_sequel_blob,
+            :value => script.get_value.to_s.to_sequel_blob,
+          })
+      elsif script.type == :name_update
         log.info { "#{script.type}: #{script.get_name}" }
         @db[:names].insert({
             :txout_id => txout_id,
             :name => script.get_name.to_s.to_sequel_blob,
-            :value => script.get_value.to_s.to_sequel_blob
+            :value => script.get_value.to_s.to_sequel_blob,
           })
       end
     end
@@ -270,6 +299,10 @@ module Bitcoin::Storage::Backends
       wrap_txin(@db[:txin][:prev_out => tx_hash, :prev_out_index => txout_idx])
     end
 
+    def get_txout_by_id(txout_id)
+      wrap_txout(@db[:txout][:id => txout_id])
+    end
+
     # get corresponding Models::TxOut for +txin+
     def get_txout_for_txin(txin)
       tx = @db[:tx][:hash => txin.prev_out.reverse.to_sequel_blob]
@@ -299,6 +332,20 @@ module Bitcoin::Storage::Backends
     # get all unconfirmed Models::TxOut
     def get_unconfirmed_tx
       @db[:unconfirmed].map{|t| wrap_tx(t)}
+    end
+
+    def get_name_by_txout_id txout_id
+      wrap_name(@db[:names][:txout_id => txout_id])
+    end
+
+    def name_show name
+      names = @db[:names].where(:name => name).order(:txout_id)
+      return nil  unless names.any?
+      wrap_name(names.first)
+    end
+
+    def name_history name
+      @db[:names].where(:name => name).order(:txout_id).map {|n| wrap_name(n) }
     end
 
     # wrap given +block+ into Models::Block
@@ -367,6 +414,10 @@ module Bitcoin::Storage::Backends
       txout
     end
 
+    def wrap_name(data)
+      return nil  unless data
+      Bitcoin::Storage::Models::Name.new(self, data)
+    end
   end
 
 end

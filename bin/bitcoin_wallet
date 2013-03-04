@@ -222,6 +222,8 @@ when "send"
     puts "Error creating tx."; exit
   end
 
+  puts tx.to_json
+
   total = 0
   puts "Hash: #{tx.hash}"
   puts "inputs:"
@@ -235,12 +237,23 @@ when "send"
   tx.out.each do |txout|
     total -= txout.value
     script = Bitcoin::Script.new(txout.pk_script)
+    print "#{str_val txout.value} "
     if script.is_pubkey?
-      puts "#{str_val txout.value} #{script.get_pubkey} (pubkey)"
+      puts "#{script.get_pubkey} (pubkey)"
     elsif script.is_hash160?
-      puts "#{str_val txout.value} #{script.get_address} (address)"
+      puts "#{script.get_address} (address)"
     elsif script.is_multisig?
-      puts "#{str_val txout.value} #{script.get_addresses.join(' ')} (multisig)"
+      puts "#{script.get_addresses.join(' ')} (multisig)"
+    elsif script.is_namecoin?
+      puts "#{script.get_address} (#{script.type})"
+      print " " * 16
+      if script.is_name_new?
+        puts "Name Hash: #{script.get_name_hash}"
+      else
+        puts "#{script.get_name}: #{script.get_value}"
+      end
+    else
+      puts "#{str_val txout.value} (unknown type)"
     end
   end
   puts "Fee: #{str_val total}"

@@ -125,12 +125,52 @@ module Bitcoin::Storage::Models
       script.get_addresses
     end
 
+    def get_name
+      @store.get_name_by_txout_id(@id)
+    end
+
     def type
       script.type
     end
 
     def script
       @_script = Bitcoin::Script.new(@pk_script)
+    end
+
+  end
+
+  class Name
+
+    attr_reader :store, :txout_id, :hash, :name, :value
+
+    def initialize store, data
+      @store = store
+      @txout_id = data[:txout_id]
+      @hash = data[:hash]
+      @name = data[:name]
+      @value = data[:value]
+    end
+
+    def get_txout
+      @store.get_txout_by_id(@txout_id)
+    end
+
+    def get_address
+      get_txout.get_address
+    end
+
+    def get_tx
+      get_txout.get_tx rescue nil
+    end
+
+    def get_block
+      get_tx.get_block rescue nil
+    end
+
+    def expires_in
+      1200 - (@store.get_depth - get_txout.get_tx.get_block.depth)
+    rescue
+      nil
     end
 
   end

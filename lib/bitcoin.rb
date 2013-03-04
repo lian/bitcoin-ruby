@@ -390,6 +390,14 @@ module Bitcoin
     @network
   end
 
+  def self.testnet?
+    network_name.to_s =~ /testnet/
+  end
+
+  def self.namecoin?
+    network_name.to_s =~ /namecoin/
+  end
+
   CENT =   1_000_000
   COIN = 100_000_000
   MAX_MONEY = 21_000_000 * COIN
@@ -572,13 +580,13 @@ module Bitcoin
 
     :namecoin => {
       :magic_head => "\xF9\xBE\xB4\xFE",
-      :address_version => "6f",
+      :address_version => "34",
       :default_port => 8334,
       :protocol_version => 35000,
       :dns_seeds => [],
       :genesis_hash => "000000000062b72c5e2ceb45fbc8587e807c155b0da735e6483dfba2f0a9c770",
       :proof_of_work_limit => 0x1d00ffff,
-      :known_nodes => ["127.0.0.1"],
+      :known_nodes => ["bitcoin.tunl.in"],
       :checkpoints => {
         0 => "000000000062b72c5e2ceb45fbc8587e807c155b0da735e6483dfba2f0a9c770",
         19200 => "d8a7c3e01e1e95bcee015e6fcc7583a2ca60b79e5a3aa0a171eddd344ada903d",
@@ -586,6 +594,21 @@ module Bitcoin
         97778 => "7553b1e43da01cfcda4335de1caf623e941d43894bd81c2af27b6582f9d83c6f",
       }
     },
+    :namecoin_testnet => {
+      :magic_head => "\xFA\xBF\xB5\xFE",
+      :address_version => "34",
+      :default_port => 18334,
+      :protocol_version => 35000,
+      :dns_seeds => [],
+      :genesis_hash => "00000001f8ab0d14bceaeb50d163b0bef15aecf62b87bd5f5c864d37f201db97",
+      :proof_of_work_limit => 0x1d00ffff,
+      :known_nodes => ["178.32.31.41"],
+      :checkpoints => {
+        0 => "000000000062b72c5e2ceb45fbc8587e807c155b0da735e6483dfba2f0a9c770",
+
+      }
+    },
   }
+
 
 end

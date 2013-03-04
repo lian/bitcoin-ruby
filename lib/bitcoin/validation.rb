@@ -37,7 +37,7 @@ module Bitcoin::Validation
     }
 
     # TODO merged mining validations
-    if Bitcoin.network_name == :namecoin
+    if Bitcoin.namecoin?
       RULES[:syntax] -= [:bits, :coinbase, :coinbase_scriptsig, :mrkl_root]
       RULES[:context] -= [:difficulty, :coinbase_value]
     end

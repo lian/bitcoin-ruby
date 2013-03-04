@@ -170,10 +170,27 @@ module Bitcoin::Wallet
       prev_outs = get_selector.select(output_value)
       return nil  if !prev_outs
 
+      if Bitcoin.namecoin?
+        prev_out = nil
+        outputs.each do |out|
+          if out[0] == :name_firstupdate
+            tx_hash = outputs[0].delete_at(4)
+            break  if prev_out = get_txouts.find {|o|
+              o.type == :name_new && o.get_tx && o.get_tx.hash == tx_hash }
+          elsif out[0] == :name_update
+            prev_out = get_txouts.find {|o| o.type == :name_firstupdate && o.get_tx && o.get_tx.hash == out[3] }
+            outputs[0].delete_at(3)
+          end
+        end
+        raise "previous name tx not found."  unless prev_out
+        prev_outs += [prev_out]
+      end
+
       input_value = prev_outs.map(&:value).inject(:+)
       return nil  unless input_value >= (output_value + fee)
 
       tx = tx do |t|
+        t.version 0x7100  if Bitcoin.namecoin? && outputs.find {|o| o[0].to_s =~ /^name_/ }
         outputs.each do |type, *addrs, value|
           t.output do |o|
             o.value value
@@ -202,7 +219,7 @@ module Bitcoin::Wallet
             i.prev_out prev_tx
             i.prev_out_index prev_tx.out.index(prev_out)
             pk_script = Bitcoin::Script.new(prev_out.pk_script)
-            if pk_script.is_pubkey? || pk_script.is_hash160?
+            if pk_script.is_pubkey? || pk_script.is_hash160? || pk_script.is_namecoin?
               i.signature_key @keystore.key(prev_out.get_address)[:key]
             elsif pk_script.is_multisig?
               raise "multisig not implemented"

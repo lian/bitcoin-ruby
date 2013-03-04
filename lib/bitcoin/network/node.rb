@@ -46,7 +46,7 @@ module Bitcoin::Network
       :epoll => false,
       :epoll_limit => 10000,
       :epoll_user => nil,
-      :addr_file => "#{ENV['HOME']}/.bitcoin-ruby/addrs.json",
+      :addr_file => "#{ENV['HOME']}/.bitcoin-ruby/#{Bitcoin.network_name}/addrs.json",
       :log => {
         :network => :info,
         :storage => :info,
@@ -95,6 +95,7 @@ module Bitcoin::Network
     def load_addrs
       unless File.exist?(@config[:addr_file])
         @addrs = []
+        FileUtils.mkdir_p(File.dirname(@config[:addr_file]))
         return
       end
       @addrs = JSON.load(File.read(@config[:addr_file])).map do |a|
