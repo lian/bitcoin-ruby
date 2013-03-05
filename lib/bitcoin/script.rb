@@ -460,10 +460,10 @@ class Bitcoin::Script
 
   # get the name_hash of a namecoin name_new tx
   def get_name_hash
-    return@chunks[-7].hth  if is_name_new?
+    return @chunks[-7].hth  if is_name_new?
     if is_name_firstupdate?
-      name = @chunks[-10].hth
-      rand = @chunks[-9].hth
+      name = @chunks[-10].to_s.hth
+      rand = @chunks[-9].to_s.hth
       return Bitcoin.hash160(rand + name)
     end
   end
