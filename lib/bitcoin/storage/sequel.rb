@@ -20,7 +20,7 @@ module Bitcoin::Storage::Backends
 
     include Bitcoin::Storage::Backends::SequelMigrations
 
-    DEFAULT_CONFIG = {mode: :full}
+    DEFAULT_CONFIG = { mode: :full, cache_head: false }
 
     # create sequel store with given +config+
     def initialize config, *args
@@ -244,7 +244,8 @@ module Bitcoin::Storage::Backends
 
     # get head block (highest block from the MAIN chain)
     def get_head
-      @head ||= wrap_block(@db[:blk].filter(:chain => MAIN).order(:depth).last)
+      (@config[:cache_head] && @head) ? @head :
+        @head = wrap_block(@db[:blk].filter(:chain => MAIN).order(:depth).last)
     end
 
     # get depth of MAIN chain
