@@ -191,7 +191,7 @@ module Bitcoin::Validation
     attr_accessor :tx, :store
 
     RULES = {
-      syntax: [:hash, :lists, :max_size, :output_values, :inputs, :lock_time, :min_size, :standard],
+      syntax: [:hash, :lists, :max_size, :output_values, :inputs, :lock_time, :standard],
       context: [:prev_out, :signatures, :spent, :input_values, :output_sum]
     }
 
@@ -267,6 +267,7 @@ module Bitcoin::Validation
     # this is currently disabled since not all miners enforce it.
     def standard
       return true  # not enforced by all miners
+      return false  unless min_size
       tx.out.all? {|o| Bitcoin::Script.new(o.pk_script).is_standard? }
     end
 
