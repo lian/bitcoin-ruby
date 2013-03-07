@@ -150,15 +150,6 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     {:error => $!}
   end
 
-
-  def handle_name_show name
-    data = @node.store.name_show name
-    return {:error => "Name not found"}  unless data
-    tx = data.get_txout.get_tx
-    { :name => data.name, :value => data.value, :txid => tx[:hash].hth,
-      :expires_in => data.expires_in }
-  end
-
   # stop bitcoin node
   #  bitcoin_node stop
   def handle_stop

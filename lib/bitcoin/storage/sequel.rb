@@ -340,7 +340,7 @@ module Bitcoin::Storage::Backends
     end
 
     def name_show name
-      names = @db[:names].where(:name => name).order(:txout_id)
+      names = @db[:names].where(:name => name).order(:txout_id).reverse
       return nil  unless names.any?
       wrap_name(names.first)
     end

@@ -165,11 +165,10 @@ module Bitcoin::Wallet
     # change_policy controls where the change_output is spent to.
     # see #get_change_addr
     def new_tx outputs, fee = 0, change_policy = :back
-      output_value = outputs.map{|o|o[-1]}.inject(:+)
+      output_value = outputs.map{|o| o[-1] }.inject(:+)
 
       prev_outs = get_selector.select(output_value)
       return nil  if !prev_outs
-
       if Bitcoin.namecoin?
         prev_out = nil
         outputs.each do |out|
@@ -181,11 +180,12 @@ module Bitcoin::Wallet
             prev_out = get_txouts.find {|o| o.type == :name_firstupdate && o.get_tx && o.get_tx.hash == out[3] }
             outputs[0].delete_at(3)
           end
+          unless out[0] == :name_new
+            raise "previous name tx not found in wallet."  unless prev_out
+            prev_outs += [prev_out]
+          end
         end
-        raise "previous name tx not found."  unless prev_out
-        prev_outs += [prev_out]
       end
-
       input_value = prev_outs.map(&:value).inject(:+)
       return nil  unless input_value >= (output_value + fee)
 

@@ -55,7 +55,12 @@ optparse = OptionParser.new do |opts|
     " send <addr>:<amount>[,<addr>:<amount>...] [<fee>] - send transaction\n" +
     " new - generate new key and add to keystore\n" +
     " import <base58> - import key in base58 format\n" +
-    " export <addr> - export key to base58 format\n"
+    " export <addr> - export key to base58 format\n" +
+    " name_show <name> - display name information\n" +
+    " name_history <name> - display name history\n" +
+    " name_new <name> - reserve a name\n" +
+    " name_firstupdate <name> <rand> <tx> <value> - register a name\n" +
+    " name_update <name> <value> [<toaddress>] - update a name\n"
 
 end
 
@@ -87,6 +92,63 @@ end
 
 def val_str(str)
   (str.to_f * 1e8).to_i
+end
+
+def send_transaction(storage, options, tx, ask = true)
+  #  puts tx.to_json
+
+  if ask
+    total = 0
+    puts "Hash: #{tx.hash}"
+    puts "inputs:"
+    tx.in.each do |txin|
+      prev_out = storage.get_txout_for_txin(txin)
+      total += prev_out.value
+      puts " #{prev_out.get_address} - #{str_val prev_out.value}"
+    end
+
+    puts "outputs:"
+    tx.out.each do |txout|
+      total -= txout.value
+      script = Bitcoin::Script.new(txout.pk_script)
+      print "#{str_val txout.value} "
+      if script.is_pubkey?
+        puts "#{script.get_pubkey} (pubkey)"
+      elsif script.is_hash160?
+        puts "#{script.get_address} (address)"
+      elsif script.is_multisig?
+        puts "#{script.get_addresses.join(' ')} (multisig)"
+      elsif script.is_namecoin?
+        puts "#{script.get_address} (#{script.type})"
+        print " " * 16
+        if script.is_name_new?
+          puts "Name Hash: #{script.get_name_hash}"
+        else
+          puts "#{script.get_name}: #{script.get_value}"
+        end
+      else
+        puts "#{str_val txout.value} (unknown type)"
+      end
+    end
+    puts "Fee: #{str_val total}"
+
+    $stdout.sync = true
+    print "Really send transaction? (y/N) " and $stdout.flush
+    unless $stdin.gets.chomp.downcase == 'y'
+      puts "Aborted."; exit
+    end
+  end
+  EM.run do
+    Bitcoin::Network::CommandClient.connect(*options[:command].split(":")) do
+      on_connected do
+        request(:relay_tx, tx)
+      end
+      on_relay_tx do
+        puts "Transaction #{tx.hash} relayed"
+        EM.stop
+      end
+    end
+  end
 end
 
 case cmd
@@ -135,7 +197,6 @@ when "key"
   puts "Privkey: #{key[:key].priv}"  if ARGV[1] == '-p'
   puts "Mine:    #{key[:mine]}"
 
-  
 when "import"
   if wallet.keystore.respond_to?(:import)
     addr = wallet.keystore.import(cmdopts[0])
@@ -193,6 +254,44 @@ when "list"
     puts "Total balance: #{str_val wallet.get_balance}"
   end
 
+when "name_show"
+  name = storage.name_show(cmdopts[0])
+  puts name.to_json
+
+when "name_history"
+  names = storage.name_history(cmdopts[0])
+  puts JSON.pretty_generate(names)
+
+when "name_new"
+  name = cmdopts[0]
+  address = wallet.keystore.keys.sample[:key].addr
+  @rand = nil
+  def self.set_rand rand
+    @rand = rand
+  end
+  tx = wallet.new_tx([[:name_new, self, name, address, 1000000]])
+  (puts "Error creating tx."; exit)  unless tx
+  send_transaction(storage, options, tx, false)
+  puts JSON.pretty_generate([tx.hash, @rand])
+
+when "name_firstupdate"
+  name, rand, txhash, value = *cmdopts
+  address = wallet.keystore.keys.sample[:key].addr
+  tx = wallet.new_tx([[:name_firstupdate, name, rand, value, txhash, address, 1000000]])
+  (puts "Error creating tx."; exit)  unless tx
+  send_transaction(storage, options, tx, false)
+  puts tx.hash
+
+when "name_update"
+  name, value, address = *cmdopts
+  address ||= wallet.keystore.keys.sample[:key].addr
+  txhash = storage.name_show(name).get_tx.hash rescue nil
+  (puts "Cannot find prev tx."; exit)  unless txhash
+  tx = wallet.new_tx([[:name_update, name, value, tx, address, 1000000]])
+  (puts "Error creating tx."; exit)  unless tx
+  send_transaction(storage, options, tx, false)
+  puts tx.hash
+
 when "send"
   to = cmdopts[0].split(',').map do |pair|
     type, *addrs, value = pair.split(":")
@@ -217,64 +316,10 @@ when "send"
     File.open(filename, "w") {|f| f.write(tx.serialize) }
     exit
   end
-  
-  unless tx
-    puts "Error creating tx."; exit
-  end
 
-  puts tx.to_json
+  (puts "Error creating tx."; exit)  unless tx
 
-  total = 0
-  puts "Hash: #{tx.hash}"
-  puts "inputs:"
-  tx.in.each do |txin|
-    prev_out = storage.get_txout_for_txin(txin)
-    total += prev_out.value
-    puts " #{prev_out.get_address} - #{str_val prev_out.value}"
-  end
-
-  puts "outputs:"
-  tx.out.each do |txout|
-    total -= txout.value
-    script = Bitcoin::Script.new(txout.pk_script)
-    print "#{str_val txout.value} "
-    if script.is_pubkey?
-      puts "#{script.get_pubkey} (pubkey)"
-    elsif script.is_hash160?
-      puts "#{script.get_address} (address)"
-    elsif script.is_multisig?
-      puts "#{script.get_addresses.join(' ')} (multisig)"
-    elsif script.is_namecoin?
-      puts "#{script.get_address} (#{script.type})"
-      print " " * 16
-      if script.is_name_new?
-        puts "Name Hash: #{script.get_name_hash}"
-      else
-        puts "#{script.get_name}: #{script.get_value}"
-      end
-    else
-      puts "#{str_val txout.value} (unknown type)"
-    end
-  end
-  puts "Fee: #{str_val total}"
-
-  $stdout.sync = true
-  print "Really send transaction? (y/N) " and $stdout.flush
-  unless $stdin.gets.chomp.downcase == 'y'
-    puts "Aborted."; exit
-  end
-
-  EM.run do
-    Bitcoin::Network::CommandClient.connect(*options[:command].split(":")) do
-      on_connected do
-        request(:relay_tx, tx)
-      end
-      on_relay_tx do
-        puts "Transaction #{tx.hash} relayed"
-        EM.stop
-      end
-    end
-  end
+  send_transaction(storage, options, tx)
 
 when "sign"
   txt = File.read(ARGV[0])

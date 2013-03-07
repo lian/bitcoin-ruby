@@ -168,9 +168,14 @@ module Bitcoin::Storage::Models
     end
 
     def expires_in
-      1200 - (@store.get_depth - get_txout.get_tx.get_block.depth)
+      36000 - (@store.get_depth - get_txout.get_tx.get_block.depth)
     rescue
       nil
+    end
+
+    def to_json(opts = {})
+      JSON.pretty_generate({ name: @name, value: @value, txid: get_tx.hash,
+          address: get_address, expires_in: expires_in }, opts)
     end
 
   end

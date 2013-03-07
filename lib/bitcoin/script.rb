@@ -466,6 +466,8 @@ class Bitcoin::Script
       rand = @chunks[-9].to_s.hth
       return Bitcoin.hash160(rand + name)
     end
+  rescue
+    nil
   end
 
   # get the name of a namecoin name_firstupdate or name_update tx
@@ -558,11 +560,12 @@ class Bitcoin::Script
   end
 
   # OP_1 name_hash OP_2DROP <hash160_script>
-  def self.to_name_new_script(name, address)
+  # the +caller+ should be the object that creates the script.
+  # it gets the used random value passed to #set_rand.
+  def self.to_name_new_script(caller, name, address)
     rand = rand(2**64).to_s(16)
     name_hash = Bitcoin.hash160(rand + name.unpack("H*")[0])
-    p [:rand, rand] # TODO
-
+    caller.set_rand rand # TODO: this is still ugly
     [ [ "51", "14",   name_hash, "6d" ].join ].pack("H*") + to_address_script(address)
   end
 
