@@ -69,10 +69,11 @@ module OpenSSL_EC
 
 
     length = i2d_ECPrivateKey(eckey, nil)
-    ptr = FFI::MemoryPointer.new(:pointer)
+    buf = FFI::MemoryPointer.new(:uint8, length)
+    ptr = FFI::MemoryPointer.new(:pointer).put_pointer(0, buf)
     priv_hex = if i2d_ECPrivateKey(eckey, ptr) == length
-      size = ptr.read_pointer.get_array_of_uint8(8, 1)[0]
-      ptr.read_pointer.get_array_of_uint8(9, size).pack("C*").rjust(32, "\x00").unpack("H*")[0]
+      size = buf.get_array_of_uint8(8, 1)[0]
+      buf.get_array_of_uint8(9, size).pack("C*").rjust(32, "\x00").unpack("H*")[0]
       #der_to_private_key( ptr.read_pointer.read_string(length).unpack("H*")[0] )
     end
 
@@ -82,9 +83,10 @@ module OpenSSL_EC
 
 
     length = i2o_ECPublicKey(eckey, nil)
-    ptr = FFI::MemoryPointer.new(:pointer)
+    buf = FFI::MemoryPointer.new(:uint8, length)
+    ptr = FFI::MemoryPointer.new(:pointer).put_pointer(0, buf)
     pub_hex = if i2o_ECPublicKey(eckey, ptr) == length
-      ptr.read_pointer.read_string(length).unpack("H*")[0]
+      buf.read_string(length).unpack("H*")[0]
     end
 
     EC_KEY_free(eckey)

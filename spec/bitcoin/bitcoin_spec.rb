@@ -350,9 +350,11 @@ describe 'Bitcoin Address/Hash160/PubKey' do
   begin
     Bitcoin::OpenSSL_EC
     it 'opens key from private key and resolves public key' do
-      private_key, public_key = Bitcoin.generate_key
-      key = Bitcoin.open_key(private_key)
-      [ key.private_key_hex, key.public_key_hex ].should == [ private_key, public_key ]
+      50.times.all?{
+        private_key, public_key = Bitcoin.generate_key
+        key = Bitcoin.open_key(private_key)
+        [ key.private_key_hex, key.public_key_hex ] == [ private_key, public_key ]
+      }.should == true
     end
 
     it 'extract private key from uncompressed DER format' do
