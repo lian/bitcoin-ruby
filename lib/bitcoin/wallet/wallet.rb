@@ -177,15 +177,18 @@ module Bitcoin::Wallet
             break  if prev_out = get_txouts.find {|o|
               o.type == :name_new && o.get_tx && o.get_tx.hash == tx_hash }
           elsif out[0] == :name_update
-            prev_out = get_txouts.find {|o| o.type == :name_firstupdate && o.get_tx && o.get_tx.hash == out[3] }
-            outputs[0].delete_at(3)
-          end
-          unless out[0] == :name_new
-            raise "previous name tx not found in wallet."  unless prev_out
-            prev_outs += [prev_out]
+            tx_hash = outputs[0].delete_at(3)
+            break  if prev_out = get_txouts.find {|o|
+              [:name_firstupdate, :name_update].include?(o.type) &&
+              o.get_name && o.get_name.name == out[1] }
           end
         end
+        if outputs.find{|o| [:name_firstupdate, :name_update].include?(o[0]) }
+          raise "previous name tx not found in wallet."  unless prev_out
+          prev_outs += [prev_out]
+        end
       end
+
       input_value = prev_outs.map(&:value).inject(:+)
       return nil  unless input_value >= (output_value + fee)
 

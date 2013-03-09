@@ -271,7 +271,7 @@ when "name_new"
   end
   tx = wallet.new_tx([[:name_new, self, name, address, 1000000]])
   (puts "Error creating tx."; exit)  unless tx
-  send_transaction(storage, options, tx, false)
+  send_transaction(storage, options, tx, true)
   puts JSON.pretty_generate([tx.hash, @rand])
 
 when "name_firstupdate"
@@ -279,7 +279,7 @@ when "name_firstupdate"
   address = wallet.keystore.keys.sample[:key].addr
   tx = wallet.new_tx([[:name_firstupdate, name, rand, value, txhash, address, 1000000]])
   (puts "Error creating tx."; exit)  unless tx
-  send_transaction(storage, options, tx, false)
+  send_transaction(storage, options, tx, true)
   puts tx.hash
 
 when "name_update"
@@ -289,7 +289,7 @@ when "name_update"
   (puts "Cannot find prev tx."; exit)  unless txhash
   tx = wallet.new_tx([[:name_update, name, value, tx, address, 1000000]])
   (puts "Error creating tx."; exit)  unless tx
-  send_transaction(storage, options, tx, false)
+  send_transaction(storage, options, tx, true)
   puts tx.hash
 
 when "send"
