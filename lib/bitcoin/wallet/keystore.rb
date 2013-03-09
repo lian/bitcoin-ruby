@@ -139,7 +139,7 @@ module Bitcoin::Wallet
         @config[:file].reopen
         dumper.call(@config[:file])
         @config[:file].rewind
-      elsif File.exists?(@config[:file])
+      else
         File.open(@config[:file], 'w'){|file| dumper.call(file) }
       end
     end
