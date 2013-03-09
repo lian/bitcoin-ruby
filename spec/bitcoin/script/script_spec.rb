@@ -356,11 +356,14 @@ describe 'Bitcoin::Script' do
       @name_update.get_value.should == @name_firstupdate.get_value
     end
 
+    def set_rand rand; @rand = rand; end
+
     it 'should create scripts' do
       key = Key.generate
-      script = Script.to_name_new_script("test/foo", key.addr)
+      script = Script.to_name_new_script(self, "test/foo", key.addr)
       Script.new(script).to_string.should =~
         /^1 (.*?) OP_2DROP OP_DUP OP_HASH160 #{key.hash160} OP_EQUALVERIFY OP_CHECKSIG$/
+      @rand.should != nil
 
       script = Script.to_name_firstupdate_script("test/foo", "1234", "testing", key.addr)
       Script.new(script).to_string.should ==
