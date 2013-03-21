@@ -56,11 +56,12 @@ optparse = OptionParser.new do |opts|
     " new - generate new key and add to keystore\n" +
     " import <base58> - import key in base58 format\n" +
     " export <addr> - export key to base58 format\n" +
+    " name_list - list names in the wallet\n" +
     " name_show <name> - display name information\n" +
     " name_history <name> - display name history\n" +
     " name_new <name> - reserve a name\n" +
-    " name_firstupdate <name> <rand> <tx> <value> - register a name\n" +
-    " name_update <name> <value> [<toaddress>] - update a name\n"
+    " name_firstupdate <name> <rand> <value> - register a name\n" +
+    " name_update <name> <value> [<toaddress>] - update/transfer a name\n"
 
 end
 
@@ -95,8 +96,7 @@ def val_str(str)
 end
 
 def send_transaction(storage, options, tx, ask = true)
-  #  puts tx.to_json
-
+  # puts tx.to_json
   if ask
     total = 0
     puts "Hash: #{tx.hash}"
@@ -237,7 +237,12 @@ when "list"
         puts "#{tx.hash} | #{str_val txout.value, '- '} | " +
           "#{str_val total} | #{blocks}"
         txin.get_tx.out.each do |out|
-          puts "  -> #{out.get_addresses.join(', ')}"
+          if Bitcoin.namecoin? && out.type.to_s =~ /^name_/
+            script = out.script
+            puts "  -> #{script.get_name || script.get_name_hash} (#{out.type})"
+          else
+            puts "  -> #{out.get_addresses.join(', ') rescue 'unknown'}"
+          end
         end
         puts
       end
@@ -253,6 +258,12 @@ when "list"
     end
     puts "Total balance: #{str_val wallet.get_balance}"
   end
+
+when "name_list"
+  names = wallet.get_txouts.select {|o| [:name_firstupdate, :name_update].include?(o.type)}
+    .map(&:get_name).group_by(&:name).map {|n, l| l.sort_by(&:expires_in).last }.map {|name|
+    { name: name.name, value: name.value, address: name.get_address, expires_in: name.expires_in } }
+  puts JSON.pretty_generate(names)
 
 when "name_show"
   name = storage.name_show(cmdopts[0])
@@ -275,9 +286,9 @@ when "name_new"
   puts JSON.pretty_generate([tx.hash, @rand])
 
 when "name_firstupdate"
-  name, rand, txhash, value = *cmdopts
+  name, rand, value = *cmdopts
   address = wallet.keystore.keys.sample[:key].addr
-  tx = wallet.new_tx([[:name_firstupdate, name, rand, value, txhash, address, 1000000]])
+  tx = wallet.new_tx([[:name_firstupdate, name, rand, value, address, 1000000]])
   (puts "Error creating tx."; exit)  unless tx
   send_transaction(storage, options, tx, true)
   puts tx.hash
@@ -285,9 +296,7 @@ when "name_firstupdate"
 when "name_update"
   name, value, address = *cmdopts
   address ||= wallet.keystore.keys.sample[:key].addr
-  txhash = storage.name_show(name).get_tx.hash rescue nil
-  (puts "Cannot find prev tx."; exit)  unless txhash
-  tx = wallet.new_tx([[:name_update, name, value, tx, address, 1000000]])
+  tx = wallet.new_tx([[:name_update, name, value, address, 1000000]])
   (puts "Error creating tx."; exit)  unless tx
   send_transaction(storage, options, tx, true)
   puts tx.hash

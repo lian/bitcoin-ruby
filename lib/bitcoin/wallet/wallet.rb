@@ -111,7 +111,6 @@ module Bitcoin::Wallet
     # get total balance for all addresses in this wallet
     def get_balance(unconfirmed = false)
       values = get_txouts(unconfirmed).select{|o| !o.get_next_in}.map(&:value)
-
       ([0] + values).inject(:+)
     end
 
@@ -173,14 +172,11 @@ module Bitcoin::Wallet
         prev_out = nil
         outputs.each do |out|
           if out[0] == :name_firstupdate
-            tx_hash = outputs[0].delete_at(4)
+            name_hash = Bitcoin.hash160(out[2] + out[1].hth)
             break  if prev_out = get_txouts.find {|o|
-              o.type == :name_new && o.get_tx && o.get_tx.hash == tx_hash }
+              o.type == :name_new && o.script.get_name_hash == name_hash }
           elsif out[0] == :name_update
-            tx_hash = outputs[0].delete_at(3)
-            break  if prev_out = get_txouts.find {|o|
-              [:name_firstupdate, :name_update].include?(o.type) &&
-              o.get_name && o.get_name.name == out[1] }
+            break  if prev_out = storage.name_show(out[1]).get_txout rescue nil
           end
         end
         if outputs.find{|o| [:name_firstupdate, :name_update].include?(o[0]) }
