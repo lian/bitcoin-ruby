@@ -24,10 +24,45 @@ describe 'Bitcoin::Script' do
       Script.new(SCRIPT[1]).to_string.should ==
         "304402204e45e16932b8af514961a1d3a1a25fdf3f4f7732e9d624c6c61548ab5fb8cd410220181522ec8eca07de4860a4acdd12909d831cc56cbbac4622082221a8768d1d0901"
 
-      Script.new([123].pack("C")).to_string.should == "(opcode 123)"
+      #Script.new([123].pack("C")).to_string.should == "(opcode 123)"
       Script.new([176].pack("C")).to_string.should == "OP_NOP1"
-
       Script.from_string("1 OP_DROP 2").to_string.should == "1 OP_DROP 2"
+
+      Script.from_string("4b").to_string.should == "4b"
+      Script.from_string("4b").to_payload.should == "\x01\x4b"
+      Script.from_string("ff").to_string.should == "ff"
+      Script.from_string("ff").to_payload.should == "\x01\xff"
+      Script.from_string("ffff").to_string.should == "ffff"
+
+      Script.from_string( "ff"*(Script::OP_PUSHDATA1-1) ).to_payload[0]   .should == [Script::OP_PUSHDATA1-1].pack("C*")
+      Script.from_string( "ff"*Script::OP_PUSHDATA1     ).to_payload[0..1].should == [Script::OP_PUSHDATA1, Script::OP_PUSHDATA1].pack("C*")
+      Script.from_string( "ff"*(Script::OP_PUSHDATA1+1) ).to_payload[0..1].should == [Script::OP_PUSHDATA1, Script::OP_PUSHDATA1+1].pack("C*")
+      Script.from_string( "ff"*0xff                     ).to_payload[0..1].should == [Script::OP_PUSHDATA1, 0xff].pack("C*")
+      Script.from_string( "ff"*(0xff+1)                 ).to_payload[0..2].should == [Script::OP_PUSHDATA2, 0x00, 0x01].pack("C*")
+      Script.from_string( "ff"*0xffff                   ).to_payload[0..2].should == [Script::OP_PUSHDATA2, 0xff, 0xff].pack("C*")
+      Script.from_string( "ff"*(0xffff+1)               ).to_payload[0..4].should == [Script::OP_PUSHDATA4, 0x00, 0x00, 0x01, 0x00].pack("C*")
+
+      Script.from_string("16").to_string.should == "16"
+      Script::OP_2_16.include?(Script.from_string("16").chunks.first).should == true
+      Script.from_string("16").to_payload.should == "\x60"
+      Script.new("\x60").to_string.should == "16"
+
+      Script.from_string("0:1:16").to_string.should == "0:1:16"
+      Script::OP_2_16.include?(Script.from_string("0:1:16").chunks.first).should == false
+      Script.from_string("0:1:16").to_payload.should == "\x01\x16"
+      Script.new("\x01\x16").to_string.should == "0:1:16"
+
+      Script.new("\x4d\x01\x00\x02").to_string.should == "77:1:02"
+      Script.from_string("77:1:02").to_payload.should == "\x4d\x01\x00\x02"
+      Script.from_string("77:1:01").to_string.should == "77:1:01"
+      Script.from_string("77:2:0101").to_string.should == "77:2:0101"
+      Script.from_string("78:1:01").to_string.should == "78:1:01"
+      Script.from_string("78:2:0101").to_string.should == "78:2:0101"
+      Script.new("\x4e\x01\x00\x00\x00\x02").to_string.should == "78:1:02"
+      Script.from_string("78:1:02").to_payload.should == "\x4e\x01\x00\x00\x00\x02"
+
+      Script.new("\x4d\x01\x00").to_string.should == "77:1:"
+      Script.from_string("77:1:").to_payload.should == "\x4d\x01\x00"
     end
 
     it 'Script#binary_from_string' do
@@ -55,6 +90,9 @@ describe 'Bitcoin::Script' do
       [1,2,4].all?{|n| script = "OP_PUSHDATA#{n} 01 ff"
         Bitcoin::Script.binary_from_string(script) == Bitcoin::Script.binary_from_string( Bitcoin::Script.from_string(script).to_string )
       }.should == true
+
+      #Script.from_string("-100").to_string.should == "OP_NOP"
+      #Script.from_string("100").to_string.should == "100"
 
       proc{ Script.from_string("OP_NOP OP_UNKOWN") }.should.raise(Script::ScriptOpcodeError).message.should == "OP_UNKOWN not defined!"
     end

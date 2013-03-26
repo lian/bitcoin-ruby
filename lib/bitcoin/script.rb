@@ -6,6 +6,7 @@ class Bitcoin::Script
   OP_TRUE        = 81
   OP_0           = 0
   OP_FALSE       = 0
+  OP_PUSHDATA0   = 0
   OP_PUSHDATA1   = 76
   OP_PUSHDATA2   = 77
   OP_PUSHDATA4   = 78
@@ -70,6 +71,11 @@ class Bitcoin::Script
     @chunks = parse(bytes, offset)
   end
 
+  class ::String
+    attr_accessor :bitcoin_pushdata
+    attr_accessor :bitcoin_pushdata_length
+  end
+
   # parse raw script
   def parse(bytes, offset=0)
     program = bytes.unpack("C*")
@@ -81,17 +87,38 @@ class Bitcoin::Script
       end
 
       if (opcode > 0) && (opcode < OP_PUSHDATA1)
-        len = opcode
+        len, tmp = opcode, program[0]
         chunks << program.shift(len).pack("C*")
+
+        # 0x16 = 22 due to OP_2_16 from_string parsing
+        if len == 1 && tmp <= 22
+          chunks.last.bitcoin_pushdata = OP_PUSHDATA0
+          chunks.last.bitcoin_pushdata_length = len
+        end
       elsif (opcode == OP_PUSHDATA1)
         len = program.shift(1)[0]
         chunks << program.shift(len).pack("C*")
+
+        unless len > OP_PUSHDATA1 && len <= 0xff
+          chunks.last.bitcoin_pushdata = OP_PUSHDATA1
+          chunks.last.bitcoin_pushdata_length = len
+        end
       elsif (opcode == OP_PUSHDATA2)
         len = program.shift(2).pack("C*").unpack("v")[0]
         chunks << program.shift(len).pack("C*")
+
+        unless len > 0xff && len <= 0xffff
+          chunks.last.bitcoin_pushdata = OP_PUSHDATA2
+          chunks.last.bitcoin_pushdata_length = len
+        end
       elsif (opcode == OP_PUSHDATA4)
         len = program.shift(4).pack("C*").unpack("V")[0]
         chunks << program.shift(len).pack("C*")
+
+        unless len > 0xffff # && len <= 0xffffffff
+          chunks.last.bitcoin_pushdata = OP_PUSHDATA4
+          chunks.last.bitcoin_pushdata_length = len
+        end
       else
         chunks << opcode
       end
@@ -107,10 +134,17 @@ class Bitcoin::Script
         case i
         when *OPCODES.keys;          OPCODES[i]
         when *OP_2_16;               (OP_2_16.index(i)+2).to_s
+        #when *OP_2_16;               "OP_" + (OP_2_16.index(i)+2).to_s
         else "(opcode #{i})"
         end
       when String
-        i.unpack("H*")[0]
+        if i.bitcoin_pushdata
+          "#{i.bitcoin_pushdata}:#{i.bitcoin_pushdata_length}:".force_encoding('binary') + i.unpack("H*")[0]
+        #elsif i.bytesize == 1
+        #  i.unpack("c")[0]
+        else
+          i.unpack("H*")[0]
+        end
       end
     }.join(" ")
   end
@@ -128,17 +162,35 @@ class Bitcoin::Script
   def self.pack_pushdata(data)
     size = data.bytesize
 
-    head = if size < OP_PUSHDATA1
-             [size].pack("C")
-           elsif size > OP_PUSHDATA1 && size <= 0xff
-             [OP_PUSHDATA1, size].pack("CC")
-           elsif size > 0xff && size <= 0xffff
-             [OP_PUSHDATA2, size].pack("Cv")
-           elsif size > 0xffff && size <= 0xffffffff
-             [OP_PUSHDATA4, size].pack("CV")
-           end
+    if data.bitcoin_pushdata
+      size = data.bitcoin_pushdata_length
+      pack_pushdata_align(data.bitcoin_pushdata, size, data)
+    else
+      head = if size < OP_PUSHDATA1
+               [size].pack("C")
+             elsif size <= 0xff
+               [OP_PUSHDATA1, size].pack("CC")
+             elsif size <= 0xffff
+               [OP_PUSHDATA2, size].pack("Cv")
+             #elsif size <= 0xffffffff
+             else
+               [OP_PUSHDATA4, size].pack("CV")
+             end
+      head + data
+    end
+  end
 
-    head + data
+  def self.pack_pushdata_align(pushdata, len, data)
+    case pushdata
+    when OP_PUSHDATA1
+      [OP_PUSHDATA1, len].pack("CC") + data
+    when OP_PUSHDATA2
+      [OP_PUSHDATA2, len].pack("Cv") + data
+    when OP_PUSHDATA4
+      [OP_PUSHDATA4, len].pack("CV") + data
+    else # OP_PUSHDATA0
+      [len].pack("C") + data
+    end
   end
 
   # script object of a string representation
@@ -156,8 +208,16 @@ class Bitcoin::Script
       when *OPCODES.values;          OPCODES.find{|k,v| v == i }.first
       when *OPCODES_ALIAS.keys;      OPCODES_ALIAS.find{|k,v| k == i }.last
       when /^([2-9]|1[0-6])$/;       OP_2_16[$1.to_i-2]
+      when /^OP_([2-9]|1[0-6])$/;    OP_2_16[$1.to_i-2]
       when /\(opcode (\d+)\)/;       $1.to_i
       when /OP_(.+)$/;               raise ScriptOpcodeError, "#{i} not defined!"
+      when /(\d+):(\d+):(.+)?/
+        pushdata, len, data = $1.to_i, $2.to_i, $3
+        pack_pushdata_align(pushdata, len, [data].pack("H*"))
+      #when /^(-)?([0-9][0-9]?|1[0-1][0-9]|12[0-8])$/
+      #  negative, number = $1, $2.to_i
+      #  data = [ negative ? -number : number ].pack("c")
+      #  pack_pushdata(data)
       else 
         data = [i].pack("H*")
         pack_pushdata(data)
