@@ -663,6 +663,19 @@ class Bitcoin::Script
   OPCODES_METHOD[0]  = :op_0
   OPCODES_METHOD[81] = :op_1
 
+  def self.is_canonical_pubkey?(pubkey)
+    return false if pubkey.bytesize < 33 # "Non-canonical public key: too short"
+    case pubkey[0]
+    when "\x04"
+      return false if pubkey.bytesize != 65 # "Non-canonical public key: invalid length for uncompressed key"
+    when "\x02", "\x03"
+      return false if pubkey.bytesize != 33 # "Non-canonical public key: invalid length for compressed key"
+    else
+      return false # "Non-canonical public key: compressed nor uncompressed"
+    end
+    true
+  end
+
   private
 
   def parse_sig(sig)
