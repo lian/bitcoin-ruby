@@ -11,13 +11,10 @@ module Protocol
       super(*values)
     end
 
-
-    Valid_Keys = [ "04fc9702847840aaf195de8442ebecedf5b095cdbb9bc716bda9110971b28a49e0ead8564ff0db22209e0374782c093bb899692d524e9d6a6956e7c5ecbcd68284" ] 
-
     def valid_signature?
       return false unless @payload && @signature
       hash = Digest::SHA256.digest(Digest::SHA256.digest(@payload))
-      Valid_Keys.any?{|public_key| Bitcoin.verify_signature(hash, @signature, public_key) }
+      Bitcoin.network[:alert_pubkeys].any?{|public_key| Bitcoin.verify_signature(hash, @signature, public_key) }
     end
 
 
