@@ -87,10 +87,10 @@ class Bitcoin::Script
         len = program.shift(1)[0]
         chunks << program.shift(len).pack("C*")
       elsif (opcode == OP_PUSHDATA2)
-        len = program.shift(2).pack("C*").unpack("n")[0]
+        len = program.shift(2).pack("C*").unpack("v")[0]
         chunks << program.shift(len).pack("C*")
       elsif (opcode == OP_PUSHDATA4)
-        len = program.shift(4).pack("C*").unpack("N")[0]
+        len = program.shift(4).pack("C*").unpack("V")[0]
         chunks << program.shift(len).pack("C*")
       else
         chunks << opcode
