@@ -387,8 +387,12 @@ module Bitcoin
       :p2sh_version => "05",
       :privkey_version => "80",
       :default_port => 8333,
-      :dns_seeds => ["bitseed.xf2.org", "dnsseed.bluematt.me",
-        "dnsseed.bitcoin.dashjr.org", "seed.bitcoin.sipa.be"],
+      :dns_seeds => [
+        "seed.bitcoin.sipa.be",
+        "dnsseed.bluematt.me",
+        "dnsseed.bitcoin.dashjr.org",
+        "bitseed.xf2.org",
+      ],
       :genesis_hash => "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
       :proof_of_work_limit => 0x1d00ffff,
       :known_nodes => [
@@ -396,6 +400,18 @@ module Bitcoin
         'mining.bitcoin.cz',
         'blockchain.info',
         'blockexplorer.com',
+      ],
+      :checkpoints => [
+        [ 11111, "0000000069e244f73d78e8fd29ba2fd2ed618bd6fa2ee92559f542fdb26e7c1d"],
+        [ 33333, "000000002dd5588a74784eaa7ab0507a18ad16a236e7b1ce69f00d7ddfb5d0a6"],
+        [ 74000, "0000000000573993a3c9e41ce34471c079dcf5f52a0e824a81e7f953b8661a20"],
+        [105000, "00000000000291ce28027faea320c8d2b054b2e0fe44a773f3eefb151d6bdc97"],
+        [134444, "00000000000005b12ffd4cd315cd34ffd4a594f430ac814c91184a0d42d2b0fe"],
+        [168000, "000000000000099e61ea72015e79632f216fe6cb33d7899acb35b75c8303b763"],
+        [193000, "000000000000059f452a5f7340de6682a977387c17010ff6e6c3bd83ca8b1317"],
+        [210000, "000000000000048b95347e83192f69cf0366076336c639f9b7228e9ba171342e"],
+        [216116, "00000000000001b4f4b433e81ee46494af945cf96014816a4e2370f11b23df4e"],
+        [225430, "00000000000001c108384350f74090433e7fcf79a606b8e797f065b130575932"],
       ]
     },
     :testnet => {
@@ -404,10 +420,11 @@ module Bitcoin
       :p2sh_version => "c4",
       :privkey_version => "ef",
       :default_port => 18333,
-      :dns_seeds => ["testseed.bitcoin.interesthings.de"],
+      :dns_seeds => [ "testseed.bitcoin.interesthings.de" ],
       :genesis_hash => "00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008",
       :proof_of_work_limit => 0x1d07fff8,
-      :known_nodes => []
+      :known_nodes => [],
+      :checkpoints => []
     },
     :testnet3 => {
       :magic_head => "\x0b\x11\x09\x07",
@@ -415,10 +432,14 @@ module Bitcoin
       :p2sh_version => "c4",
       :privkey_version => "ef",
       :default_port => 18333,
-      :dns_seeds => [],
+      :dns_seeds => [
+        "testnet-seed.bitcoin.petertodd.org",
+        "bitcoin-seednode.bluematt.me",
+      ],
       :genesis_hash => "000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943",
       :proof_of_work_limit => 0x1d07fff8,
-      :known_nodes => []
+      :known_nodes => [],
+      :checkpoints => []
     }
   }
   
