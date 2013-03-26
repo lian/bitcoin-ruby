@@ -117,7 +117,7 @@ describe 'Bitcoin::Protocol::Block' do
     # block version 2 (introduced by BIP_0034)
     block = Bitcoin::Protocol::Block.from_json(fixtures_file('000000000000056b1a3d84a1e2b33cde8915a4b61c0cae14fca6d3e1490b4f98.json'))
     block.ver.should == 2
-    block.bip34_block_height.should == 1639427
+    block.bip34_block_height.should == 197657
   end
 
 end

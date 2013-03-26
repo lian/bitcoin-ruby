@@ -115,7 +115,7 @@ module Bitcoin
       def bip34_block_height
         return nil unless @ver >= 2
         coinbase = @tx.first.inputs.first.script_sig
-        coinbase.unpack("xH#{ coinbase.unpack("C")[0]*2 }")[0].to_i(16)
+        coinbase[1..coinbase[0].ord].ljust(4, "\x00").unpack("I").first
       rescue
         nil
       end
