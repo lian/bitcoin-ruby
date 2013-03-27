@@ -12,6 +12,9 @@ module Bitcoin
       # script_sig input Script (signature)
       attr_accessor :script_sig, :script_sig_length
 
+      alias :script   :script_sig
+      alias :script_length  :script_sig_length
+
       # sequence
       attr_accessor :sequence
 
@@ -71,6 +74,10 @@ module Bitcoin
         end
         txin.sequence = [ input['sequence'] || 0xffffffff ].pack("I")
         txin
+      end
+
+      def self.from_hex_hash(hash, index)
+        TxIn.new([hash].pack("H*").reverse, index, 0)
       end
 
       # previous output in hex

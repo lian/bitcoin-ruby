@@ -202,7 +202,7 @@ module Bitcoin::Validation
       return true  if KNOWN_EXCEPTIONS.include?(tx.hash)
       opts[:rules] ||= [:syntax, :context]
       opts[:rules].each do |name|
-        store.log.debug { "validating tx #{name} #{tx.hash} (#{tx.to_payload.bytesize} bytes)" }
+        store.log.debug { "validating tx #{name} #{tx.hash} (#{tx.to_payload.bytesize} bytes)" } if store
         RULES[name].each.with_index do |rule, i|
           unless send(rule)
             raise ValidationError, "tx error: #{name} check #{i} - #{rule} failed"  if opts[:raise_errors]

@@ -40,7 +40,7 @@ module Bitcoin
     end
 
     def on_version(version)
-      p [@sockaddr, 'version', version, version.timestamp - Time.now.to_i]
+      p [@sockaddr, 'version', version, version.time - Time.now.to_i]
       send_data( Protocol.verack_pkt )
     end
 

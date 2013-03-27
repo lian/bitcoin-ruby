@@ -41,6 +41,10 @@ module Bitcoin
         [@hash].pack("H*")
       end
 
+      def prev_block_hex
+        @prev_block_hex ||= @prev_block.reverse.unpack("H*")[0]
+      end
+
       # create block from raw binary +data+
       def initialize(data)
         @tx = []
