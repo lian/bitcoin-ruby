@@ -49,6 +49,12 @@ class Bitcoin::Script
   # OP_ELSE         = 103
   # OP_ENDIF        = 104
 
+  OP_RETURN = 106
+  OP_IF = 99
+  OP_NOTIF = 100
+  OP_ELSE = 103
+  OP_ENDIF = 104
+
   OPCODES = Hash[*constants.grep(/^OP_/).map{|i| [const_get(i), i.to_s] }.flatten]
   OPCODES[0] = "0"
   OPCODES[81] = "1"
@@ -620,6 +626,11 @@ class Bitcoin::Script
   # Puts the number of stack items onto the stack.
   def op_depth
     @stack << @stack.size
+  end
+
+  # Marks transaction as invalid.
+  def op_return
+    @script_invalid = true; nil
   end
 
   # https://en.bitcoin.it/wiki/BIP_0017  (old OP_NOP2)
