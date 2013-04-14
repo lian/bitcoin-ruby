@@ -64,7 +64,7 @@ module Bitcoin
 
     def self.pkt(command, payload)
       cmd      = command.ljust(12, "\x00")[0...12]
-      length   = [payload.bytesize].pack("I")
+      length   = [payload.bytesize].pack("V")
       checksum = Digest::SHA256.digest(Digest::SHA256.digest(payload))[0...4]
 
       [Bitcoin.network[:magic_head].force_encoding(BINARY), cmd.force_encoding(BINARY), length, checksum, payload.force_encoding(BINARY)].join
@@ -100,13 +100,13 @@ module Bitcoin
 
     def self.getdata_pkt(type, hashes)
       return if hashes.size >= 256
-      t = [ TypeLookup[type] ].pack("I")
+      t = [ TypeLookup[type] ].pack("V")
       pkt("getdata", [hashes.size].pack("C") + hashes.map{|hash| t + hash[0..32].reverse }.join)
     end
 
     def self.inv_pkt(type, hashes)
       return if hashes.size >= 256
-      t = [ TypeLookup[type] ].pack("I")
+      t = [ TypeLookup[type] ].pack("V")
       pkt("inv", [hashes.size].pack("C") + hashes.map{|hash| t + hash[0..32].reverse }.join)
     end
 

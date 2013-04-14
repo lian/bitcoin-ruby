@@ -15,7 +15,7 @@ module Bitcoin
       # create addr from raw binary +data+
       def initialize(data = nil)
         if data
-          self[:time], self[:service], self[:ip], self[:port] = data.unpack("IQx12a4n")
+          self[:time], self[:service], self[:ip], self[:port] = data.unpack("VQx12a4n")
           self[:ip] = ip.unpack("C*").join(".")
         else
           self[:time], self[:service] = Time.now.to_i, 1
@@ -30,7 +30,7 @@ module Bitcoin
 
       def to_payload
         ip = self[:ip].split(".").map(&:to_i)
-        [ time, service, ("\x00"*10)+"\xff\xff", *ip, port ].pack("IQa12C4n")
+        [ time, service, ("\x00"*10)+"\xff\xff", *ip, port ].pack("VQa12C4n")
       end
 
       def string

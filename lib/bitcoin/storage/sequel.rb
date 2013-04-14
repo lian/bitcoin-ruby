@@ -128,7 +128,7 @@ module Bitcoin::Storage::Backends
           :script_sig => txin.script_sig.to_sequel_blob,
           :prev_out => txin.prev_out.to_sequel_blob,
           :prev_out_index => txin.prev_out_index,
-          :sequence => txin.sequence.unpack("I")[0],
+          :sequence => txin.sequence.unpack("V")[0],
         })
 
       if @config[:mode] == :pruned
@@ -329,7 +329,7 @@ module Bitcoin::Storage::Backends
       txin.prev_out_index = input[:prev_out_index]
       txin.script_sig_length = input[:script_sig].bytesize
       txin.script_sig = input[:script_sig]
-      txin.sequence = [input[:sequence]].pack("I")
+      txin.sequence = [input[:sequence]].pack("V")
       txin
     end
 

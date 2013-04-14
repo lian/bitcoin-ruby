@@ -37,7 +37,7 @@ module Bitcoin
       # parse raw binary data for transaction input
       def parse_data(data)
         idx = 0
-        @prev_out, @prev_out_index = data[idx...idx+=36].unpack("a32I")
+        @prev_out, @prev_out_index = data[idx...idx+=36].unpack("a32V")
         @script_sig_length, tmp = Protocol.unpack_var_int(data[idx..-1])
         idx += data[idx..-1].bytesize - tmp.bytesize
         @script_sig = data[idx...idx+=@script_sig_length]
@@ -48,7 +48,7 @@ module Bitcoin
       alias :parse_payload :parse_data
 
       def to_payload(script=@script_sig, sequence=@sequence)
-        buf =  [ @prev_out, @prev_out_index ].pack("a32I")
+        buf =  [ @prev_out, @prev_out_index ].pack("a32V")
         buf << Protocol.pack_var_int(script.bytesize)
         buf << script if script.bytesize > 0
         buf << (sequence || DEFAULT_SEQUENCE)
@@ -61,7 +61,7 @@ module Bitcoin
         else # coinbase tx
           t['scriptSig'] = Bitcoin::Script.new(@script_sig).to_string
         end
-        t['sequence']  = @sequence.unpack("I")[0] unless @sequence == "\xff\xff\xff\xff"
+        t['sequence']  = @sequence.unpack("V")[0] unless @sequence == "\xff\xff\xff\xff"
         t
       end
 
@@ -72,7 +72,7 @@ module Bitcoin
         else
           txin.script_sig = Script.binary_from_string(input['scriptSig'])
         end
-        txin.sequence = [ input['sequence'] || 0xffffffff ].pack("I")
+        txin.sequence = [ input['sequence'] || 0xffffffff ].pack("V")
         txin
       end
 

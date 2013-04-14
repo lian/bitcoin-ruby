@@ -18,12 +18,12 @@ module Bitcoin
 
       def to_payload
         payload = [
-          @fields.values_at(:version, :services, :time).pack("IQQ"),
+          @fields.values_at(:version, :services, :time).pack("VQQ"),
           pack_address_field(@fields[:from]),
           pack_address_field(@fields[:to]),
           @fields.values_at(:nonce).pack("Q"),
           Protocol.pack_var_string(@fields[:user_agent]),
-          @fields.values_at(:last_block).pack("I")
+          @fields.values_at(:last_block).pack("V")
         ].join
       end
 
@@ -32,10 +32,10 @@ module Bitcoin
       end
 
       def parse(payload)
-        version, services, timestamp, to, from, nonce, payload = payload.unpack("Ia8Qa26a26Qa*")
+        version, services, timestamp, to, from, nonce, payload = payload.unpack("Va8Qa26a26Qa*")
         to, from = unpack_address_field(to), unpack_address_field(from)
         user_agent, payload = Protocol.unpack_var_string(payload)
-        last_block = payload.unpack("I")[0]
+        last_block = payload.unpack("V")[0]
 
         @fields = {
          :version => version, :services => services, :time => timestamp,

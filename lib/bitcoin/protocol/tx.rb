@@ -56,7 +56,7 @@ module Bitcoin
 
       # parse raw binary data
       def parse_data(data)
-        @ver = data.unpack("I")[0]
+        @ver = data.unpack("V")[0]
         idx = 4
         in_size, tmp = Protocol.unpack_var_int(data[idx..-1])
         idx += data[idx..-1].bytesize-tmp.bytesize
@@ -77,7 +77,7 @@ module Bitcoin
           txout
         }
 
-        @lock_time = data[idx...idx+=4].unpack("I")[0]
+        @lock_time = data[idx...idx+=4].unpack("V")[0]
 
         @payload = data[0...idx]
         @hash = hash_from_payload(@payload)
@@ -95,7 +95,7 @@ module Bitcoin
         pout = @out.map(&:to_payload).join
 
         in_size, out_size = Protocol.pack_var_int(@in.size), Protocol.pack_var_int(@out.size)
-        [[@ver].pack("I"), in_size, pin, out_size, pout, [@lock_time].pack("I")].join
+        [[@ver].pack("V"), in_size, pin, out_size, pout, [@lock_time].pack("V")].join
       end
 
 
@@ -144,7 +144,7 @@ module Bitcoin
           in_size, pin = Protocol.pack_var_int(1), [ pin[input_idx] ]
         end
 
-        buf = [ [@ver].pack("I"), in_size, pin, out_size, pout, [@lock_time, hash_type].pack("II") ].join
+        buf = [ [@ver].pack("V"), in_size, pin, out_size, pout, [@lock_time, hash_type].pack("VV") ].join
         Digest::SHA256.digest( Digest::SHA256.digest( buf ) )
       end
 

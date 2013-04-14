@@ -53,7 +53,7 @@ module Bitcoin
 
       # parse raw binary data
       def parse_data(data)
-        @ver, @prev_block, @mrkl_root, @time, @bits, @nonce, payload = data.unpack("Ia32a32IIIa*")
+        @ver, @prev_block, @mrkl_root, @time, @bits, @nonce, payload = data.unpack("Va32a32VVVa*")
         recalc_block_hash
 
         tx_size, payload = Protocol.unpack_var_int(payload)
@@ -85,7 +85,7 @@ module Bitcoin
 
       # convert to raw binary format
       def to_payload
-        head = [@ver, @prev_block, @mrkl_root, @time, @bits, @nonce].pack("Ia32a32III")
+        head = [@ver, @prev_block, @mrkl_root, @time, @bits, @nonce].pack("Va32a32VVV")
         [head, Protocol.pack_var_int(@tx.size), @tx.map(&:to_payload).join].join
       end
 
@@ -119,7 +119,7 @@ module Bitcoin
       def bip34_block_height
         return nil unless @ver >= 2
         coinbase = @tx.first.inputs.first.script_sig
-        coinbase[1..coinbase[0].ord].ljust(4, "\x00").unpack("I").first
+        coinbase[1..coinbase[0].ord].ljust(4, "\x00").unpack("V").first
       rescue
         nil
       end
