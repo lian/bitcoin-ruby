@@ -434,6 +434,10 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     Bitcoin.block_average_hashing_time(436835377, 630_000_000).should == 11940563
   end
 
+  it '#block_average_mining_time' do
+    Bitcoin.block_average_mining_time(0x1a022fbe, 231337, 270.0, 1.0).should == 56.50855038530773 # days
+  end
+
   it '#blockchain_total_btc' do
     # 0.step(6930000, 210000){|height|
     #   p total_btc(height-1) unless height == 0

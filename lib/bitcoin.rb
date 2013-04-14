@@ -304,6 +304,13 @@ module Bitcoin
       block_hashes_to_win(target_nbits) / hashes_per_second
     end
 
+    # average mining time (in days) using Mh/s to get btc
+    def block_average_mining_time(block_nbits, block_height, mega_hashes_per_second, target_btc=1.0)
+      seconds = block_average_hashing_time(block_nbits, mega_hashes_per_second * 1_000_000)
+      reward  = block_creation_reward(block_height) / Bitcoin::COIN # satoshis to btc
+      (days = seconds / 60 / 60 / 24) * (target_btc / reward)
+    end
+
     # shows the total number of Bitcoins in circulation, reward era and reward in that era.
     def blockchain_total_btc(height)
       reward, interval = 5000000000, 210000
