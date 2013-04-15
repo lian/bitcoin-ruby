@@ -115,8 +115,10 @@ describe "Bitcoin::Key" do
   it "should hanlde compressed and uncompressed pubkeys" do
     compressed   = "0351efb6e91a31221652105d032a2508275f374cea63939ad72f1b1e02f477da78"
     uncompressed = "0451efb6e91a31221652105d032a2508275f374cea63939ad72f1b1e02f477da787f71a2e8ac5aacedab47904d4bd42f636429e9ce069ebcb99f675aad31306a53"
+    Bitcoin::Key.new(nil, compressed).compressed.should == true
     Bitcoin::Key.new(nil, compressed).pub.should  == compressed
     Bitcoin::Key.new(nil, compressed).addr.should == "1NdB761LmTmrJixxp93nz7pEiCx5cKPW44"
+    Bitcoin::Key.new(nil, uncompressed).compressed.should == false
     Bitcoin::Key.new(nil, uncompressed).pub.should == uncompressed
     Bitcoin::Key.new(nil, uncompressed).addr.should == "19FBCg9295EBQ4P6bSLTGyz2BdbbPcqQD"
 
@@ -127,6 +129,22 @@ describe "Bitcoin::Key" do
     sig = @key.sign(msg="foobar")
     Bitcoin::Key.new(nil, @key.pub_compressed  ).verify(msg, sig).should == true
     Bitcoin::Key.new(nil, @key.pub_uncompressed).verify(msg, sig).should == true
+
+    compressed   = "02f01984446a994a9e422c9ba9c6f33f1f40c01d9d872064a49679d702fae33064"
+    Bitcoin::Key.new(nil, compressed).pub.should  == compressed
+    Bitcoin::Key.new(nil, compressed).addr.should == "18TWywxjESkg4pzJqBYNDo39S2QMPaWWJ5"
+
+    k = Bitcoin::Key.new(nil, nil)
+    k.instance_eval{ set_pub("02f01984446a994a9e422c9ba9c6f33f1f40c01d9d872064a49679d702fae33064") }
+    k.compressed.should == true
+
+    k = Bitcoin::Key.new(nil, nil)
+    k.instance_eval{ set_pub("0351efb6e91a31221652105d032a2508275f374cea63939ad72f1b1e02f477da78") }
+    k.compressed.should == true
+
+    k = Bitcoin::Key.new(nil, nil)
+    k.instance_eval{ set_pub("0451efb6e91a31221652105d032a2508275f374cea63939ad72f1b1e02f477da787f71a2e8ac5aacedab47904d4bd42f636429e9ce069ebcb99f675aad31306a53") }
+    k.compressed.should == false
   end
 
 end

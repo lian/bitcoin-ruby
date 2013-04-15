@@ -76,6 +76,10 @@ module Bitcoin
       @key.public_key.to_hex.rjust(130, '0')
     end
 
+    def compressed
+      @pubkey_compressed
+    end
+
     # Set the public key (in hex).
     def pub= pub
       set_pub(pub)
@@ -129,7 +133,7 @@ module Bitcoin
 
     # Set +pub+ as the new public key (converting from hex).
     def set_pub(pub)
-      @pubkey_compressed ||= pub[0..1] == "03"
+      @pubkey_compressed ||= ["02","03"].include?(pub[0..1])
       @key.public_key = OpenSSL::PKey::EC::Point.from_hex(@key.group, pub)
     end
 
