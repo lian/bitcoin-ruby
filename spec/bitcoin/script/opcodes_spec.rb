@@ -6,7 +6,6 @@ describe "Bitcoin::Script OPCODES" do
   before do
     @script = Bitcoin::Script.new("")
     @script.class.instance_eval { attr_accessor :stack, :stack_alt }
-    @script.stack << "foobar"
   end
 
   def op(op, stack)
@@ -16,68 +15,52 @@ describe "Bitcoin::Script OPCODES" do
   end
 
   it "should do OP_NOP" do
-    @script.op_nop
-    @script.stack.should == ["foobar"]
+    op(:nop, ["foobar"]).should == ["foobar"]
   end
 
   it "should do OP_DUP" do
-    @script.op_dup
-    @script.stack.should == ["foobar", "foobar"]
+    op(:dup, ["foobar"]).should == ["foobar", "foobar"]
   end
 
   it "should do OP_SHA256" do
-    @script.op_sha256
-    @script.stack.should ==
-      [["c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2"].pack("H*")]
+    op(:sha256, ["foobar"]).should == [["c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2"].pack("H*")]
   end
 
   it "should do OP_SHA1" do
-    @script.op_sha1
-    @script.stack.should ==
-      [["8843d7f92416211de9ebb963ff4ce28125932878"].pack("H*")]
+    op(:sha1, ["foobar"]).should == [["8843d7f92416211de9ebb963ff4ce28125932878"].pack("H*")]
   end
 
   it "should do OP_HASH160" do
-    @script.op_hash160
-    @script.stack.should ==
-      [["f6c97547d73156abb300ae059905c4acaadd09dd"].pack("H*")]
+    op(:hash160, ["foobar"]).should == [["f6c97547d73156abb300ae059905c4acaadd09dd"].pack("H*")]
   end
 
   it "should do OP_RIPEMD160" do
-    @script.op_ripemd160
-    @script.stack.should ==
-      [["a06e327ea7388c18e4740e350ed4e60f2e04fc41"].pack("H*")]
+    op(:ripemd160, ["foobar"]).should == [["a06e327ea7388c18e4740e350ed4e60f2e04fc41"].pack("H*")]
   end
 
   it "should do OP_HASH256" do
-    @script.op_hash256
-    @script.stack.should ==
-      [["3f2c7ccae98af81e44c0ec419659f50d8b7d48c681e5d57fc747d0461e42dda1"].pack("H*")]
+    op(:hash256, ["foobar"]).should == [["3f2c7ccae98af81e44c0ec419659f50d8b7d48c681e5d57fc747d0461e42dda1"].pack("H*")]
   end
 
   it "should do OP_TOALTSTACK" do
-    @script.op_toaltstack
-    @script.stack.should == []
+    op(:toaltstack, ["foobar"]).should == []
     @script.stack_alt.should == ["foobar"]
   end
 
   it "should do OP_FROMALTSTACK" do
-    @script.instance_eval { @stack_alt << "barfoo" }
+    @script.instance_eval { @stack     = [] }
+    @script.instance_eval { @stack_alt = ["foo"] }
     @script.op_fromaltstack
-    @script.stack.should == ["foobar", "barfoo"]
+    @script.stack.should == ["foo"]
     @script.stack_alt.should == []
   end
 
   it "should do OP_TUCK" do
-    @script.instance_eval { @stack += ["foo", "bar"] }
-    @script.op_tuck
-    @script.stack.should == ["foobar", "bar", "foo", "bar"]
+    op(:tuck, ["foobar", "foo", "bar"]).should == ["foobar", "bar", "foo", "bar"]
   end
 
   it "should do OP_SWAP" do
-    @script.instance_eval { @stack << "barfoo" }
-    @script.op_swap
-    @script.stack.should == ["barfoo", "foobar"]
+    op(:swap, ["foo", "bar"]).should == ["bar", "foo"]
   end
 
   it "should do OP_BOOLAND" do
@@ -94,20 +77,19 @@ describe "Bitcoin::Script OPCODES" do
   end
 
   it "should do OP_SUB" do
-    op(:sub, [2, 3]).should == [1]
-    op(:sub, [1, 9]).should == [8]
-    op(:sub, [3, 1]).should == [-2]
+    op(:sub, [3, 2]).should == [1]
+    op(:sub, [9, 1]).should == [8]
+    op(:sub, [1, 3]).should == [-2]
   end
 
   it "should do OP_GREATERTHANOREQUAL" do
-    op(:greaterthanorequal, [1, 2]).should == [1]
+    op(:greaterthanorequal, [2, 1]).should == [1]
     op(:greaterthanorequal, [2, 2]).should == [1]
-    op(:greaterthanorequal, [2, 1]).should == [0]
+    op(:greaterthanorequal, [1, 2]).should == [0]
   end
 
   it "should do OP_DROP" do
-    @script.op_drop
-    @script.stack.should == []
+    op(:drop, ["foo"]).should == []
   end
 
   it "should do OP_EQUAL" do
@@ -128,75 +110,340 @@ describe "Bitcoin::Script OPCODES" do
   end
 
   it "should do OP_0" do
-    @script.op_0
-    @script.stack.should == ["foobar", ""]
+    op("0", ["foo"]).should == ["foo", ""]
   end
 
   it "should do OP_1" do
-    @script.op_1
-    @script.stack.should == ["foobar", 1]
+    op("1", ["foo"]).should == ["foo", 1]
   end
 
   it "should do OP_MIN" do
     [
-      [4, 5], [5, 4], [4, 4], ["\x04", "\x05"]
-    ].each{|s|
-      @script.instance_eval { @stack = s }
-      @script.op_min
-      @script.stack.should == [4]
+      [[4, 5], 4],
+      [[5, 4], 4],
+      [[4, 4], 4],
+      [["\x04", "\x05"], 4],
+
+      [[1, 0], 0],
+      [[0, 1], 0],
+      [[-1, 0], -1],
+      [[0, -2147483647], -2147483647],
+    ].each{|stack, expected|
+      op(:min, stack).should == [expected]
     }
   end
 
   it "should do OP_MAX" do
     [
-      [4, 5], [5, 4], [5, 5], ["\x04", "\x05"]
-    ].each{|s|
-      @script.instance_eval { @stack = s }
-      @script.op_max
-      @script.stack.should == [5]
+      [[4, 5], 5],
+      [[5, 4], 5],
+      [[4, 4], 4],
+      [["\x04", "\x05"], 5],
+
+      [[2147483647, 0], 2147483647],
+      [[0, 100], 100],
+      [[-100, 0], 0],
+      [[0, -2147483647], 0],
+    ].each{|stack, expected|
+      op(:max, stack).should == [expected]
     }
   end
   
   it "should do op_2over" do
-    @script.instance_eval { @stack = [1,2,3,4] }
-    @script.op_2over
-    @script.stack.should == [1,2,3,4,1,2]
+    op('2over', [1,2,3,4]).should == [1,2,3,4,1,2]
   end
   
   it "should do op_2swap" do
-    @script.instance_eval { @stack = [1,2,3,4] }
-    @script.op_2swap
-    @script.stack.should == [3,4,1,2]
+    op("2swap", [1,2,3,4]).should == [3,4,1,2]
   end
   
   it "should do op_ifdup" do
-    @script.instance_eval { @stack = [1] }
-    @script.op_ifdup
-    @script.stack.should == [1,1]
-    
-    @script.instance_eval { @stack = ['a'] }
-    @script.op_ifdup
-    @script.stack.should == ['a','a']
-    
-    @script.instance_eval { @stack = [0] }
-    @script.op_ifdup
-    @script.stack.should == [0]
+    op(:ifdup, [1]).should == [1,1]
+    op(:ifdup, ['a']).should == ['a','a']
+    op(:ifdup, [0]).should == [0]
   end
 
   it "should do op_1negate" do
-    @script.instance_eval { @stack = [] }
-    @script.op_1negate
-    @script.stack.should == [ -1 ]
+    op("1negate", []).should == [ -1 ]
   end
   
   it "should do op_depth" do
-    @script.instance_eval { @stack = [] }
-    @script.op_depth
-    @script.stack.should == [0]
-    
-    @script.instance_eval { @stack = [1,2,3] }
-    @script.op_depth
-    @script.stack.should == [1,2,3,3]
+    op(:depth, []).should == [0]
+    op(:depth, [1,2,3]).should == [1,2,3,3]
+  end
+
+  it "should do op_boolor" do
+    [
+      [[ 1,  1], 1],
+      [[ 1,  0], 1],
+      [[ 0,  1], 1],
+      [[ 0,  0], 0],
+      [[16, 17], 1],
+      [[-1,  0], 1],
+      #[[1     ], :invalid],
+    ].each{|stack, expected|
+      op(:boolor, stack).should == [ expected ]
+    }
+  end
+
+  it "should do op_lessthan" do
+    [
+      [[ 11, 10], 0],
+      [[  4,  4], 0],
+      [[ 10, 11], 1],
+      [[-11, 11], 1],
+      [[-11,-10], 1],
+      [[ -1,  0], 1],
+    ].each{|stack, expected|
+      op(:lessthan, stack).should == [ expected ]
+    }
+  end
+
+  it "should do op_lessthanorequal" do
+    [
+      [[ 11, 10], 0],
+      [[  4,  4], 1],
+      [[ 10, 11], 1],
+      [[-11, 11], 1],
+      [[-11,-10], 1],
+      [[ -1,  0], 1],
+    ].each{|stack, expected|
+      op(:lessthanorequal, stack).should == [ expected ]
+    }
+  end
+
+  it "should do op_greaterthan" do
+    [
+      [[ 11, 10], 1],
+      [[  4,  4], 0],
+      [[ 10, 11], 0],
+      [[-11, 11], 0],
+      [[-11,-10], 0],
+      [[ -1,  0], 0],
+      [[  1,  0], 1],
+    ].each{|stack, expected|
+      op(:greaterthan, stack).should == [expected]
+    }
+  end
+
+  it "should do op_greaterthanorequal" do
+    [
+      [[ 11, 10], 1],
+      [[  4,  4], 1],
+      [[ 10, 11], 0],
+      [[-11, 11], 0],
+      [[-11,-10], 0],
+      [[ -1,  0], 0],
+      [[  1,  0], 1],
+      [[  0,  0], 1],
+    ].each{|stack, expected|
+      op(:greaterthanorequal, stack).should == [expected]
+    }
+  end
+
+  it "should do op_not" do
+    op(:not, [0]).should == [1]
+    op(:not, [1]).should == [0]
+  end
+
+  it "should do op_0notequal" do
+    [
+      [[0],    0],
+      [[1],    1],
+      [[111],  1],
+      [[-111], 1],
+    ].each{|stack, expected|
+      op("0notequal", stack).should == [expected]
+    }
+  end
+
+  it "should do op_abs" do
+    [
+      [[0],     0],
+      [[16],   16],
+      [[-16],  16],
+      [[-1],    1],
+    ].each{|stack, expected|
+      op(:abs, stack).should == [expected]
+    }
+  end
+
+  it "should do op_2div" do
+    op("2div", [  2]).should == [ 1]
+    op("2div", [ 10]).should == [ 5]
+    op("2div", [-10]).should == [-5]
+  end
+
+  it "should do op_2mul" do
+    op("2mul", [  2]).should == [  4]
+    op("2mul", [ 10]).should == [ 20]
+    op("2mul", [-10]).should == [-20]
+  end
+
+  it "should do op_1add" do
+    op("1add", [  2]).should == [ 3]
+    op("1add", [ 10]).should == [11]
+    op("1add", [-10]).should == [-9]
+  end
+
+  it "should do op_1sub" do
+    op("1sub", [  2]).should == [  1]
+    op("1sub", [ 10]).should == [  9]
+    op("1sub", [-10]).should == [-11]
+  end
+
+  it "should do op_negate" do
+    op("negate", [-2]).should == [ 2]
+    op("negate", [ 2]).should == [-2]
+    op("negate", [ 0]).should == [ 0]
+  end
+
+  it "should do op_within" do
+    [
+      [[0, 0, 1],  1],
+      [[1, 0, 1],  0],
+      [[0, -2147483647, 2147483647],  1],
+      [[-1, -100, 100],  1],
+      [[11, -100, 100],  1],
+      [[-2147483647, -100, 100],  0],
+      [[2147483647, -100, 100],  0],
+      [[-1, -1, 0],  1],
+    ].each{|stack, expected|
+      op(:within, stack).should == [expected]
+    }
+  end
+
+  it "should do op_numequal" do
+    [
+      [[0, 0],  1],
+      [[0, 1],  0],
+    ].each{|stack, expected|
+      op(:numequal, stack).should == [expected]
+    }
+  end
+
+  it "should do op_numequalverify" do
+    [
+      [[0, 0],   []],
+      [[0, 1],  [0]],
+    ].each{|stack, expected|
+      op(:numequalverify, stack).should == expected
+    }
+  end
+
+  it "should do op_numnotequal" do
+    [
+      [[0, 0],  0],
+      [[0, 1],  1],
+    ].each{|stack, expected|
+      op(:numnotequal, stack).should == [expected]
+    }
+  end
+
+  it "should do op_over" do
+    [
+      [[1, 0],  [1,0,1]],
+      [[-1, 1], [-1,1,-1]],
+      [[1], [1]],
+    ].each{|stack, expected|
+      op(:over, stack).should == expected
+    }
+  end
+
+  it "should do op_pick" do
+    [
+      [[1, 0, 0, 0, 3],  [1,0,0,0,1]],
+      [[1, 0],  [1,1]],
+    ].each{|stack, expected|
+      op(:pick, stack).should == expected
+    }
+  end
+
+  it "should do op_roll" do
+    [
+      [[1, 0, 0, 0, 3],  [0,0,0,1]],
+      [[1, 0],  [1]],
+    ].each{|stack, expected|
+      op(:roll, stack).should == expected
+    }
+  end
+
+  it "should do op_rot" do
+    op(:rot, [22, 21, 20]).should == [21, 20, 22]
+    op(:rot, [21, 20]).should == [21, 20]
+  end
+
+  it "should do op_2drop" do
+    op('2drop', [1,2,3]).should == [1]
+    op('2drop', [  2,3]).should == [ ]
+  end
+
+  it "should do op_2dup" do
+    op('2dup', [2,3]).should == [2,3,2,3]
+    op('2dup', [3  ]).should == [  3    ]
+  end
+
+  it "should do op_3dup" do
+    op('3dup', [1,2,3]).should == [1,2,3,1,2,3]
+    op('3dup', [  2,3]).should == [  2,3      ]
+    op('3dup', [    3]).should == [    3      ]
+  end
+
+  it "should do op_nip" do
+    op(:nip, [1,2]).should == [2]
+    op(:nip, [1,2,3]).should == [1,3]
+  end
+
+  it "should do op_size" do
+    [
+      [[0],    [0,0]],
+      [[1],    [1,1]],
+      [[127],  [127,1]],
+      [[128],  [128,2]],
+      [[32767],  [32767,2]],
+      [[32768],  [32768,3]],
+      [[8388607],  [8388607,3]],
+      [[8388608],  [8388608,4]],
+      [[2147483647],  [2147483647,4]],
+      [[2147483648],  [2147483648,5]],
+      [[-1],  [-1,1]],
+      [[-127],  [-127,1]],
+      [[-128],  [-128,2]],
+      [[-32767],  [-32767,2]],
+      [[-32768],  [-32768,3]],
+      [[-8388607],  [-8388607,3]],
+      [[-8388608],  [-8388608,4]],
+      [[-2147483647],  [-2147483647,4]],
+      [[-2147483648],  [-2147483648,5]],
+      [["abcdefghijklmnopqrstuvwxyz"],  ["abcdefghijklmnopqrstuvwxyz",26]],
+    ].each{|stack, expected|
+      op(:size, stack).should == expected
+    }
+  end
+
+  it "should do if/notif/else/end" do
+    [
+      "1 1 OP_IF OP_IF 1 OP_ELSE 0 OP_ENDIF OP_ENDIF",
+      "1 0 OP_IF OP_IF 1 OP_ELSE 0 OP_ENDIF OP_ENDIF",
+      "1 1 OP_IF OP_IF 1 OP_ELSE 0 OP_ENDIF OP_ELSE OP_IF 0 OP_ELSE 1 OP_ENDIF OP_ENDIF",
+      "0 0 OP_IF OP_IF 1 OP_ELSE 0 OP_ENDIF OP_ELSE OP_IF 0 OP_ELSE 1 OP_ENDIF OP_ENDIF",
+      "1 1 OP_NOTIF OP_IF 1 OP_ELSE 0 OP_ENDIF OP_ENDIF",
+      "1 0 OP_NOTIF OP_IF 1 OP_ELSE 0 OP_ENDIF OP_ENDIF",
+      "1 0 OP_NOTIF OP_IF 1 OP_ELSE 0 OP_ENDIF OP_ELSE OP_IF 0 OP_ELSE 1 OP_ENDIF OP_ENDIF",
+      "0 1 OP_NOTIF OP_IF 1 OP_ELSE 0 OP_ENDIF OP_ELSE OP_IF 0 OP_ELSE 1 OP_ENDIF OP_ENDIF",
+      "0 OP_IF OP_RETURN OP_ENDIF 1",
+      "1 OP_IF 1 OP_ENDIF",
+      "0 OP_IF 50 OP_ENDIF 1",
+      "0 OP_IF OP_VER OP_ELSE 1 OP_ENDIF",
+      "0 OP_IF 50 40 OP_ELSE 1 OP_ENDIF",
+      "1 OP_DUP OP_IF OP_ENDIF",
+      "1 OP_IF 1 OP_ENDIF",
+      "1 OP_DUP OP_IF OP_ELSE OP_ENDIF",
+      "1 OP_IF 1 OP_ELSE OP_ENDIF",
+      "0 OP_IF OP_ELSE 1 OP_ENDIF",
+    ].each{|script|
+      Bitcoin::Script.from_string(script).run.should == true
+    }
   end
 
   it "should do OP_CHECKSIG" do
@@ -348,6 +595,7 @@ describe "Bitcoin::Script OPCODES" do
   end
 
 
+=begin
   it "should do OP_CHECKHASHVERIFY" do # https://en.bitcoin.it/wiki/BIP_0017
     k1 = Bitcoin::Key.new; k1.generate
     k2 = Bitcoin::Key.new; k2.generate
@@ -397,6 +645,7 @@ describe "Bitcoin::Script OPCODES" do
     script = "#{sig2} OP_CODESEPARATOR #{script} #{checkhash} OP_CHECKHASHVERIFY OP_DROP"
     run_script(script, "foobar").should == false
   end
+=end
 
   it "should do P2SH" do
     k1 = Bitcoin::Key.new; k1.generate
@@ -425,6 +674,51 @@ describe "Bitcoin::Script OPCODES" do
     Bitcoin::Script.from_string("1 OP_EVAL").to_string.should == "1 OP_NOP1"
     Bitcoin::Script.from_string("1 OP_EVAL").run.should == true
     Bitcoin::Script.from_string("0 OP_EVAL").run.should == false
+  end
+
+  it "should do testnet3 scripts" do
+    [
+      "OP_1NEGATE OP_1NEGATE OP_ADD 82 OP_EQUAL",
+      "6f 1 OP_ADD 12 OP_SUB 64 OP_EQUAL",
+      "76:1:07 7 OP_EQUAL",
+      "OP_1NEGATE e4 64 OP_WITHIN",
+      "0 ffffffff ffffff7f OP_WITHIN",
+      "6162636465666768696a6b6c6d6e6f707172737475767778797a OP_SIZE 1a OP_EQUAL",
+      "0 OP_IFDUP OP_DEPTH 1 OP_EQUALVERIFY 0 OP_EQUAL",
+      "1 OP_NOP1 OP_CHECKHASHVERIFY OP_NOP3 OP_NOP4 OP_NOP5 OP_NOP6 OP_NOP7 OP_NOP8 OP_NOP9 OP_NOP10 1 OP_EQUAL",
+      "1 OP_NOP1 OP_NOP2 OP_NOP3 OP_NOP4 OP_NOP5 OP_NOP6 OP_NOP7 OP_NOP8 OP_NOP9 OP_NOP10 1 OP_EQUAL",
+      "0 ffffffff ffffff7f OP_WITHIN",
+      "0:1:16 0:1:15 0:1:14 OP_ROT OP_ROT 0:1:15 OP_EQUAL",
+      "ffffff7f OP_NEGATE OP_DUP OP_ADD feffffff80 OP_EQUAL",
+      "90 OP_ABS 90 OP_NEGATE OP_EQUAL",
+      "0 OP_DROP OP_DEPTH 0 OP_EQUAL",
+      "1 0 OP_NOTIF OP_IF 1 OP_ELSE 0 OP_ENDIF OP_ELSE OP_IF 0 OP_ELSE 1 OP_ENDIF OP_ENDIF",
+      "6f OP_1SUB 6e OP_EQUAL",
+      "13 14 OP_2DUP OP_ROT OP_EQUALVERIFY OP_EQUAL",
+      "10 0 11 OP_TOALTSTACK OP_DROP OP_FROMALTSTACK OP_ADD 0:1:15 OP_EQUAL",
+      "ffffff7f OP_DUP OP_ADD feffffff00 OP_EQUAL",
+      "77:1:08 8 OP_EQUAL",
+      "1 OP_NOT 0 OP_EQUAL",
+      "0 OP_DROP OP_DEPTH 0 OP_EQUAL",
+      "6f 1 OP_ADD 12 OP_SUB 64 OP_EQUAL",
+      "0:1:0b 11 OP_EQUAL",
+      "13 14 OP_2DUP OP_ROT OP_EQUALVERIFY OP_EQUAL",
+      "ffffff7f OP_DUP OP_ADD feffffff00 OP_EQUAL",
+      "0 OP_DROP OP_DEPTH 0 OP_EQUAL",
+      "0 ffffffff OP_MIN ffffffff OP_NUMEQUAL",
+      "90 OP_ABS 90 OP_NEGATE OP_EQUAL",
+      "OP_1NEGATE e803 OP_ADD e703 OP_EQUAL",
+      "0:1:16 0:1:15 0:1:14 OP_ROT OP_ROT OP_ROT 0:1:14 OP_EQUAL",
+      "13 14 OP_2DUP OP_ROT OP_EQUALVERIFY OP_EQUAL",
+      "8b 11 OP_LESSTHANOREQUAL",
+      "ffffff7f ffffffff OP_ADD 0 OP_EQUAL",
+      "ffffff7f OP_NEGATE OP_DUP OP_ADD feffffff80 OP_EQUAL",
+      "8b 11 OP_GREATERTHANOREQUAL OP_NOT",
+      "0 OP_0NOTEQUAL 0 OP_EQUAL",
+      "2 82 OP_ADD 0 OP_EQUAL",
+    ].each{|script|
+      Bitcoin::Script.from_string(script).run.should == true
+    }
   end
 
 end
