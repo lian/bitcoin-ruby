@@ -173,7 +173,7 @@ class Bitcoin::Script
         when *OPCODES.keys;          OPCODES[i]
         when *OP_2_16;               (OP_2_16.index(i)+2).to_s
         #when *OP_2_16;               "OP_" + (OP_2_16.index(i)+2).to_s
-        else "(opcode #{i})"
+        else "(opcode-#{i})"
         end
       when String
         if i.bitcoin_pushdata
@@ -247,7 +247,9 @@ class Bitcoin::Script
       when *OPCODES_ALIAS.keys;      OPCODES_ALIAS.find{|k,v| k == i }.last
       when /^([2-9]|1[0-6])$/;       OP_2_16[$1.to_i-2]
       when /^OP_([2-9]|1[0-6])$/;    OP_2_16[$1.to_i-2]
-      when /\(opcode (\d+)\)/;       $1.to_i
+      when /\(opcode\-(\d+)\)/;      $1.to_i
+      when /^(\d+)\)/;               $1.to_i # fix invalid opcode parsing
+      when /^\(opcode$/;             # skip  # fix invalid opcode parsing
       when /OP_(.+)$/;               raise ScriptOpcodeError, "#{i} not defined!"
       when /(\d+):(\d+):(.+)?/
         pushdata, len, data = $1.to_i, $2.to_i, $3
@@ -261,7 +263,7 @@ class Bitcoin::Script
         pack_pushdata(data)
       end
     }.map{|i|
-      i.is_a?(Fixnum) ? [i].pack("C*") : i # TODO yikes, implement/pack 2 byte opcodes.
+      i.is_a?(Fixnum) ? [OpenSSL::BN.new(i.to_s,10).to_hex].pack("H*") : i
     }.join
   end
 

@@ -63,6 +63,11 @@ describe 'Bitcoin::Script' do
 
       Script.new("\x4d\x01\x00").to_string.should == "77:1:"
       Script.from_string("77:1:").to_payload.should == "\x4d\x01\x00"
+
+      Bitcoin::Script.from_string("(opcode-230) 4 1 2").to_string.should == "(opcode-230) 4 1 2"
+      Bitcoin::Script.from_string("(opcode 230) 4 1 2").to_string.should == "(opcode-230) 4 1 2"
+      Bitcoin::Script.from_string("(opcode-65449) 4 1 2").to_string.should == "(opcode-65449) 4 1 2"
+      Bitcoin::Script.from_string("(opcode 65449) 4 1 2").to_string.should == "(opcode-65449) 4 1 2"
     end
 
     it 'Script#binary_from_string' do
