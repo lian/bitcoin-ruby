@@ -973,7 +973,7 @@ class Bitcoin::Script
         valid_sigs += 1  if check_callback.call(pubkey, sig, hash_type, drop_sigs, script_code)
       }}
 
-    @stack << ((valid_sigs == n_sigs) ? 1 : (invalid; 0))
+    @stack << ((valid_sigs >= n_sigs) ? 1 : (invalid; 0))
   end
 
   # op_eval: https://en.bitcoin.it/wiki/BIP_0012
