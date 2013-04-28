@@ -59,6 +59,11 @@ module Bitcoin
         @prev_block = hash
       end
 
+      # set the block timestamp (defaults to current time).
+      def time time
+        @time = time
+      end
+
       # add transactions to the block (see TxBuilder).
       def tx
         c = TxBuilder.new
@@ -71,7 +76,7 @@ module Bitcoin
         @block.ver = @version || 1
         @block.prev_block = [@prev_block].pack("H*").reverse
         @block.mrkl_root = @mrkl_root
-        @block.time = Time.now.to_i
+        @block.time = @time || Time.now.to_i
         @block.nonce = 0
         @block.mrkl_root = [Bitcoin.hash_mrkl_tree(@block.tx.map {|t|
               t.hash }).last].pack("H*").reverse

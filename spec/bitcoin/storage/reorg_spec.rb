@@ -13,12 +13,77 @@ describe "reorg" do
     @store = Bitcoin::Storage.sequel(:db => "sqlite:/")
     def @store.in_sync?; true; end
     @store.log.level = :warn
-    Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("f"*64)
+    Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("ff"*32)
     @key = Bitcoin::Key.generate
     @block0 = create_block "00"*32, false, [], @key
     Bitcoin.network[:genesis_hash] = @block0.hash
     @store.store_block(@block0)
     @store.get_head.should == @block0
+  end
+
+  it "should retarget" do
+    @store.reset
+    time = Time.now.to_i - 3000*600
+
+    Bitcoin::Validation::Block::RETARGET = 10
+
+    # create genesis block
+    block = create_block "00"*32, false, [], @key, 50e8, {time: time}
+    Bitcoin.network[:genesis_hash] = block.hash
+    @store.store_block(block)
+    time += 600
+
+    # create too fast blocks
+    block = create_blocks block.hash, 9, time: time, interval: 10
+    time += 90
+
+    -> { create_blocks block.hash, 1, time: time }
+      .should.raise(Bitcoin::Validation::ValidationError).message.should =~ /difficulty/
+
+    block = create_blocks block.hash, 1, time: time, bits: bits = 541065152
+    @store.get_head.should == block
+    time += 600
+
+    # create too slow blocks
+    block = create_blocks block.hash, 9, time: time, interval: 6000, bits: bits
+    time += 8*6000
+    -> { create_blocks block.hash, 1, time: time, bits: bits }
+      .should.raise(Bitcoin::Validation::ValidationError).message.should =~ /difficulty/
+
+    block = create_blocks block.hash, 1, bits: 553713663
+    @store.get_head.should == block
+  end
+
+  it "should reorg across a retargetting boundary correctly" do
+    @store.reset
+    time = Time.now.to_i - 3000*600
+
+    # create genesis block
+    block = create_block "00"*32, false, [], @key, 50e8, {time: time}
+    time += 600
+    Bitcoin.network[:genesis_hash] = block.hash
+    @store.store_block(block)
+
+    # create first regular block
+    split_block = create_blocks block.hash, 1, time: time
+    split_time = time + 600
+
+    # create branch A with target interval
+    block_a = create_blocks split_block.hash, 8, time: split_time
+    time_a = split_time + 8 * 600
+
+    # create branch B with faster-than-target interval
+    block_b = create_blocks split_block.hash, 8, time: split_time, interval: 60
+    time_b = split_time + 8 * 60
+
+    # create 2 blocks for branch A with regular difficulty
+    block_a = create_blocks block_a.hash, 2, time: time_a
+
+    # create 1 block for branch B at higher difficulty
+    block_b = create_blocks block_b.hash, 1, time: time_b, bits: 541568460
+
+    # check that shorter branch B has overtaken longer branch A due to more work
+    @store.get_head.hash.should == block_b.hash
   end
 
   it "should reorg a single side block" do

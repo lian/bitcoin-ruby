@@ -124,7 +124,11 @@ module Bitcoin::Validation
     def min_timestamp
       return true  if store.get_depth <= 11
       d = store.get_depth
-      times = store.db[:blk].where(chain: 0, depth: (d-10..d)).map {|b| b[:time] }.sort
+      first = store.db[:blk][hash: block.prev_block.reverse.to_sequel_blob]
+      times = [first[:time]]
+      (10).times { first = store.db[:blk][hash: first[:prev_hash].to_sequel_blob]
+        times << first[:time] }
+      times.sort!
       mid, rem = times.size.divmod(2)
       block.time > (rem == 0 ? times[mid-1, 2].inject(:+) / 2.0 : times[mid])
     end
@@ -152,22 +156,22 @@ module Bitcoin::Validation
       }
     end
 
-    private
-
     def tx_validators
       @tx_validators ||= block.tx[1..-1].map {|tx| tx.validator(store, block) }
     end
 
     def next_bits_required
-      index = (prev_block.depth + 1) / 2016
+      index = (prev_block.depth + 1) / RETARGET
       max_target = Bitcoin.decode_compact_bits(Bitcoin.network[:proof_of_work_limit]).to_i(16)
-
       return Bitcoin.network[:proof_of_work_limit]  if index == 0
-      first = store.db[:blk][depth: (index-1)*2016, chain: 0]
-      last = store.db[:blk][depth: index*2016-1, chain: 0]
-
+      return prev_block.bits  if (prev_block.depth + 1) % RETARGET != 0
+      last = store.db[:blk][hash: prev_block.hash.htb.to_sequel_blob]
+      first = store.db[:blk][hash: last[:prev_hash].to_sequel_blob]
+      (RETARGET-2).times { first = store.db[:blk][hash: first[:prev_hash].to_sequel_blob] }
+      
       nActualTimespan = last[:time] - first[:time]
-      nTargetTimespan = 14*24*60*60
+      nTargetTimespan = RETARGET * 600
+
       nActualTimespan = [nActualTimespan, nTargetTimespan/4].max
       nActualTimespan = [nActualTimespan, nTargetTimespan*4].min
 

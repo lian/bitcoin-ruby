@@ -102,16 +102,17 @@ module Bitcoin::Storage
             if depth > CHECKPOINTS.keys.last
               validator.validate(rules: [:context], raise_errors: true)
             end
-            return persist_block(blk, MAIN, depth)
+            return persist_block(blk, MAIN, depth, prev_block.work)
           else
             log.debug { "=> side (#{depth})" }
-            return persist_block(blk, SIDE, depth)
+            return persist_block(blk, SIDE, depth, prev_block.work)
           end
         else
           head = get_head
-          if prev_block.depth + 1 <= head.depth
+          if prev_block.work + blk.block_work  <= head.work
             log.debug { "=> side (#{depth})" }
-            return persist_block(blk, SIDE, depth)
+            validator.validate(rules: [:context], raise_errors: true)
+            return persist_block(blk, SIDE, depth, prev_block.work)
           else
             log.debug { "=> reorg" }
             new_main, new_side = [], []
@@ -129,7 +130,7 @@ module Bitcoin::Storage
             update_blocks([[new_side, {:chain => SIDE}]])
             new_main.each {|b| get_block(b).validator(self).validate(raise_errors: true) }
             update_blocks([[new_main, {:chain => MAIN}]])
-            return persist_block(blk, MAIN, depth)
+            return persist_block(blk, MAIN, depth, prev_block.work)
           end
         end
       end

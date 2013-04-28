@@ -12,13 +12,14 @@ module Bitcoin::Storage::Models
   class Block < Bitcoin::Protocol::Block
 
     attr_accessor :ver, :prev_block, :mrkl_root, :time, :bits, :nonce, :tx
-    attr_reader :store, :id, :depth, :chain
+    attr_reader :store, :id, :depth, :chain, :work
 
     def initialize store, data
       @store = store
       @id = data[:id]
       @depth = data[:depth]
       @chain = data[:chain]
+      @work = data[:work]
       @tx = []
     end
 

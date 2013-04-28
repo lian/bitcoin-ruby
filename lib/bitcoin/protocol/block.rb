@@ -173,6 +173,13 @@ module Bitcoin
       def validator(store, prev_block = nil)
         @validator ||= Bitcoin::Validation::Block.new(self, store, prev_block)
       end
+
+      # get the (statistical) amount of work that was needed to generate this block.
+      def block_work
+        target = Bitcoin.decode_compact_bits(@bits)
+        (2**256) / (target.to_i(16) + 1)
+      end
+
     end
 
   end

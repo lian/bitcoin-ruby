@@ -46,7 +46,7 @@ module Bitcoin::Storage::Backends
     end
 
     # persist given block +blk+ to storage.
-    def persist_block blk, chain, depth
+    def persist_block blk, chain, depth, prev_work = 0
       @db.transaction do
         attrs = {
           :hash => blk.hash.htb.to_sequel_blob,
@@ -59,6 +59,7 @@ module Bitcoin::Storage::Backends
           :bits => blk.bits,
           :nonce => blk.nonce,
           :blk_size => blk.to_payload.bytesize,
+          :work => prev_work + blk.block_work
         }
         existing = @db[:blk].filter(:hash => blk.hash.htb.to_sequel_blob)
         if existing.any?
@@ -282,7 +283,7 @@ module Bitcoin::Storage::Backends
     def wrap_block(block)
       return nil  unless block
 
-      data = {:id => block[:id], :depth => block[:depth], :chain => block[:chain]}
+      data = {:id => block[:id], :depth => block[:depth], :chain => block[:chain], :work => block[:work]}
       blk = Bitcoin::Storage::Models::Block.new(self, data)
 
       blk.ver = block[:version]
