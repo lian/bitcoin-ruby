@@ -117,6 +117,7 @@ module Bitcoin::Validation
 
     # check that bits satisfy required difficulty
     def difficulty
+      return true  if Bitcoin.network_name == :testnet3
       next_bits_required == block.bits
     end
 
@@ -289,7 +290,7 @@ module Bitcoin::Validation
 
     # check that all input signatures are valid
     def signatures
-      tx.in.map.with_index {|txin, idx| tx.verify_input_signature(idx, prev_txs[idx]) }.all?
+      tx.in.map.with_index {|txin, idx| tx.verify_input_signature(idx, prev_txs[idx], @block.time) }.all?
     end
 
     # check that none of the prev_outs are already spent in the main chain
