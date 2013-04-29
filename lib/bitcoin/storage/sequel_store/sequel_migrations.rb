@@ -14,7 +14,7 @@ module Bitcoin::Storage::Backends::SequelMigrations
         column :nonce, :bigint, :null => false
         column :blk_size, :int, :null => false
         column :chain, :int, :null => false
-        column :work, :int, :index => true
+        column :work, :bigint, :index => true
       end
     end
 
