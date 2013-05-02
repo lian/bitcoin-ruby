@@ -4,8 +4,12 @@ source "http://rubygems.org"
 gemspec
 
 group :development do
+  gem 'eventmachine'
   gem 'ffi'
   gem 'log4r'
   gem 'sequel'
   gem 'sqlite3'
+
+  gem "rake", ">= 0.8.0"
+  gem "bacon"
 end
