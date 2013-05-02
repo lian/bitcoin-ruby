@@ -19,9 +19,6 @@ Gem::Specification.new do |s|
   s.require_paths = ["lib"]
 
   s.required_rubygems_version = ">= 1.3.6"
-  s.add_dependency "rake",        ">= 0.8.0"
   s.add_dependency "eventmachine"
-
-  s.add_development_dependency "bacon"
 
 end

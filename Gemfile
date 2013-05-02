@@ -4,6 +4,9 @@ source "http://rubygems.org"
 gemspec
 
 group :development do
+  gem "rake", ">= 0.8.0"
+  gem "bacon"
+
   gem 'ffi'
   gem 'log4r'
   gem 'sequel'
