@@ -101,5 +101,5 @@ task :coverage do
     puts "Simplecov not found. Run `gem install simplecov` to install it."
     exit
   end
-  system "bacon #{PROJECT_SPECS.join(' ')}"
+  sh "bacon", *PROJECT_SPECS
 end
