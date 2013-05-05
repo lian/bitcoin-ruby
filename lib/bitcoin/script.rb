@@ -83,6 +83,23 @@ class Bitcoin::Script
   OP_3DUP = 111
   OP_NIP = 119
 
+  OP_CAT = 126
+  OP_SUBSTR = 127
+  OP_LEFT = 128
+  OP_RIGHT = 129
+  OP_INVERT = 131
+  OP_AND = 132
+  OP_OR = 133
+  OP_XOR = 134
+  OP_2MUL = 141
+  OP_2DIV = 142
+  OP_MUL = 149
+  OP_DIV = 150
+  OP_MOD = 151
+  OP_LSHIFT = 152
+  OP_RSHIFT = 153
+
+
   OPCODES = Hash[*constants.grep(/^OP_/).map{|i| [const_get(i), i.to_s] }.flatten]
   OPCODES[0] = "0"
   OPCODES[81] = "1"
@@ -94,6 +111,12 @@ class Bitcoin::Script
     #"OP_NOP2" => OP_CHECKHASHVERIFY,
     "OP_CHECKHASHVERIFY" => OP_NOP2,
   }
+
+  DISABLED_OPCODES = [
+    OP_CAT, OP_SUBSTR, OP_LEFT, OP_RIGHT, OP_INVERT,
+    OP_AND, OP_OR, OP_XOR, OP_2MUL, OP_2DIV, OP_MUL,
+    OP_DIV, OP_MOD, OP_LSHIFT, OP_RSHIFT
+  ]
 
   OP_CHECKHASHVERIFY = 177 # disabled
 
@@ -283,6 +306,7 @@ class Bitcoin::Script
     @debug = []
     @chunks.each{|chunk|
       break if invalid?
+
       @debug << @stack.map{|i| i.unpack("H*") rescue i}
       @do_exec = @exec_stack.count(false) == 0 ? true : false
       #p [@stack, @do_exec]
@@ -292,6 +316,9 @@ class Bitcoin::Script
         next unless (@do_exec || (OP_IF <= chunk && chunk <= OP_ENDIF))
 
         case chunk
+        when *DISABLED_OPCODES
+          @script_invalid = true
+          @debug << "DISABLED_#{OPCODES[chunk]}"
         when *OPCODES_METHOD.keys
           m = method( n=OPCODES_METHOD[chunk] )
           @debug << n.to_s.upcase
