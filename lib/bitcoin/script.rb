@@ -486,7 +486,18 @@ class Bitcoin::Script
   def self.to_pubkey_script_sig(signature, pubkey)
     hash_type = "\x01"
     #pubkey = [pubkey].pack("H*") if pubkey.bytesize != 65
-    raise "pubkey is not in binary form" unless pubkey.bytesize == 65  && pubkey[0] == "\x04"
+
+    case pubkey[0]
+    when "\x04"
+      expected_size = 65
+    when "\x02", "\x03"
+      expected_size = 33
+    end
+
+    if !expected_size || pubkey.bytesize != expected_size
+      raise "pubkey is not in binary form"
+    end
+
     [ [signature.bytesize+1].pack("C"), signature, hash_type, [pubkey.bytesize].pack("C"), pubkey ].join
   end
 
