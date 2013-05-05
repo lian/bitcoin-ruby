@@ -72,7 +72,8 @@ end
 
 Bitcoin::network = :bitcoin
 
-Bitcoin::Storage::Backends::StoreBase::CHECKPOINTS = {-1 => ""}
+Bitcoin::Storage::Backends::StoreBase::CHECKPOINTS.reject!{|k,v| k }
+Bitcoin::Storage::Backends::StoreBase::CHECKPOINTS[-1] = ""
 
 begin
   require 'bacon'

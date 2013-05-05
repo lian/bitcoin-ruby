@@ -60,8 +60,6 @@ class Bitcoin::Script
   OP_NOT            = 145
   OP_0NOTEQUAL = 146
   OP_ABS = 144
-  OP_2DIV = 142
-  OP_2MUL = 141
   OP_1ADD = 139
   OP_1SUB = 140
   OP_NEGATE = 143
