@@ -465,7 +465,40 @@ module Bitcoin
       :alert_pubkeys => ["04302390343f91cc401d56d68b123028bf52e5fca1939df127f63c6467cdf9c8e2c14b61104cf817d0b780da337893ecc4aaff1309e536162dabbdb45200ca2b0a"],
       :known_nodes => [],
       :checkpoints => []
-    }
+    },
+
+
+    :ppcoin => {
+      :project => :ppcoin,
+      :magic_head => "\xe6\xe8\xe9\xe5",
+      :address_version => "37",
+      :p2sh_version => "75",
+      :privkey_version => "ef",
+      :default_port => 9901,
+      :dns_seeds => [ "seed.ppcoin.net" ],
+      :genesis_hash => "0000000032fe677166d54963b62a4677d8957e87c508eaa4fd7eb1c880cd27e3",
+      :proof_of_work_limit => 0,
+      :alert_pubkeys => [],
+      :known_nodes => [ "theseven.bounceme.net", "cryptocoinexplorer.com" ],
+      :checkpoints => [
+        [19080, "000000000000bca54d9ac17881f94193fd6a270c1bb21c3bf0b37f588a40dbd7"],
+        [30583, "d39d1481a7eecba48932ea5913be58ad3894c7ee6d5a8ba8abeb772c66a6696e"],
+      ]
+    },
+    :ppcoin_testnet => {
+      :project => :ppcoin,
+      :magic_head => "\xcb\xf2\xc0\xef",
+      :address_version => "6f",
+      :p2sh_version => "c4",
+      :privkey_version => "ef",
+      :default_port => 9903,
+      :dns_seeds => [ "tnseed.ppcoin.net" ],
+      :genesis_hash => "00000001f757bb737f6596503e17cd17b0658ce630cc727c0cca81aec47c9f06",
+      :proof_of_work_limit => 0,
+      :alert_pubkeys => [],
+      :known_nodes => [],
+      :checkpoints => []
+    },
   }
   
 end

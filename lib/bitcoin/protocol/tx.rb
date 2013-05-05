@@ -39,6 +39,7 @@ module Bitcoin
       # create tx from raw binary +data+
       def initialize(data=nil)
         @ver, @lock_time, @in, @out = 1, 0, [], []
+        @time = Time.now.to_i if Bitcoin.network_project == :ppcoin
         parse_data(data) if data
       end
 
@@ -58,6 +59,8 @@ module Bitcoin
       def parse_data(data)
         @ver = data.unpack("V")[0]
         idx = 4
+        (@time = data.unpack("x4V")[0]; idx += 4) if Bitcoin.network_project == :ppcoin
+
         in_size, tmp = Protocol.unpack_var_int(data[idx..-1])
         idx += data[idx..-1].bytesize-tmp.bytesize
         # raise "unkown transaction version: #{@ver}" unless @ver == 1
@@ -95,7 +98,11 @@ module Bitcoin
         pout = @out.map(&:to_payload).join
 
         in_size, out_size = Protocol.pack_var_int(@in.size), Protocol.pack_var_int(@out.size)
-        [[@ver].pack("V"), in_size, pin, out_size, pout, [@lock_time].pack("V")].join
+        if Bitcoin.network_project == :ppcoin
+          [[@ver, @time].pack("VV"), in_size, pin, out_size, pout, [@lock_time].pack("V")].join
+        else
+          [[@ver].pack("V"), in_size, pin, out_size, pout, [@lock_time].pack("V")].join
+        end
       end
 
 
@@ -144,7 +151,11 @@ module Bitcoin
           in_size, pin = Protocol.pack_var_int(1), [ pin[input_idx] ]
         end
 
-        buf = [ [@ver].pack("V"), in_size, pin, out_size, pout, [@lock_time, hash_type].pack("VV") ].join
+        if Bitcoin.network_project == :ppcoin
+          buf = [ [@ver, @time].pack("VV"), in_size, pin, out_size, pout, [@lock_time, hash_type].pack("VV") ].join
+        else
+          buf = [ [@ver].pack("V"), in_size, pin, out_size, pout, [@lock_time, hash_type].pack("VV") ].join
+        end
         Digest::SHA256.digest( Digest::SHA256.digest( buf ) )
       end
 
@@ -167,13 +178,15 @@ module Bitcoin
       # convert to ruby hash (see also #from_hash)
       def to_hash
         @hash ||= hash_from_payload(to_payload)
-        {
+        h = {
           'hash' => @hash, 'ver' => @ver,
           'vin_sz' => @in.size, 'vout_sz' => @out.size,
           'lock_time' => @lock_time, 'size' => (@payload ||= to_payload).bytesize,
           'in'  =>  @in.map(&:to_hash),
           'out' => @out.map(&:to_hash)
         }
+        h['time'] = @time if Bitcoin.network_project == :ppcoin
+        h
       end
 
       # generates rawblock json as seen in the block explorer.
@@ -193,6 +206,7 @@ module Bitcoin
         tx.ver, tx.lock_time = *h.values_at('ver', 'lock_time')
         h['in'] .each{|input|   tx.add_in  TxIn.from_hash(input)   }
         h['out'].each{|output|  tx.add_out TxOut.from_hash(output) }
+        tx.instance_eval{ @time = h['time'] } if Bitcoin.network_project == :ppcoin
         tx.instance_eval{ @hash = hash_from_payload(@payload = to_payload) }
         tx
       end
