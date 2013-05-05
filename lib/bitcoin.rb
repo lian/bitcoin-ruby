@@ -546,6 +546,26 @@ module Bitcoin
       :known_nodes => [],
       :checkpoints => []
     },
+
+
+    :freicoin => {
+      :project => :freicoin,
+      :magic_head => "\x2c\xfe\x7e\x6d",
+      :address_version => "00",
+      :p2sh_version => "05",
+      :privkey_version => "80",
+      :default_port => 8639,
+      :dns_seeds => [ "seed.freico.in", "fledge.freico.in" ],
+      :genesis_hash => "000000005b1e3d23ecfd2dd4a6e1a35238aa0392c0a8528c40df52376d7efe2c",
+      :proof_of_work_limit => 0,
+      :alert_pubkeys => [],
+      :known_nodes => [],
+      :checkpoints => [
+        [10080, "0x00000000003ff9c4b806639ec4376cc9acafcdded0e18e9dbcc2fc42e8e72331"],
+        [15779, "0x000000000003eb31742b35f5efd8ffb5cdd19dcd8e82cdaad90e592c450363b6"],
+      ]
+    },
+
   }
   
 end

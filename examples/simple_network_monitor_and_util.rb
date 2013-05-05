@@ -96,6 +96,7 @@ module SimpleNode
       @version ||= version
       log.info { "received version:  Version:%d (%s)  Block:%d" % version.fields.values_at(:version, :user_agent, :last_block) }
       send_data( Bitcoin::Protocol.verack_pkt )
+      on_handshake_complete if Bitcoin.network_project == :freicoin
     end
 
     def initialize(host, port, node=nil, opts={})

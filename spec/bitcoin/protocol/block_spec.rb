@@ -122,6 +122,26 @@ describe 'Bitcoin::Protocol::Block' do
     Bitcoin::Protocol::Block.from_json(json).hash == litecoin_block.split("-").last
 
 
+    Bitcoin.network = :freicoin # change to freicoin
+    freicoin_block = "freicoin-genesis-block-000000005b1e3d23ecfd2dd4a6e1a35238aa0392c0a8528c40df52376d7efe2c"
+    Bitcoin::Protocol::Block.from_json(fixtures_file(freicoin_block + '.json'))
+      .to_payload.should == fixtures_file(freicoin_block + '.bin')
+
+    json = Bitcoin::Protocol::Block.new(fixtures_file(freicoin_block + '.bin')).to_json
+    Bitcoin::Protocol::Block.from_json(json)
+      .to_payload.should == fixtures_file(freicoin_block + '.bin')
+    Bitcoin::Protocol::Block.from_json(json).hash == freicoin_block.split("-").last
+
+    freicoin_block = "freicoin-block-000000005d231b285e63af83edae2d8f5e50e70d396468643092b9239fd3be3c"
+    Bitcoin::Protocol::Block.from_json(fixtures_file(freicoin_block + '.json'))
+      .to_payload.should == fixtures_file(freicoin_block + '.bin')
+
+    json = Bitcoin::Protocol::Block.new(fixtures_file(freicoin_block + '.bin')).to_json
+    Bitcoin::Protocol::Block.from_json(json)
+      .to_payload.should == fixtures_file(freicoin_block + '.bin')
+    Bitcoin::Protocol::Block.from_json(json).hash == freicoin_block.split("-").last
+
+
     Bitcoin.network = :bitcoin # change back to bitcoin
   end
 
