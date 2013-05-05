@@ -44,6 +44,7 @@ module Bitcoin
     begin
       require name.to_s
     rescue LoadError
+      return false if name.to_s == "log4r"
       print "Cannot load #{opts[:exit] == false ? 'optional' : 'required'} dependency '#{name}'"
       (opts[:gem] == false) ? puts("") :
         puts(" - install with `gem install #{opts[:gem] || name}`")
