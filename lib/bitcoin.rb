@@ -372,8 +372,18 @@ module Bitcoin
     NETWORKS[@network]
   end
 
+  def self.network_name
+    @network
+  end
+
+  def self.network_project
+    @network_project
+  end
+
   def self.network= name
     @network = name.to_sym
+    @network_project = network[:project] rescue nil
+    @network
   end
 
   CENT =   1_000_000
@@ -389,7 +399,9 @@ module Bitcoin
   MIN_RELAY_TX_FEE = 10_000
 
   NETWORKS = {
+
     :bitcoin => {
+      :project => :bitcoin,
       :magic_head => "\xF9\xBE\xB4\xD9",
       :address_version => "00",
       :p2sh_version => "05",
@@ -424,6 +436,7 @@ module Bitcoin
       ]
     },
     :testnet => {
+      :project => :bitcoin,
       :magic_head => "\xFA\xBF\xB5\xDA",
       :address_version => "6f",
       :p2sh_version => "c4",
@@ -437,6 +450,7 @@ module Bitcoin
       :checkpoints => []
     },
     :testnet3 => {
+      :project => :bitcoin,
       :magic_head => "\x0b\x11\x09\x07",
       :address_version => "6f",
       :p2sh_version => "c4",
