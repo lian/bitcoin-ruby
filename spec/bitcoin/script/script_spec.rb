@@ -264,14 +264,31 @@ describe 'Bitcoin::Script' do
   end
 
   describe "generate script sigs" do
-
-    it "should generate pubkey script sig" do
-      sig = ["3045022062437a8f60651cd968137355775fa8bdb83d4ca717fdbc08bf9868a051e0542f022100f5cd626c15ef0de0803ddf299e8895743e7ff484d6335874edfe086ee0a08fec"].pack("H*")
-      pub = ["04bc3e2b520d4be3e2651f2ba554392ea31edd69d2081186ab98acda3c4bf45e41a5f6e093277b774b5893347e38ffafce2b9e82226e6e0b378cf79b8c2eed983c"].pack("H*")
-      Script.to_pubkey_script_sig(sig, pub)
-        .should == ["483045022062437a8f60651cd968137355775fa8bdb83d4ca717fdbc08bf9868a051e0542f022100f5cd626c15ef0de0803ddf299e8895743e7ff484d6335874edfe086ee0a08fec014104bc3e2b520d4be3e2651f2ba554392ea31edd69d2081186ab98acda3c4bf45e41a5f6e093277b774b5893347e38ffafce2b9e82226e6e0b378cf79b8c2eed983c"].pack("H*")
+    before do
+      @sig = '3045022062437a8f60651cd968137355775fa8bdb83d4ca717fdbc08bf9868a051e0542f022100f5cd626c15ef0de0803ddf299e8895743e7ff484d6335874edfe086ee0a08fec'.htb
     end
 
+    it "should generate pubkey script sig" do
+      pub = '04bc3e2b520d4be3e2651f2ba554392ea31edd69d2081186ab98acda3c4bf45e41a5f6e093277b774b5893347e38ffafce2b9e82226e6e0b378cf79b8c2eed983c'.htb
+      expected_script = '483045022062437a8f60651cd968137355775fa8bdb83d4ca717fdbc08bf9868a051e0542f022100f5cd626c15ef0de0803ddf299e8895743e7ff484d6335874edfe086ee0a08fec014104bc3e2b520d4be3e2651f2ba554392ea31edd69d2081186ab98acda3c4bf45e41a5f6e093277b774b5893347e38ffafce2b9e82226e6e0b378cf79b8c2eed983c'.htb
+
+      Script.to_pubkey_script_sig(@sig, pub).should == expected_script
+    end
+
+    it "should accept a compressed public key as input" do
+      pub = '02bc3e2b520d4be3e2651f2ba554392ea31edd69d2081186ab98acda3c4bf45e41'.htb
+      expected_script = '483045022062437a8f60651cd968137355775fa8bdb83d4ca717fdbc08bf9868a051e0542f022100f5cd626c15ef0de0803ddf299e8895743e7ff484d6335874edfe086ee0a08fec012102bc3e2b520d4be3e2651f2ba554392ea31edd69d2081186ab98acda3c4bf45e41'.htb
+
+      Script.to_pubkey_script_sig(@sig, pub).should == expected_script
+    end
+    it "should reject an improperly encoding public key" do
+      # Not binary encoded, like it's supposed to be.
+      pub = '02bc3e2b520d4be3e2651f2ba554392ea31edd69d2081186ab98acda3c4bf45e41'
+
+      lambda {
+        Script.to_pubkey_script_sig(@sig, pub)
+      }.should.raise
+    end
   end
 
   it '#run' do
