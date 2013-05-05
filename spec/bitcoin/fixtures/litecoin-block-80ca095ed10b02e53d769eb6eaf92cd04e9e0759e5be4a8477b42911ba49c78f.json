@@ -1,0 +1,39 @@
+{
+  "hash":"80ca095ed10b02e53d769eb6eaf92cd04e9e0759e5be4a8477b42911ba49c78f",
+  "ver":1,
+  "prev_block":"12a765e31ffd4059bada1e25190f6e98c99d9714d334efa41a195a7e7e04bfe2",
+  "mrkl_root":"fa3906a4219078364372d0e2715f93e822edd0b47ce146c71ba7ba57179b50f6",
+  "time":1318055359,
+  "bits":504365040,
+  "nonce":272255,
+  "n_tx":1,
+  "size":215,
+  "tx":[
+    {
+      "hash":"fa3906a4219078364372d0e2715f93e822edd0b47ce146c71ba7ba57179b50f6",
+      "ver":1,
+      "vin_sz":1,
+      "vout_sz":1,
+      "lock_time":0,
+      "size":134,
+      "in":[
+        {
+          "prev_out":{
+            "hash":"0000000000000000000000000000000000000000000000000000000000000000",
+            "n":4294967295
+          },
+          "coinbase":"045dec8f4e0102"
+        }
+      ],
+      "out":[
+        {
+          "value":"50.00000000",
+          "scriptPubKey":"04284464458f95a72e610ecd7a561e8c2bdb46c491b347e4a375aa8f2e3b3ed56e99552e789265b6e52a2fc9a00edcdd6c032979dd81a7f1201b62427076768a7a OP_CHECKSIG"
+        }
+      ]
+    }
+  ],
+  "mrkl_tree":[
+    "fa3906a4219078364372d0e2715f93e822edd0b47ce146c71ba7ba57179b50f6"
+  ]
+}

@@ -499,6 +499,53 @@ module Bitcoin
       :known_nodes => [],
       :checkpoints => []
     },
+
+
+    :litecoin => {
+      :project => :litecoin,
+      :magic_head => "\xfb\xc0\xb6\xdb",
+      :address_version => "30",
+      :p2sh_version => "05",
+      :privkey_version => "ef",
+      :default_port => 9333,
+      :dns_seeds => [
+        "dnsseed.litecoinpool.org",
+        "dnsseed.bytesized-vps.com",
+        "dnsseed.ltc.xurious.com",
+      ],
+      :genesis_hash => "12a765e31ffd4059bada1e25190f6e98c99d9714d334efa41a195a7e7e04bfe2",
+      :proof_of_work_limit => 0,
+      :alert_pubkeys => [],
+      :known_nodes => [],
+      :checkpoints => [
+        [     1, "0x80ca095ed10b02e53d769eb6eaf92cd04e9e0759e5be4a8477b42911ba49c78f"],
+        [     2, "0x13957807cdd1d02f993909fa59510e318763f99a506c4c426e3b254af09f40d7"],
+        [  1500, "0x841a2965955dd288cfa707a755d05a54e45f8bd476835ec9af4402a2b59a2967"],
+        [  4032, "0x9ce90e427198fc0ef05e5905ce3503725b80e26afd35a987965fd7e3d9cf0846"],
+        [  8064, "0xeb984353fc5190f210651f150c40b8a4bab9eeeff0b729fcb3987da694430d70"],
+        [ 16128, "0x602edf1859b7f9a6af809f1d9b0e6cb66fdc1d4d9dcd7a4bec03e12a1ccd153d"],
+        [ 23420, "0xd80fdf9ca81afd0bd2b2a90ac3a9fe547da58f2530ec874e978fce0b5101b507"],
+        [ 50000, "0x69dc37eb029b68f075a5012dcc0419c127672adb4f3a32882b2b3e71d07a20a6"],
+        [ 80000, "0x4fcb7c02f676a300503f49c764a89955a8f920b46a8cbecb4867182ecdb2e90a"],
+        [120000, "0xbd9d26924f05f6daa7f0155f32828ec89e8e29cee9e7121b026a7a3552ac6131"],
+        [161500, "0xdbe89880474f4bb4f75c227c77ba1cdc024991123b28b8418dbbf7798471ff43"],
+        [179620, "0x2ad9c65c990ac00426d18e446e0fd7be2ffa69e9a7dcb28358a50b2b78b9f709"],
+      ]
+    },
+    :litecoin_testnet => {
+      :project => :litecoin,
+      :magic_head => "\xfc\xc1\xb7\xdc",
+      :address_version => "6f",
+      :p2sh_version => "c4",
+      :privkey_version => "ef",
+      :default_port => 19333,
+      :dns_seeds => [],
+      :genesis_hash => "f5ae71e26c74beacc88382716aced69cddf3dffff24f384e1808905e0188f68f",
+      :proof_of_work_limit => 0,
+      :alert_pubkeys => [],
+      :known_nodes => [],
+      :checkpoints => []
+    },
   }
   
 end

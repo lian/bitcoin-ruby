@@ -102,6 +102,26 @@ describe 'Bitcoin::Protocol::Block' do
     Bitcoin::Protocol::Block.from_json(json).hash == ppcoin_block.split("-").last
 
 
+    Bitcoin.network = :litecoin # change to litecoin
+    litecoin_block = "litecoin-genesis-block-12a765e31ffd4059bada1e25190f6e98c99d9714d334efa41a195a7e7e04bfe2"
+    Bitcoin::Protocol::Block.from_json(fixtures_file(litecoin_block + '.json'))
+      .to_payload.should == fixtures_file(litecoin_block + '.bin')
+
+    json = Bitcoin::Protocol::Block.new(fixtures_file(litecoin_block + '.bin')).to_json
+    Bitcoin::Protocol::Block.from_json(json)
+      .to_payload.should == fixtures_file(litecoin_block + '.bin')
+    Bitcoin::Protocol::Block.from_json(json).hash == litecoin_block.split("-").last
+
+    litecoin_block = "litecoin-block-80ca095ed10b02e53d769eb6eaf92cd04e9e0759e5be4a8477b42911ba49c78f"
+    Bitcoin::Protocol::Block.from_json(fixtures_file(litecoin_block + '.json'))
+      .to_payload.should == fixtures_file(litecoin_block + '.bin')
+
+    json = Bitcoin::Protocol::Block.new(fixtures_file(litecoin_block + '.bin')).to_json
+    Bitcoin::Protocol::Block.from_json(json)
+      .to_payload.should == fixtures_file(litecoin_block + '.bin')
+    Bitcoin::Protocol::Block.from_json(json).hash == litecoin_block.split("-").last
+
+
     Bitcoin.network = :bitcoin # change back to bitcoin
   end
 
