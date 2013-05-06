@@ -386,18 +386,11 @@ module Bitcoin
     @network
   end
 
-  def self.network_name
-    @network
+  [:bitcoin, :namecoin, :litecoin, :ppcoin, :freicoin].each do |n|
+    instance_eval "def #{n}?; network_project == '#{n}'.to_sym; end"
   end
 
-  def self.testnet?
-    network_name.to_s =~ /testnet/
-  end
-
-  def self.namecoin?
-    network_name.to_s =~ /namecoin/
-  end
-
+  
   CENT =   1_000_000
   COIN = 100_000_000
   MAX_MONEY = 21_000_000 * COIN
@@ -448,6 +441,7 @@ module Bitcoin
         225430 => "00000000000001c108384350f74090433e7fcf79a606b8e797f065b130575932",
       }
     },
+
     :testnet => {
       :project => :bitcoin,
       :magic_head => "\xFA\xBF\xB5\xDA",
@@ -462,6 +456,7 @@ module Bitcoin
       :known_nodes => [],
       :checkpoints => {}
     },
+
     :testnet3 => {
       :project => :bitcoin,
       :magic_head => "\x0b\x11\x09\x07",
@@ -480,6 +475,7 @@ module Bitcoin
       :known_nodes => [],
       :checkpoints => {}
     },
+
     :ppcoin => {
       :project => :ppcoin,
       :magic_head => "\xe6\xe8\xe9\xe5",
@@ -487,6 +483,7 @@ module Bitcoin
       :p2sh_version => "75",
       :privkey_version => "ef",
       :default_port => 9901,
+      :protocol_version => 60002,
       :dns_seeds => [ "seed.ppcoin.net" ],
       :genesis_hash => "0000000032fe677166d54963b62a4677d8957e87c508eaa4fd7eb1c880cd27e3",
       :proof_of_work_limit => 0,
@@ -497,6 +494,7 @@ module Bitcoin
         30583 => "d39d1481a7eecba48932ea5913be58ad3894c7ee6d5a8ba8abeb772c66a6696e",
       }
     },
+
     :ppcoin_testnet => {
       :project => :ppcoin,
       :magic_head => "\xcb\xf2\xc0\xef",
@@ -504,6 +502,7 @@ module Bitcoin
       :p2sh_version => "c4",
       :privkey_version => "ef",
       :default_port => 9903,
+      :protocol_version => 60002,
       :dns_seeds => [ "tnseed.ppcoin.net" ],
       :genesis_hash => "00000001f757bb737f6596503e17cd17b0658ce630cc727c0cca81aec47c9f06",
       :proof_of_work_limit => 0,
@@ -512,7 +511,6 @@ module Bitcoin
       :checkpoints => {}
     },
 
-
     :litecoin => {
       :project => :litecoin,
       :magic_head => "\xfb\xc0\xb6\xdb",
@@ -520,6 +518,7 @@ module Bitcoin
       :p2sh_version => "05",
       :privkey_version => "ef",
       :default_port => 9333,
+      :protocol_version => 60002,
       :dns_seeds => [
         "dnsseed.litecoinpool.org",
         "dnsseed.bytesized-vps.com",
@@ -529,21 +528,22 @@ module Bitcoin
       :proof_of_work_limit => 0,
       :alert_pubkeys => [],
       :known_nodes => [],
-      :checkpoints => [
-             1 => "0x80ca095ed10b02e53d769eb6eaf92cd04e9e0759e5be4a8477b42911ba49c78f",
-             2 => "0x13957807cdd1d02f993909fa59510e318763f99a506c4c426e3b254af09f40d7",
-          1500 => "0x841a2965955dd288cfa707a755d05a54e45f8bd476835ec9af4402a2b59a2967",
-          4032 => "0x9ce90e427198fc0ef05e5905ce3503725b80e26afd35a987965fd7e3d9cf0846",
-          8064 => "0xeb984353fc5190f210651f150c40b8a4bab9eeeff0b729fcb3987da694430d70",
-         16128 => "0x602edf1859b7f9a6af809f1d9b0e6cb66fdc1d4d9dcd7a4bec03e12a1ccd153d",
-         23420 => "0xd80fdf9ca81afd0bd2b2a90ac3a9fe547da58f2530ec874e978fce0b5101b507",
-         50000 => "0x69dc37eb029b68f075a5012dcc0419c127672adb4f3a32882b2b3e71d07a20a6",
-         80000 => "0x4fcb7c02f676a300503f49c764a89955a8f920b46a8cbecb4867182ecdb2e90a",
-        120000 => "0xbd9d26924f05f6daa7f0155f32828ec89e8e29cee9e7121b026a7a3552ac6131",
-        161500 => "0xdbe89880474f4bb4f75c227c77ba1cdc024991123b28b8418dbbf7798471ff43",
-        179620 => "0x2ad9c65c990ac00426d18e446e0fd7be2ffa69e9a7dcb28358a50b2b78b9f709",
-      ]
+      :checkpoints => {
+             1 => "80ca095ed10b02e53d769eb6eaf92cd04e9e0759e5be4a8477b42911ba49c78f",
+             2 => "13957807cdd1d02f993909fa59510e318763f99a506c4c426e3b254af09f40d7",
+          1500 => "841a2965955dd288cfa707a755d05a54e45f8bd476835ec9af4402a2b59a2967",
+          4032 => "9ce90e427198fc0ef05e5905ce3503725b80e26afd35a987965fd7e3d9cf0846",
+          8064 => "eb984353fc5190f210651f150c40b8a4bab9eeeff0b729fcb3987da694430d70",
+         16128 => "602edf1859b7f9a6af809f1d9b0e6cb66fdc1d4d9dcd7a4bec03e12a1ccd153d",
+         23420 => "d80fdf9ca81afd0bd2b2a90ac3a9fe547da58f2530ec874e978fce0b5101b507",
+         50000 => "69dc37eb029b68f075a5012dcc0419c127672adb4f3a32882b2b3e71d07a20a6",
+         80000 => "4fcb7c02f676a300503f49c764a89955a8f920b46a8cbecb4867182ecdb2e90a",
+        120000 => "bd9d26924f05f6daa7f0155f32828ec89e8e29cee9e7121b026a7a3552ac6131",
+        161500 => "dbe89880474f4bb4f75c227c77ba1cdc024991123b28b8418dbbf7798471ff43",
+        179620 => "2ad9c65c990ac00426d18e446e0fd7be2ffa69e9a7dcb28358a50b2b78b9f709",
+      }
     },
+
     :litecoin_testnet => {
       :project => :litecoin,
       :magic_head => "\xfc\xc1\xb7\xdc",
@@ -551,6 +551,7 @@ module Bitcoin
       :p2sh_version => "c4",
       :privkey_version => "ef",
       :default_port => 19333,
+      :protocol_version => 60002,
       :dns_seeds => [],
       :genesis_hash => "f5ae71e26c74beacc88382716aced69cddf3dffff24f384e1808905e0188f68f",
       :proof_of_work_limit => 0,
@@ -567,6 +568,7 @@ module Bitcoin
       :p2sh_version => "05",
       :privkey_version => "80",
       :default_port => 8639,
+      :protocol_version => 60002,
       :dns_seeds => [ "seed.freico.in", "fledge.freico.in" ],
       :genesis_hash => "000000005b1e3d23ecfd2dd4a6e1a35238aa0392c0a8528c40df52376d7efe2c",
       :proof_of_work_limit => 0,
@@ -579,6 +581,7 @@ module Bitcoin
     },
 
     :namecoin => {
+      :project => :namecoin,
       :magic_head => "\xF9\xBE\xB4\xFE",
       :address_version => "34",
       :default_port => 8334,
@@ -594,7 +597,9 @@ module Bitcoin
         97778 => "7553b1e43da01cfcda4335de1caf623e941d43894bd81c2af27b6582f9d83c6f",
       }
     },
+
     :namecoin_testnet => {
+      :project => :namecoin,
       :magic_head => "\xFA\xBF\xB5\xFE",
       :address_version => "34",
       :default_port => 18334,
@@ -609,6 +614,5 @@ module Bitcoin
       }
     },
   }
-
 
 end
