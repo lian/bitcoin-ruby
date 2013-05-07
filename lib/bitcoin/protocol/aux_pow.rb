@@ -1,6 +1,7 @@
 module Bitcoin
   module Protocol
 
+    # Auxiliary Proof-of-Work for merge-mined blockchains
     class AuxPow
 
       # Coinbase transaction linking the aux to its parent block

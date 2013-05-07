@@ -19,6 +19,8 @@ module Bitcoin
   autoload :Builder,    'bitcoin/builder'
   autoload :Validation, 'bitcoin/validation'
 
+  autoload :Namecoin,   'bitcoin/namecoin'
+
   module Network
     autoload :ConnectionHandler,  'bitcoin/network/connection_handler'
     autoload :CommandHandler,     'bitcoin/network/command_handler'
@@ -383,11 +385,12 @@ module Bitcoin
   def self.network= name
     @network = name.to_sym
     @network_project = network[:project] rescue nil
+    Bitcoin::Script.class_eval { include Bitcoin::Namecoin::Script }  if namecoin?
     @network
   end
 
   [:bitcoin, :namecoin, :litecoin, :ppcoin, :freicoin].each do |n|
-    instance_eval "def #{n}?; network_project == '#{n}'.to_sym; end"
+    instance_eval "def #{n}?; network_project == :#{n}; end"
   end
 
   

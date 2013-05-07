@@ -35,6 +35,9 @@ module Bitcoin
       # raw protocol payload
       attr_accessor :payload
 
+      # AuxPow linking the block to a merge-mined chain
+      attr_accessor :aux_pow
+
       alias :transactions :tx
 
       # compare to another block
@@ -62,8 +65,8 @@ module Bitcoin
         recalc_block_hash
 
         if (@ver & BLOCK_VERSION_AUXPOW) > 0
-          aux_pow = AuxPow.new(nil)
-          payload = aux_pow.parse_data(payload)
+          @aux_pow = AuxPow.new(nil)
+          payload = @aux_pow.parse_data(payload)
         end
 
         return  unless payload.size > 0
