@@ -488,7 +488,7 @@ module Bitcoin
       :magic_head => "\xe6\xe8\xe9\xe5",
       :address_version => "37",
       :p2sh_version => "75",
-      :privkey_version => "ef",
+      :privkey_version => "b7",
       :default_port => 9901,
       :protocol_version => 60002,
       :dns_seeds => [ "seed.ppcoin.net" ],
