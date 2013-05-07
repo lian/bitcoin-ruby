@@ -7,7 +7,7 @@ include Bitcoin::Validation
 #  { :name => :dummy },
   { :name => :sequel, :db => 'sqlite:/' }, # in memory
 #  { :name => :sequel, :db => 'sqlite:///tmp/bitcoin_test.db' },
-#  { :name => :sequel, :db => 'postgres://localhost/bitcoin_test' },
+#  { :name => :sequel, :db => 'postgres:/bitcoin_test' },
 ].each do |configuration|
   describe "Bitcoin::Storage::Backends::#{configuration[:name].capitalize}Store" do
 
@@ -30,7 +30,7 @@ include Bitcoin::Validation
       @tx = Bitcoin::Protocol::Tx.new(fixtures_file('rawtx-03.bin'))
 
       class Bitcoin::Validation::Block; def difficulty; true; end; end
-      Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("f"*64)
+      Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("ff"*32)
     end
 
     it "should get depth" do
@@ -229,6 +229,70 @@ include Bitcoin::Validation
     it "should index output script type" do
       @store.store_tx(@tx, false)
       @store.get_tx(@tx.hash).out.first.type.should == :hash160
+    end
+
+
+    describe "Namecoin" do
+
+      before do
+        Bitcoin.network = :namecoin
+        class Bitcoin::Validation::Block; def difficulty; true; end; end
+        class Bitcoin::Validation::Block; def min_timestamp; true; end; end
+        Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("ff"*32)
+        [:name_new, :name_firstupdate, :name_update].each {|type|
+          Bitcoin::Storage::Backends::SequelStore::SCRIPT_TYPES << type }
+        @store.reset
+        @key = Bitcoin::Key.generate
+        @block = create_block "00"*32, false, [], @key
+        Bitcoin.network[:genesis_hash] = @block.hash
+        @store.store_block(@block)
+      end
+
+      def set_rand r; @rand = r; end
+
+      it "should store names" do
+        # create name_new
+        @block = create_block @block.hash, true, [->(t) {
+          t.input {|i| i.prev_out @block.tx[0]; i.prev_out_index 0; i.signature_key @key }
+          t.output {|o| o.value 50e8; o.script {|s| s.type(:name_new)
+            s.recipient(self, "test", @key.addr) } } }], @key
+        @store.db[:names][hash: Bitcoin.hash160(@rand + "test".hth)].should != nil
+
+        # name_firstupdate should not be valid yet
+        @block = create_block @block.hash, true, [->(t) {
+          t.input {|i| i.prev_out @block.tx[0]; i.prev_out_index 0; i.signature_key @key }
+          t.output {|o| o.value 50e8; o.script {|s| s.type(:name_firstupdate)
+            s.recipient("test", @rand, "testvalue", @key.addr) } } }], @key
+        @store.name_show("test").should == nil
+
+        # create enough blocks for name_new to become valid
+        i = Bitcoin::Storage::Backends::SequelStore::NAMECOIN_FIRSTUPDATE_LIMIT
+        i.times { @block = create_block @block.hash, true, [], @key }
+
+        # name_firstupdate should be valid now
+        @block = create_block @block.hash, true, [->(t) {
+          t.input {|i| i.prev_out @block.tx[0]; i.prev_out_index 0; i.signature_key @key }
+          t.output {|o| o.value 50e8; o.script {|s|; s.type(:name_firstupdate)
+            s.recipient("test", @rand, "testvalue", @key.addr) } } }], @key
+
+        name = @store.name_show("test")
+        name.get_address.should == @key.addr
+        name.name.should == "test"
+        name.value.should == "testvalue"
+        name.hash.should == Bitcoin.hash160(@rand + "test".hth)
+
+        # create name_update
+        @new_key = Bitcoin::Key.generate
+        @block = create_block @block.hash, true, [->(t) {
+          t.input {|i| i.prev_out @block.tx[0]; i.prev_out_index 0; i.signature_key @key}
+            t.output {|o|o.value 50e8; o.script {|s| s.type(:name_update)
+                s.recipient("test", "testupdate", @new_key.addr) } } }], @new_key
+
+        name = @store.name_show("test")
+        name.get_address.should == @new_key.addr
+        name.value.should == "testupdate"
+      end
+
     end
 
     describe "validation" do

@@ -81,14 +81,12 @@ module Bitcoin::Storage::Backends::SequelMigrations
         "ORDER BY tx.id DESC")
     end
 
-    if Bitcoin.namecoin?
-      unless @db.tables.include?(:names)
-        @db.create_table :names do
-          column :txout_id, :int, :null => false, :index => true
-          column :hash, :bytea, :index => true
-          column :name, :bytea, :index => true
-          column :value, :bytea
-        end
+    unless @db.tables.include?(:names)
+      @db.create_table :names do
+        column :txout_id, :int, :null => false, :index => true
+        column :hash, :bytea, :index => true
+        column :name, :bytea, :index => true
+        column :value, :bytea
       end
     end
   end

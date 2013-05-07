@@ -15,6 +15,9 @@ module Bitcoin::Storage::Backends
       SCRIPT_TYPES += [:name_new, :name_firstupdate, :name_update]
     end
 
+    # name_new must have 12 confirmations before corresponding name_firstupdate is valid.
+    NAMECOIN_FIRSTUPDATE_LIMIT = 12
+
     # sequel database connection
     attr_accessor :db
 
@@ -44,7 +47,7 @@ module Bitcoin::Storage::Backends
 
     # reset database; delete all data
     def reset
-      [:blk, :blk_tx, :tx, :txin, :txout].each {|table| @db[table].delete}
+      [:blk, :blk_tx, :tx, :txin, :txout, :addr, :addr_txout, :names].each {|table| @db[table].delete}
       @head = nil
     end
 
@@ -70,7 +73,7 @@ module Bitcoin::Storage::Backends
           block_id = existing.first[:id]
         else
           block_id = @db[:blk].insert(attrs)
-          blk_tx, new_tx, addrs = [], [], []
+          blk_tx, new_tx, addrs, names = [], [], [], []
 
           # store tx
           blk.tx.each.with_index do |tx, idx|
@@ -94,11 +97,13 @@ module Bitcoin::Storage::Backends
           txout_ids = @db[:txout].insert_multiple(new_tx.map.with_index {|tx, tx_idx|
             tx, _ = *tx
             tx.out.map.with_index {|txout, txout_idx|
-              script_type, a = *parse_script(txout, txout_i); addrs += a; txout_i += 1
+              script_type, a, n = *parse_script(txout, txout_i)
+              addrs += a; names += n; txout_i += 1
               txout_data(new_tx_ids[tx_idx], txout, txout_idx, script_type) } }.flatten)
 
           # store addrs
           persist_addrs addrs.map {|i, h| [txout_ids[i], h]}
+          names.each {|i, script| store_name(script, txout_ids[i]) }
         end
         @head = wrap_block(attrs.merge(id: block_id))  if chain == MAIN
         @db[:blk].where(:prev_hash => blk.hash.htb.to_sequel_blob, :chain => ORPHAN).each do |b|
@@ -126,7 +131,7 @@ module Bitcoin::Storage::Backends
     def parse_script txout, i
       addrs, names = [], []
       # skip huge script in testnet3 block 54507 (998000 bytes)
-      return [SCRIPT_TYPES.index(:unknown), []]  if txout.pk_script.bytesize > 10_000
+      return [SCRIPT_TYPES.index(:unknown), [], []]  if txout.pk_script.bytesize > 10_000
 
       script = Bitcoin::Script.new(txout.pk_script) rescue nil
       if script
@@ -251,7 +256,7 @@ module Bitcoin::Storage::Backends
           log.warn { "name_new not found: #{name_hash}" }
           return nil
         end
-        unless blk[:depth] <= get_depth - 12
+        unless blk[:depth] <= get_depth - NAMECOIN_FIRSTUPDATE_LIMIT
           log.warn { "name_new not yet valid: #{name_hash}" }
           return nil
         end
@@ -395,7 +400,7 @@ module Bitcoin::Storage::Backends
     end
 
     def name_show name
-      names = @db[:names].where(:name => name).order(:txout_id).reverse
+      names = @db[:names].where(:name => name.to_sequel_blob).order(:txout_id).reverse
       return nil  unless names.any?
       wrap_name(names.first)
     end
