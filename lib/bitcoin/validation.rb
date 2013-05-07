@@ -50,7 +50,7 @@ module Bitcoin::Validation
       opts[:rules] ||= [:syntax, :context]
 
       opts[:rules].each do |name|
-        store.log.info { "validating block #{name} #{block.hash} (#{block.to_payload.bytesize} bytes)" }
+        store.log.debug { "validating block #{name} #{block.hash} (#{block.to_payload.bytesize} bytes)" }
         RULES[name].each.with_index do |rule, i|
           unless send(rule)
             raise ValidationError, "block error: #{name} check #{i} - #{rule} failed"  if opts[:raise_errors]
@@ -185,9 +185,6 @@ module Bitcoin::Validation
       target = Bitcoin.decode_compact_bits(last[:bits]).to_i(16)
       new_target = [max_target, (target * nActualTimespan)/nTargetTimespan].min
       Bitcoin.encode_compact_bits new_target.to_s(16)
-    rescue
-      p $!
-      binding.pry
     end
 
     KNOWN_EXCEPTIONS = [
@@ -296,7 +293,7 @@ module Bitcoin::Validation
 
     # check that all input signatures are valid
     def signatures
-      tx.in.map.with_index {|txin, idx| tx.verify_input_signature(idx, prev_txs[idx], @block.time) }.all?
+      tx.in.map.with_index {|txin, idx| tx.verify_input_signature(idx, prev_txs[idx], (@block ? @block.time : 0)) }.all?
     end
 
     # check that none of the prev_outs are already spent in the main chain

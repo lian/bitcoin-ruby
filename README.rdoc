@@ -7,8 +7,9 @@ Some of the main features are:
 * bitcoin utility functions for base58, ECC, etc. (Bitcoin::Util)
 * parse/create (almost?) all protocol messages (Bitcoin::Protocol)
 * connect to peers and exchange messages (Bitcoin::Network::Node, NODE)
-* load the blockchain from the network and stay in sync (WITHOUT verification yet!)
-* store and the blockchain and query for txouts (Bitcoin::Storage)
+* load the blockchain from the network and stay in sync
+* validate block and transaction rules (Bitcoin::Validation)
+* store the blockchain and query for txouts (Bitcoin::Storage)
 * script implementation, create/run scripts and verify signatures (Bitcoin::Script)
 * create transactions (and even blocks!) (Bitcoin::Protocol, Bitcoin::Builder)
 * manage keys (Bitcoin::Key) in a wallet (Bitcoin::Wallet, WALLET)

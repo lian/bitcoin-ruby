@@ -275,8 +275,12 @@ module Bitcoin::Network
       end
       while obj = @queue.shift
         begin
+          time = Time.now
           if res = @store.send("store_#{obj[0]}", obj[1])
             if obj[0].to_sym == :block
+              store.log.info { "block #{obj[1].hash} " +
+                "[#{res[0]}, #{['main', 'side', 'orphan'][res[1]]}] " +
+                "(#{"%.4fs, %.3fkb" % [(Time.now - time), obj[1].payload.bytesize.to_f/1000]})" }  if res[1]
               if res[1] == 0  && obj[1].hash == @store.get_head.hash
                 @notifiers[:block].push([obj[1], res[0]])
               end

@@ -278,41 +278,7 @@ include Bitcoin::Validation
       end
 
     end
-  end
-
-
-  describe "pruned mode" do
-
-    before do
-      Bitcoin.network = :testnet
-      @store = Bitcoin::Storage.sequel(db: "sqlite:/", mode: :pruned)
-      @store.log.level = :warn
-      @block0 = Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_0.bin'))
-      @store.store_block(@block0)
-      @key = Bitcoin::Key.generate
-    end
-
-    it "should delete transactions when all outputs are spent" do
-      # create tx with one output to @key
-      block1 = create_block @block0.hash, true, [], @key
-      @store.get_tx(block1.tx.first.hash).should == block1.tx.first
-      # spend that output
-      block2 = create_block block1.hash, true, [
-        ->(tx) { create_tx(tx, block1.tx.first, 0, [[40, @key], [10, @key]]) } ]
-      # first tx should be gone
-      @store.get_tx(block1.tx.first.hash).should == nil
-      @store.get_tx(block2.tx.first.hash).should == block2.tx.first
-      # spend first output of second tx
-      block3 = create_block block2.hash, true, [
-        ->(tx) { create_tx(tx, block2.tx.last, 0, [[40, @key]]) } ]
-      # second tx should still be there
-      @store.get_tx(block2.tx.last.hash).should == block2.tx.last
-      # spend second output of second tx
-      block4 = create_block block3.hash, true, [
-        ->(tx) { create_tx(tx, block2.tx.last, 1, [[10, @key]]) } ]
-      # second tx should be gone now
-      @store.get_tx(block2.tx.last.hash).should == nil
-    end
 
   end
+
 end

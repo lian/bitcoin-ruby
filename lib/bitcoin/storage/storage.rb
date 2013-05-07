@@ -133,7 +133,7 @@ module Bitcoin::Storage
       end
 
       # update +attrs+ for block with given +hash+.
-      # typically used to update chain.
+      # typically used to update the chain value during reorg.
       def update_block(hash, attrs)
         raise "Not implemented"
       end

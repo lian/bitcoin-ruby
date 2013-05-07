@@ -473,7 +473,11 @@ module Bitcoin
       :proof_of_work_limit => 0x1d07fff8,
       :alert_pubkeys => ["04302390343f91cc401d56d68b123028bf52e5fca1939df127f63c6467cdf9c8e2c14b61104cf817d0b780da337893ecc4aaff1309e536162dabbdb45200ca2b0a"],
       :known_nodes => [],
-      :checkpoints => {}
+      :checkpoints => {
+        # 542 contains invalid transaction
+        542 => "0000000083c1f82cf72c6724f7a317325806384b06408bce7a4327f418dfd5ad",
+        71018 => "000000000010dd93dc55541116b2744eb8f4c3b706df6e8512d231a03fb9e435",
+      }
     },
 
     :ppcoin => {
