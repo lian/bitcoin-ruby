@@ -54,6 +54,16 @@ module Bitcoin::Storage
         raise "Not implemented"
       end
 
+
+      def new_block blk
+        time = Time.now
+        res = store_block(blk)
+        log.info { "block #{blk.hash} " +
+          "[#{res[0]}, #{['main', 'side', 'orphan'][res[1]]}] " +
+          "(#{"%.4fs, %.3fkb" % [(Time.now - time), blk.payload.bytesize.to_f/1000]})" }  if res[1]
+        res
+      end
+
       # store given block +blk+.
       # determine branch/chain and dept of block. trigger reorg if side branch becomes longer
       # than current main chain and connect orpans.
@@ -136,6 +146,10 @@ module Bitcoin::Storage
       # typically used to update the chain value during reorg.
       def update_block(hash, attrs)
         raise "Not implemented"
+      end
+
+      def new_tx(tx)
+        store_tx(tx)
       end
 
       # store given +tx+
@@ -254,15 +268,25 @@ module Bitcoin::Storage
 
       # import satoshi bitcoind blk0001.dat blockchain file
       def import filename, max_depth = nil
-        File.open(filename) do |file|
-          until file.eof?
-            magic = file.read(4)
-            raise "invalid network magic"  unless Bitcoin.network[:magic_head] == magic
-            size = file.read(4).unpack("L")[0]
-            blk = Bitcoin::P::Block.new(file.read(size))
-            depth, chain = store_block(blk)
-            break  if max_depth && depth >= max_depth
+        if File.file?(filename)
+          log.info { "Importing #{filename}" }
+          File.open(filename) do |file|
+            until file.eof?
+              magic = file.read(4)
+              raise "invalid network magic"  unless Bitcoin.network[:magic_head] == magic
+              size = file.read(4).unpack("L")[0]
+              blk = Bitcoin::P::Block.new(file.read(size))
+              depth, chain = new_block(blk)
+              break  if max_depth && depth >= max_depth
+            end
           end
+        elsif File.directory?(filename)
+          Dir.entries(filename).sort.each do |file|
+            next  unless file =~ /^blk.*?\.dat$/
+            import(File.join(filename, file))
+          end
+        else
+          raise "Import dir/file #{filename} not found"
         end
       end
 

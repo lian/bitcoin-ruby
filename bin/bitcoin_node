@@ -121,6 +121,10 @@ optparse = OptionParser.new do |opts|
     end
   end
 
+  opts.on("--import DIR", "Import blk*.dat files from DIR") do |dir|
+    options[:import] = dir
+  end
+
   opts.on("-v", "--verbose", "Set all loggers to debug") do
     options[:log].each_key {|k| options[:log][k] = :debug }
   end

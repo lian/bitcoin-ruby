@@ -65,6 +65,7 @@ module Bitcoin::Network
         :connect => 15,
         :relay => 0,
       },
+      :import => nil,
     }
 
     def initialize config = {}
@@ -91,6 +92,17 @@ module Bitcoin::Network
           peer.send_getblocks(locator)
         })
       @store.log.level = @config[:log][:storage]
+      if @config[:import]
+        @importing = true
+        EM.defer do
+          begin
+            @store.import(@config[:import]); @importing = false
+          rescue
+            log.fatal { $!.message }
+            stop
+          end
+        end
+      end
     end
 
     def load_addrs
@@ -127,11 +139,20 @@ module Bitcoin::Network
 
     def stop
       log.info { "Shutting down..." }
-      EM.stop
+      EM.next_tick { EM.stop }
     end
 
     def uptime
       (Time.now - @started).to_i
+    end
+
+    def start_timers
+      return EM.add_timer(1) { start_timers }  if @importing
+      [:queue, :inv_queue, :addrs, :connect, :relay].each do |name|
+        interval = @config[:intervals][name]
+        next  if !interval || interval == 0
+        @timers[name] = EM.add_periodic_timer(interval, method("work_#{name}"))
+      end
     end
 
     def run
@@ -145,11 +166,8 @@ module Bitcoin::Network
       init_epoll  if @config[:epoll]
 
       EM.run do
-        [:queue, :inv_queue, :addrs, :connect, :relay].each do |name|
-          interval = @config[:intervals][name]
-          next  if !interval || interval == 0
-          @timers[name] = EM.add_periodic_timer(interval, method("work_#{name}"))
-        end
+
+        start_timers
 
         if @config[:command]
           host, port = @config[:command]
@@ -275,12 +293,8 @@ module Bitcoin::Network
       end
       while obj = @queue.shift
         begin
-          time = Time.now
-          if res = @store.send("store_#{obj[0]}", obj[1])
+          if res = @store.send("new_#{obj[0]}", obj[1])
             if obj[0].to_sym == :block
-              store.log.info { "block #{obj[1].hash} " +
-                "[#{res[0]}, #{['main', 'side', 'orphan'][res[1]]}] " +
-                "(#{"%.4fs, %.3fkb" % [(Time.now - time), obj[1].payload.bytesize.to_f/1000]})" }  if res[1]
               if res[1] == 0  && obj[1].hash == @store.get_head.hash
                 @notifiers[:block].push([obj[1], res[0]])
               end
