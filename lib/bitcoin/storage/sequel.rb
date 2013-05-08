@@ -12,7 +12,7 @@ module Bitcoin::Storage::Backends
     # possible script types
     SCRIPT_TYPES = [:unknown, :pubkey, :hash160, :multisig, :p2sh]
     if Bitcoin.namecoin?
-      SCRIPT_TYPES += [:name_new, :name_firstupdate, :name_update]
+      [:name_new, :name_firstupdate, :name_update].each {|n| SCRIPT_TYPES << n }
     end
 
     # name_new must have 12 confirmations before corresponding name_firstupdate is valid.
@@ -239,14 +239,14 @@ module Bitcoin::Storage::Backends
     # if this is a namecoin script, update the names index
     def store_name(script, txout_id)
       if script.type == :name_new
-        log.info { "name_new #{script.get_name_hash}" } # TODO
+        log.info { "name_new #{script.get_namecoin_hash}" }
         @db[:names].insert({
             :txout_id => txout_id,
-            :hash => script.get_name_hash
+            :hash => script.get_namecoin_hash
           })
 
       elsif script.type == :name_firstupdate
-        name_hash = script.get_name_hash
+        name_hash = script.get_namecoin_hash
         name_new = @db[:names].where(:hash => name_hash).order(:txout_id).first
         txout = @db[:txout][id: name_new[:txout_id]] if name_new
         tx = @db[:tx][id: txout[:tx_id]] if txout
@@ -261,21 +261,21 @@ module Bitcoin::Storage::Backends
           return nil
         end
 
-        log.info { "#{script.type}: #{script.get_name}" }
+        log.info { "#{script.type}: #{script.get_namecoin_name}" }
         @db[:names].where(:txout_id => name_new[:txout_id], :name => nil).update({
-            :name => script.get_name.to_s.to_sequel_blob })
+            :name => script.get_namecoin_name.to_s.to_sequel_blob })
         @db[:names].insert({
             :txout_id => txout_id,
             :hash => name_hash,
-            :name => script.get_name.to_s.to_sequel_blob,
-            :value => script.get_value.to_s.to_sequel_blob,
+            :name => script.get_namecoin_name.to_s.to_sequel_blob,
+            :value => script.get_namecoin_value.to_s.to_sequel_blob,
           })
       elsif script.type == :name_update
-        log.info { "#{script.type}: #{script.get_name}" }
+        log.info { "#{script.type}: #{script.get_namecoin_name}" }
         @db[:names].insert({
             :txout_id => txout_id,
-            :name => script.get_name.to_s.to_sequel_blob,
-            :value => script.get_value.to_s.to_sequel_blob,
+            :name => script.get_namecoin_name.to_s.to_sequel_blob,
+            :value => script.get_namecoin_value.to_s.to_sequel_blob,
           })
       end
     end
@@ -406,7 +406,7 @@ module Bitcoin::Storage::Backends
     end
 
     def name_history name
-      @db[:names].where(:name => name).order(:txout_id)
+      @db[:names].where(:name => name).where("value IS NOT NULL").order(:txout_id)
         .map {|n| wrap_name(n) }.select {|n| n.get_tx.blk_id }
     end
 

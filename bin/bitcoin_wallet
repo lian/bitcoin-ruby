@@ -122,9 +122,9 @@ def send_transaction(storage, options, tx, ask = true)
         puts "#{script.get_address} (#{script.type})"
         print " " * 16
         if script.is_name_new?
-          puts "Name Hash: #{script.get_name_hash}"
+          puts "Name Hash: #{script.get_namecoin_hash}"
         else
-          puts "#{script.get_name}: #{script.get_value}"
+          puts "#{script.get_namecoin_name}: #{script.get_namecoin_value}"
         end
       else
         puts "#{str_val txout.value} (unknown type)"
@@ -239,7 +239,7 @@ when "list"
         txin.get_tx.out.each do |out|
           if Bitcoin.namecoin? && out.type.to_s =~ /^name_/
             script = out.script
-            puts "  -> #{script.get_name || script.get_name_hash} (#{out.type})"
+            puts "  -> #{script.get_namecoin_name || script.get_namecoin_hash} (#{out.type})"
           else
             puts "  -> #{out.get_addresses.join(', ') rescue 'unknown'}"
           end
@@ -261,7 +261,7 @@ when "list"
 
 when "name_list"
   names = wallet.get_txouts.select {|o| [:name_firstupdate, :name_update].include?(o.type)}
-    .map(&:get_name).group_by(&:name).map {|n, l| l.sort_by(&:expires_in).last }.map {|name|
+    .map(&:get_namecoin_name).group_by(&:name).map {|n, l| l.sort_by(&:expires_in).last }.map {|name|
     { name: name.name, value: name.value, address: name.get_address, expires_in: name.expires_in } }
   puts JSON.pretty_generate(names)
 

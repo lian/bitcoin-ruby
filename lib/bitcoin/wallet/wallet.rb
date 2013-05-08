@@ -174,7 +174,7 @@ module Bitcoin::Wallet
           if out[0] == :name_firstupdate
             name_hash = Bitcoin.hash160(out[2] + out[1].hth)
             break  if prev_out = get_txouts.find {|o|
-              o.type == :name_new && o.script.get_name_hash == name_hash }
+              o.type == :name_new && o.script.get_namecoin_hash == name_hash }
           elsif out[0] == :name_update
             break  if prev_out = storage.name_show(out[1]).get_txout rescue nil
           end

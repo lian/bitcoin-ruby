@@ -1,4 +1,5 @@
 module Bitcoin::Namecoin
+
   module Script
 
     def self.included(base)
@@ -62,7 +63,7 @@ module Bitcoin::Namecoin
         end
 
         # get the name_hash of a namecoin name_new script
-        def get_name_hash
+        def get_namecoin_hash
           return @chunks[-7].hth  if is_name_new?
           if is_name_firstupdate?
             name = @chunks[-10].to_s.hth
@@ -74,13 +75,13 @@ module Bitcoin::Namecoin
         end
 
         # get the name of a namecoin name_firstupdate or name_update script
-        def get_name
+        def get_namecoin_name
           return @chunks[-10]  if is_name_firstupdate?
           return @chunks[-9]  if is_name_update?
         end
 
         # get the value of a namecoin name_firstupdate or name_update script
-        def get_value
+        def get_namecoin_value
           @chunks[-8]  if is_name_firstupdate? || is_name_update?
         end
 
