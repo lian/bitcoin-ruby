@@ -5,8 +5,10 @@ pkg/*
 *.swp
 .rvmrc
 *.DS_Store
-db/database.yml
 tmp/
 log/
 rdoc/
 coverage/
+*.yml
+*.conf
+*.db
