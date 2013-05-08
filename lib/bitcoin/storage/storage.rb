@@ -22,7 +22,7 @@ module Bitcoin::Storage
 
   module Backends
 
-    BACKENDS.each {|b| autoload("#{b.to_s.capitalize}Store", "bitcoin/storage/#{b}") }
+    BACKENDS.each {|b| autoload("#{b.to_s.capitalize}Store", "bitcoin/storage/#{b}/#{b}_store.rb") }
 
     # Base class for storage backends.
     # Every backend must overwrite the "Not implemented" methods

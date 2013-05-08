@@ -1,6 +1,6 @@
 Bitcoin.require_dependency :sequel, message:
   "Note: You will also need an adapter for your database like sqlite3, mysql2, postgresql"
-require 'bitcoin/storage/sequel_store/sequel_migrations'
+require_relative 'migrations'
 
 module Bitcoin::Storage::Backends
 
