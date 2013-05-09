@@ -115,6 +115,8 @@ module Bitcoin::Storage::Models
     # get the next input that references this output
     def get_next_in
       @store.get_txin_for_txout(get_tx.hash, @tx_idx)
+    rescue
+      nil
     end
 
     # get all addresses this txout corresponds to (if possible)

@@ -51,7 +51,7 @@ module Bitcoin::Storage::Backends
 
     # reset database; delete all data
     def reset
-      [:blk, :blk_tx, :tx, :txin, :txout, :addr, :addr_txout, :names].each {|table| @db[table].delete}
+      [:blk, :blk_tx, :tx, :txin, :txout, :addr, :addr_txout, :names].each {|table| @db[table].delete }
       @head = nil
     end
 

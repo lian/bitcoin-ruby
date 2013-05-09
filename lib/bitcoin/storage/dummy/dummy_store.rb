@@ -14,29 +14,21 @@ module Bitcoin::Storage::Backends
       @blk, @tx = [], {}
     end
 
-    def store_block(blk)
-      return false  unless blk
+    def persist_block(blk, chain, depth, prev_work = 0)
+      return [depth, chain]  unless blk && chain == 0
       if block = get_block(blk.hash)
         log.info { "Block already stored; skipping" }
         return false
-      end
-
-      prev_block = get_block(blk.prev_block.reverse_hth)
-      unless prev_block
-        unless blk.hash == Bitcoin.network[:genesis_hash]
-          log.warn { "INVALID BLOCK: #{blk.hash}" }
-          return false
-        end
       end
 
       blk.tx.each {|tx| store_tx(tx) }
       @blk << blk
 
       log.info { "NEW HEAD: #{blk.hash} DEPTH: #{get_depth}" }
-      get_depth
+      [depth, chain]
     end
 
-    def store_tx(tx)
+    def store_tx(tx, validate = true)
       if @tx.keys.include?(tx.hash)
         log.info { "Tx already stored; skipping" }
         return tx
@@ -101,7 +93,7 @@ module Bitcoin::Storage::Backends
       txouts.map {|o| wrap_txout(o) }
     end
 
-    def get_txouts_for_hash160(hash160)
+    def get_txouts_for_hash160(hash160, unconfirmed = false)
       @tx.values.map(&:out).flatten.map {|o|
         o = wrap_txout(o)
         o.hash160 == hash160 ? o : nil
@@ -110,7 +102,7 @@ module Bitcoin::Storage::Backends
 
     def wrap_block(block)
       return nil  unless block
-      data = {:id => @blk.index(block), :depth => @blk.index(block)}
+      data = {:id => @blk.index(block), :depth => @blk.index(block), :work => @blk.index(block), :chain => 0}
       blk = Bitcoin::Storage::Models::Block.new(self, data)
       [:ver, :prev_block, :mrkl_root, :time, :bits, :nonce].each do |attr|
         blk.send("#{attr}=", block.send(attr))
