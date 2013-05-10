@@ -141,7 +141,7 @@ module Bitcoin::Storage::Backends
           script.get_multisig_pubkeys.map do |pubkey|
             addrs << [i, Bitcoin.hash160(pubkey.unpack("H*")[0])]
           end
-        elsif script.is_namecoin?
+        elsif Bitcoin.namecoin? && script.is_namecoin?
           addrs << [i, script.get_hash160]
           names << [i, script]
         else
