@@ -1,4 +1,4 @@
-module Bitcoin::Storage::Backends::SequelMigrations
+module Bitcoin::Storage::Backends::UtxoMigrations
 
   def migrate
     unless @db.tables.include?(:blk)

@@ -18,8 +18,21 @@ module Bitcoin
   # this is a very simple logger that is used if log4r is not available
   module Logger
 
+    module TimeLogger
+
+      def time message
+        time = Time.now
+        res = yield
+        debug { message % (Time.now - time) }
+        res
+      end
+
+    end
+
     class Logger
       LEVELS = [:debug, :info, :warn, :error, :fatal]
+
+      include TimeLogger
 
       attr_accessor :level
 
@@ -38,6 +51,7 @@ module Bitcoin
           puts "#{level.to_s.upcase.ljust(5)} #{@name}: #{msg}"
         end
       end
+
     end
 
     # wrap a logger and prepend a special name in front of the messages
@@ -55,6 +69,7 @@ module Bitcoin
       if defined?(Log4r)
         FileUtils.mkdir_p("log")
         @log = Log4r::Logger.new(name.to_s)
+        @log.extend(TimeLogger)
         @log.level = level
         @log.outputters << Log4r::Outputter.stdout
         @log.outputters << Log4r::FileOutputter.new("fout", :filename => "log/#{name}.log")

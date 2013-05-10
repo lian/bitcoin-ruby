@@ -345,7 +345,7 @@ module Bitcoin::Validation
           block = store.db[:blk][id: prev_tx.blk_id]  if prev_tx
           next prev_tx  if block && block[:chain] == 0
         else
-          next prev_tx  if prev_tx.get_block && prev_tx.get_block.chain == 0
+          next prev_tx  if prev_tx && prev_tx.get_block && prev_tx.get_block.chain == 0
         end
         next  nil if !@block
         @block.tx.find {|t| t.binary_hash == i.prev_out }

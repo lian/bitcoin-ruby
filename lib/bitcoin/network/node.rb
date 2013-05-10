@@ -100,7 +100,8 @@ module Bitcoin::Network
       backend, config = @config[:storage].split('::')
       @store = Bitcoin::Storage.send(backend, {
           db: config, mode: @config[:mode], cache_head: true,
-          skip_validation: @config[:skip_validation]}, ->(locator) {
+          skip_validation: @config[:skip_validation],
+          log_level: @config[:log][:storage]}, ->(locator) {
           peer = @connections.select(&:connected?).sample
           peer.send_getblocks(locator)
         })
@@ -156,6 +157,7 @@ module Bitcoin::Network
 
     def stop
       log.info { "Shutting down..." }
+      stop_timers
       EM.next_tick { EM.stop }
     end
 
@@ -170,6 +172,10 @@ module Bitcoin::Network
         next  if !interval || interval == 0.0
         @timers[name] = EM.add_periodic_timer(interval, method("work_#{name}"))
       end
+    end
+
+    def stop_timers
+      @timers.each {|n, t| EM.cancel_timer t }
     end
 
     # initiate epoll with given file descriptor and set effective user
@@ -187,6 +193,7 @@ module Bitcoin::Network
       @started = Time.now
 
       EM.add_shutdown_hook do
+        store.flush
         store_addrs
         log.info { "Bye" }
       end

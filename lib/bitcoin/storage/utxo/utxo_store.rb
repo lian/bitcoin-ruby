@@ -18,19 +18,18 @@ module Bitcoin::Storage::Backends
     # sequel database connection
     attr_accessor :db
 
-    include Bitcoin::Storage::Backends::SequelMigrations
+    include Bitcoin::Storage::Backends::UtxoMigrations
 
-    DEFAULT_CONFIG = { mode: :full, cache_head: false, cache_size: 200_000 }
+    DEFAULT_CONFIG = { cache_head: false, utxo_cache: 5000,
+      journal_mode: false, synchronous: false, cache_size: -200_000 }
 
     # create sequel store with given +config+
     def initialize config, *args
-      @config = DEFAULT_CONFIG.merge(config)
-
-      @utxo = {}
-
-      @tx_cache = {}
-      connect
+      @utxo, @tx_cache, @spent_outs, @new_outs = {}, {}, [], []
       super config, *args
+      @config = DEFAULT_CONFIG.merge(@config)
+      log.level = @config[:log_level]  if @config[:log_level]
+      connect
     end
 
     # connect to database
@@ -41,14 +40,13 @@ module Bitcoin::Storage::Backends
           Bitcoin.require_dependency name, gem: name
           @db = Sequel.connect(@config[:db])
           if name == "sqlite3" #@db.is_a?(Sequel::SQLite::Database)
-            @db.pragma_set :journal_mode, :off
-            @db.pragma_set :synchronous, :off
-            @db.pragma_set :cache_size, -@config[:cache_size]
+            [:journal_mode, :synchronous, :cache_size].each do |pragma|
+              @db.pragma_set pragma, @config[pragma]
+              log.debug { "set sqlite pragma #{pragma} to #{@config[pragma]}" }
+            end
           end
         end
       end
-
-
       migrate
     end
 
@@ -56,6 +54,27 @@ module Bitcoin::Storage::Backends
     def reset
       [:blk, :utxo].each {|table| @db[table].delete }
       @head = nil
+    end
+
+    def flush
+      flush_spent_outs; flush_new_outs
+    end
+
+    def flush_spent_outs
+      log.time "flushed #{@spent_outs.size} spent txouts in %.4fs" do
+        if @spent_outs.any?
+          spent = @db[:utxo].where(@spent_outs.shift)
+          @spent_outs.each {|o| spent = spent.or(o) }
+        end
+        @spent_outs = []
+      end
+    end
+
+    def flush_new_outs
+      log.time "flushed #{@new_outs.size} new txouts in %.4fs" do
+        @db[:utxo].insert_multiple(@new_outs)
+        @new_outs = []
+      end
     end
 
     # persist given block +blk+ to storage.
@@ -81,19 +100,17 @@ module Bitcoin::Storage::Backends
         else
           block_id = @db[:blk].insert(attrs)
 
-          spent_outs, new_outs = [], []
-
           blk.tx.each.with_index do |tx, tx_blk_idx|
 
             tx.in.each.with_index do |txin, txin_tx_idx|
               next  if txin.coinbase?
-              spent_outs << {
+              @spent_outs << {
                 tx_hash: txin.prev_out.reverse.to_sequel_blob,
                 tx_idx: txin.prev_out_index  }
             end
 
             tx.out.each.with_index do |txout, txout_tx_idx|
-              new_outs << {
+              @new_outs << {
                 :tx_hash => tx.hash.htb.to_sequel_blob,
                 :tx_idx => txout_tx_idx,
                 :blk_id => block_id,
@@ -102,8 +119,12 @@ module Bitcoin::Storage::Backends
             end
           end
 
-          spent_outs.each {|o| @db[:utxo].where(o).delete }
-          @db[:utxo].insert_multiple(new_outs)
+          if in_sync?
+            flush
+          else
+            flush_spent_outs  if @spent_outs.size > @config[:utxo_cache]
+            flush_new_outs  if @new_outs.size > @config[:utxo_cache]
+          end
 
           @tx_cache = {}
           @head = wrap_block(attrs.merge(id: block_id))  if chain == MAIN
@@ -219,16 +240,14 @@ module Bitcoin::Storage::Backends
       return tx
     end
 
-
     # wrap given +output+ into Models::TxOut
     def wrap_txout(utxo)
-      data = {tx_id: utxo[:tx_hash], tx_idx: utxo[:tx_idx]}
+      data = {tx_id: utxo[:tx_hash].hth, tx_idx: utxo[:tx_idx]}
       txout = Bitcoin::Storage::Models::TxOut.new(self, data)
       txout.value = utxo[:value]
       txout.pk_script = utxo[:pk_script]
       txout
     end
-
 
   end
 

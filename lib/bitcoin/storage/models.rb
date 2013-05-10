@@ -156,7 +156,11 @@ module Bitcoin::Storage::Models
     end
 
     def get_txout
-      @store.get_txout_by_id(@txout_id)
+      if @txout_id.is_a?(Array)
+        @store.get_tx(@txout_id[0]).out[@txout_id[1]]
+      else
+        @store.get_txout_by_id(@txout_id)
+      end
     end
 
     def get_address
