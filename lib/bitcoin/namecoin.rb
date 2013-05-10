@@ -90,7 +90,7 @@ module Bitcoin::Namecoin
         # it gets the used random value passed to #set_rand.
         # OP_1 name_hash OP_2DROP <hash160_script>
         def self.to_name_new_script(caller, name, address)
-          rand = rand(2**64).to_s(16)
+          rand = rand(2**64).to_s(16).rjust(16, '0')
           name_hash = Bitcoin.hash160(rand + name.unpack("H*")[0])
           caller.set_rand rand # TODO: this is still ugly
           [ [ "51", "14",   name_hash, "6d" ].join ].pack("H*") + to_address_script(address)
