@@ -56,7 +56,7 @@ module Bitcoin::Network
         :addr => 256,
         :queue => 64,
         :inv => 128,
-        :inv_cache => 1024,
+        :inv_cache => 0,
       },
       :intervals => {
         :queue => 5,
