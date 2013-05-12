@@ -96,7 +96,7 @@ module Bitcoin::Storage
         checkpoint = @checkpoints[depth]
         if checkpoint && blk.hash != checkpoint
           log.warn "Block #{depth} doesn't match checkpoint #{checkpoint}"
-          exit
+          exit  if depth > get_depth # TODO: handle checkpoint mismatch properly
         end
         if prev_block.chain == MAIN
           if prev_block == get_head
