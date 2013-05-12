@@ -193,10 +193,10 @@ module Bitcoin::Network
     # connect to peer at given +host+ / +port+
     def connect_peer host, port
       return  if @connections.map{|c| c.host}.include?(host)
-      log.info { "Attempting to connect to #{host}:#{port}" }
+      log.debug { "Attempting to connect to #{host}:#{port}" }
       EM.connect(host, port.to_i, ConnectionHandler, self, host, port.to_i)
     rescue
-      log.warn { "Error connecting to #{host}:#{port}" }
+      log.debug { "Error connecting to #{host}:#{port}" }
       log.debug { $!.inspect }
     end
 

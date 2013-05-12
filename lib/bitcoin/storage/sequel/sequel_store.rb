@@ -28,8 +28,8 @@ module Bitcoin::Storage::Backends
     # create sequel store with given +config+
     def initialize config, *args
       @config = DEFAULT_CONFIG.merge(config)
-      connect
       super config, *args
+      connect
     end
 
     # connect to database
@@ -42,6 +42,7 @@ module Bitcoin::Storage::Backends
       end
 
       @db = Sequel.connect(@config[:db])
+      log.info { "opened database #{@db.uri}" }
       migrate
     end
 

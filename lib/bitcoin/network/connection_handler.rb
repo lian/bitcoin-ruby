@@ -37,7 +37,7 @@ module Bitcoin::Network
       if @node.connections.size >= @node.config[:max][:connections]
         return close_connection  unless @node.config[:connect].include?([@host, @port.to_s])
       end
-      log.info { "Connected to #{@host}:#{@port}" }
+      log.info { "Connected" }
       @state = :established
       @node.connections << self
       on_handshake_begin
@@ -54,7 +54,7 @@ module Bitcoin::Network
 
     # connection closed; notify listeners and cleanup connection from node
     def unbind
-      log.info { "Disconnected #{@host}:#{@port}" }
+      log.info { "Disconnected" }
       @node.notifiers[:connection].push([:disconnected, [@host, @port]])
       @state = :disconnected
       @node.connections.delete(self)
@@ -133,9 +133,9 @@ module Bitcoin::Network
     # received +version+ message for given +version+.
     # send +verack+ message and complete handshake
     def on_version(version)
-      log.info { ">> version: #{version.version}" }
+      log.debug { ">> version: #{version.version}" }
       @version = version
-      log.info { "<< verack" }
+      log.debug { "<< verack" }
       send_data( Protocol.verack_pkt )
       on_handshake_complete
     end
@@ -143,7 +143,7 @@ module Bitcoin::Network
     # received +verack+ message.
     # complete handshake if it isn't completed already
     def on_verack
-      log.info { ">> verack" }
+      log.debug { ">> verack" }
       on_handshake_complete  if handshake?
     end
 
@@ -238,7 +238,7 @@ module Bitcoin::Network
       @state = :handshake
       send_data(Protocol.version_pkt(to: @node.config[:listen].join(':'),
           last_block: @node.store.get_depth))
-      log.info { "<< version (#{Bitcoin.network[:protocol_version]})" }
+      log.debug { "<< version (#{Bitcoin.network[:protocol_version]})" }
     end
 
     # get Addr object for this connection
