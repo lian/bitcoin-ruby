@@ -35,11 +35,7 @@ class Bitcoin::Network::CommandClient < EM::Connection
   def unbind
     log.debug { "Disconnected." }
     callback :disconnected
-    if @connection_attempts > 1
-      log.info { "Trying to start server..." }
-      EM.defer { system("bin/bitcoin_node", "--quiet") }
-    end
-    EM.add_timer(1) do
+    EM.add_timer(@connection_attempts) do
       @connection_attempts += 1
       reconnect(@host, @port)
       post_init
