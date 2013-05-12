@@ -8,8 +8,8 @@ require 'yaml'
 
 defaults = {
   :network => "testnet",
-  :storage => "dummy",
-  :keystore => "simple::file=#{ENV['HOME']}/.bitcoin-ruby/keys.json",
+  :storage => nil,
+  :keystore => nil,
   :command => "127.0.0.1:9999"
 }
 options = Bitcoin::Config.load(defaults, :wallet)
@@ -73,6 +73,8 @@ unless cmd
 end
 
 Bitcoin.network = options[:network]
+
+options[:keystore] ||= "simple::file=~/.bitcoin-ruby/#{Bitcoin.network_name}/keys.json"
 backend, config = options[:keystore].split("::")
 config = Hash[config.split(",").map{|c| c.split("=")}]
 keystore = Bitcoin::Wallet.const_get("#{backend.capitalize}KeyStore").new(config)
@@ -80,12 +82,12 @@ if backend == "deterministic" && !config["nonce"]
   puts "nonce: #{keystore.generator.nonce}"
 end
 #puts *keystore.get_keys.map(&:addr)
+
+options[:storage] ||= "sequel::sqlite://~/.bitcoin-ruby/#{Bitcoin.network_name}/blocks.db"
 backend, config = options[:storage].split("::")
 storage = Bitcoin::Storage.send(backend, :db => config)
 
-
 wallet = Bitcoin::Wallet::Wallet.new(storage, keystore, Bitcoin::Wallet::SimpleCoinSelector)
-
 
 def str_val(val, pre='')
   ("#{pre}%.8f" % (val / 1e8)).rjust(15)

@@ -40,8 +40,7 @@ module Bitcoin::Storage::Backends
           Bitcoin.require_dependency name, gem: name
         end
       end
-
-      @db = Sequel.connect(@config[:db])
+      @db = Sequel.connect(@config[:db].sub("~", ENV["HOME"]))
       log.info { "opened database #{@db.uri}" }
       migrate
     end

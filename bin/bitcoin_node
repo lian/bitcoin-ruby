@@ -11,7 +11,7 @@ defaults = {
   :command => "127.0.0.1:9999",
   :listen => "0.0.0.0:8332",
   :connect => "",
-  :storage => "sequel::sqlite://bitcoin.db",
+  :storage => nil,
   :headers_only => false,
   :dns => true,
   :epoll => false,
@@ -22,15 +22,15 @@ defaults = {
     :storage => :info,
   },
   :max => {
-    :connections => 32,
+    :connections => 16,
     :addr => 1024,
     :queue => 500,
     :inv => 500,
   },
   :intervals => {
-    :queue => 5,
-    :inv_queue => 5,
-    :addrs => 15,
+    :queue => 2,
+    :inv_queue => 1,
+    :addrs => 90,
     :connect => 30,
   },
   :daemon => false,
@@ -141,6 +141,7 @@ end
 optparse.parse!
 
 Bitcoin.network = options[:network]
+options[:storage] = "sequel::sqlite://~/.bitcoin-ruby/#{Bitcoin.network_name}/blocks.db"
 options[:command] = options[:command] == "" ? nil : options[:command].split(':')
 options[:listen] = options[:listen] == "" ? nil : options[:listen].split(':')
 options[:connect] = options[:connect] == "" ? [] : options[:connect].split(',').map{|h| h.split(':')}

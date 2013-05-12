@@ -6,9 +6,9 @@ All commands accept configuration, either via config file, or at the command lin
 
 There are 3 default locations where configfiles are loaded from:
 
-* +/etc/bitcoin-ruby.yml+
-* +~/.bitcoin-ruby.yml+
-* +./bitcoin-ruby.yml+
+* /etc/bitcoin-ruby.yml
+* ~/.bitcoin-ruby.yml
+* ./bitcoin-ruby.yml
 
 Files are loaded in order (if they exist) and override each others settings.
 
@@ -42,7 +42,7 @@ from the +all+ category (ie. +bitcoin_wallet+ loads +all+ and +wallet+).
    command: "127.0.0.1:9999"              # IP:Port to listen for incomming command connections
    listen: "0.0.0.0:8332"                 # IP:Port to listen for incoming peer connections
    connect: ""                            # List of IP:Port,IP:Port of nodes to connect to
-   storage: "sequel::sqlite://bitcoin.db" # storage backend to use (see STORAGE)
+   storage: "sequel::sqlite://~/.bitcoin-ruby/<network>/blocks.db" # storage backend to use (see STORAGE)
  node:
    headers_only: false                    # download/store only block headers (experimental)
    dns: true                              # query peers from dns server
@@ -63,4 +63,4 @@ from the +all+ category (ie. +bitcoin_wallet+ loads +all+ and +wallet+).
      addrs: 15                            # collect new peer addrs
      connect: 30                          # connect to new peers
  wallet:
-   keystore: "simple::file=~/.bitcoin-ruby/keys.json" # keystore to use
+   keystore: "simple::file=~/.bitcoin-ruby/<network>/keys.json" # keystore to use

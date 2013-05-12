@@ -46,7 +46,7 @@ module Bitcoin::Network
       :epoll => false,
       :epoll_limit => 10000,
       :epoll_user => nil,
-      :addr_file => "#{ENV['HOME']}/.bitcoin-ruby/#{Bitcoin.network_name}/addrs.json",
+      :addr_file => "#{ENV['HOME']}/.bitcoin-ruby/#{Bitcoin.network_name}/peers.json",
       :log => {
         :network => :info,
         :storage => :info,

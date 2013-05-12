@@ -12,6 +12,7 @@ module Bitcoin::Wallet
     # [config] Hash of settings ({:file => "/foo/bar.json"})
     def initialize config
       @config = Hash[config.map{|k,v|[k.to_sym,v]}]
+      @config[:file].sub!("~", ENV["HOME"])  if @config[:file].is_a?(String)
       @keys = []
       load_keys
     end
