@@ -26,7 +26,7 @@ p tx.hash
 p tx.verify_input_signature(0, prev_tx) == true
 
 puts tx.to_json # json
-#puts tx.to_payload.unpack("h*") # hex binary
+#puts tx.to_payload.unpack("H*")[0] # hex binary
 
 # use this json file for example with `ruby simple_network_monitor_and_util.rb send_tx=<filename>` to push/send it to the network
 File.open(tx.hash + ".json", 'wb'){|f| f.print tx.to_json }
