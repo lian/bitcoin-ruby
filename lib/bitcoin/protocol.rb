@@ -29,6 +29,16 @@ module Bitcoin
       end
     end
 
+    def self.unpack_var_int_from_io(io)
+      uchar = io.read(1).unpack("C")[0]
+      case uchar
+      when 0xfd; io.read(2).unpack("v")[0]
+      when 0xfe; io.read(4).unpack("V")[0]
+      when 0xff; io.read(8).unpack("Q")[0]
+      else;      uchar
+      end
+    end
+
     def self.pack_var_int(i)
       if    i <  0xfd;                [      i].pack("C")
       elsif i <= 0xffff;              [0xfd, i].pack("Cv")
@@ -41,6 +51,11 @@ module Bitcoin
     def self.unpack_var_string(payload)
       size, payload = unpack_var_int(payload)
       size > 0 ? (string, payload = payload.unpack("a#{size}a*")) : [nil, payload]
+    end
+
+    def self.unpack_var_string_from_io(buf)
+      size = unpack_var_int_from_io(buf)
+      size > 0 ? buf.read(size) : nil
     end
 
     def self.pack_var_string(payload)

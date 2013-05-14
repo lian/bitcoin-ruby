@@ -31,6 +31,17 @@ module Bitcoin
         idx
       end
 
+      def self.from_io(buf)
+        txout = new; txout.parse_data_from_io(buf); txout
+      end
+
+      # parse raw binary data for transaction output
+      def parse_data_from_io(buf)
+        @value = buf.read(8).unpack("Q")[0]
+        @pk_script_length = Protocol.unpack_var_int_from_io(buf)
+        @pk_script = buf.read(@pk_script_length)
+      end
+
       alias :parse_payload :parse_data
 
       def to_payload

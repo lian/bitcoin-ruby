@@ -56,6 +56,27 @@ module Bitcoin
         payload
       end
 
+      def parse_data_from_io(data)
+        @tx = P::Tx.new(nil)
+        @tx.parse_data_from_io(data)
+
+        @block_hash = data.read(32)
+        branch_count = P.unpack_var_int_from_io(data)
+        @branch = []
+        branch_count.times{ @branch << data.read(32) }
+        @mrkl_index = data.read(4).unpack("I")[0]
+
+        @aux_branch = []
+        aux_branch_count = P.unpack_var_int_from_io(data)
+        aux_branch_count.times{ @aux_branch << data.read(32) }
+
+        @aux_index = data.read(4).unpack("I")[0]
+        block = data.read(80)
+        @parent_block = P::Block.new(block)
+
+        data
+      end
+
     end
 
   end

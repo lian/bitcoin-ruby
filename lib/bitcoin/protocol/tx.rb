@@ -40,7 +40,8 @@ module Bitcoin
       def initialize(data=nil)
         @ver, @lock_time, @in, @out = 1, 0, [], []
         @time = Time.now.to_i if Bitcoin.network_project == :ppcoin
-        parse_data(data) if data
+        #parse_data(data) if data
+        parse_data_from_io(data) if data
       end
 
       # generate the tx hash for given +payload+ in hex format
@@ -91,6 +92,37 @@ module Bitcoin
           data[idx..-1] # rest of buffer.
         end
       end
+
+      # parse raw binary data
+      def parse_data_from_io(data)
+        buf = data.is_a?(String) ? StringIO.new(data) : data
+        payload_start = buf.pos
+
+        @ver = buf.read(4).unpack("V")[0]
+        @time = buf.read(4).unpack("V")[0] if Bitcoin.network_project == :ppcoin
+
+        in_size = Protocol.unpack_var_int_from_io(buf)
+        # raise "unkown transaction version: #{@ver}" unless @ver == 1
+        @in = (0...in_size).map{ TxIn.from_io(buf) }
+
+        out_size = Protocol.unpack_var_int_from_io(buf)
+        @out = (0...out_size).map{ TxOut.from_io(buf) }
+
+        @lock_time = buf.read(4).unpack("V")[0]
+
+        payload_end = buf.pos;
+        buf.seek(payload_start)
+        @payload = buf.read( payload_end-payload_start )
+        @hash = hash_from_payload(@payload)
+
+        if buf.eof?
+          true
+        else
+          data.is_a?(StringIO) ? buf : buf.read
+        end
+      end
+
+      #alias :parse_data  :parse_data_from_io # enable soon
 
       # output transaction in raw binary format
       def to_payload

@@ -45,6 +45,17 @@ module Bitcoin
         idx
       end
 
+      def self.from_io(buf)
+        txin = new; txin.parse_data_from_io(buf); txin
+      end
+
+      def parse_data_from_io(buf)
+        @prev_out, @prev_out_index = buf.read(36).unpack("a32V")
+        @script_sig_length = Protocol.unpack_var_int_from_io(buf)
+        @script_sig = buf.read(@script_sig_length)
+        @sequence = buf.read(4)
+      end
+
       alias :parse_payload :parse_data
 
       def to_payload(script=@script_sig, sequence=@sequence)
