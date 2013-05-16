@@ -81,6 +81,10 @@ describe 'Bitcoin::Protocol::Block' do
     Bitcoin::Protocol::Block.from_json(fixtures_file('rawblock-testnet-26478.json'))
       .to_payload.should == @blocks['testnet-26478']
 
+    # testnet3 block 0000000000ac85bb2530a05a4214a387e6be02b22d3348abc5e7a5d9c4ce8dab
+    block_raw = fixtures_file('block-testnet-0000000000ac85bb2530a05a4214a387e6be02b22d3348abc5e7a5d9c4ce8dab.bin')
+    Bitcoin::Protocol::Block.new(block_raw).to_payload.should == block_raw
+    # Bitcoin::Protocol::Block.from_json(Bitcoin::Protocol::Block.new(block_raw).to_json).to_payload.should == block_raw # slow test
 
     Bitcoin.network = :ppcoin # change to ppcoin
     ppcoin_block = "ppcoin-genesis-block-0000000032fe677166d54963b62a4677d8957e87c508eaa4fd7eb1c880cd27e3"

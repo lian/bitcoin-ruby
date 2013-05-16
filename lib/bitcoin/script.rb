@@ -141,7 +141,7 @@ class Bitcoin::Script
     chunks = []
     until program.empty?
       opcode = program.shift(1)[0]
-      if opcode >= 0xf0
+      if opcode >= 0xf0 and program[0]
         opcode = (opcode << 8) | program.shift(1)[0]
       end
 

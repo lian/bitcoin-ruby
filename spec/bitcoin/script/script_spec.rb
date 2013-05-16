@@ -68,6 +68,12 @@ describe 'Bitcoin::Script' do
       Bitcoin::Script.from_string("(opcode 230) 4 1 2").to_string.should == "(opcode-230) 4 1 2"
       Bitcoin::Script.from_string("(opcode-65449) 4 1 2").to_string.should == "(opcode-65449) 4 1 2"
       Bitcoin::Script.from_string("(opcode 65449) 4 1 2").to_string.should == "(opcode-65449) 4 1 2"
+
+      # found in testnet3 block 0000000000ac85bb2530a05a4214a387e6be02b22d3348abc5e7a5d9c4ce8dab transactions
+      Script.new("\xff\xff\xff\xff").to_string.should == "(opcode-65535) (opcode-65535)"
+      Script.from_string(Script.new("\xff\xff\xff\xff").to_string).raw.should == "\xFF\xFF\xFF\xFF"
+      Script.new("\xff\xff\xff").to_string.should == "(opcode-65535) (opcode-255)"
+      Script.from_string(Script.new("\xff\xff\xff").to_string).raw.should == "\xFF\xFF\xFF"
     end
 
     it 'Script#binary_from_string' do
