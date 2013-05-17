@@ -73,6 +73,7 @@ module Bitcoin
         when 'inv';      parse_inv(payload, :put)
         when 'getdata';  parse_inv(payload, :get)
         when 'addr';     parse_addr(payload)
+        when 'getaddr';  @h.on_getaddr  if @h.respond_to?(:on_getaddr)
         when 'verack';   @h.on_handshake_complete # nop
         when 'version';  parse_version(payload)
         when 'alert';    parse_alert(payload)

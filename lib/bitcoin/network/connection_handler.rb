@@ -89,9 +89,13 @@ module Bitcoin::Network
 
     # received +get_block+ message for given +hash+.
     # send specified block if we have it
-    # TODO
     def on_get_block(hash)
       log.debug { ">> get block: #{hash.hth}" }
+      blk = @node.store.get_block(hash.hth)
+      return  unless blk
+      pkt = Bitcoin::Protocol.pkt("block", blk.to_payload)
+      log.debug { "<< block: #{blk.hash}" }
+      send_data pkt
     end
 
     # send +inv+ message with given +type+ for given +obj+
@@ -151,6 +155,26 @@ module Bitcoin::Network
     # TODO: implement alert logic, store, display, relay
     def on_alert(alert)
       log.warn { ">> alert: #{alert.inspect}" }
+    end
+
+    # received +getblocks+ message.
+    # TODO: locator fallback
+    def on_getblocks(version, hashes, stop_hash)
+      return  unless version == Bitcoin.network[:magic_head]
+      if block = @node.store.get_block(hashes[0])
+        depth = block.depth
+        while (block = block.get_next_block) && block.depth <= depth + 500
+          send_inv :block, block
+        end
+      end
+    end
+
+    # received +getaddr+ message.
+    # send +addr+ message with peer addresses back.
+    def on_getaddr
+      log.debug { "<< addr" }
+      addrs = @node.addrs.select{|a| a.time > Time.now.to_i - 10800 }.shuffle[0..250]
+      send_data P::Addr.pkt(*addrs)
     end
 
     # send +getdata tx+ message for given tx +hash+
@@ -246,7 +270,7 @@ module Bitcoin::Network
       return @addr  if @addr
       @addr = Bitcoin::Protocol::Addr.new
       @addr.time, @addr.service, @addr.ip, @addr.port =
-        Time.now.tv_sec, @version.services, @host, @port
+        Time.now.tv_sec, @version.services.unpack("Q")[0], @host, @port
       @addr
     end
 
