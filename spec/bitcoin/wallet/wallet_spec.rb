@@ -59,7 +59,9 @@ describe Bitcoin::Wallet::Wallet do
   end
 
   it "should get total balance" do
+    @storage.expect(:class, Bitcoin::Storage::Backends::SequelStore, [])
     @storage.expect(:get_txouts_for_address, [], [@addr])
+    2.times { @storage.expect(:class, Bitcoin::Storage::Backends::SequelStore, []) }
     @wallet.get_balance.should == 0
 
     @storage.expect(:get_txouts_for_address, [txout_mock(5000, nil)], [@addr])
@@ -115,8 +117,8 @@ describe Bitcoin::Wallet::Wallet do
       5.times { txout.expect(:get_tx, tx) }
       6.times { txout.expect(:get_address, @addr) }
       8.times { txout.expect(:pk_script, Script.to_address_script(@addr)) }
-
       2.times { @storage.expect(:get_txouts_for_address, [txout], [@addr]) }
+      2.times { @storage.expect(:class, Bitcoin::Storage::Backends::SequelStore, []) }
       selector = Bitcoin::Wallet::SimpleCoinSelector.new([txout])
       2.times { @selector.expect(:new, selector, [[txout]]) }
       @tx = @wallet.new_tx([[:address, '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7', 1000]])
@@ -213,8 +215,8 @@ describe Bitcoin::Wallet::Wallet do
       @storage.expect(:get_txouts_for_address, [txout], [@key.addr])
       @storage.expect(:get_txouts_for_address, [txout], [@key2.addr])
       @storage.expect(:get_txouts_for_address, [txout], [@key3.addr])
+      @storage.expect(:class, Bitcoin::Storage::Backends::SequelStore, [])
       @keystore = DummyKeyStore.new([@key, @key2, @key3])
-
       selector = Mock.new
       selector.expect(:select, [txout], [1000])
       @selector.expect(:new, selector, [[txout]])
