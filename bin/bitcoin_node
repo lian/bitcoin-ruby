@@ -141,7 +141,7 @@ end
 optparse.parse!
 
 Bitcoin.network = options[:network]
-options[:storage] = "sequel::sqlite://~/.bitcoin-ruby/#{Bitcoin.network_name}/blocks.db"
+options[:storage] ||= "sequel::sqlite://~/.bitcoin-ruby/#{Bitcoin.network_name}/blocks.db"
 options[:command] = options[:command] == "" ? nil : options[:command].split(':')
 options[:listen] = options[:listen] == "" ? nil : options[:listen].split(':')
 options[:connect] = options[:connect] == "" ? [] : options[:connect].split(',').map{|h| h.split(':')}
