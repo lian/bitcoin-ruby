@@ -3,6 +3,7 @@ $:.unshift( File.expand_path("../../lib", __FILE__) )
 
 require 'bitcoin'
 require 'optparse'
+require 'fileutils'
 Bitcoin.require_dependency :eventmachine
 Bitcoin.require_dependency :json
 
@@ -141,6 +142,7 @@ end
 optparse.parse!
 
 Bitcoin.network = options[:network]
+FileUtils.mkdir_p File.join(ENV['HOME'], ".bitcoin-ruby/#{Bitcoin.network_name}")
 options[:storage] ||= "sequel::sqlite://~/.bitcoin-ruby/#{Bitcoin.network_name}/blocks.db"
 options[:command] = options[:command] == "" ? nil : options[:command].split(':')
 options[:listen] = options[:listen] == "" ? nil : options[:listen].split(':')
