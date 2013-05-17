@@ -37,32 +37,35 @@ module Bitcoin::Network
     attr_reader :notifiers
 
     DEFAULT_CONFIG = {
-      :listen => ["0.0.0.0", Bitcoin.network[:default_port]],
-      :connect => [],
-      :command => "",
-      :storage => Bitcoin::Storage.dummy({}),
+      :network => :bitcoin,
+      :listen => "0.0.0.0:#{Bitcoin.network[:default_port]}",
+      :connect => "",
+      :command => "127.0.0.1:9999",
+      :storage => "sequel::sqlite://~/.bitcoin-ruby/<network>/blocks.db",
       :mode => :full,
       :dns => true,
       :epoll => false,
       :epoll_limit => 10000,
       :epoll_user => nil,
-      :addr_file => "#{ENV['HOME']}/.bitcoin-ruby/#{Bitcoin.network_name}/peers.json",
+      :addr_file => "~/.bitcoin-ruby/<network>/peers.json",
       :log => {
         :network => :info,
         :storage => :info,
       },
       :max => {
+        :connections_out => 8,
+        :connections_in => 32,
         :connections => 8,
         :addr => 256,
-        :queue => 64,
-        :inv => 128,
+        :queue => 500,
+        :inv => 500,
         :inv_cache => 0,
       },
       :intervals => {
-        :queue => 5,
-        :inv_queue => 5,
+        :queue => 1,
+        :inv_queue => 1,
         :addrs => 5,
-        :connect => 15,
+        :connect => 5,
         :relay => 0,
       },
       :import => nil,
@@ -106,33 +109,36 @@ module Bitcoin::Network
     end
 
     def load_addrs
-      unless File.exist?(@config[:addr_file])
+      file = @config[:addr_file].sub("~", ENV["HOME"])
+        .sub("<network>", Bitcoin.network_name.to_s)
+      unless File.exist?(file)
         @addrs = []
-        FileUtils.mkdir_p(File.dirname(@config[:addr_file]))
+        FileUtils.mkdir_p(File.dirname(file))
         return
       end
-      @addrs = JSON.load(File.read(@config[:addr_file])).map do |a|
+      @addrs = JSON.load(File.read(file)).map do |a|
         addr = Bitcoin::P::Addr.new
         addr.time, addr.service, addr.ip, addr.port =
           a['time'], a['service'], a['ip'], a['port']
         addr
       end
-      log.info { "Initialized #{@addrs.size} addrs from #{@config[:addr_file]}." }
+      log.info { "Initialized #{@addrs.size} addrs from #{file}." }
     rescue
       @addrs = []
-      log.warn { "Error loading addrs from #{@config[:addr_file]}" }
+      log.warn { "Error loading addrs from #{file}." }
     end
 
     def store_addrs
       return  if !@addrs || !@addrs.any?
-      file = @config[:addr_file]
+      file = @config[:addr_file].sub("~", ENV["HOME"])
+        .sub("<network>", Bitcoin.network_name.to_s)
       FileUtils.mkdir_p(File.dirname(file))
       File.open(file, 'w') do |f|
         addrs = @addrs.map {|a|
           Hash[[:time, :service, :ip, :port].zip(a.entries)] rescue nil }.compact
         f.write(JSON.pretty_generate(addrs))
       end
-      log.info { "Stored #{@addrs.size} addrs to #{file}" }
+      log.info { "Stored #{@addrs.size} addrs to #{file}." }
     rescue
       log.warn { "Error storing addrs to #{file}." }
     end
@@ -170,21 +176,20 @@ module Bitcoin::Network
         start_timers
 
         if @config[:command]
-          host, port = @config[:command]
+          host, port = *@config[:command].split(":")
           EM.start_server(host, port, CommandHandler, self)
           log.info { "Command socket listening on #{host}:#{port}" }
         end
 
         if @config[:listen]
-          host, port = @config[:listen]
-          EM.start_server(host, port.to_i, ConnectionHandler, self, host, port.to_i)
+          host, port = *@config[:listen].split(":")
+          EM.start_server(host, port.to_i, ConnectionHandler, self, host, port.to_i, :in)
           log.info { "Server socket listening on #{host}:#{port}" }
         end
 
-        if @config[:connect].any?
-          @config[:connect].each{|host| connect_peer(*host) }
+        if @config[:connect] && @config[:connect].size > 0
+          @config[:connect].split(",").each{|host| connect_peer(*host.split(":")) }
         end
-
         work_connect if @addrs.any?
         connect_dns  if @config[:dns]
       end
@@ -192,9 +197,9 @@ module Bitcoin::Network
 
     # connect to peer at given +host+ / +port+
     def connect_peer host, port
-      return  if @connections.map{|c| c.host}.include?(host)
+      return  if @connections.map{|c| c.host }.include?(host)
       log.debug { "Attempting to connect to #{host}:#{port}" }
-      EM.connect(host, port.to_i, ConnectionHandler, self, host, port.to_i)
+      EM.connect(host, port.to_i, ConnectionHandler, self, host, port.to_i, :out)
     rescue
       log.debug { "Error connecting to #{host}:#{port}" }
       log.debug { $!.inspect }
@@ -203,13 +208,21 @@ module Bitcoin::Network
     # query addrs from dns seed and connect
     def connect_dns
       unless Bitcoin.network[:dns_seeds].any?
-        return log.warn { "No DNS seed nodes available" }
+        log.warn { "No DNS seed nodes available" }
+        return connect_known_peers
       end
       connect_dns_resolver(Bitcoin.network[:dns_seeds].sample) do |addrs|
         log.debug { "DNS returned addrs: #{addrs.inspect}" }
-        addrs.sample(@config[:max][:connections] / 2).uniq.each do |addr|
+        addrs.sample(@config[:max][:connections_out] / 2).uniq.each do |addr|
           connect_peer(addr, Bitcoin.network[:default_port])
         end
+      end
+    end
+
+    def connect_known_peers
+      log.debug { "Attempting to connecting to known nodes" }
+      Bitcoin.network[:known_nodes].shuffle[0..3].each do |node|
+        connect_peer node, Bitcoin.network[:default_port]
       end
     end
 
@@ -243,7 +256,7 @@ module Bitcoin::Network
     # establish new ones if needed
     def work_connect
       log.debug { "Connect worker running" }
-      desired = @config[:max][:connections] - @connections.size
+      desired = @config[:max][:connections_out] - @connections.select(&:outgoing?).size
       return  if desired <= 0
       desired = 32  if desired > 32 # connect to max 32 peers at once
       if addrs.any?
@@ -335,11 +348,11 @@ module Bitcoin::Network
 
       return  if @store.send("has_#{inv[0]}", hash)
 
-      @inv_cache.shift(128)  if @inv_cache.size > @config[:max][:inv_cache]
-      return  if @inv_cache.include?([inv[0], inv[1]]) ||
-        @inv_queue.size >= @config[:max][:inv] ||
-        (!@store.in_sync? && inv[0] == :tx)
-      @inv_cache << [inv[0], inv[1]]
+#      @inv_cache.shift(128)  if @inv_cache.size > @config[:max][:inv_cache]
+#      return  if @inv_cache.include?([inv[0], inv[1]]) ||
+#        @inv_queue.size >= @config[:max][:inv] ||
+#        (!@store.in_sync? && inv[0] == :tx)
+#      @inv_cache << [inv[0], inv[1]]
       @inv_queue << inv
     end
 

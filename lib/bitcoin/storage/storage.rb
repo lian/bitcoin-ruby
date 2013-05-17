@@ -44,6 +44,10 @@ module Bitcoin::Storage
 
       def initialize(config = {}, getblocks_callback = nil)
         @config = config
+        if @config[:db]
+          @config[:db].sub!("~", ENV["HOME"])
+          @config[:db].sub!("<network>", Bitcoin.network_name.to_s)
+        end
         @getblocks_callback = getblocks_callback
         @log    = config[:log] || Bitcoin::Storage.log
         @checkpoints = Bitcoin.network[:checkpoints] || {}

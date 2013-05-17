@@ -7,35 +7,7 @@ require 'fileutils'
 Bitcoin.require_dependency :eventmachine
 Bitcoin.require_dependency :json
 
-defaults = {
-  :network => "bitcoin",
-  :command => "127.0.0.1:9999",
-  :listen => "0.0.0.0:8332",
-  :connect => "",
-  :storage => nil,
-  :headers_only => false,
-  :dns => true,
-  :epoll => false,
-  :epoll_limit => 10000,
-  :epoll_user => nil,
-  :log => {
-    :network => :info,
-    :storage => :info,
-  },
-  :max => {
-    :connections => 16,
-    :addr => 1024,
-    :queue => 500,
-    :inv => 500,
-  },
-  :intervals => {
-    :queue => 2,
-    :inv_queue => 1,
-    :addrs => 90,
-    :connect => 30,
-  },
-  :daemon => false,
-}
+defaults = Bitcoin::Network::Node::DEFAULT_CONFIG
 
 options = Bitcoin::Config.load(defaults, :blockchain)
 
@@ -101,7 +73,15 @@ optparse = OptionParser.new do |opts|
     options[:epoll_user] = user
   end
 
-  [:connections, :addr, :queue, :inv].each do |name|
+  opts.on("--mco", "--max-connections-out COUNT", "Maximum number of outgoing connections (default: #{options[:max][:connections_out]})") do |count|
+    options[:max][:connections_out] = count.to_i
+  end
+
+  opts.on("--mci", "--max-connections-in COUNT", "Maximum number of incoming connections (default: #{options[:max][:connections_in]})") do |count|
+    options[:max][:connections_in] = count.to_i
+  end
+
+  [:addr, :queue, :inv].each do |name|
     opts.on("--m#{name.to_s[0]}", "--max-#{name} [COUNT]",
       "Max #{name} (default: #{options[:max][name]})") do |count|
       options[:max][name] = count.to_i
@@ -143,14 +123,10 @@ optparse.parse!
 
 Bitcoin.network = options[:network]
 FileUtils.mkdir_p File.join(ENV['HOME'], ".bitcoin-ruby/#{Bitcoin.network_name}")
-options[:storage] ||= "sequel::sqlite://~/.bitcoin-ruby/#{Bitcoin.network_name}/blocks.db"
-options[:command] = options[:command] == "" ? nil : options[:command].split(':')
-options[:listen] = options[:listen] == "" ? nil : options[:listen].split(':')
-options[:connect] = options[:connect] == "" ? [] : options[:connect].split(',').map{|h| h.split(':')}
 
 if ARGV.any?
   EM.run do
-    Bitcoin::Network::CommandClient.connect(*options[:command]) do
+    Bitcoin::Network::CommandClient.connect(*options[:command].split(":")) do
       on_response do |cmd, data|
         unless cmd == "monitor"
           puts JSON.pretty_generate data

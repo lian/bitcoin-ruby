@@ -38,7 +38,7 @@ module Bitcoin
       end
 
       def self.pkt(*addrs)
-        addrs = addrs.select{|i| i.is_a?(Bitcoin::Protocol::Addr) }
+        addrs = addrs.select{|i| i.is_a?(Bitcoin::Protocol::Addr) && i.ip =~ /^\d+\.\d+\.\d+\.\d+$/ }
         length = Bitcoin::Protocol.pack_var_int(addrs.size)
         Bitcoin::Protocol.pkt("addr", length + addrs.map(&:to_payload).join)
       end

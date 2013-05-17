@@ -67,10 +67,11 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   #  bitcoin_node info
   def handle_info
     blocks = @node.connections.map(&:version).compact.map(&:last_block) rescue nil
+    established = @node.connections.select {|c| c.state == :connected }
     info = {
       :blocks => "#{@node.store.get_depth} (#{(blocks.inject{|a,b| a+=b; a } / blocks.size rescue '?' )})#{@node.store.in_sync? ? ' sync' : ''}",
       :addrs => "#{@node.addrs.select{|a| a.alive?}.size} (#{@node.addrs.size})",
-      :connections => "#{@node.connections.select{|c| c.state == :connected}.size} (#{@node.connections.size})",
+      :connections => "#{established.size} established (#{established.select(&:outgoing?).size} out, #{established.select(&:incoming?).size} in), #{@node.connections.size - established.size} connecting",
       :queue => @node.queue.size,
       :inv_queue => @node.inv_queue.size,
       :inv_cache => @node.inv_cache.size,
@@ -92,7 +93,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   #  bitcoin_node connections
   def handle_connections
     @node.connections.sort{|x,y| y.uptime <=> x.uptime}.map{|c|
-      "#{c.host.rjust(15)}:#{c.port} [state: #{c.state}, " +
+      "#{c.host.rjust(15)}:#{c.port} [#{c.direction}, state: #{c.state}, " +
       "version: #{c.version.version rescue '?'}, " +
       "block: #{c.version.block rescue '?'}, " +
       "uptime: #{format_uptime(c.uptime) rescue 0}, " +

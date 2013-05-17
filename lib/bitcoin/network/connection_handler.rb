@@ -9,7 +9,7 @@ module Bitcoin::Network
     include Bitcoin
     include Bitcoin::Storage
 
-    attr_reader :host, :port, :state, :version
+    attr_reader :host, :port, :state, :version, :direction
 
     def log
       @log ||= Logger::LogWrapper.new("#@host:#@port", @node.log)
@@ -21,12 +21,13 @@ module Bitcoin::Network
     end
 
     # create connection to +host+:+port+ for given +node+
-    def initialize node, host, port
-      @node, @host, @port = node, host, port
+    def initialize node, host, port, direction
+      @node, @host, @port, @direction = node, host, port, direction
       @parser = Bitcoin::Protocol::Parser.new(self)
       @state = :new
       @version = nil
       @started = nil
+      @port, @host = *Socket.unpack_sockaddr_in(get_peername)  if get_peername
     rescue Exception
       log.fatal { "Error in #initialize" }
       p $!; puts $@; exit
@@ -34,10 +35,10 @@ module Bitcoin::Network
 
     # check if connection is wanted, begin handshake if it is, disconnect if not
     def post_init
-      if @node.connections.size >= @node.config[:max][:connections]
+      if incoming? && @node.connections.select(&:incoming?).size >= @node.config[:max][:connections_in]
         return close_connection  unless @node.config[:connect].include?([@host, @port.to_s])
       end
-      log.info { "Connected" }
+      log.info { "Established #{@direction} connection" }
       @state = :established
       @node.connections << self
       on_handshake_begin
@@ -172,8 +173,8 @@ module Bitcoin::Network
     # received +getaddr+ message.
     # send +addr+ message with peer addresses back.
     def on_getaddr
-      log.debug { "<< addr" }
       addrs = @node.addrs.select{|a| a.time > Time.now.to_i - 10800 }.shuffle[0..250]
+      log.debug { "<< addr (#{addrs.size})" }
       send_data P::Addr.pkt(*addrs)
     end
 
@@ -260,15 +261,14 @@ module Bitcoin::Network
     # begin handshake; send +version+ message
     def on_handshake_begin
       @state = :handshake
-      send_data(Protocol.version_pkt(to: @node.config[:listen].join(':'),
-          last_block: @node.store.get_depth))
+      send_data(P.version_pkt(to: @node.config[:listen], last_block: @node.store.get_depth))
       log.debug { "<< version (#{Bitcoin.network[:protocol_version]})" }
     end
 
     # get Addr object for this connection
     def addr
       return @addr  if @addr
-      @addr = Bitcoin::Protocol::Addr.new
+      @addr = P::Addr.new
       @addr.time, @addr.service, @addr.ip, @addr.port =
         Time.now.tv_sec, @version.services.unpack("Q")[0], @host, @port
       @addr
@@ -286,6 +286,10 @@ module Bitcoin::Network
         :user_agent => @version.user_agent
       }
     end
+
+    def incoming?; @direction == :in; end
+    def outgoing?; @direction == :out; end
+
   end
 
 end
