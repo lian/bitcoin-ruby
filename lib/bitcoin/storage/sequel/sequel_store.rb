@@ -12,15 +12,6 @@ module Bitcoin::Storage::Backends
 
     Sequel.extension(:core_extensions, :sequel_3_dataset_methods)
 
-    # possible script types
-    SCRIPT_TYPES = [:unknown, :pubkey, :hash160, :multisig, :p2sh]
-    if Bitcoin.namecoin?
-      [:name_new, :name_firstupdate, :name_update].each {|n| SCRIPT_TYPES << n }
-    end
-
-    # name_new must have 12 confirmations before corresponding name_firstupdate is valid.
-    NAMECOIN_FIRSTUPDATE_LIMIT = 12
-
     # sequel database connection
     attr_accessor :db
 
@@ -123,12 +114,11 @@ module Bitcoin::Storage::Backends
       end
     end
 
-    # update +attrs+ for block with given +hash+.
-    def update_blocks updates
+    def reorg new_side, new_main
       @db.transaction do
-        updates.each do |blocks, attrs|
-          @db[:blk].filter(:hash => blocks.map{|h| h.htb.blob}).update(attrs)
-        end
+        @db[:blk].where(hash: new_side.map {|h| h.htb.blob }).update(chain: SIDE)
+        new_main.each {|b| get_block(b).validator(self).validate(raise_errors: true) }  unless @config[:skip_validation]
+        @db[:blk].where(hash: new_main.map {|h| h.htb.blob }).update(chain: MAIN)
       end
     end
 
@@ -231,58 +221,6 @@ module Bitcoin::Storage::Backends
       persist_addrs addrs.map {|i, h| [txout_id, h] }
       names.each {|i, script| store_name(script, txout_id) }
       txout_id
-    end
-
-    # store address +hash160+
-    def store_addr(txout_id, hash160)
-      addr = @db[:addr][:hash160 => hash160]
-      addr_id = addr[:id]  if addr
-      addr_id ||= @db[:addr].insert({:hash160 => hash160})
-      @db[:addr_txout].insert({:addr_id => addr_id, :txout_id => txout_id})
-    end
-
-    # if this is a namecoin script, update the names index
-    def store_name(script, txout_id)
-      if script.type == :name_new
-        log.info { "name_new #{script.get_namecoin_hash}" }
-        @db[:names].insert({
-            :txout_id => txout_id,
-            :hash => script.get_namecoin_hash
-          })
-
-      elsif script.type == :name_firstupdate
-        name_hash = script.get_namecoin_hash
-        name_new = @db[:names].where(:hash => name_hash).order(:txout_id).first
-        txout = @db[:txout][id: name_new[:txout_id]] if name_new
-        tx = @db[:tx][id: txout[:tx_id]] if txout
-        blk_tx = @db[:blk_tx][tx_id: tx[:id]]  if tx
-        blk = @db[:blk][id: blk_tx[:blk_id]] if blk_tx
-        unless name_new && blk && blk[:chain] == 0
-          log.warn { "name_new not found: #{name_hash}" }
-          return nil
-        end
-        unless blk[:depth] <= get_depth - NAMECOIN_FIRSTUPDATE_LIMIT
-          log.warn { "name_new not yet valid: #{name_hash}" }
-          return nil
-        end
-
-        log.info { "#{script.type}: #{script.get_namecoin_name}" }
-        @db[:names].where(:txout_id => name_new[:txout_id], :name => nil).update({
-            :name => script.get_namecoin_name.to_s.blob })
-        @db[:names].insert({
-            :txout_id => txout_id,
-            :hash => name_hash,
-            :name => script.get_namecoin_name.to_s.blob,
-            :value => script.get_namecoin_value.to_s.blob,
-          })
-      elsif script.type == :name_update
-        log.info { "#{script.type}: #{script.get_namecoin_name}" }
-        @db[:names].insert({
-            :txout_id => txout_id,
-            :name => script.get_namecoin_name.to_s.blob,
-            :value => script.get_namecoin_value.to_s.blob,
-          })
-      end
     end
 
     # delete transaction
@@ -407,29 +345,9 @@ module Bitcoin::Storage::Backends
       @db[:names].filter(hash: hash).map {|n| get_txout_by_id(n[:txout_id]) }
     end
 
-    # def get_txouts_for_name(name)
-    #   @db[:names].filter(name: name).map {|n| get_txout_by_id(n[:txout_id]) }
-    # end
-
     # get all unconfirmed Models::TxOut
     def get_unconfirmed_tx
       @db[:unconfirmed].map{|t| wrap_tx(t)}
-    end
-
-    def get_name_by_txout_id txout_id
-      wrap_name(@db[:names][:txout_id => txout_id])
-    end
-
-    def name_show name
-      names = @db[:names].where(:name => name.blob).order(:txout_id).reverse
-      return nil  unless names.any?
-      wrap_name(names.first)
-#      wrap_name(get_txouts_for_name(name).last)
-    end
-
-    def name_history name
-      @db[:names].where(:name => name).where("value IS NOT NULL").order(:txout_id)
-        .map {|n| wrap_name(n) }.select {|n| n.get_tx.blk_id }
     end
 
     # wrap given +block+ into Models::Block
@@ -500,13 +418,6 @@ module Bitcoin::Storage::Backends
       txout
     end
 
-    def wrap_name(data)
-      return nil  unless data
-      Bitcoin::Storage::Models::Name.new(self, data)
-    end
   end
 
 end
-
-# TODO: someday sequel will support #blob directly and #to_sequel_blob will be gone
-class String; def blob; to_sequel_blob; end; end

@@ -8,13 +8,10 @@ include Bitcoin::Storage::Backends
 include Bitcoin::Builder
 include Bitcoin::Validation
 
-[
-  { :name => :dummy },
-  { :name => :utxo, :db => 'sqlite:/' }, # in memory
-  { :name => :sequel, :db => 'sqlite:/' }, # in memory
-#  { :name => :sequel, :db => 'sqlite:///tmp/bitcoin_test.db' },
-#  { :name => :sequel, :db => 'postgres:/bitcoin_test' },
-].each do |configuration|
+[ { :name => :dummy },
+  { :name => :utxo, :db => 'sqlite:/', :index_all_addrs => true },
+  { :name => :sequel, :db => 'sqlite:/' } ].each do |configuration|
+
   describe "Bitcoin::Storage::Backends::#{configuration[:name].capitalize}Store" do
 
     before do
@@ -96,7 +93,6 @@ include Bitcoin::Validation
     it "should store and retrieve all relevant block data for hash/json serialization" do
       (0..2).each do |i|
         expected = P::Block.new(fixtures_file("testnet/block_#{i}.bin")).to_hash
-        expected.merge!("tx" => [], "n_tx" => 0, "size" => 81, "mrkl_tree" => [])  if @store.is_a?(UtxoStore)
         @store.get_block_by_depth(i).to_hash.should == expected
       end
     end

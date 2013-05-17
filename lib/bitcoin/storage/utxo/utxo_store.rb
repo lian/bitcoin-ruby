@@ -20,12 +20,34 @@ module Bitcoin::Storage::Backends
 
     include Bitcoin::Storage::Backends::UtxoMigrations
 
-    DEFAULT_CONFIG = { cache_head: false, utxo_cache: 5000,
-      journal_mode: false, synchronous: false, cache_size: -200_000 }
+    DEFAULT_CONFIG = {
+      # cache head block; it is only updated when new block comes in,
+      # so this should only be used by the store receiving new blocks.
+      cache_head: false,
+      # cache this many utxo records before syncing to disk.
+      # this should only be enabled during initial sync, because
+      # with it the store cannot reorg properly.
+      utxo_cache: 0,
+      # cache this many blocks.
+      # NOTE: this is also the maximum number of blocks the store can reorg.
+      block_cache: 120,
+      # keep an index of utxos for all addresses, not just the ones
+      # we are explicitly told about.
+      index_all_addrs: false,
+      # journal_mode pragma (sqlite only)
+      journal_mode: false,
+      # synchronous pragma (sqlite only)
+      synchronous: false,
+      # cache_size pragma (sqlite only)
+      # positive specifies number of cache pages to use,
+      # negative specifies cache size in kilobytes.
+      cache_size: -200_000,
+    }
 
     # create sequel store with given +config+
     def initialize config, *args
-      @utxo, @tx_cache, @spent_outs, @new_outs = {}, {}, [], []
+      @spent_outs, @new_outs, @watched_addrs = [], [], []
+      @deleted_utxos, @tx_cache, @block_cache = {}, {}, {}
       super config, *args
       @config = DEFAULT_CONFIG.merge(@config)
       log.level = @config[:log_level]  if @config[:log_level]
@@ -48,100 +70,163 @@ module Bitcoin::Storage::Backends
         end
       end
       migrate
+      @watched_addrs = @db[:addr].all.map{|a| a[:hash160] }  unless @config[:index_all_addrs]
     end
 
     # reset database; delete all data
     def reset
-      [:blk, :utxo].each {|table| @db[table].delete }
+      [:blk, :utxo, :addr, :addr_txout].each {|table| @db[table].delete }
       @head = nil
-    end
-
-    def flush
-      flush_spent_outs; flush_new_outs
-    end
-
-    def flush_spent_outs
-      log.time "flushed #{@spent_outs.size} spent txouts in %.4fs" do
-        if @spent_outs.any?
-          spent = @db[:utxo].where(@spent_outs.shift)
-          @spent_outs.each {|o| spent = spent.or(o) }
-        end
-        @spent_outs = []
-      end
-    end
-
-    def flush_new_outs
-      log.time "flushed #{@new_outs.size} new txouts in %.4fs" do
-        @db[:utxo].insert_multiple(@new_outs)
-        @new_outs = []
-      end
     end
 
     # persist given block +blk+ to storage.
     def persist_block blk, chain, depth, prev_work = 0
       @db.transaction do
         attrs = {
-          :hash => blk.hash.htb.to_sequel_blob,
+          :hash => blk.hash.htb.blob,
           :depth => depth,
           :chain => chain,
           :version => blk.ver,
-          :prev_hash => blk.prev_block.reverse.to_sequel_blob,
-          :mrkl_root => blk.mrkl_root.reverse.to_sequel_blob,
+          :prev_hash => blk.prev_block.reverse.blob,
+          :mrkl_root => blk.mrkl_root.reverse.blob,
           :time => blk.time,
           :bits => blk.bits,
           :nonce => blk.nonce,
-          :blk_size => blk.to_payload.bytesize,
+          :blk_size => blk.payload.bytesize,
           :work => (prev_work + blk.block_work).to_s
         }
-        existing = @db[:blk].filter(:hash => blk.hash.htb.to_sequel_blob)
+        existing = @db[:blk].filter(:hash => blk.hash.htb.blob)
         if existing.any?
           existing.update attrs
           block_id = existing.first[:id]
         else
           block_id = @db[:blk].insert(attrs)
+        end
 
-          blk.tx.each.with_index do |tx, tx_blk_idx|
+        if @config[:block_cache] > 0
+          @block_cache.shift  if @block_cache.size > @config[:block_cache]
+          @deleted_utxos.shift  if @deleted_utxos.size > @config[:block_cache]
+          @block_cache[blk.hash] = blk
+        end
 
-            tx.in.each.with_index do |txin, txin_tx_idx|
-              next  if txin.coinbase?
-              @spent_outs << {
-                tx_hash: txin.prev_out.reverse.to_sequel_blob,
-                tx_idx: txin.prev_out_index  }
-            end
-
-            tx.out.each.with_index do |txout, txout_tx_idx|
-              @new_outs << {
-                :tx_hash => tx.hash.htb.to_sequel_blob,
-                :tx_idx => txout_tx_idx,
-                :blk_id => block_id,
-                :pk_script => txout.pk_script.to_sequel_blob,
-                :value => txout.value }
-            end
-          end
-
-          if in_sync?
-            flush
-          else
-            flush_spent_outs  if @spent_outs.size > @config[:utxo_cache]
-            flush_new_outs  if @new_outs.size > @config[:utxo_cache]
-          end
-
+        if chain == MAIN
+          persist_transactions(blk.tx, block_id, depth)
           @tx_cache = {}
           @head = wrap_block(attrs.merge(id: block_id))  if chain == MAIN
         end
-
         return depth, chain
+      end
+    end
+
+    def persist_transactions txs, block_id, depth
+      txs.each.with_index do |tx, tx_blk_idx|
+        tx.in.each.with_index do |txin, txin_tx_idx|
+          next  if txin.coinbase?
+          utxo = @db[:utxo][tx_hash: txin.prev_out.reverse.hth.blob,
+                            tx_idx: txin.prev_out_index]
+          @spent_outs << {
+            tx_hash: txin.prev_out.reverse.hth.blob,
+            tx_idx: txin.prev_out_index  }
+        end
+
+        tx.out.each.with_index do |txout, txout_tx_idx|
+          _, a, n = *parse_script(txout, txout_tx_idx)
+          @new_outs << [{
+              :tx_hash => tx.hash.blob,
+              :tx_idx => txout_tx_idx,
+              :blk_id => block_id,
+              :pk_script => txout.pk_script.blob,
+              :value => txout.value },
+            @config[:index_all_addrs] ? a : a.select {|a| @watched_addrs.include?(a[1]) },
+            Bitcoin.namecoin? ? n : [] ]
+        end
+        flush_spent_outs(depth)  if @spent_outs.size > @config[:utxo_cache]
+        flush_new_outs(depth)  if @new_outs.size > @config[:utxo_cache]
+      end
+    end
+
+    def reorg new_side, new_main
+      new_side.each do |block_hash|
+        raise "trying to remove non-head block!"  unless get_head.hash == block_hash
+        depth = get_depth
+        blk = @db[:blk][hash: block_hash.htb.blob]
+        delete_utxos = @db[:utxo].where(blk_id: blk[:id])
+        @db[:addr_txout].where("txout_id IN ?", delete_utxos.map{|o|o[:id]}).delete
+
+        delete_utxos.delete
+        (@deleted_utxos[depth] || []).each do |utxo|
+          utxo_id = @db[:utxo].insert(utxo)
+          addrs = Bitcoin::Script.new(utxo[:pk_script]).get_addresses
+          addrs.each do |addr|
+            hash160 = Bitcoin.hash160_from_address(addr)
+            store_addr(utxo_id, hash160)
+          end
+        end
+
+        @db[:blk].where(id: blk[:id]).update(chain: SIDE)
+      end
+
+      new_main.each do |block_hash|
+        block = @db[:blk][hash: block_hash.htb.blob]
+        blk = @block_cache[block_hash]
+        persist_transactions(blk.tx, block[:id], block[:depth])
+        @db[:blk].where(id: block[:id]).update(chain: MAIN)
+      end
+    end
+
+    def flush_spent_outs depth
+      log.time "flushed #{@spent_outs.size} spent txouts in %.4fs" do
+        if @spent_outs.any?
+          @spent_outs.each_slice(250) do |slice|
+
+            spent_outs = slice.dup
+            spent = @db[:utxo].where(spent_outs.shift)
+            spent_outs.each {|o| spent = spent.or(o) }
+
+            spent.delete
+            spent_utxo_ids = spent.map{|o|o[:id]}
+            spent_addrs = @db[:addr_txout].where("txout_id IN ?", spent_utxo_ids)
+            spent_addrs.delete
+
+            if @config[:block_cache] > 0
+              @deleted_utxos[depth] ||= []
+              @deleted_utxos[depth] += spent.all
+            end
+
+          end
+        end
+        @spent_outs = []
+      end
+    end
+
+    def flush_new_outs depth
+      log.time "flushed #{@new_outs.size} new txouts in %.4fs" do
+        new_utxo_ids = @db[:utxo].insert_multiple(@new_outs.map{|o|o[0]})
+        @new_outs.each.with_index do |d, idx|
+          d[1].each do |i, hash160|
+            next  unless i && hash160
+            store_addr(new_utxo_ids[idx], hash160)
+          end
+        end
+
+        @new_outs.each.with_index do |d, idx|
+          d[2].each do |i, script|
+            next  unless i && script
+            store_name(script, new_utxo_ids[idx])
+          end
+        end
+        @new_outs = []
       end
     end
 
     # check if block +blk_hash+ exists
     def has_block(blk_hash)
-      !!@db[:blk].where(:hash => blk_hash.htb.to_sequel_blob).get(1)
+      !!@db[:blk].where(:hash => blk_hash.htb.blob).get(1)
     end
 
     # check if transaction +tx_hash+ exists
     def has_tx(tx_hash)
-      !!@db[:utxo].where(:hash => tx_hash.htb.to_sequel_blob).get(1)
+      !!@db[:utxo].where(:hash => tx_hash.blob).get(1)
     end
 
     # get head block (highest block from the MAIN chain)
@@ -158,7 +243,7 @@ module Bitcoin::Storage::Backends
 
     # get block for given +blk_hash+
     def get_block(blk_hash)
-      wrap_block(@db[:blk][:hash => blk_hash.htb.to_sequel_blob])
+      wrap_block(@db[:blk][:hash => blk_hash.htb.blob])
     end
 
     # get block by given +depth+
@@ -168,12 +253,12 @@ module Bitcoin::Storage::Backends
 
     # get block by given +prev_hash+
     def get_block_by_prev_hash(prev_hash)
-      wrap_block(@db[:blk][:prev_hash => prev_hash.htb.to_sequel_blob, :chain => MAIN])
+      wrap_block(@db[:blk][:prev_hash => prev_hash.htb.blob, :chain => MAIN])
     end
 
     # get block by given +tx_hash+
     def get_block_by_tx(tx_hash)
-      block_id = @db[:utxo][tx_hash: tx_hash.htb.to_sequel_blob][:blk_id]
+      block_id = @db[:utxo][tx_hash: tx_hash.blob][:blk_id]
       get_block_by_id(block_id)
     end
 
@@ -192,22 +277,30 @@ module Bitcoin::Storage::Backends
       get_tx(tx_id)
     end
 
+    def get_txout_by_id(id)
+      wrap_txout(@db[:utxo][id: id])
+    end
+
     # get corresponding Models::TxOut for +txin+
     def get_txout_for_txin(txin)
-      tx = @db[:tx][:hash => txin.prev_out.reverse.to_sequel_blob]
-      return nil  unless tx
-      wrap_txout(@db[:txout][:tx_idx => txin.prev_out_index, :tx_id => tx[:id]])
+      wrap_txout(@db[:utxo][tx_hash: txin.prev_out.reverse.hth.blob, tx_idx: txin.prev_out_index])
     end
 
     # get all Models::TxOut matching given +script+
     def get_txouts_for_pk_script(script)
-      utxos = @db[:utxo].filter(pk_script: script.to_sequel_blob).order(:blk_id)
+      utxos = @db[:utxo].filter(pk_script: script.blob).order(:blk_id)
       utxos.map {|utxo| wrap_txout(utxo) }
     end
 
     # get all Models::TxOut matching given +hash160+
     def get_txouts_for_hash160(hash160, unconfirmed = false)
-      get_txouts_for_pk_script(Script.to_hash160_script(hash160))
+      addr = @db[:addr][hash160: hash160]
+      return []  unless addr
+      @db[:addr_txout].where(addr_id: addr[:id]).map {|ao| wrap_txout(@db[:utxo][id: ao[:txout_id]]) }.compact
+    end
+
+    def get_balance hash160
+      get_txouts_for_hash160(hash160).map(&:value).inject(:+) || 0
     end
 
     # wrap given +block+ into Models::Block
@@ -225,13 +318,17 @@ module Bitcoin::Storage::Backends
       blk.bits = block[:bits]
       blk.nonce = block[:nonce]
 
+      if cached = @block_cache[block[:hash].hth]
+        blk.tx = cached.tx
+      end
+
       blk.recalc_block_hash
       blk
     end
 
     # wrap given +transaction+ into Models::Transaction
     def wrap_tx(tx_hash)
-      utxos = @db[:utxo].where(tx_hash: tx_hash.htb.to_sequel_blob)
+      utxos = @db[:utxo].where(tx_hash: tx_hash.blob)
       return nil  unless utxos.any?
       data = { blk_id: utxos.first[:blk_id] }
       tx = Bitcoin::Storage::Models::Tx.new(self, data)
@@ -242,7 +339,8 @@ module Bitcoin::Storage::Backends
 
     # wrap given +output+ into Models::TxOut
     def wrap_txout(utxo)
-      data = {tx_id: utxo[:tx_hash].hth, tx_idx: utxo[:tx_idx]}
+      return nil  unless utxo
+      data = {id: utxo[:id], tx_id: utxo[:tx_hash], tx_idx: utxo[:tx_idx]}
       txout = Bitcoin::Storage::Models::TxOut.new(self, data)
       txout.value = utxo[:value]
       txout.pk_script = utxo[:pk_script]

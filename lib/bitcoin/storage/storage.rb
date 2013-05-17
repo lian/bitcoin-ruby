@@ -42,6 +42,15 @@ module Bitcoin::Storage
       # orphan branch (not connected to main branch / genesis block)
       ORPHAN = 2
 
+      # possible script types
+      SCRIPT_TYPES = [:unknown, :pubkey, :hash160, :multisig, :p2sh]
+      if Bitcoin.namecoin?
+        [:name_new, :name_firstupdate, :name_update].each {|n| SCRIPT_TYPES << n }
+      end
+
+      # name_new must have 12 confirmations before corresponding name_firstupdate is valid.
+      NAMECOIN_FIRSTUPDATE_LIMIT = 12
+
       attr_reader :log, :config
 
       attr_accessor :config
@@ -140,9 +149,7 @@ module Bitcoin::Storage
             end
             log.debug { "new main: #{new_main.inspect}" }
             log.debug { "new side: #{new_side.inspect}" }
-            update_blocks([[new_side, {:chain => SIDE}]])
-            new_main.each {|b| get_block(b).validator(self).validate(raise_errors: true) }  unless @config[:skip_validation]
-            update_blocks([[new_main, {:chain => MAIN}]])
+            reorg(new_side.reverse, new_main.reverse)
             return persist_block(blk, MAIN, depth, prev_block.work)
           end
         end
@@ -277,6 +284,42 @@ module Bitcoin::Storage
         nil
       end
 
+
+      # store address +hash160+
+      def store_addr(txout_id, hash160)
+        addr = @db[:addr][:hash160 => hash160]
+        addr_id = addr[:id]  if addr
+        addr_id ||= @db[:addr].insert({:hash160 => hash160})
+        @db[:addr_txout].insert({:addr_id => addr_id, :txout_id => txout_id})
+      end
+
+      # parse script and collect address/txout mappings to index
+      def parse_script txout, i
+        addrs, names = [], []
+        # skip huge script in testnet3 block 54507 (998000 bytes)
+        return [SCRIPT_TYPES.index(:unknown), [], []]  if txout.pk_script.bytesize > 10_000
+        script = Bitcoin::Script.new(txout.pk_script) rescue nil
+        if script
+          if script.is_hash160? || script.is_pubkey?
+            addrs << [i, script.get_hash160]
+          elsif script.is_multisig?
+            script.get_multisig_pubkeys.map do |pubkey|
+              addrs << [i, Bitcoin.hash160(pubkey.unpack("H*")[0])]
+            end
+          elsif Bitcoin.namecoin? && script.is_namecoin?
+            addrs << [i, script.get_hash160]
+            names << [i, script]
+          else
+            log.warn { "Unknown script type"}# #{tx.hash}:#{txout_idx}" }
+          end
+          script_type = SCRIPT_TYPES.index(script.type)
+        else
+          log.error { "Error parsing script"}# #{tx.hash}:#{txout_idx}" }
+          script_type = SCRIPT_TYPES.index(:unknown)
+        end
+        [script_type, addrs, names]
+      end
+
       # import satoshi bitcoind blk0001.dat blockchain file
       def import filename, max_depth = nil
         if File.file?(filename)
@@ -307,3 +350,6 @@ module Bitcoin::Storage
     end
   end
 end
+
+# TODO: someday sequel will support #blob directly and #to_sequel_blob will be gone
+class String; def blob; to_sequel_blob; end; end
