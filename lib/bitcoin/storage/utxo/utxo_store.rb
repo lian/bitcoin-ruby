@@ -27,7 +27,7 @@ module Bitcoin::Storage::Backends
       # cache this many utxo records before syncing to disk.
       # this should only be enabled during initial sync, because
       # with it the store cannot reorg properly.
-      utxo_cache: 0,
+      utxo_cache: 5000,
       # cache this many blocks.
       # NOTE: this is also the maximum number of blocks the store can reorg.
       block_cache: 120,
