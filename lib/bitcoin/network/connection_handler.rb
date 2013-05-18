@@ -144,6 +144,7 @@ module Bitcoin::Network
     # send +verack+ message and complete handshake
     def on_version(version)
       log.debug { ">> version: #{version.version}" }
+      @node.external_ips << version.to.split(":")[0]
       @version = version
       log.debug { "<< verack" }
       send_data( Protocol.verack_pkt )
@@ -267,7 +268,8 @@ module Bitcoin::Network
     # begin handshake; send +version+ message
     def on_handshake_begin
       @state = :handshake
-      send_data(P.version_pkt(to: @node.config[:listen], last_block: @node.store.get_depth))
+      from = "#{@node.external_ip}:#{@node.config[:listen].split(':')[1]}"
+      send_data(P.version_pkt(from: from, to: @host, last_block: @node.store.get_depth))
       log.debug { "<< version (#{Bitcoin.network[:protocol_version]})" }
     end
 

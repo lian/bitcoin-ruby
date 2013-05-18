@@ -36,6 +36,9 @@ module Bitcoin::Network
     # clients to be notified for new block/tx events
     attr_reader :notifiers
 
+    # our external ip addresses we got told by peers
+    attr_accessor :external_ips
+
     attr_accessor :relay_propagation
 
     DEFAULT_CONFIG = {
@@ -76,18 +79,14 @@ module Bitcoin::Network
     def initialize config = {}
       @config = DEFAULT_CONFIG.deep_merge(config)
       @log = Bitcoin::Logger.create(:network, @config[:log][:network])
-      @connections = []
-      @command_connections = []
-      @queue = []
-      @queue_thread = nil
-      @inv_queue = []
-      @inv_queue_thread = nil
+      @connections, @command_connections = [], []
+      @queue, @queue_thread, @inv_queue, @inv_queue_thread = [], nil, [], nil
       set_store
       load_addrs
       @timers = {}
       @inv_cache = []
       @notifiers = Hash[[:block, :tx, :connection, :addr].map {|n| [n, EM::Channel.new]}]
-      @relay_propagation = {}
+      @relay_propagation, @external_ips = {}, []
     end
 
     def set_store
@@ -388,6 +387,13 @@ module Bitcoin::Network
       @store.get_unconfirmed_tx.each do |tx|
         relay_tx(tx)
       end
+    end
+
+
+    def external_ip
+      @external_ips.inject({}) {|a, b| a[b] ||= 0; a[b] += 1; a }.sort_by {|k, v| v}[-1][0]
+    rescue
+      @config[:listen].split(":")[0]
     end
 
   end

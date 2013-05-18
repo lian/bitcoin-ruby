@@ -82,6 +82,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
       :network => @node.config[:network],
       :storage => @node.config[:storage],
       :version => Bitcoin.network[:protocol_version],
+      :external_ip => @node.external_ip,
       :uptime => format_uptime(@node.uptime),
     }
     Bitcoin.namecoin? ? {:names => @node.store.db[:names].count}.merge(info) : info
