@@ -138,12 +138,11 @@ module Bitcoin
       # convert to raw binary format
       def to_payload
         head = [@ver, @prev_block, @mrkl_root, @time, @bits, @nonce].pack("Va32a32VVV")
-        if Bitcoin.network_project == :ppcoin
-          sig = Protocol.pack_var_string(@block_signature)
-          [head, Protocol.pack_var_int(@tx.size), @tx.map(&:to_payload).join, sig].join
-        else
-          [head, Protocol.pack_var_int(@tx.size), @tx.map(&:to_payload).join].join
-        end
+        head << @aux_pow.to_payload  if @aux_pow
+        return head  unless @tx.any?
+        head << [Protocol.pack_var_int(@tx.size), @tx.map(&:to_payload).join].join
+        head << Protocol.pack_var_string(@block_signature)  if Bitcoin.ppcoin?
+        head
       end
 
       # convert to ruby hash (see also #from_hash)
@@ -157,6 +156,7 @@ module Bitcoin
           'mrkl_tree' => Bitcoin.hash_mrkl_tree( @tx.map{|i| i.hash } )
         }
         h['signature'] = @block_signature.reverse_hth if Bitcoin.network_project == :ppcoin
+        h['aux_pow'] = @aux_pow.to_hash  if @aux_pow
         h
       end
 
@@ -202,6 +202,7 @@ module Bitcoin
           @ver, @time, @bits, @nonce = h.values_at('ver', 'time', 'bits', 'nonce')
           @prev_block, @mrkl_root = h.values_at('prev_block', 'mrkl_root').map{|i| i.htb_reverse }
           recalc_block_hash
+          @aux_pow = AuxPow.from_hash(h['aux_pow'])  if h['aux_pow']
           h['tx'].each{|tx| @tx << Tx.from_hash(tx) }
           @block_signature = h['signature'].htb_reverse if Bitcoin.network_project == :ppcoin
         }

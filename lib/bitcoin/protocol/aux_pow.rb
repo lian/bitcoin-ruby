@@ -32,8 +32,8 @@ module Bitcoin
       def parse_data(data)
         @tx = P::Tx.new(nil)
         payload = @tx.parse_data(data)
-
         @block_hash, payload = payload.unpack("a32a*")
+
         branch_count, payload = P.unpack_var_int(payload)
         @branch = []
         branch_count.times {
@@ -75,6 +75,44 @@ module Bitcoin
         @parent_block = P::Block.new(block)
 
         data
+      end
+
+
+      def to_payload
+        payload = @tx.to_payload
+        payload << @block_hash
+        payload << P.pack_var_int(@branch.count)
+        payload << @branch.join
+        payload << [@mrkl_index].pack("I")
+        payload << P.pack_var_int(@aux_branch.count)
+        payload << @aux_branch.join
+        payload << [@aux_index].pack("I")
+        payload << @parent_block.to_payload
+        payload
+      end
+
+      def self.from_hash h
+        aux_pow = new(nil)
+        aux_pow.instance_eval do
+          @tx = P::Tx.from_hash(h['tx'])
+          @block_hash = h['block_hash'].htb
+          @branch = h['branch'].map(&:htb)
+          @mrkl_index = h['mrkl_index']
+          @aux_branch = h['aux_branch'].map(&:htb)
+          @aux_index = h['aux_index']
+          @parent_block = P::Block.from_hash(h['parent_block'])
+        end
+        aux_pow
+      end
+
+      def to_hash
+        { 'tx' => @tx.to_hash,
+          'block_hash' => @block_hash.hth,
+          'branch' => @branch.map(&:hth),
+          'mrkl_index' => @mrkl_index,
+          'aux_branch' => @aux_branch.map(&:hth),
+          'aux_index' => @aux_index,
+          'parent_block' => @parent_block.to_hash }
       end
 
     end

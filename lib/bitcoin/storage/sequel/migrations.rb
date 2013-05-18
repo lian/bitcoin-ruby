@@ -15,6 +15,7 @@ module Bitcoin::Storage::Backends::SequelMigrations
         column :blk_size, :int, :null => false
         column :chain, :int, :null => false
         column :work, :bytea, :index => true
+        column :aux_pow, :bytea
       end
     end
 

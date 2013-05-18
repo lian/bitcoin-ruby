@@ -67,6 +67,7 @@ module Bitcoin::Storage::Backends
           :blk_size => blk.to_payload.bytesize,
           :work => (prev_work + blk.block_work).to_s
         }
+        attrs[:aux_pow] = blk.aux_pow.to_payload.to_sequel_blob  if blk.aux_pow
         existing = @db[:blk].filter(:hash => blk.hash.htb.to_sequel_blob)
         if existing.any?
           existing.update attrs
@@ -423,6 +424,8 @@ module Bitcoin::Storage::Backends
       blk.time = block[:time].to_i
       blk.bits = block[:bits]
       blk.nonce = block[:nonce]
+
+      blk.aux_pow = Bitcoin::P::AuxPow.new(block[:aux_pow])  if block[:aux_pow]
 
       db[:blk_tx].filter(blk_id: block[:id]).join(:tx, id: :tx_id)
         .order(:idx).each {|tx| blk.tx << wrap_tx(tx, block[:id]) }
