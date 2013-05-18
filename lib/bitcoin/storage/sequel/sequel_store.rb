@@ -10,8 +10,6 @@ module Bitcoin::Storage::Backends
   # Inherits from StoreBase and implements its interface.
   class SequelStore < StoreBase
 
-    Sequel.extension(:core_extensions, :sequel_3_dataset_methods)
-
     # sequel database connection
     attr_accessor :db
 
@@ -21,23 +19,12 @@ module Bitcoin::Storage::Backends
 
     # create sequel store with given +config+
     def initialize config, *args
-      @config = DEFAULT_CONFIG.merge(config)
       super config, *args
-      connect
     end
 
     # connect to database
     def connect
-      {:sqlite => "sqlite3", :postgres => "pg", :mysql => "mysql",
-      }.each do |adapter, name|
-        if @config[:db].split(":").first == adapter.to_s
-          Bitcoin.require_dependency name, gem: name
-        end
-      end
-      @db = Sequel.connect(@config[:db].sub("~", ENV["HOME"]))
-      @db.extend_datasets(Sequel::Sequel3DatasetMethods)
-      log.info { "opened database #{@db.uri}" }
-      migrate
+      super
     end
 
     # reset database; delete all data

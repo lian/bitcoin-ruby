@@ -51,19 +51,61 @@ module Bitcoin::Storage
       # name_new must have 12 confirmations before corresponding name_firstupdate is valid.
       NAMECOIN_FIRSTUPDATE_LIMIT = 12
 
+      DEFAULT_CONFIG = {
+        sqlite_pragmas: {
+          # journal_mode pragma
+          journal_mode: false,
+          # synchronous pragma
+          synchronous: false,
+          # cache_size pragma
+          # positive specifies number of cache pages to use,
+          # negative specifies cache size in kilobytes.
+          cache_size: -200_000,
+        }
+      }
+
+      SEQUEL_ADAPTERS = { :sqlite => "sqlite3", :postgres => "pg", :mysql => "mysql" }
+
       attr_reader :log, :config
 
       attr_accessor :config
 
       def initialize(config = {}, getblocks_callback = nil)
-        @config = config
-        if @config[:db]
-          @config[:db].sub!("~", ENV["HOME"])
-          @config[:db].sub!("<network>", Bitcoin.network_name.to_s)
-        end
-        @getblocks_callback = getblocks_callback
+        base = self.class.ancestors.select {|a| a.name =~ /StoreBase$/ }[0]::DEFAULT_CONFIG
+        @config = base.merge(self.class::DEFAULT_CONFIG).merge(config)
         @log    = config[:log] || Bitcoin::Storage.log
+        @log.level = @config[:log_level]  if @config[:log_level]
+        init_sequel_store
+        @getblocks_callback = getblocks_callback
         @checkpoints = Bitcoin.network[:checkpoints] || {}
+      end
+
+      def init_sequel_store
+        return  unless (self.is_a?(SequelStore) || self.is_a?(UtxoStore)) && @config[:db]
+        @config[:db].sub!("~", ENV["HOME"])
+        @config[:db].sub!("<network>", Bitcoin.network_name.to_s)
+        adapter = @config[:db].split(":").first
+        name = @config[:db].split(":").first
+        adapter = SEQUEL_ADAPTERS[name.to_sym] if name
+        Bitcoin.require_dependency(adapter, gem: adapter)  if adapter
+        connect
+      end
+
+      def connect
+        Sequel.extension(:core_extensions, :sequel_3_dataset_methods)
+        @db = Sequel.connect(@config[:db].sub("~", ENV["HOME"]))
+        @db.extend_datasets(Sequel::Sequel3DatasetMethods)
+        log.info { "opened database #{@db.uri}" }
+        sqlite_pragmas
+        migrate
+      end
+
+      def sqlite_pragmas
+        return  unless (@db.is_a?(Sequel::SQLite::Database) rescue false)
+        @config[:sqlite_pragmas].each do |name, value|
+          @db.pragma_set name, value
+          log.debug { "set sqlite pragma #{name} to #{value}" }
+        end
       end
 
       # reset the store; delete all data

@@ -33,43 +33,19 @@ module Bitcoin::Storage::Backends
       block_cache: 120,
       # keep an index of utxos for all addresses, not just the ones
       # we are explicitly told about.
-      index_all_addrs: false,
-      # journal_mode pragma (sqlite only)
-      journal_mode: false,
-      # synchronous pragma (sqlite only)
-      synchronous: false,
-      # cache_size pragma (sqlite only)
-      # positive specifies number of cache pages to use,
-      # negative specifies cache size in kilobytes.
-      cache_size: -200_000,
+      index_all_addrs: false
     }
 
     # create sequel store with given +config+
     def initialize config, *args
+      super config, *args
       @spent_outs, @new_outs, @watched_addrs = [], [], []
       @deleted_utxos, @tx_cache, @block_cache = {}, {}, {}
-      super config, *args
-      @config = DEFAULT_CONFIG.merge(@config)
-      log.level = @config[:log_level]  if @config[:log_level]
-      connect
     end
 
     # connect to database
     def connect
-      {:sqlite => "sqlite3", :postgres => "pg", :mysql => "mysql",
-      }.each do |adapter, name|
-        if @config[:db].split(":").first == adapter.to_s
-          Bitcoin.require_dependency name, gem: name
-          @db = Sequel.connect(@config[:db])
-          if name == "sqlite3" #@db.is_a?(Sequel::SQLite::Database)
-            [:journal_mode, :synchronous, :cache_size].each do |pragma|
-              @db.pragma_set pragma, @config[pragma]
-              log.debug { "set sqlite pragma #{pragma} to #{@config[pragma]}" }
-            end
-          end
-        end
-      end
-      migrate
+      super
       @watched_addrs = @db[:addr].all.map{|a| a[:hash160] }  unless @config[:index_all_addrs]
     end
 
