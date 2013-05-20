@@ -309,10 +309,18 @@ module Bitcoin::Storage::Backends
         @head = wrap_block(@db[:blk].filter(:chain => MAIN).order(:depth).last)
     end
 
+    def get_head_hash
+      (@config[:cache_head] && @head) ? @head.hash :
+        @head = @db[:blk].filter(:chain => MAIN).order(:depth).last[:hash].hth
+    end
+
     # get depth of MAIN chain
     def get_depth
-      return -1  unless get_head
-      get_head.depth
+      depth = (@config[:cache_head] && @head) ? @head.depth :
+        @depth = @db[:blk].filter(:chain => MAIN).order(:depth).last[:depth] rescue nil
+
+      return -1  unless depth
+      depth
     end
 
     # get block for given +blk_hash+
