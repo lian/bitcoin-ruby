@@ -469,6 +469,7 @@ class Bitcoin::Script
     return [get_pubkey_address]    if is_pubkey?
     return [get_hash160_address]   if is_hash160?
     return get_multisig_addresses  if is_multisig?
+    []
   end
 
   # get single address, or first for multisig script
