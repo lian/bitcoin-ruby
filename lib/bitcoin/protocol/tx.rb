@@ -208,14 +208,14 @@ module Bitcoin
       end
 
       # convert to ruby hash (see also #from_hash)
-      def to_hash
+      def to_hash(options = {})
         @hash ||= hash_from_payload(to_payload)
         h = {
           'hash' => @hash, 'ver' => @ver,
           'vin_sz' => @in.size, 'vout_sz' => @out.size,
           'lock_time' => @lock_time, 'size' => (@payload ||= to_payload).bytesize,
-          'in'  =>  @in.map(&:to_hash),
-          'out' => @out.map(&:to_hash)
+          'in'  =>  @in.map{|i| i.to_hash(options) },
+          'out' => @out.map{|o| o.to_hash(options) }
         }
         h['time'] = @time if Bitcoin.network_project == :ppcoin
         h
@@ -223,7 +223,7 @@ module Bitcoin
 
       # generates rawblock json as seen in the block explorer.
       def to_json(options = {:space => ''}, *a)
-        JSON.pretty_generate( to_hash, options )
+        JSON.pretty_generate( to_hash(options), options )
       end
 
       # write json representation to a file

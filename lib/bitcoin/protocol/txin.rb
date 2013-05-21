@@ -65,7 +65,7 @@ module Bitcoin
         buf << (sequence || DEFAULT_SEQUENCE)
       end
 
-      def to_hash
+      def to_hash(options = {})
         t = { 'prev_out'  => { 'hash' => @prev_out.reverse_hth, 'n' => @prev_out_index } }
         if coinbase?
           t['coinbase']  = @script_sig.unpack("H*")[0]

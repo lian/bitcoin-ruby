@@ -55,11 +55,11 @@ module Bitcoin
         self.class.new(-1, '').to_payload
       end
 
-      def to_hash
+      def to_hash(options = {})
         script = Bitcoin::Script.new(@pk_script)
         h = { 'value' => "%.8f" % (@value / 100000000.0),
           'scriptPubKey' => script.to_string }
-        h["address"] = script.get_address  if script.is_hash160?
+        h["address"] = script.get_address  if script.is_hash160? && options[:with_address]
         h
       end
 
