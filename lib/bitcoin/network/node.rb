@@ -36,6 +36,8 @@ module Bitcoin::Network
     # clients to be notified for new block/tx events
     attr_reader :notifiers
 
+    attr_accessor :relay_propagation
+
     DEFAULT_CONFIG = {
       :network => :bitcoin,
       :listen => "0.0.0.0:#{Bitcoin.network[:default_port]}",
@@ -85,6 +87,7 @@ module Bitcoin::Network
       @timers = {}
       @inv_cache = []
       @notifiers = Hash[[:block, :tx, :connection, :addr].map {|n| [n, EM::Channel.new]}]
+      @relay_propagation = {}
     end
 
     def set_store

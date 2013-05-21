@@ -31,6 +31,10 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     @buf.extract(data).each do |packet|
       cmd, args = JSON::parse(packet)
       log.debug { [cmd, args] }
+      if cmd == "relay_tx"
+        handle_relay_tx(*args)
+        return
+      end
       if respond_to?("handle_#{cmd}")
         respond(cmd, send("handle_#{cmd}", *args))
       else
@@ -144,11 +148,30 @@ class Bitcoin::Network::CommandHandler < EM::Connection
 
   # relay given transaction (in hex)
   #  bitcoin_node relay_tx <tx data>
-  def handle_relay_tx data
-    tx = Bitcoin::Protocol::Tx.from_hash(data)
-    @node.relay_tx(tx)
+  def handle_relay_tx data, send = 3, wait = 3
+    begin
+      tx = Bitcoin::Protocol::Tx.new(data.htb)
+    rescue
+      return { error: "Error decoding transaction." }
+    end
+
+    validator = tx.validator(@node.store)
+    return { error: "Transaction syntax invalid." }  unless validator.validate(rules: [:syntax])
+    return { error: "Transaction context invalid." }  unless validator.validate(rules: [:context])
+
+    @node.store.store_tx(tx)
+    @node.relay_propagation[tx.hash] = 0
+    @node.connections.select(&:connected?).sample(send).each {|c| c.send_inv(:tx, tx) }
+
+    EM.add_timer(wait) do
+      received = @node.relay_propagation[tx.hash]
+      total = @node.connections.select(&:connected?).size - send
+      percent = 100.0 / total * received
+      respond("relay_tx", { success: true, hash: tx.hash, propagation: {
+                  received: received, sent: 1, percent: percent } })
+    end
   rescue
-    {:error => $!}
+    respond("relay_tx", { error: $!.message })
   end
 
   # stop bitcoin node

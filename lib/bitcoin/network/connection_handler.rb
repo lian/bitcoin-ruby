@@ -65,6 +65,9 @@ module Bitcoin::Network
     # add to inv_queue, unlesss maximum is reached
     def on_inv_transaction(hash)
       log.debug { ">> inv transaction: #{hash.hth}" }
+      if @node.relay_propagation.keys.include?(hash.hth)
+        @node.relay_propagation[hash.hth] += 1
+      end
       return  if @node.inv_queue.size >= @node.config[:max][:inv]
       @node.queue_inv([:tx, hash, self])
     end
@@ -161,6 +164,7 @@ module Bitcoin::Network
     # received +getblocks+ message.
     # TODO: locator fallback
     def on_getblocks(version, hashes, stop_hash)
+      log.debug { ">> getblocks" }
       return  unless version == Bitcoin.network[:magic_head]
       if block = @node.store.get_block(hashes[0])
         depth = block.depth
