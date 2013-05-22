@@ -286,8 +286,8 @@ module Bitcoin::Network
     def info
       {
         :host => @host, :port => @port, :state => @state,
-        :version => @version.version, :block => @version.last_block, :started => @started.to_i,
-        :user_agent => @version.user_agent
+        :version => (@version.version rescue 0), :block => @version.last_block,
+        :started => @started.to_i, :user_agent => @version.user_agent
       }
     end
 

@@ -63,7 +63,7 @@ module Bitcoin
         @fields[:time] - Time.now.tv_sec
       end
 
-      def method_missing(*a); @fields[a.first]  or super(*a); end
+      def method_missing(*a); (@fields[a.first] rescue nil) or super(*a); end
 
       def self.parse(payload); new.parse(payload); end
     end
