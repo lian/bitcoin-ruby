@@ -51,6 +51,8 @@ module Bitcoin::Network
     def receive_data data
       #log.debug { "Receiving data (#{data.size} bytes)" }
       @parser.parse(data)
+    rescue
+      log.warn { "Error handling data: #{data}" }
     end
 
     # connection closed; notify listeners and cleanup connection from node
