@@ -143,10 +143,14 @@ def send_transaction(storage, options, tx, ask = true)
   EM.run do
     Bitcoin::Network::CommandClient.connect(*options[:command].split(":")) do
       on_connected do
-        request(:relay_tx, tx)
+        request(:relay_tx, tx.to_payload.hth)
       end
-      on_relay_tx do
-        puts "Transaction #{tx.hash} relayed"
+      on_relay_tx do |res|
+        if res["success"]
+          puts "Transaction #{tx.hash} relayed to approx. #{"%.2f" % res['propagation']['percent']}% of the network."
+        else
+          puts "Error relaying tx: #{res['error']}"
+        end
         EM.stop
       end
     end
