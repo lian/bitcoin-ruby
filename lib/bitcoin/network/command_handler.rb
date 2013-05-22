@@ -152,12 +152,16 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     begin
       tx = Bitcoin::Protocol::Tx.new(data.htb)
     rescue
-      return { error: "Error decoding transaction." }
+      return respond("relay_tx", { error: "Error decoding transaction." })
     end
 
     validator = tx.validator(@node.store)
-    return { error: "Transaction syntax invalid." }  unless validator.validate(rules: [:syntax])
-    return { error: "Transaction context invalid." }  unless validator.validate(rules: [:context])
+    unless validator.validate(rules: [:syntax])
+      return respond("relay_tx", { error: "Transaction syntax invalid." })
+    end
+    unless validator.validate(rules: [:context])
+      return respond("relay_tx", { error: "Transaction context invalid." })
+    end
 
     @node.store.store_tx(tx)
     @node.relay_propagation[tx.hash] = 0
