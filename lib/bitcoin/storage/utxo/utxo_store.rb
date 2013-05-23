@@ -98,8 +98,6 @@ module Bitcoin::Storage::Backends
       txs.each.with_index do |tx, tx_blk_idx|
         tx.in.each.with_index do |txin, txin_tx_idx|
           next  if txin.coinbase?
-          utxo = @db[:utxo][tx_hash: txin.prev_out.reverse.hth.blob,
-                            tx_idx: txin.prev_out_index]
           @spent_outs << {
             tx_hash: txin.prev_out.reverse.hth.blob,
             tx_idx: txin.prev_out_index  }
@@ -116,9 +114,9 @@ module Bitcoin::Storage::Backends
             @config[:index_all_addrs] ? a : a.select {|a| @watched_addrs.include?(a[1]) },
             Bitcoin.namecoin? ? n : [] ]
         end
-        flush_spent_outs(depth)  if @spent_outs.size > @config[:utxo_cache]
-        flush_new_outs(depth)  if @new_outs.size > @config[:utxo_cache]
       end
+      flush_spent_outs(depth)  if @spent_outs.size > @config[:utxo_cache]
+      flush_new_outs(depth)  if @new_outs.size > @config[:utxo_cache]
     end
 
     def reorg new_side, new_main
