@@ -39,6 +39,9 @@ module Bitcoin::Network
     # our external ip addresses we got told by peers
     attr_accessor :external_ips
 
+    # time when the last main chain block was added
+    attr_reader :last_block_time
+
     attr_accessor :relay_propagation
 
     DEFAULT_CONFIG = {
@@ -86,7 +89,7 @@ module Bitcoin::Network
       @timers = {}
       @inv_cache = []
       @notifiers = Hash[[:block, :tx, :connection, :addr].map {|n| [n, EM::Channel.new]}]
-      @relay_propagation, @external_ips = {}, []
+      @relay_propagation, @last_block_time, @external_ips = {}, Time.now, []
     end
 
     def set_store
@@ -311,6 +314,7 @@ module Bitcoin::Network
           if res = @store.send("new_#{obj[0]}", obj[1])
             if obj[0].to_sym == :block
               if res[1] == 0  && obj[1].hash == @store.get_head.hash
+                @last_block_time = Time.now
                 @notifiers[:block].push([obj[1], res[0]])
               end
             else

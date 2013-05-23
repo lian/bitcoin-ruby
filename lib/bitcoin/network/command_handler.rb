@@ -147,6 +147,10 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     end.compact
   end
 
+  def handle_tslb
+    { tslb: (Time.now - @node.last_block_time).to_i }
+  end
+
   # relay given transaction (in hex)
   #  bitcoin_node relay_tx <tx data>
   def handle_relay_tx data, send = 3, wait = 3
