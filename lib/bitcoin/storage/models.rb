@@ -143,47 +143,4 @@ module Bitcoin::Storage::Models
 
   end
 
-  class Name
-
-    attr_reader :store, :txout_id, :hash, :name, :value
-
-    def initialize store, data
-      @store = store
-      @txout_id = data[:txout_id]
-      @hash = data[:hash]
-      @name = data[:name]
-      @value = data[:value]
-    end
-
-    def get_txout
-      if @txout_id.is_a?(Array)
-        @store.get_tx(@txout_id[0]).out[@txout_id[1]]
-      else
-        @store.get_txout_by_id(@txout_id)
-      end
-    end
-
-    def get_address
-      get_txout.get_address
-    end
-
-    def get_tx
-      get_txout.get_tx rescue nil
-    end
-
-    def get_block
-      get_tx.get_block rescue nil
-    end
-
-    def expires_in
-      36000 - (@store.get_depth - get_block.depth) rescue nil
-    end
-
-    def to_json(opts = {})
-      JSON.pretty_generate({ name: @name, value: @value, txid: get_tx.hash,
-          address: get_address, expires_in: expires_in }, opts)
-    end
-
-  end
-
 end

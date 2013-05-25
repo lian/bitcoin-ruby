@@ -48,9 +48,6 @@ module Bitcoin::Storage
         [:name_new, :name_firstupdate, :name_update].each {|n| SCRIPT_TYPES << n }
       end
 
-      # name_new must have 12 confirmations before corresponding name_firstupdate is valid.
-      NAMECOIN_FIRSTUPDATE_LIMIT = 12
-
       DEFAULT_CONFIG = {
         sqlite_pragmas: {
           # journal_mode pragma
@@ -385,7 +382,7 @@ module Bitcoin::Storage
             addrs << [i, script.get_hash160]
             names << [i, script]
           else
-            log.warn { "Unknown script type"}# #{tx.hash}:#{txout_idx}" }
+            log.debug { "Unknown script type"}# #{tx.hash}:#{txout_idx}" }
           end
           script_type = SCRIPT_TYPES.index(script.type)
         else

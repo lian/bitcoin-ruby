@@ -416,10 +416,7 @@ module Bitcoin
     raise "Network descriptor '#{name}' not found."  unless NETWORKS[name.to_sym]
     @network = name.to_sym
     @network_project = network[:project] rescue nil
-    if namecoin?
-      Script.class_eval { include Namecoin::Script }
-      Storage::Backends::StoreBase.class_eval { include Namecoin::Storage }
-    end
+    Bitcoin::Namecoin.load  if namecoin?
     @network
   end
 
