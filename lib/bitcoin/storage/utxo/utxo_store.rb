@@ -27,7 +27,7 @@ module Bitcoin::Storage::Backends
       # cache this many utxo records before syncing to disk.
       # this should only be enabled during initial sync, because
       # with it the store cannot reorg properly.
-      utxo_cache: 5000,
+      utxo_cache: 250,
       # cache this many blocks.
       # NOTE: this is also the maximum number of blocks the store can reorg.
       block_cache: 120,
@@ -129,6 +129,7 @@ module Bitcoin::Storage::Backends
 
         delete_utxos.delete
         (@deleted_utxos[depth] || []).each do |utxo|
+          utxo[:pk_script] = utxo[:pk_script].to_sequel_blob
           utxo_id = @db[:utxo].insert(utxo)
           addrs = Bitcoin::Script.new(utxo[:pk_script]).get_addresses
           addrs.each do |addr|
@@ -153,19 +154,16 @@ module Bitcoin::Storage::Backends
         if @spent_outs.any?
           @spent_outs.each_slice(250) do |slice|
 
-            spent_outs = slice.dup
-            spent = @db[:utxo].where(spent_outs.shift)
-            spent_outs.each {|o| spent = spent.or(o) }
-
-            spent.delete
-            spent_utxo_ids = spent.map{|o|o[:id]}
-            spent_addrs = @db[:addr_txout].where("txout_id IN ?", spent_utxo_ids)
-            spent_addrs.delete
-
-            if @config[:block_cache] > 0
-              @deleted_utxos[depth] ||= []
-              @deleted_utxos[depth] += spent.all
+            if @db.adapter_scheme == :postgres
+              condition = slice.map {|o| "(tx_hash = '#{o[:tx_hash]}' AND tx_idx = #{o[:tx_idx]})" }.join(" OR ")
+            else
+              condition = slice.map {|o| "(tx_hash = X'#{o[:tx_hash].hth}' AND tx_idx = #{o[:tx_idx]})" }.join(" OR ")
             end
+
+            @db["DELETE FROM addr_txout WHERE EXISTS
+                   (SELECT 1 FROM utxo WHERE
+                     utxo.id = addr_txout.txout_id AND (#{condition}));"].all
+            @db["DELETE FROM utxo WHERE #{condition};"].all
 
           end
         end
