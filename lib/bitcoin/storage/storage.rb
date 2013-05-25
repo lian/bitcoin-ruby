@@ -84,22 +84,46 @@ module Bitcoin::Storage
         return  unless (self.is_a?(SequelStore) || self.is_a?(UtxoStore)) && @config[:db]
         @config[:db].sub!("~", ENV["HOME"])
         @config[:db].sub!("<network>", Bitcoin.network_name.to_s)
-        adapter = @config[:db].split(":").first
-        name = @config[:db].split(":").first
-        adapter = SEQUEL_ADAPTERS[name.to_sym] if name
+        adapter = SEQUEL_ADAPTERS[@config[:db].split(":").first] rescue nil
         Bitcoin.require_dependency(adapter, gem: adapter)  if adapter
         connect
       end
 
+      # connect to database
       def connect
         Sequel.extension(:core_extensions, :sequel_3_dataset_methods)
         @db = Sequel.connect(@config[:db].sub("~", ENV["HOME"]))
         @db.extend_datasets(Sequel::Sequel3DatasetMethods)
+        sqlite_pragmas; migrate; check_metadata
         log.info { "opened database #{@db.uri}" }
-        sqlite_pragmas
-        migrate
       end
 
+      # check if schema is up to date and migrate to current version if necessary
+      def migrate
+        migrations_path = "./lib/bitcoin/storage/#{backend_name}/migrations"
+        Sequel.extension :migration
+        unless Sequel::Migrator.is_current?(@db, migrations_path)
+          Sequel::Migrator.run(@db, migrations_path)
+          unless (v = @db[:schema_info].first) && v[:magic] && v[:backend]
+            @db[:schema_info].update(
+              magic: Bitcoin.network[:magic_head].hth, backend: backend_name)
+          end
+        end
+      end
+
+      # check that database network magic and backend match the ones we are using
+      def check_metadata
+        version = @db[:schema_info].first
+        unless version[:magic] == Bitcoin.network[:magic_head].hth
+          name = Bitcoin::NETWORKS.find{|n,d| d[:magic_head].hth == version[:magic]}[0]
+          raise "Error: DB #{@db.url} was created for '#{name}' network!"
+        end
+        unless version[:backend] == backend_name
+          raise "Error: DB #{@db.url} was created for '#{version[:backend]}' backend!"
+        end
+      end
+
+      # set pragma options for sqlite (if it is sqlite)
       def sqlite_pragmas
         return  unless (@db.is_a?(Sequel::SQLite::Database) rescue false)
         @config[:sqlite_pragmas].each do |name, value|
@@ -108,12 +132,18 @@ module Bitcoin::Storage
         end
       end
 
+      # name of the storage backend currently in use ("sequel" or "utxo")
+      def backend_name
+        self.class.name.split("::")[-1].split("Store")[0].downcase
+      end
+
+
       # reset the store; delete all data
       def reset
         raise "Not implemented"
       end
 
-
+      # handle a new block incoming from the network
       def new_block blk
         time = Time.now
         res = store_block(blk)
@@ -163,7 +193,10 @@ module Bitcoin::Storage
           if prev_block == get_head
             log.debug { "=> main (#{depth})" }
             if !@config[:skip_validation] && ( !@checkpoints.any? || depth > @checkpoints.keys.last )
-              @config[:utxo_cache] = 0  if self.class.name =~ /UtxoStore/
+              if self.class.name =~ /UtxoStore/
+                @config[:utxo_cache] = 0
+                @config[:block_cache] = 120
+              end
               validator.validate(rules: [:context], raise_errors: true)
             end
             return persist_block(blk, MAIN, depth, prev_block.work)
@@ -389,6 +422,7 @@ module Bitcoin::Storage
       def in_sync?
         (get_head && (Time.now - get_head.time).to_i < 3600) ? true : false
       end
+
     end
   end
 end

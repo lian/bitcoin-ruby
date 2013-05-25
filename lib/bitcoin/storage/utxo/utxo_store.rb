@@ -1,6 +1,5 @@
 Bitcoin.require_dependency :sequel, message:
   "Note: You will also need an adapter for your database like sqlite3, mysql2, postgresql"
-require_relative 'migrations'
 
 module Bitcoin::Storage::Backends
 
@@ -17,8 +16,6 @@ module Bitcoin::Storage::Backends
 
     # sequel database connection
     attr_accessor :db
-
-    include Bitcoin::Storage::Backends::UtxoMigrations
 
     DEFAULT_CONFIG = {
       # cache head block; it is only updated when new block comes in,

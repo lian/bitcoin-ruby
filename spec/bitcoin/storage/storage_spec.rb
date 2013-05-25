@@ -47,6 +47,10 @@ include Bitcoin::Validation
       end
     end
 
+    it "should get backend name" do
+      @store.backend_name.should == configuration[:name].to_s
+    end
+
     it "should get depth" do
       @store.get_depth.should == 3
     end
