@@ -36,9 +36,9 @@ optparse = OptionParser.new do |opts|
     options[:listen] = listen
   end
 
-  opts.on("--connect [HOST:PORT[,HOST:PORT[...]]]",
+  opts.on("--connect [HOST:PORT]",
     "Hosts to connect to (default: #{options[:connect]})") do |connect|
-    options[:connect] = connect
+    options[:connect] << connect.split(":")
   end
 
   opts.on("-s", "--storage [BACKEND::CONFIG]",

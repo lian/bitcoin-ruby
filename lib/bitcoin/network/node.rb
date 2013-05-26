@@ -47,7 +47,7 @@ module Bitcoin::Network
     DEFAULT_CONFIG = {
       :network => :bitcoin,
       :listen => "0.0.0.0:#{Bitcoin.network[:default_port]}",
-      :connect => "",
+      :connect => [],
       :command => "127.0.0.1:9999",
       :storage => "sequel::sqlite://~/.bitcoin-ruby/<network>/blocks.db",
       :mode => :full,
@@ -192,9 +192,8 @@ module Bitcoin::Network
           log.info { "Server socket listening on #{host}:#{port}" }
         end
 
-        if @config[:connect] && @config[:connect].size > 0
-          @config[:connect].split(",").each{|host| connect_peer(*host.split(":")) }
-        end
+        @config[:connect].each{|h, p| connect_peer(h, p) }  if @config[:connect].size > 0
+
         work_connect if @addrs.any?
         connect_dns  if @config[:dns]
       end
