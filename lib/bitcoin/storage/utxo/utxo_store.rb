@@ -43,7 +43,9 @@ module Bitcoin::Storage::Backends
     # connect to database
     def connect
       super
-      @watched_addrs = @db[:addr].all.map{|a| a[:hash160] }  unless @config[:index_all_addrs]
+      load_watched_addrs
+#      rescan
+
     end
 
     # reset database; delete all data
@@ -54,6 +56,7 @@ module Bitcoin::Storage::Backends
 
     # persist given block +blk+ to storage.
     def persist_block blk, chain, depth, prev_work = 0
+      load_watched_addrs
       @db.transaction do
         attrs = {
           :hash => blk.hash.htb.blob,
@@ -185,6 +188,39 @@ module Bitcoin::Storage::Backends
           end
         end
         @new_outs = []
+      end
+    end
+
+    def add_watched_address address
+      hash160 = Bitcoin.hash160_from_address(address)
+      @db[:addr].insert(hash160: hash160)  unless @db[:addr][hash160: hash160]
+      @watched_addrs << hash160  unless @watched_addrs.include?(hash160)
+    end
+
+    def load_watched_addrs
+      @watched_addrs = @db[:addr].all.map{|a| a[:hash160] }  unless @config[:index_all_addrs]
+    end
+
+    def rescan
+      load_watched_addrs
+      @rescan_lock ||= Monitor.new
+      @rescan_lock.synchronize do
+        log.info { "Rescanning #{@db[:utxo].count} utxos for #{@watched_addrs.size} addrs" }
+        count = @db[:utxo].count; n = 100_000
+        @db[:utxo].order(:id).each_slice(n).with_index do |slice, index|
+          log.debug { "rescan progress: %.2f%" % (100.0 / count * (index*n)) }
+          slice.each do |utxo|
+            next  if utxo[:pk_script].bytesize >= 10_000
+            hash160 = Bitcoin::Script.new(utxo[:pk_script]).get_hash160
+            if @config[:index_all_addrs] || @watched_addrs.include?(hash160)
+              log.info { "Found utxo for address #{Bitcoin.hash160_to_address(hash160)}: " +
+                "#{utxo[:tx_hash][0..8]}:#{utxo[:tx_idx]} (#{utxo[:value]})" }
+              addr = @db[:addr][hash160: hash160]
+              addr_utxo = {addr_id: addr[:id], txout_id: utxo[:id]}
+              @db[:addr_txout].insert(addr_utxo)  unless @db[:addr_txout][addr_utxo]
+            end
+          end
+        end
       end
     end
 

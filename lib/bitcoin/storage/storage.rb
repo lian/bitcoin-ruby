@@ -392,6 +392,16 @@ module Bitcoin::Storage
         [script_type, addrs, names]
       end
 
+      def add_watched_address address
+        hash160 = Bitcoin.hash160_from_address(address)
+        @db[:addr].insert(hash160: hash160)  unless @db[:addr][hash160: hash160]
+        @watched_addrs << hash160  unless @watched_addrs.include?(hash160)
+      end
+
+      def rescan
+        raise "Not implemented"
+      end
+
       # import satoshi bitcoind blk0001.dat blockchain file
       def import filename, max_depth = nil
         if File.file?(filename)

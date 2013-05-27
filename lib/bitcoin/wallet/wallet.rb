@@ -33,7 +33,10 @@ module Bitcoin::Wallet
       @keystore = keystore
       @selector = selector
       @callbacks = {}
+
+      @keystore.keys.each {|key| @storage.add_watched_address(key[:addr]) }
       # connect_node  if defined?(EM)
+
     end
 
     def connect_node

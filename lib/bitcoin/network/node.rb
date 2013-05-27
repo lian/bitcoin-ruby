@@ -44,7 +44,9 @@ module Bitcoin::Network
     # time when the last main chain block was added
     attr_reader :last_block_time
 
+    attr_accessor :relay_tx
     attr_accessor :relay_propagation
+
 
     DEFAULT_CONFIG = {
       :network => :bitcoin,
@@ -93,7 +95,7 @@ module Bitcoin::Network
       @inv_cache = []
       @notifiers = {}
       @relay_propagation, @last_block_time, @external_ips = {}, Time.now, []
-      @unconfirmed = {}
+      @unconfirmed, @relay_tx = {}, {}
     end
 
     def set_store

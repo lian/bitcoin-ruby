@@ -125,6 +125,7 @@ module Bitcoin::Network
     def on_get_transaction(hash)
       log.debug { ">> get transaction: #{hash.hth}" }
       tx = @node.store.get_tx(hash.hth)
+      tx ||= @node.relay_tx[hash.hth]
       return  unless tx
       pkt = Bitcoin::Protocol.pkt("tx", tx.to_payload)
       log.debug { "<< tx: #{tx.hash}" }
