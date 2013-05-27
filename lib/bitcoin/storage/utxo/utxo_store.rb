@@ -95,11 +95,13 @@ module Bitcoin::Storage::Backends
       txs.each.with_index do |tx, tx_blk_idx|
         tx.in.each.with_index do |txin, txin_tx_idx|
           next  if txin.coinbase?
+          size = @new_outs.size
+          @new_outs.delete_if {|o| o[0][:tx_hash] == txin.prev_out.reverse.hth &&
+            o[0][:tx_idx] == txin.prev_out_index }
           @spent_outs << {
-            tx_hash: txin.prev_out.reverse.hth.blob,
-            tx_idx: txin.prev_out_index  }
+            tx_hash: txin.prev_out.reverse.hth.to_sequel_blob,
+            tx_idx: txin.prev_out_index  }  if @new_outs.size == size
         end
-
         tx.out.each.with_index do |txout, txout_tx_idx|
           _, a, n = *parse_script(txout, txout_tx_idx)
           @new_outs << [{
@@ -150,17 +152,15 @@ module Bitcoin::Storage::Backends
       log.time "flushed #{@spent_outs.size} spent txouts in %.4fs" do
         if @spent_outs.any?
           @spent_outs.each_slice(250) do |slice|
-
             if @db.adapter_scheme == :postgres
               condition = slice.map {|o| "(tx_hash = '#{o[:tx_hash]}' AND tx_idx = #{o[:tx_idx]})" }.join(" OR ")
             else
               condition = slice.map {|o| "(tx_hash = X'#{o[:tx_hash].hth}' AND tx_idx = #{o[:tx_idx]})" }.join(" OR ")
             end
-
             @db["DELETE FROM addr_txout WHERE EXISTS
                    (SELECT 1 FROM utxo WHERE
                      utxo.id = addr_txout.txout_id AND (#{condition}));"].all
-            @db["DELETE FROM utxo WHERE #{condition};"].all
+            @db["DELETE FROM utxo WHERE #{condition};"].first
 
           end
         end
