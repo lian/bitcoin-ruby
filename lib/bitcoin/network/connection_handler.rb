@@ -167,8 +167,8 @@ module Bitcoin::Network
     # received +getblocks+ message.
     # TODO: locator fallback
     def on_getblocks(version, hashes, stop_hash)
-      log.debug { ">> getblocks" }
-      return  unless version == Bitcoin.network[:magic_head]
+      log.debug { ">> getblocks (#{version})" }
+      return  unless version == Bitcoin.network[:protocol_version]
       if block = @node.store.get_block(hashes[0])
         depth = block.depth
         while (block = block.get_next_block) && block.depth <= depth + 500
@@ -202,8 +202,7 @@ module Bitcoin::Network
     # send +getblocks+ message
     def send_getblocks locator = @node.store.get_locator
       return get_genesis_block  if @node.store.get_depth == -1
-      pkt = Protocol.pkt("getblocks", [Bitcoin::network[:magic_head],
-          locator.size.chr, *locator.map{|l| l.htb_reverse}, "\x00"*32].join)
+      pkt = Protocol.getblocks_pkt(@version.version, locator)
       log.info { "<< getblocks: #{locator.first}" }
       send_data(pkt)
     end

@@ -89,13 +89,13 @@ describe 'Bitcoin::Protocol::Parser - Inventory Vectors' do
 
     locator_hashes = ["00000000068866924696f410b778911316f92035e9b69b62afa03573974fd750", "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"]
     stop_hash      = "0000000000000000000000000000000000000000000000000000000000000000"
-    pkt = Bitcoin::Protocol.getblocks_pkt( locator_hashes )
+    pkt = Bitcoin::Protocol.getblocks_pkt( 60002, locator_hashes )
 
     parser = Bitcoin::Protocol::Parser.new( handler = Test_Handler.new )
     parser.parse(pkt + "AAAA").should == "AAAA"
 
     handler.pkt.should == {
-      :version => Bitcoin.network[:magic_head],
+      :version => Bitcoin.network[:protocol_version],
       :locator_hashes => locator_hashes,
       :stop_hash => "0000000000000000000000000000000000000000000000000000000000000000"
     }
@@ -109,13 +109,13 @@ describe 'Bitcoin::Protocol::Parser - Inventory Vectors' do
 
     locator_hashes = ["00000000068866924696f410b778911316f92035e9b69b62afa03573974fd750", "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"]
     stop_hash      = "0000000000000000000000000000000000000000000000000000000000007e57"
-    pkt = Bitcoin::Protocol.getblocks_pkt( locator_hashes, stop_hash )
+    pkt = Bitcoin::Protocol.getblocks_pkt( 60002, locator_hashes, stop_hash )
 
     parser = Bitcoin::Protocol::Parser.new( handler = Test_Handler.new )
     parser.parse(pkt + "AAAA").should == "AAAA"
 
     handler.pkt.should == {
-      :version => Bitcoin.network[:magic_head],
+      :version => Bitcoin.network[:protocol_version],
       :locator_hashes => locator_hashes,
       :stop_hash => "0000000000000000000000000000000000000000000000000000000000007e57"
     }

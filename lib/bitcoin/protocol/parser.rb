@@ -57,7 +57,7 @@ module Bitcoin
       end
 
       def parse_getblocks(payload)
-        version, payload = payload.unpack('a4a*')
+        version, payload = payload.unpack('Va*')
         count,   payload = Protocol.unpack_var_int(payload)
         buf,     payload = payload.unpack("a#{count*32}a*")
         hashes    = buf.each_byte.each_slice(32).map{|i| hash = i.reverse.pack("C32").hth }

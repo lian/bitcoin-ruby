@@ -126,21 +126,21 @@ module Bitcoin
 
     DEFAULT_STOP_HASH = "00"*32
 
-    def self.locator_payload(locator_hashes, stop_hash)
+    def self.locator_payload(version, locator_hashes, stop_hash)
       payload = [
-        Bitcoin.network[:magic_head],
+        [version].pack("V"),
         pack_var_int(locator_hashes.size),
         locator_hashes.map{|l| l.htb_reverse }.join,
         stop_hash.htb_reverse
       ].join
     end
 
-    def self.getblocks_pkt(locator_hashes, stop_hash=DEFAULT_STOP_HASH)
-      pkt "getblocks",  locator_payload(locator_hashes, stop_hash)
+    def self.getblocks_pkt(version, locator_hashes, stop_hash=DEFAULT_STOP_HASH)
+      pkt "getblocks",  locator_payload(version, locator_hashes, stop_hash)
     end
 
-    def self.getheaders_pkt(locator_hashes, stop_hash=DEFAULT_STOP_HASH)
-      pkt "getheaders", locator_payload(locator_hashes, stop_hash)
+    def self.getheaders_pkt(version, locator_hashes, stop_hash=DEFAULT_STOP_HASH)
+      pkt "getheaders", locator_payload(version, locator_hashes, stop_hash)
     end
 
     def self.read_binary_file(path)
