@@ -29,7 +29,7 @@ module Bitcoin::Validation
 
 
   class Block
-    attr_accessor :block, :store, :prev_block
+    attr_accessor :block, :store, :prev_block, :error
 
     RULES = {
       syntax: [:hash, :tx_list, :bits, :max_timestamp, :coinbase, :coinbase_scriptsig, :mrkl_root, :transactions_syntax],
@@ -48,12 +48,12 @@ module Bitcoin::Validation
     def validate(opts = {})
       return true  if KNOWN_EXCEPTIONS.include?(block.hash)
       opts[:rules] ||= [:syntax, :context]
-
       opts[:rules].each do |name|
         store.log.debug { "validating block #{name} #{block.hash} (#{block.to_payload.bytesize} bytes)" }
         RULES[name].each.with_index do |rule, i|
-          unless send(rule)
+          unless (res = send(rule)) && res == true
             raise ValidationError, "block error: #{name} check #{i} - #{rule} failed"  if opts[:raise_errors]
+            @error = [rule, res]
             return false
           end
         end
@@ -64,39 +64,44 @@ module Bitcoin::Validation
     # setup new validator for given +block+, validating context with +store+,
     # optionally passing the +prev_block+ for optimization.
     def initialize block, store, prev_block = nil
-      @block, @store = block, store
+      @block, @store, @error = block, store, nil
       @prev_block = prev_block || store.get_block(block.prev_block.reverse_hth)
     end
 
     # check that block hash matches header
     def hash
-      block.hash == block.recalc_block_hash
+      claimed = block.hash; real = block.recalc_block_hash
+      claimed == real || [claimed, real]
     end
 
     # check that block has at least one tx (the coinbase)
     def tx_list
-      block.tx.any?
+      block.tx.any? || block.tx.size
     end
 
     # check that block hash matches claimed bits
     def bits
-      block.hash.to_i(16) <= Bitcoin.decode_compact_bits(block.bits).to_i(16)
+      actual = block.hash.to_i(16)
+      expected = Bitcoin.decode_compact_bits(block.bits).to_i(16)
+      actual <= expected || [actual, expected]
     end
 
     # check that block time is not greater than max
     def max_timestamp
-      Time.at(block.time) < Time.now + 2*60*60
+      time, max = block.time, Time.now.to_i + 2*60*60
+      time < max || [time, max]
     end
 
     # check that coinbase is present
     def coinbase
       coinbase, *rest = block.tx.map{|t| t.inputs.size == 1 && t.inputs.first.coinbase? }
-      coinbase && rest.none?
+      (coinbase && rest.none?) || [coinbase ? 1 : 0, rest.select{|r| r}.size]
     end
 
     # check that coinbase scriptsig is valid
     def coinbase_scriptsig
-      block.tx.first.in.first.script_sig.bytesize.between?(2,100)
+      size = block.tx.first.in.first.script_sig.bytesize
+      size.between?(2,100) || [size, 2, 100]
     end
 
     # check that coinbase value is valid; no more than reward + fees
@@ -109,12 +114,13 @@ module Bitcoin::Validation
         }.inject(:+)
       end.inject(:+) || 0
       coinbase_output = block.tx[0].out.map(&:value).inject(:+)
-      coinbase_output <= reward + fees
+      coinbase_output <= reward + fees || [coinbase_output, reward, fees]
     end
 
     # check that merkle root matches transaction hashes
     def mrkl_root
-      block.mrkl_root.reverse_hth == Bitcoin.hash_mrkl_tree(block.tx.map(&:hash))[-1]
+      actual, expected = block.mrkl_root.reverse_hth, Bitcoin.hash_mrkl_tree(block.tx.map(&:hash))[-1]
+      actual == expected || [actual, expected]
     end
 
     def prev_hash
@@ -124,7 +130,7 @@ module Bitcoin::Validation
     # check that bits satisfy required difficulty
     def difficulty
       return true  if Bitcoin.network_name == :testnet3
-      next_bits_required == block.bits
+      block.bits == next_bits_required || [block.bits, next_bits_required]
     end
 
     # check that timestamp is newer than the median of the last 11 blocks
@@ -137,7 +143,9 @@ module Bitcoin::Validation
         times << first[:time] }
       times.sort!
       mid, rem = times.size.divmod(2)
-      block.time > (rem == 0 ? times[mid-1, 2].inject(:+) / 2.0 : times[mid])
+      min_time = (rem == 0 ? times[mid-1, 2].inject(:+) / 2.0 : times[mid])
+
+      block.time > min_time || [block.time, min_time]
     end
 
     # check transactions
@@ -196,7 +204,7 @@ module Bitcoin::Validation
   end
 
   class Tx
-    attr_accessor :tx, :store
+    attr_accessor :tx, :store, :error
 
     RULES = {
       syntax: [:hash, :lists, :max_size, :output_values, :inputs, :lock_time, :standard],
@@ -212,8 +220,9 @@ module Bitcoin::Validation
       opts[:rules].each do |name|
         store.log.debug { "validating tx #{name} #{tx.hash} (#{tx.to_payload.bytesize} bytes)" } if store
         RULES[name].each.with_index do |rule, i|
-          unless send(rule)
+          unless (res = send(rule)) && res == true
             raise ValidationError, "tx error: #{name} check #{i} - #{rule} failed"  if opts[:raise_errors]
+            @error = [rule, res]
             return false
           end
         end
@@ -231,44 +240,46 @@ module Bitcoin::Validation
     # setup new validator for given +tx+, validating context with +store+.
     # also needs the +block+ to find prev_outs for chains of tx inside one block.
     def initialize tx, store, block = nil
-      @tx, @store, @block = tx, store, block
+      @tx, @store, @block, @errors = tx, store, block, []
     end
 
     # check that tx hash matches data
     def hash
-      tx.hash == tx.generate_hash(tx.to_payload)
+      generated_hash = tx.generate_hash(tx.to_payload)
+      tx.hash == generated_hash || [tx.hash, generated_hash]
     end
 
     # check that tx has at least one input and one output
     def lists
-      tx.in.any? && tx.out.any?
+      (tx.in.any? && tx.out.any?) || [tx.in.size, tx.out.size]
     end
 
     # check that tx size doesn't exceed MAX_BLOCK_SIZE.
     def max_size
-      tx.to_payload.bytesize <= MAX_BLOCK_SIZE
+      tx.to_payload.bytesize <= MAX_BLOCK_SIZE || [tx.to_payload.bytesize, MAX_BLOCK_SIZE]
     end
 
     # check that total output value doesn't exceed MAX_MONEY.
     def output_values
-      tx.out.inject(0) {|e, out| e + out.value } <= MAX_MONEY
+      total = tx.out.inject(0) {|e, out| e + out.value }
+      total <= MAX_MONEY || [total, MAX_MONEY]
     end
 
     # check that none of the inputs is coinbase
     # (coinbase tx do not get validated)
     def inputs
-      tx.inputs.none?(&:coinbase?)
+      tx.inputs.none?(&:coinbase?) || [tx.inputs.index(tx.inputs.find(&:coinbase?))]
     end
 
     # check that lock_time doesn't exceed INT_MAX
     def lock_time
-      tx.lock_time <= INT_MAX
+      tx.lock_time <= INT_MAX || [tx.lock_time, INT_MAX]
     end
 
     # check that min_size is at least 86 bytes
     # (smaller tx can't be valid / do anything useful)
     def min_size
-      tx.to_payload.bytesize >= 86
+      tx.to_payload.bytesize >= 86 || [tx.to_payload.bytesize, 86]
     end
 
     # check that tx matches "standard" rules.
@@ -285,38 +296,39 @@ module Bitcoin::Validation
       missing = tx.in.reject.with_index {|txin, idx|
         prev_txs[idx].out[txin.prev_out_index] rescue false }
       return true  if prev_txs.size == tx.in.size && missing.empty?
+
       missing.each {|i| store.log.warn { "prev out #{i.prev_out.reverse_hth}:#{i.prev_out_index} missing" } }
-      false
+      missing.map {|i| [i.prev_out.reverse_hth, i.prev_out_index] }
     end
 
     # TODO: validate coinbase maturity
 
     # check that all input signatures are valid
     def signatures
-      tx.in.map.with_index {|txin, idx| tx.verify_input_signature(idx, prev_txs[idx], (@block ? @block.time : 0)) }.all?
+      sigs = tx.in.map.with_index {|txin, idx| tx.verify_input_signature(idx, prev_txs[idx], (@block ? @block.time : 0)) }
+      sigs.all? || sigs.map.with_index {|s, i| s ? nil : i }.compact
     end
 
     # check that none of the prev_outs are already spent in the main chain
     def spent
-      tx.in.map.with_index {|txin, idx|
+      spent = tx.in.map.with_index {|txin, idx|
         next false  if @block && @block.tx.include?(prev_txs[idx])
         next false  unless next_in = prev_txs[idx].out[txin.prev_out_index].get_next_in
         next false  unless next_tx = next_in.get_tx
         next false  unless next_block = next_tx.get_block
         next_block.chain == Bitcoin::Storage::Backends::StoreBase::MAIN
-      }.none?
+      }
+      spent.none? || spent.map.with_index {|s, i| s ? i : nil }
     end
 
     # check that the total input value doesn't exceed MAX_MONEY
     def input_values
-      tx.in.map.with_index {|txin, idx| prev_txs[idx].out[txin.prev_out_index].value }
-        .inject(:+) < MAX_MONEY
+      total_in < MAX_MONEY || [total_in, MAX_MONEY]
     end
 
     # check that the total output value doesn't exceed the total input value
     def output_sum
-      tx.in.map.with_index {|txin, idx| prev_txs[idx].out[txin.prev_out_index].value }
-        .inject(:+) >= tx.out.map(&:value).inject(:+)
+      total_in >= total_out || [total_out, total_in]
     end
 
     # collect prev_txs needed to verify the inputs of this tx.
@@ -335,6 +347,16 @@ module Bitcoin::Validation
         next  nil if !@block
         @block.tx.find {|t| t.binary_hash == i.prev_out }
       }.compact
+    end
+
+
+    def total_in
+      @total_in ||= tx.in.map.with_index {|txin, idx|
+        prev_txs[idx].out[txin.prev_out_index].value }.inject(:+)
+    end
+
+    def total_out
+      @total_out ||= tx.out.map(&:value).inject(:+)
     end
 
   end

@@ -25,58 +25,68 @@ describe "block rules" do
     @block = create_block @block1.hash, false
   end
 
-  def check_block blk, msg
+  def check_block blk, error
     b = blk.dup
     if block_given?
       yield(b); b.bits = Bitcoin.network[:proof_of_work_limit]; b.recalc_block_hash
     end
-    -> { b.validator(@store).validate(raise_errors: true) }.should
-      .raise(ValidationError).message.should =~ msg
+
+    validator = b.validator(@store)
+    validator.validate.should == false
+    validator.error.should == error
   end
 
   it "1. Check syntactic correctness" do
     block = create_block @block1.hash, false
-    block.hash = "\x00" * 32
+    block.hash = "00" * 32
     block.bits = Bitcoin.network[:proof_of_work_limit]
-    -> { block.validator(@store).validate(raise_errors: true) }
-      .should.raise(ValidationError).message.should =~ /hash/
+    validator = block.validator(@store)
+    validator.validate.should == false
+    validator.error.should == [:hash, ["00"*32, block.hash]]
   end
 
   it "3. Transaction list must be non-empty" do
-    check_block(@block, /tx_list/) {|b| b.tx = [] }
+    check_block(@block, [:tx_list, 0]) {|b| b.tx = [] }
   end
 
   it "4. Block hash must satisfy claimed nBits proof of work" do
     @block.bits = Bitcoin.encode_compact_bits("0000#{"ff" * 30}")
     @block.recalc_block_hash
-    check_block(@block, /bits/)
+    target = Bitcoin.decode_compact_bits(block.bits).to_i(16)
+    check_block(@block, [:bits, [@block.hash.to_i(16), target]])
   end
 
   it "5. Block timestamp must not be more than two hours in the future" do
-    check_block(@block, /timestamp/) {|b| b.time = (Time.now + 3 * 60 * 60).to_i }
+    fake_time = (Time.now + 3 * 60 * 60).to_i
+    check_block(@block, [:max_timestamp, [fake_time, Time.now.to_i + 7200]]) {|b|
+      b.time = fake_time }
   end
 
   it "6. First transaction must be coinbase (i.e. only 1 input, with hash=0, n=-1), the rest must not be" do
     block = create_block @block1.hash, false, [
       ->(tx) { create_tx(tx, @block1.tx.first, 0, [[50, @key]]) } ], @key
-    check_block(block, /coinbase/) {|b| b.tx = b.tx.reverse }
-    check_block(block, /coinbase/) {|b| b.tx << b.tx[0] }
+    check_block(block, [:coinbase, [0, 1]]) {|b| b.tx = b.tx.reverse }
+    check_block(block, [:coinbase, [1, 1]]) {|b| b.tx << b.tx[0] }
   end
 
   it "8. For the coinbase (first) transaction, scriptSig length must be 2-100" do
-    check_block(@block, /coinbase_scriptsig/) {|b| b.tx[0].in[0].script_sig = "\x01" }
-    check_block(@block, /coinbase_scriptsig/) {|b| b.tx[0].in[0].script_sig = "\x01" * 101 }
+    check_block(@block, [:coinbase_scriptsig, [1, 2, 100]]) {|b|
+      b.tx[0].in[0].script_sig = "\x01" }
+    check_block(@block, [:coinbase_scriptsig, [101, 2, 100]]) {|b|
+      b.tx[0].in[0].script_sig = "\x01" * 101 }
   end
 
   it "10. Verify Merkle hash" do
-    check_block(@block, /mrkl_root/) {|b| b.mrkl_root = "\x00" * 32 }
+    check_block(@block, [:mrkl_root, ["00"*32, @block.mrkl_root.reverse_hth]]) {|b|
+      b.mrkl_root = "\x00" * 32 }
   end
 
   it "12. Check that nBits value matches the difficulty rules" do
     block = create_block @block1.hash, false, [], @key
     Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("0000#{"ff"*30}")
-    -> { block.validator(@store).validate(raise_errors: true) }
-      .should.raise(ValidationError).message.should =~ /difficulty/
+    validator = block.validator(@store)
+    validator.validate.should == false
+    validator.error.should == [:difficulty, [553713663, 520159231]]
   end
 
   it "13. Reject if timestamp is the median time of the last 11 blocks or before" do
@@ -88,8 +98,15 @@ describe "block rules" do
       @store.store_block(prev_block).should == [i+2, 0]
     end
     block = create_block(prev_block.hash, false, [], @key)
-    check_block(block, /min_timestamp/) {|b| b.time = Time.now.to_i - 100 }
-    check_block(block, /min_timestamp/) {|b| b.time = @store.get_block_by_depth(8).time }
+
+    fake_time = Time.now.to_i - 100
+    times = @store.db[:blk].where("depth > 2").map{|b|b[:time]}.sort
+    m, r = times.size.divmod(2)
+    min_time = (r == 0 ? times[m-1, 2].inject(:+) / 2.0 : times[m])
+    check_block(block, [:min_timestamp, [fake_time, min_time]]) {|b| b.time = fake_time }
+
+    fake_time = @store.get_block_by_depth(8).time
+    check_block(block, [:min_timestamp, [fake_time, fake_time]]) {|b| b.time = fake_time }
     @store.store_block(block).should == [14, 0]
   end
 
@@ -125,6 +142,7 @@ describe "block rules" do
 end
 
 describe "tx rules" do
+
   before do
     Bitcoin.network = :testnet
     @store = Bitcoin::Storage.sequel(:db => "sqlite:/")
@@ -141,53 +159,58 @@ describe "tx rules" do
     @tx = tx {|t| create_tx(t, @block1.tx.first, 0, [[50, @key]]) }
   end
 
-  def check_tx tx, msg
+  def check_tx tx, error
     t = tx.dup
     yield(t) && t.instance_eval { @hash = generate_hash(to_payload) }  if block_given?
-    -> { t.validator(@store).validate(raise_errors: true) }.should.raise(ValidationError).message.should =~ msg
+    validator = t.validator(@store)
+    validator.validate.should == false
+    validator.error.should == error
   end
 
   it "should validate" do
     validator = @tx.validator(@store)
     validator.validate.should == true
     validator.validate(raise_errors: true).should == true
-    @tx.instance_eval { @hash = "f"*64 }
+    hash = @tx.hash; @tx.instance_eval { @hash = "f"*64 }
     validator = @tx.validator(@store)
     validator.validate.should == false
+    validator.error.should == [:hash, ["f"*64, hash]]
     -> { validator.validate(raise_errors: true) }.should.raise(ValidationError)
   end
 
   it "1. Check syntactic correctness" do
-    @tx.instance_eval { @hash = "f"*64 }
-    -> { @tx.validator(@store).validate(raise_errors: true) }
-      .should.raise(ValidationError).message.should =~ /hash/
+    hash = @tx.hash; @tx.instance_eval { @hash = "ff"*32 }
+    validator = @tx.validator(@store)
+    validator.validate.should == false
+    validator.error.should == [:hash, ["ff"*32, hash]]
   end
 
   it "2. Make sure neither in or out lists are empty" do
-    check_tx(@tx, /lists/) {|tx| tx.instance_eval { @in = [] } }
-    check_tx(@tx, /lists/) {|tx| tx.instance_eval { @out = [] } }
+    check_tx(@tx, [:lists, [0, 1]]) {|tx| tx.instance_eval { @in = [] } }
+    check_tx(@tx, [:lists, [1, 0]]) {|tx| tx.instance_eval { @out = [] } }
   end
 
   it "3. Size in bytes < MAX_BLOCK_SIZE" do
-    s = MAX_BLOCK_SIZE; Bitcoin::Validation::MAX_BLOCK_SIZE = 1000
-    check_tx(@tx, /size/) {|tx| tx.out[0].pk_script = "f" * 1001 }
-    Bitcoin::Validation::MAX_BLOCK_SIZE = s
+    max = Bitcoin::Validation::MAX_BLOCK_SIZE; Bitcoin::Validation::MAX_BLOCK_SIZE = 1000
+    check_tx(@tx, [:max_size, [@tx.payload.bytesize+978, 1000]]) {|tx|
+      tx.out[0].pk_script = "\x00" * 1001 }
+    Bitcoin::Validation::MAX_BLOCK_SIZE = max
   end
 
   it "4. Each output value, as well as the total, must be in legal money range" do
-    check_tx(@tx, /output_values/) {|tx| tx.out[0].value = MAX_MONEY + 1 }
+    check_tx(@tx, [:output_values, [MAX_MONEY + 1, MAX_MONEY]]) {|tx|
+      tx.out[0].value = MAX_MONEY + 1 }
   end
 
   it "5. Make sure none of the inputs have hash=0, n=-1" do
-    check_tx(@tx, /inputs/) do |tx|
+    check_tx(@tx, [:inputs, [0]]) do |tx|
       tx.in.first.prev_out = "\x00"*32
       tx.in.first.prev_out_index = 4294967295
     end
   end
 
   it "6. Check that nLockTime <= INT_MAX, size in bytes >= 100, and sig opcount <= 2" do
-    check_tx(@tx, /lock_time/) {|tx| tx.lock_time = INT_MAX + 1 }
-    # check_tx(@tx, /size/) {|tx| tx.in[0].script_sig = ""; tx.out[0].pk_script = "" }
+    check_tx(@tx, [:lock_time, [INT_MAX + 1, INT_MAX]]) {|tx| tx.lock_time = INT_MAX + 1 }
     # TODO: validate sig opcount
   end
 
@@ -199,27 +222,27 @@ describe "tx rules" do
   # end
 
   it "11. For each input, if we are using the nth output of the earlier transaction, but it has fewer than n+1 outputs, reject this transaction" do
-    check_tx(@tx, /prev_out/) {|tx| tx.in[0].prev_out_index = 2 }
+    check_tx(@tx, [:prev_out, [[@tx.in[0].prev_out.reverse_hth, 2]]]) {|tx| tx.in[0].prev_out_index = 2 }
   end
 
   it "13. Verify crypto signatures for each input; reject if any are bad" do
-    check_tx(@tx, /signature/) {|tx| @tx.in[0].script_sig[-1] = "\x00" }
+    check_tx(@tx, [:signatures, [0]]) {|tx| @tx.in[0].script_sig[-1] = "\x00" }
   end
 
   it "14. For each input, if the referenced output has already been spent by a transaction in the main branch, reject this transaction" do
     block2 = create_block(@block1.hash, true, [
         ->(tx) {create_tx(tx, @block1.tx.first, 0, [[50, @key]])}], @key)
-    check_tx(@tx, /spent/)
+    check_tx(@tx, [:spent, [0]])
   end
 
   it "15. Using the referenced output transactions to get input values, check that each input value, as well as the sum, are in legal money range" do
     @store.db[:txout].where(id: 2).update(value: 22e14)
-    check_tx(@tx, /input_values/)
+    check_tx(@tx, [:input_values, [22e14, 21e14]])
   end
 
   it "16. Reject if the sum of input values < sum of output values" do
     tx = tx {|t| create_tx(t, @block1.tx.first, 0, [[100e8, @key]]) }
-    check_tx(tx, /output_sum/)
+    check_tx(tx, [:output_sum, [100e8, 50e8]])
   end
 
 end
