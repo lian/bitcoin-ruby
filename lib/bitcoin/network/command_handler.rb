@@ -162,10 +162,12 @@ class Bitcoin::Network::CommandHandler < EM::Connection
 
     validator = tx.validator(@node.store)
     unless validator.validate(rules: [:syntax])
-      return respond("relay_tx", { error: "Transaction syntax invalid." })
+      return respond("relay_tx", { error: "Transaction syntax invalid.",
+                     details: validator.error })
     end
     unless validator.validate(rules: [:context])
-      return respond("relay_tx", { error: "Transaction context invalid." })
+      return respond("relay_tx", { error: "Transaction context invalid.",
+                     details: validator.error })
     end
 
     @node.store.store_tx(tx)
