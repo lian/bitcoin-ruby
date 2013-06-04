@@ -55,20 +55,20 @@ module Bitcoin::Storage::Backends
     def persist_block blk, chain, depth, prev_work = 0
       @db.transaction do
         attrs = {
-          :hash => blk.hash.htb.to_sequel_blob,
+          :hash => blk.hash.htb.blob,
           :depth => depth,
           :chain => chain,
           :version => blk.ver,
-          :prev_hash => blk.prev_block.reverse.to_sequel_blob,
-          :mrkl_root => blk.mrkl_root.reverse.to_sequel_blob,
+          :prev_hash => blk.prev_block.reverse.blob,
+          :mrkl_root => blk.mrkl_root.reverse.blob,
           :time => blk.time,
           :bits => blk.bits,
           :nonce => blk.nonce,
           :blk_size => blk.to_payload.bytesize,
           :work => (prev_work + blk.block_work).to_s
         }
-        attrs[:aux_pow] = blk.aux_pow.to_payload.to_sequel_blob  if blk.aux_pow
-        existing = @db[:blk].filter(:hash => blk.hash.htb.to_sequel_blob)
+        attrs[:aux_pow] = blk.aux_pow.to_payload.blob  if blk.aux_pow
+        existing = @db[:blk].filter(:hash => blk.hash.htb.blob)
         if existing.any?
           existing.update attrs
           block_id = existing.first[:id]
@@ -78,7 +78,7 @@ module Bitcoin::Storage::Backends
 
           # store tx
           blk.tx.each.with_index do |tx, idx|
-            existing = @db[:tx][hash: tx.hash.htb.to_sequel_blob]
+            existing = @db[:tx][hash: tx.hash.htb.blob]
             existing ? blk_tx[idx] = existing[:id] : new_tx << [tx, idx]
           end
           new_tx_ids = @db[:tx].insert_multiple(new_tx.map {|tx, _| tx_data(tx) })
@@ -107,7 +107,7 @@ module Bitcoin::Storage::Backends
           names.each {|i, script| store_name(script, txout_ids[i]) }
         end
         @head = wrap_block(attrs.merge(id: block_id))  if chain == MAIN
-        @db[:blk].where(:prev_hash => blk.hash.htb.to_sequel_blob, :chain => ORPHAN).each do |b|
+        @db[:blk].where(:prev_hash => blk.hash.htb.blob, :chain => ORPHAN).each do |b|
           log.debug { "connecting orphan #{b[:hash].hth}" }
           begin
             store_block(get_block(b[:hash].hth))
@@ -123,7 +123,7 @@ module Bitcoin::Storage::Backends
     def update_blocks updates
       @db.transaction do
         updates.each do |blocks, attrs|
-          @db[:blk].filter(:hash => blocks.map{|h| h.htb.to_sequel_blob}).update(attrs)
+          @db[:blk].filter(:hash => blocks.map{|h| h.htb.blob}).update(attrs)
         end
       end
     end
@@ -179,7 +179,7 @@ module Bitcoin::Storage::Backends
 
     # prepare transaction data for storage
     def tx_data tx
-      { hash: tx.hash.htb.to_sequel_blob,
+      { hash: tx.hash.htb.blob,
         version: tx.ver, lock_time: tx.lock_time,
         coinbase: tx.in.size == 1 && tx.in[0].coinbase?,
         tx_size: tx.payload.bytesize }
@@ -190,7 +190,7 @@ module Bitcoin::Storage::Backends
       @log.debug { "Storing tx #{tx.hash} (#{tx.to_payload.bytesize} bytes)" }
       tx.validator(self).validate(raise_errors: true)  if validate
       @db.transaction do
-        transaction = @db[:tx][:hash => tx.hash.htb.to_sequel_blob]
+        transaction = @db[:tx][:hash => tx.hash.htb.blob]
         return transaction[:id]  if transaction
         tx_id = @db[:tx].insert(tx_data(tx))
         tx.in.each_with_index {|i, idx| store_txin(tx_id, i, idx)}
@@ -202,8 +202,8 @@ module Bitcoin::Storage::Backends
     # prepare txin data for storage
     def txin_data tx_id, txin, idx
       { tx_id: tx_id, tx_idx: idx,
-        script_sig: txin.script_sig.to_sequel_blob,
-        prev_out: txin.prev_out.to_sequel_blob,
+        script_sig: txin.script_sig.blob,
+        prev_out: txin.prev_out.blob,
         prev_out_index: txin.prev_out_index,
         sequence: txin.sequence.unpack("V")[0] }
     end
@@ -216,7 +216,7 @@ module Bitcoin::Storage::Backends
     # prepare txout data for storage
     def txout_data tx_id, txout, idx, script_type
       { tx_id: tx_id, tx_idx: idx,
-        pk_script: txout.pk_script.to_sequel_blob,
+        pk_script: txout.pk_script.blob,
         value: txout.value, type: script_type }
     end
 
@@ -264,19 +264,19 @@ module Bitcoin::Storage::Backends
 
         log.info { "#{script.type}: #{script.get_namecoin_name}" }
         @db[:names].where(:txout_id => name_new[:txout_id], :name => nil).update({
-            :name => script.get_namecoin_name.to_s.to_sequel_blob })
+            :name => script.get_namecoin_name.to_s.blob })
         @db[:names].insert({
             :txout_id => txout_id,
             :hash => name_hash,
-            :name => script.get_namecoin_name.to_s.to_sequel_blob,
-            :value => script.get_namecoin_value.to_s.to_sequel_blob,
+            :name => script.get_namecoin_name.to_s.blob,
+            :value => script.get_namecoin_value.to_s.blob,
           })
       elsif script.type == :name_update
         log.info { "#{script.type}: #{script.get_namecoin_name}" }
         @db[:names].insert({
             :txout_id => txout_id,
-            :name => script.get_namecoin_name.to_s.to_sequel_blob,
-            :value => script.get_namecoin_value.to_s.to_sequel_blob,
+            :name => script.get_namecoin_name.to_s.blob,
+            :value => script.get_namecoin_value.to_s.blob,
           })
       end
     end
@@ -295,12 +295,12 @@ module Bitcoin::Storage::Backends
 
     # check if block +blk_hash+ exists
     def has_block(blk_hash)
-      !!@db[:blk].where(:hash => blk_hash.htb.to_sequel_blob).get(1)
+      !!@db[:blk].where(:hash => blk_hash.htb.blob).get(1)
     end
 
     # check if transaction +tx_hash+ exists
     def has_tx(tx_hash)
-      !!@db[:tx].where(:hash => tx_hash.htb.to_sequel_blob).get(1)
+      !!@db[:tx].where(:hash => tx_hash.htb.blob).get(1)
     end
 
     # get head block (highest block from the MAIN chain)
@@ -325,7 +325,7 @@ module Bitcoin::Storage::Backends
 
     # get block for given +blk_hash+
     def get_block(blk_hash)
-      wrap_block(@db[:blk][:hash => blk_hash.htb.to_sequel_blob])
+      wrap_block(@db[:blk][:hash => blk_hash.htb.blob])
     end
 
     # get block by given +depth+
@@ -335,12 +335,12 @@ module Bitcoin::Storage::Backends
 
     # get block by given +prev_hash+
     def get_block_by_prev_hash(prev_hash)
-      wrap_block(@db[:blk][:prev_hash => prev_hash.htb.to_sequel_blob, :chain => MAIN])
+      wrap_block(@db[:blk][:prev_hash => prev_hash.htb.blob, :chain => MAIN])
     end
 
     # get block by given +tx_hash+
     def get_block_by_tx(tx_hash)
-      tx = @db[:tx][:hash => tx_hash.htb.to_sequel_blob]
+      tx = @db[:tx][:hash => tx_hash.htb.blob]
       return nil  unless tx
       parent = @db[:blk_tx][:tx_id => tx[:id]]
       return nil  unless parent
@@ -354,7 +354,7 @@ module Bitcoin::Storage::Backends
 
     # get transaction for given +tx_hash+
     def get_tx(tx_hash)
-      wrap_tx(@db[:tx][:hash => tx_hash.htb.to_sequel_blob])
+      wrap_tx(@db[:tx][:hash => tx_hash.htb.blob])
     end
 
     # get transaction by given +tx_id+
@@ -365,7 +365,7 @@ module Bitcoin::Storage::Backends
     # get corresponding Models::TxIn for the txout in transaction
     # +tx_hash+ with index +txout_idx+
     def get_txin_for_txout(tx_hash, txout_idx)
-      tx_hash = tx_hash.htb_reverse.to_sequel_blob
+      tx_hash = tx_hash.htb_reverse.blob
       wrap_txin(@db[:txin][:prev_out => tx_hash, :prev_out_index => txout_idx])
     end
 
@@ -375,14 +375,14 @@ module Bitcoin::Storage::Backends
 
     # get corresponding Models::TxOut for +txin+
     def get_txout_for_txin(txin)
-      tx = @db[:tx][:hash => txin.prev_out.reverse.to_sequel_blob]
+      tx = @db[:tx][:hash => txin.prev_out.reverse.blob]
       return nil  unless tx
       wrap_txout(@db[:txout][:tx_idx => txin.prev_out_index, :tx_id => tx[:id]])
     end
 
     # get all Models::TxOut matching given +script+
     def get_txouts_for_pk_script(script)
-      txouts = @db[:txout].filter(:pk_script => script.to_sequel_blob).order(:id)
+      txouts = @db[:txout].filter(:pk_script => script.blob).order(:id)
       txouts.map{|txout| wrap_txout(txout)}
     end
 
@@ -409,7 +409,7 @@ module Bitcoin::Storage::Backends
     end
 
     def name_show name
-      names = @db[:names].where(:name => name.to_sequel_blob).order(:txout_id).reverse
+      names = @db[:names].where(:name => name.blob).order(:txout_id).reverse
       return nil  unless names.any?
       wrap_name(names.first)
     end

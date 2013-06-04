@@ -137,9 +137,9 @@ module Bitcoin::Validation
     def min_timestamp
       return true  if store.get_depth <= 11
       d = store.get_depth
-      first = store.db[:blk][hash: block.prev_block.reverse.to_sequel_blob]
+      first = store.db[:blk][hash: block.prev_block.reverse.blob]
       times = [first[:time]]
-      (10).times { first = store.db[:blk][hash: first[:prev_hash].to_sequel_blob]
+      (10).times { first = store.db[:blk][hash: first[:prev_hash].blob]
         times << first[:time] }
       times.sort!
       mid, rem = times.size.divmod(2)
@@ -180,9 +180,9 @@ module Bitcoin::Validation
       max_target = Bitcoin.decode_compact_bits(Bitcoin.network[:proof_of_work_limit]).to_i(16)
       return Bitcoin.network[:proof_of_work_limit]  if index == 0
       return prev_block.bits  if (prev_block.depth + 1) % RETARGET != 0
-      last = store.db[:blk][hash: prev_block.hash.htb.to_sequel_blob]
-      first = store.db[:blk][hash: last[:prev_hash].to_sequel_blob]
-      (RETARGET-2).times { first = store.db[:blk][hash: first[:prev_hash].to_sequel_blob] }
+      last = store.db[:blk][hash: prev_block.hash.htb.blob]
+      first = store.db[:blk][hash: last[:prev_hash].blob]
+      (RETARGET-2).times { first = store.db[:blk][hash: first[:prev_hash].blob] }
       
       nActualTimespan = last[:time] - first[:time]
       nTargetTimespan = RETARGET * 600
