@@ -82,7 +82,7 @@ module SimpleNode
       log.info { "handshake started" }
 
       version = Bitcoin::Protocol::Version.new({
-        :user_agent => "/Satoshi:0.6.2/",
+        :user_agent => "/Satoshi:0.8.1/",
         :last_block => 0,
         :from       => "127.0.0.1:#{Bitcoin.network[:default_port]}",
         :to         => "#{@host}:#{@port}",

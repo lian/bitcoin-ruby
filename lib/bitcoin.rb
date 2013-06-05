@@ -416,7 +416,7 @@ module Bitcoin
       :p2sh_version => "05",
       :privkey_version => "80",
       :default_port => 8333,
-      :protocol_version => 60002,
+      :protocol_version => 70001,
       :dns_seeds => [
         "seed.bitcoin.sipa.be",
         "dnsseed.bluematt.me",
@@ -468,7 +468,7 @@ module Bitcoin
       :p2sh_version => "c4",
       :privkey_version => "ef",
       :default_port => 18333,
-      :protocol_version => 60002,
+      :protocol_version => 70001,
       :dns_seeds => [
         "testnet-seed.bitcoin.petertodd.org",
         "bitcoin-seednode.bluematt.me",
