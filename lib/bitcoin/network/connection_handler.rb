@@ -268,7 +268,15 @@ module Bitcoin::Network
     def on_handshake_begin
       @state = :handshake
       from = "#{@node.external_ip}:#{@node.config[:listen].split(':')[1]}"
-      send_data(P.version_pkt(from: from, to: @host, last_block: @node.store.get_depth))
+      version = Bitcoin::Protocol::Version.new({
+        :version    => 70001,
+        :last_block => @node.store.get_depth,
+        :from       => from,
+        :to         => @host,
+        :user_agent => "/bitcoin-ruby:#{Bitcoin::VERSION}/",
+        #:user_agent => "/Satoshi:0.8.1/",
+      })
+      send_data(version.to_pkt)
       log.debug { "<< version (#{Bitcoin.network[:protocol_version]})" }
     end
 
