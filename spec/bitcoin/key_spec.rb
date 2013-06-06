@@ -8,14 +8,14 @@ describe "Bitcoin::Key" do
     Bitcoin.network = :bitcoin
     @key_data = {
       :priv => "2ebd3738f59ae4fd408d717bf325b4cb979a409b0153f6d3b4b91cdfe046fb1e",
-      :pub => "045fcb2fb2802b024f371cc22bc392268cc579e47e7936e0d1f05064e6e1103b8a81954eb6d3d33b8b6e73e9269013e843e83919f7ce4039bb046517a0cad5a3b1" }
-    @key = Bitcoin::Key.new(@key_data[:priv], @key_data[:pub])
+      :pub => "035fcb2fb2802b024f371cc22bc392268cc579e47e7936e0d1f05064e6e1103b8a" }
+    @key = Bitcoin::Key.new(@key_data[:priv], @key_data[:pub], false)
   end
 
   it "should generate a key" do
     k = Bitcoin::Key.generate
     k.priv.size.should == 64
-    k.pub.size.should == 130
+    k.pub.size.should == 66
     #p k.priv, k.pub
   end
 
@@ -56,6 +56,8 @@ describe "Bitcoin::Key" do
   end
 
   it "should get addr" do
+    @key.addr.should == "19CyxBz6CUBogxTdSXUrbRHo7T7eLCMgbr"
+    @key.instance_eval { @pubkey_compressed = false }
     @key.addr.should == "1JbYZRKyysprVjSSBobs8LX6QVjzsscQNU"
   end
 
@@ -103,10 +105,10 @@ describe "Bitcoin::Key" do
 
   it "should export private key in base58 format" do
     Bitcoin.network = :bitcoin
-    str = Bitcoin::Key.new("e9873d79c6d87dc0fb6a5778633389f4453213303da61f20bd67fc233aa33262").to_base58
+    str = Bitcoin::Key.new("e9873d79c6d87dc0fb6a5778633389f4453213303da61f20bd67fc233aa33262", nil, false).to_base58
     str.should == "5Kb8kLf9zgWQnogidDA76MzPL6TsZZY36hWXMssSzNydYXYB9KF"
     Bitcoin.network = :testnet
-    str = Bitcoin::Key.new("d21fa2c7ad710ffcd9bcc22a9f96357bda1a2521ca7181dd610140ecea2cecd8").to_base58
+    str = Bitcoin::Key.new("d21fa2c7ad710ffcd9bcc22a9f96357bda1a2521ca7181dd610140ecea2cecd8", nil, false).to_base58
     str.should == "93BTVFoqffueSaC5fqjLjLyn29S41JzvAZm2hC35SYMoYDXT1bY"
     Bitcoin.network = :bitcoin
   end
@@ -130,13 +132,15 @@ describe "Bitcoin::Key" do
     Bitcoin.network = :testnet3
     Bitcoin::Key.new("e3ff5d7e592669d0c1714f1496b260815edd0c3a00186e896dc7f36ede914dd2",
       nil, true).to_base58.should == "cVDu6aXUWHTM2vpztZW14BMnKkCcd5th6177VnCsa8XozoMyp73C"
-    Bitcoin.network = :bitcoin  end
+    Bitcoin.network = :bitcoin
+  end
 
   it "should import private key in compressed base58 format" do
     Bitcoin.network = :bitcoin
     key = Bitcoin::Key.from_base58("L2LusdhGSagfUVvNWrUuPDygn5mdAhxUDEANfABvBj36Twn1mKgQ")
     key.priv.should == "98e4483a197fb686fe9afb51389f329aabc67964b1d0e0a5340c962a0d63c44a"
     key.pub.should == "02e054ee811165ac294c992ff410067db6491228725fe09db2a415493c897973a8"
+    key.compressed.should == true
     key.addr.should == "1C7Ni4zuV3zfLs8T1S7s29wNAtRoDHHnpw"
     Bitcoin.network = :testnet3
     key = Bitcoin::Key.from_base58("cVDu6aXUWHTM2vpztZW14BMnKkCcd5th6177VnCsa8XozoMyp73C")
@@ -146,7 +150,7 @@ describe "Bitcoin::Key" do
     Bitcoin.network = :bitcoin
   end
 
-  it "should hanlde compressed and uncompressed pubkeys" do
+  it "should handle compressed and uncompressed pubkeys" do
     compressed   = "0351efb6e91a31221652105d032a2508275f374cea63939ad72f1b1e02f477da78"
     uncompressed = "0451efb6e91a31221652105d032a2508275f374cea63939ad72f1b1e02f477da787f71a2e8ac5aacedab47904d4bd42f636429e9ce069ebcb99f675aad31306a53"
     Bitcoin::Key.new(nil, compressed).compressed.should == true
