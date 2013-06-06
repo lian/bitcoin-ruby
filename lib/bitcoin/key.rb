@@ -7,8 +7,8 @@ module Bitcoin
 
     # Generate a new keypair.
     #  Bitcoin::Key.generate
-    def self.generate
-      k = new; k.generate; k
+    def self.generate(compressed=true)
+      k = new(nil, nil, compressed); k.generate; k
     end
 
     # Import private key from base58 fromat as described in
@@ -24,7 +24,7 @@ module Bitcoin
       key = new(key, nil, compressed)
     end
 
-    def == other
+    def ==(other)
       self.priv == other.priv
     end
 
@@ -32,11 +32,11 @@ module Bitcoin
     #  Bitcoin::Key.new
     #  Bitcoin::Key.new(privkey)
     #  Bitcoin::Key.new(nil, pubkey)
-    def initialize privkey = nil, pubkey = nil, compressed = false
+    def initialize(privkey = nil, pubkey = nil, compressed = true)
       @key = Bitcoin.bitcoin_elliptic_curve
       @pubkey_compressed = pubkey ? self.class.is_compressed_pubkey?(pubkey) : compressed
       set_priv(privkey)  if privkey
-      set_pub(pubkey)  if pubkey
+      set_pub(pubkey, @pubkey_compressed)  if pubkey
     end
 
     # Generate new priv/pub key.
@@ -59,21 +59,17 @@ module Bitcoin
     # In case the key was initialized with only
     # a private key, the public key is regenerated.
     def pub
+      regenerate_pubkey unless @key.public_key
+      return nil        unless @key.public_key
       @pubkey_compressed ? pub_compressed : pub_uncompressed
     end
 
     def pub_compressed
-      regenerate_pubkey unless @key.public_key
-      return nil        unless @key.public_key
       @key.public_key.group.point_conversion_form = :compressed
-      hex = @key.public_key.to_hex.rjust(66, '0')
-      @key.public_key.group.point_conversion_form = :uncompressed
-      hex
+      @key.public_key.to_hex.rjust(66, '0')
     end
 
     def pub_uncompressed
-      regenerate_pubkey unless @key.public_key
-      return nil        unless @key.public_key
       @key.public_key.group.point_conversion_form = :uncompressed
       @key.public_key.to_hex.rjust(130, '0')
     end
@@ -99,7 +95,7 @@ module Bitcoin
 
     # Sign +data+ with the key.
     #  key1 = Bitcoin::Key.generate
-    #  sig = key.sign("some data")
+    #  sig = key1.sign("some data")
     def sign(data)
       @key.dsa_sign_asn1(data)
     end
@@ -243,7 +239,7 @@ module Bitcoin
     # Regenerate public key from the private key.
     def regenerate_pubkey
       return nil unless @key.private_key
-      set_pub(Bitcoin::OpenSSL_EC.regenerate_key(priv)[1])
+      set_pub(Bitcoin::OpenSSL_EC.regenerate_key(priv)[1], @pubkey_compressed)
     end
 
     # Set +priv+ as the new private key (converting from hex).
@@ -252,8 +248,8 @@ module Bitcoin
     end
 
     # Set +pub+ as the new public key (converting from hex).
-    def set_pub(pub)
-      @pubkey_compressed ||= self.class.is_compressed_pubkey?(pub)
+    def set_pub(pub, compressed = nil)
+      @pubkey_compressed = compressed == nil ? self.class.is_compressed_pubkey?(pub) : compressed
       @key.public_key = OpenSSL::PKey::EC::Point.from_hex(@key.group, pub)
     end
 

@@ -28,7 +28,10 @@ describe "Bitcoin::KeyGenerator" do
   it "should use given nonce" do
     g = KeyGenerator.new("foo", 2116)
     g.nonce.should == 2116
-    g.get_key(0).addr.should == '1GjyUrY3XcR4BvfgL8HqoAJbNDEgxSJdm1'
+    key = g.get_key(0)
+    key.addr.should == '1JvRdnShvscPtoP44VxPk5VaFBAo7ozRPb'
+    key.instance_eval { @pubkey_compressed = false }
+    key.addr.should == '1GjyUrY3XcR4BvfgL8HqoAJbNDEgxSJdm1'
   end
 
   it "should check nonce if given" do
@@ -38,10 +41,10 @@ describe "Bitcoin::KeyGenerator" do
   it "should use different target if given" do
     g = KeyGenerator.new("foo", nil, @target)
     g.nonce.should == 127
-    g.get_key(0).addr.should == "13E68pPJyGycgQ4ZmV45xV9r9XEeyWqZdp"
+    g.get_key(0).addr.should == "1KLBACvBnz9BTdBnuJmNuQpKQrsi55sstj"
     g = KeyGenerator.new("bar", nil, @target)
     g.nonce.should == 40
-    g.get_key(0).addr.should == "12iQpWRRQBmWcHYkTZkpDFrykzc9xn5kAU"
+    g.get_key(0).addr.should == "14T4deW5BGVA7wXpR3eoU9U8xprUJepxcy"
   end
 
   it "should find keys" do
