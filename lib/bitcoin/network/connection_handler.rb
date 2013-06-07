@@ -28,6 +28,7 @@ module Bitcoin::Network
       @version = nil
       @started = nil
       @port, @host = *Socket.unpack_sockaddr_in(get_peername)  if get_peername
+      @lock = Monitor.new
     rescue Exception
       log.fatal { "Error in #initialize" }
       p $!; puts $@; exit
@@ -44,15 +45,16 @@ module Bitcoin::Network
       on_handshake_begin
     rescue Exception
       log.fatal { "Error in #post_init" }
-      p $!; puts $@; exit
+      p $!; puts *$@
     end
 
     # receive data from peer and invoke Protocol::Parser
     def receive_data data
       #log.debug { "Receiving data (#{data.size} bytes)" }
-      @parser.parse(data)
+      @lock.synchronize { @parser.parse(data) }
     rescue
       log.warn { "Error handling data: #{data.hth}" }
+      p $!; puts *$@
     end
 
     # connection closed; notify listeners and cleanup connection from node
@@ -105,10 +107,12 @@ module Bitcoin::Network
     end
 
     # send +inv+ message with given +type+ for given +obj+
-    def send_inv type, obj
-      pkt = Protocol.inv_pkt(type, [[obj.hash].pack("H*")])
-      log.debug { "<< inv #{type}: #{obj.hash}" }
-      send_data(pkt)
+    def send_inv type, *hashes
+      hashes.each_slice(250) do |slice|
+        pkt = Protocol.inv_pkt(type, slice.map(&:htb))
+        log.debug { "<< inv #{type}: #{hashes[0][0..16]}" + (hashes.size > 1 ? "..#{hashes[-1][0..16]}" : "") }
+        send_data(pkt)
+      end
     end
 
     # received +addr+ message for given +addr+.
@@ -167,14 +171,14 @@ module Bitcoin::Network
     # received +getblocks+ message.
     # TODO: locator fallback
     def on_getblocks(version, hashes, stop_hash)
-      log.debug { ">> getblocks (#{version})" }
-      return  unless version == Bitcoin.network[:protocol_version]
-      if block = @node.store.get_block(hashes[0])
-        depth = block.depth
-        while (block = block.get_next_block) && block.depth <= depth + 500
-          send_inv :block, block
-        end
-      end
+      blk = @node.store.db[:blk][hash: hashes[0].htb.blob]
+      depth = blk[:depth]  if blk
+      log.info { ">> getblocks #{hashes.last} (#{depth || 'unknown'})" }
+      return  unless depth && depth <= @node.store.get_depth
+      range = (depth+1..depth+500)
+      blocks = @node.store.db[:blk].where(chain: 0, depth: range).select(:hash).all +
+        [@node.store.db[:blk].select(:hash)[chain: 0, depth: depth+502]]
+      send_inv(:block, *blocks.map {|b| b[:hash].hth })
     end
 
     # received +getaddr+ message.
@@ -201,7 +205,10 @@ module Bitcoin::Network
 
     # send +getblocks+ message
     def send_getblocks locator = @node.store.get_locator
-      return get_genesis_block  if @node.store.get_depth == -1
+      if @node.store.get_depth == -1
+        EM.add_timer(3) { send_getblocks }
+        return get_genesis_block
+      end
       pkt = Protocol.getblocks_pkt(@version.version, locator)
       log.info { "<< getblocks: #{locator.first}" }
       send_data(pkt)
@@ -246,7 +253,7 @@ module Bitcoin::Network
       @node.notifiers[:connection].push([:connected, info])
       @node.addrs << addr
       # send_getaddr
-      send_getblocks  if @node.store.in_sync?
+      send_getblocks
       # EM.add_periodic_timer(15) { send_ping }
     end
 

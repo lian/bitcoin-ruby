@@ -65,8 +65,8 @@ module Bitcoin::Network
         :connections_in => 32,
         :connections => 8,
         :addr => 256,
-        :queue => 500,
-        :inv => 500,
+        :queue => 501,
+        :inv => 501,
         :inv_cache => 0,
       },
       :intervals => {
@@ -304,10 +304,8 @@ module Bitcoin::Network
     # check for new items in the queue and process them
     def work_queue
       @log.debug { "queue worker running" }
-      if @queue.size == 0
-        getblocks  if @inv_queue.size == 0 && !@store.in_sync?
-        return
-      end
+      return  if @queue.size == 0
+
       while obj = @queue.shift
         begin
           if res = @store.send("new_#{obj[0]}", obj[1])
@@ -316,6 +314,7 @@ module Bitcoin::Network
                 @last_block_time = Time.now
                 @notifiers[:block].push([obj[1], res[0]])
               end
+              getblocks  if res[1] == 2
             else
               @notifiers[:tx].push([obj[1]])
             end
