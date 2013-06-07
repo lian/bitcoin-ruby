@@ -29,6 +29,7 @@ module Bitcoin::Network
       @started = nil
       @port, @host = *Socket.unpack_sockaddr_in(get_peername)  if get_peername
       @lock = Monitor.new
+      @last_getblocks = []  # the last few getblocks messages received
     rescue Exception
       log.fatal { "Error in #initialize" }
       p $!; puts $@; exit
@@ -108,9 +109,9 @@ module Bitcoin::Network
 
     # send +inv+ message with given +type+ for given +obj+
     def send_inv type, *hashes
-      hashes.each_slice(250) do |slice|
+      hashes.each_slice(251) do |slice|
         pkt = Protocol.inv_pkt(type, slice.map(&:htb))
-        log.debug { "<< inv #{type}: #{hashes[0][0..16]}" + (hashes.size > 1 ? "..#{hashes[-1][0..16]}" : "") }
+        log.debug { "<< inv #{type}: #{slice[0][0..16]}" + (slice.size > 1 ? "..#{slice[-1][0..16]}" : "") }
         send_data(pkt)
       end
     end
@@ -171,9 +172,17 @@ module Bitcoin::Network
     # received +getblocks+ message.
     # TODO: locator fallback
     def on_getblocks(version, hashes, stop_hash)
+      # remember the last few received getblocks messages and ignore duplicate ones
+      # fixes unexplained issue where remote node is bombarding us with the same getblocks
+      # message over and over (probably related to missing locator fallback handling)
+      return  if @last_getblocks && @last_getblocks.include?([version, hashes, stop_hash])
+      @last_getblocks << [version, hashes, stop_hash]
+      @last_getblocks.shift  if @last_getblocks.size > 3
+
       blk = @node.store.db[:blk][hash: hashes[0].htb.blob]
       depth = blk[:depth]  if blk
-      log.info { ">> getblocks #{hashes.last} (#{depth || 'unknown'})" }
+      log.info { ">> getblocks #{hashes[0]} (#{depth || 'unknown'})" }
+
       return  unless depth && depth <= @node.store.get_depth
       range = (depth+1..depth+500)
       blocks = @node.store.db[:blk].where(chain: 0, depth: range).select(:hash).all +
