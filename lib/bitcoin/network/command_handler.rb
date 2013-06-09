@@ -172,7 +172,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
 
     @node.store.store_tx(tx)
     @node.relay_propagation[tx.hash] = 0
-    @node.connections.select(&:connected?).sample(send).each {|c| c.send_inv(:tx, tx) }
+    @node.connections.select(&:connected?).sample(send).each {|c| c.send_inv(:tx, tx.hash) }
 
     EM.add_timer(wait) do
       received = @node.relay_propagation[tx.hash]
@@ -182,7 +182,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
                   received: received, sent: 1, percent: percent } })
     end
   rescue
-    respond("relay_tx", { error: $!.message })
+    respond("relay_tx", { error: $!.message, backtrace: $@ })
   end
 
   # stop bitcoin node
