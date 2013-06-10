@@ -75,6 +75,7 @@ module Bitcoin::Storage
         init_sequel_store
         @getblocks_callback = getblocks_callback
         @checkpoints = Bitcoin.network[:checkpoints] || {}
+        @watched_addrs = []
       end
 
       def init_sequel_store

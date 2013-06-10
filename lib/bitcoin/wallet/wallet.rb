@@ -128,6 +128,7 @@ module Bitcoin::Wallet
     # add +key+ to wallet
     def add_key key
       @keystore.add_key(key)
+      @storage.add_watched_address(key[:addr])
     end
 
     # set label for key +old+ to +new+
@@ -149,7 +150,19 @@ module Bitcoin::Wallet
 
     # create new key and return its address
     def get_new_addr
-      @keystore.new_key.addr
+      key = @keystore.new_key
+      @storage.add_watched_address(key.addr)
+      key.addr
+    end
+
+    def import_key base58, label = nil
+      key = @keystore.import(base58, label)
+      @storage.add_watched_address(key.addr)
+      key.addr
+    end
+
+    def rescan
+      @storage.rescan
     end
 
     # get SimpleCoinSelector with txouts for this wallet

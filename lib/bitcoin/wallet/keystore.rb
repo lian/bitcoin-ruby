@@ -95,9 +95,10 @@ module Bitcoin::Wallet
     def import(base58, label = nil)
       raise ArgumentError, "Label #{label} already in use"  if label && find_key(label)
       key = Bitcoin::Key.from_base58(base58)
+      raise ArgumentError, "Address #{key.addr} already in use"  if label && find_key(key.addr)
       @keys << {:label => label, :addr => key.addr, :key => key}
       save_keys
-      key.addr
+      key
     end
 
     # Load keys from file.
