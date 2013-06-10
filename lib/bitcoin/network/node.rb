@@ -50,9 +50,9 @@ module Bitcoin::Network
 
     DEFAULT_CONFIG = {
       :network => :bitcoin,
-      :listen => "0.0.0.0:#{Bitcoin.network[:default_port]}",
+      :listen => ["0.0.0.0", Bitcoin.network[:default_port]],
       :connect => [],
-      :command => "127.0.0.1:9999",
+      :command => ["127.0.0.1", 9999],
       :storage => "sequel::sqlite://~/.bitcoin-ruby/<network>/blocks.db",
       :mode => :full,
       :dns => true,
@@ -215,21 +215,27 @@ module Bitcoin::Network
 
         start_timers
 
-        if @config[:command]
-          host, port = *@config[:command].split(":")
+        host, port = *@config[:command]
+        port ||= Bitcoin.network[:default_port]
+        if host
           log.debug { "Trying to bind command socket to #{host}:#{port}" }
           EM.start_server(host, port, CommandHandler, self)
           log.info { "Command socket listening on #{host}:#{port}" }
         end
 
-        if @config[:listen]
-          host, port = *@config[:listen].split(":")
+        host, port = *@config[:listen]
+        port ||= Bitcoin.network[:default_port]
+        if host
           log.debug { "Trying to bind server socket to #{host}:#{port}" }
           EM.start_server(host, port.to_i, ConnectionHandler, self, host, port.to_i, :in)
           log.info { "Server socket listening on #{host}:#{port}" }
         end
 
-        @config[:connect].each{|h, p| connect_peer(h, p) }  if @config[:connect].size > 0
+        @config[:connect].each do |host, port|
+          port ||= Bitcoin.network[:default_port]
+          connect_peer(host, port)
+          log.info { "Connecting to #{host}:#{port}" }
+        end
 
         work_connect if @addrs.any?
         connect_dns  if @config[:dns]
@@ -446,7 +452,7 @@ module Bitcoin::Network
     def external_ip
       @external_ips.inject({}) {|a, b| a[b] ||= 0; a[b] += 1; a }.sort_by {|k, v| v}[-1][0]
     rescue
-      @config[:listen].split(":")[0]
+      @config[:listen][0]
     end
 
     # push notification +message+ to +channel+

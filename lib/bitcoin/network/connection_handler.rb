@@ -322,6 +322,22 @@ module Bitcoin::Network
       log.debug { ">> pong (#{nonce})" }
     end
 
+    # begin handshake; send +version+ message
+    def on_handshake_begin
+      @state = :handshake
+      from = "#{@node.external_ip}:#{@node.config[:listen][1]}"
+      version = Bitcoin::Protocol::Version.new({
+        :version    => 70001,
+        :last_block => @node.store.get_depth,
+        :from       => from,
+        :to         => @host,
+        :user_agent => "/bitcoin-ruby:#{Bitcoin::VERSION}/",
+        #:user_agent => "/Satoshi:0.8.1/",
+      })
+      send_data(version.to_pkt)
+      log.debug { "<< version (#{Bitcoin.network[:protocol_version]})" }
+    end
+
     # get Addr object for this connection
     def addr
       return @addr  if @addr
