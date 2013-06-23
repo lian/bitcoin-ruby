@@ -207,6 +207,10 @@ module Bitcoin
       ).reverse.unpack("H*")[0]
     end
 
+    def bitcoin_byte_hash(bytes)
+      Digest::SHA256.digest(Digest::SHA256.digest(bytes))
+    end
+
     def bitcoin_mrkl(a, b); bitcoin_hash(b + a); end
 
     def block_hash(prev_block, mrkl_root, time, bits, nonce, ver)
@@ -259,7 +263,7 @@ module Bitcoin
       key.dsa_verify_asn1(hash, signature)
     rescue OpenSSL::PKey::ECError, OpenSSL::PKey::EC::Point::Error
       false
-    end 
+    end
 
     def open_key(private_key, public_key=nil)
       key  = bitcoin_elliptic_curve
@@ -394,7 +398,7 @@ module Bitcoin
     instance_eval "def #{n}?; network_project == :#{n}; end"
   end
 
-  
+
   CENT =   1_000_000
   COIN = 100_000_000
   MAX_MONEY = 21_000_000 * COIN

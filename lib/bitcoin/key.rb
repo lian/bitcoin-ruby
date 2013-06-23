@@ -109,6 +109,44 @@ module Bitcoin
       @key.dsa_verify_asn1(data, sig)
     end
 
+    # Thanks to whoever wrote http://pastebin.com/bQtdDzHx
+    # for help with compact signatures
+    require 'base64'
+
+    # Given +data+ and a compact signature (65 bytes, base64-encoded to
+    # a larger string), recover the public components of the key whose
+    # private counterpart validly signed +data+.
+    #
+    # If the signature validly signed +data+, create a new Key
+    # having the signing public key and address. Otherwise return nil.
+    #
+    # Be sure to check that the returned Key matches the one you were
+    # expecting! Otherwise you are merely checking that *someone* validly
+    # signed the data.
+    def self.recover_compact(data, signature_base64)
+      signature = Base64.decode64(signature_base64)
+      if signature.size != 65
+        return nil
+      end
+
+      version = signature[0].unpack('c')[0]
+      return nil if version < 27 or version > 34
+
+      is_compressed = false
+      if version >= 31
+        is_compressed = true
+        version -= 4
+      end
+
+      hash = Bitcoin.bitcoin_byte_hash(Bitcoin::Key.wrap_message_in_magic(data))
+      pub_hex = Bitcoin::OpenSSL_EC.recover_public_key_from_signature(hash,
+        signature, version - 27, is_compressed)
+      if pub_hex.nil?
+        return nil
+      end
+      Key.new(nil, pub_hex)
+    end
+
     # Export private key to base58 format.
     # See also Key.from_base58
     def to_base58
@@ -119,6 +157,12 @@ module Bitcoin
     end
 
     protected
+
+    def self.wrap_message_in_magic(message)
+      # TODO: this will fail horribly on messages with len > 255. It's a
+      # cheap implementation of Bitcoin's CDataStream.
+      "\x18Bitcoin Signed Message:\n#{message.length.chr}#{message}"
+    end
 
     # Regenerate public key from the private key.
     def regenerate_pubkey
