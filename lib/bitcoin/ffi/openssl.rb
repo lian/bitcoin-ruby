@@ -17,25 +17,25 @@ module OpenSSL_EC
   attach_function :RAND_poll, [], :int
 
   #attach_function :BN_bin2bn, [:string, :int, :pointer], :pointer
-  attach_function :BN_bin2bn, [:pointer, :int, :pointer], :pointer
-  attach_function :EC_KEY_new_by_curve_name, [:int], :pointer
-  attach_function :EC_KEY_get0_group, [:pointer], :pointer
-  attach_function :BN_new, [], :pointer
+  attach_function :BN_CTX_free, [:pointer], :int
   attach_function :BN_CTX_new, [], :pointer
+  attach_function :BN_bin2bn, [:pointer, :int, :pointer], :pointer
+  attach_function :BN_bn2bin, [:pointer, :pointer], :void
+  attach_function :BN_free, [:pointer], :int
+  attach_function :BN_new, [], :pointer
   attach_function :EC_GROUP_get_order, [:pointer, :pointer, :pointer], :int
-  attach_function :EC_POINT_new, [:pointer], :pointer
-  attach_function :EC_POINT_mul, [:pointer, :pointer, :pointer, :pointer, :pointer, :pointer], :int
+  attach_function :EC_KEY_free, [:pointer], :int
+  attach_function :EC_KEY_get0_group, [:pointer], :pointer
+  attach_function :EC_KEY_get0_private_key, [:pointer], :pointer
+  attach_function :EC_KEY_new_by_curve_name, [:int], :pointer
   attach_function :EC_KEY_set_private_key, [:pointer, :pointer], :int
   attach_function :EC_KEY_set_public_key,  [:pointer, :pointer], :int
-  attach_function :BN_free, [:pointer], :int
   attach_function :EC_POINT_free, [:pointer], :int
-  attach_function :BN_CTX_free, [:pointer], :int
-  attach_function :EC_KEY_free, [:pointer], :int
-  attach_function :i2o_ECPublicKey, [:pointer, :pointer], :uint
-  attach_function :i2d_ECPrivateKey, [:pointer, :pointer], :int
+  attach_function :EC_POINT_mul, [:pointer, :pointer, :pointer, :pointer, :pointer, :pointer], :int
+  attach_function :EC_POINT_new, [:pointer], :pointer
   attach_function :d2i_ECPrivateKey, [:pointer, :pointer, :long], :pointer
-  attach_function :EC_KEY_get0_private_key, [:pointer], :pointer
-  attach_function :BN_bn2bin, [:pointer, :pointer], :void
+  attach_function :i2d_ECPrivateKey, [:pointer, :pointer], :int
+  attach_function :i2o_ECPublicKey, [:pointer, :pointer], :uint
 
 
   # resolve public from private key, using ffi and libssl.so
@@ -48,7 +48,7 @@ module OpenSSL_EC
     #private_key = FFI::MemoryPointer.new(:uint8, private_key.bytesize)
     #                .put_bytes(0, private_key, 0, private_key.bytesize)
     private_key = FFI::MemoryPointer.from_string(private_key)
- 
+
     init_ffi_ssl
     eckey = EC_KEY_new_by_curve_name(NID_secp256k1)
     #priv_key = BN_bin2bn(private_key, private_key.size, BN_new())
