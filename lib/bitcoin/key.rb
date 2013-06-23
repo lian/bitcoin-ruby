@@ -111,8 +111,7 @@ module Bitcoin
 
     # Thanks to whoever wrote http://pastebin.com/bQtdDzHx
     # for help with compact signatures
-    require 'base64'
-
+    #
     # Given +data+ and a compact signature (65 bytes, base64-encoded to
     # a larger string), recover the public components of the key whose
     # private counterpart validly signed +data+.
@@ -123,27 +122,19 @@ module Bitcoin
     # Be sure to check that the returned Key matches the one you were
     # expecting! Otherwise you are merely checking that *someone* validly
     # signed the data.
-    def self.recover_compact(data, signature_base64)
-      signature = Base64.decode64(signature_base64)
-      if signature.size != 65
-        return nil
-      end
+    def self.recover_compact_signature_to_key(data, signature_base64)
+      signature = signature_base64.unpack("m0")[0]
+      return nil if signature.size != 65
 
-      version = signature[0].unpack('c')[0]
+      version = signature.unpack('c')[0]
       return nil if version < 27 or version > 34
 
-      is_compressed = false
-      if version >= 31
-        is_compressed = true
-        version -= 4
-      end
+      compressed = (version >= 31) ? (version -= 4; true) : false
 
       hash = Bitcoin.bitcoin_byte_hash(Bitcoin::Key.wrap_message_in_magic(data))
-      pub_hex = Bitcoin::OpenSSL_EC.recover_public_key_from_signature(hash,
-        signature, version - 27, is_compressed)
-      if pub_hex.nil?
-        return nil
-      end
+      pub_hex = Bitcoin::OpenSSL_EC.recover_public_key_from_signature(hash, signature, version-27, compressed)
+      return nil unless pub_hex
+
       Key.new(nil, pub_hex)
     end
 
@@ -159,8 +150,7 @@ module Bitcoin
     protected
 
     def self.wrap_message_in_magic(message)
-      # TODO: this will fail horribly on messages with len > 255. It's a
-      # cheap implementation of Bitcoin's CDataStream.
+      # TODO: this will fail horribly on messages with len > 255. It's a cheap implementation of Bitcoin's CDataStream.
       "\x18Bitcoin Signed Message:\n#{message.length.chr}#{message}"
     end
 

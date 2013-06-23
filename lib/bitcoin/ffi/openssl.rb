@@ -1,8 +1,7 @@
 # autoload when you need to re-generate a public_key from only its private_key.
 # ported from: https://github.com/sipa/bitcoin/blob/2d40fe4da9ea82af4b652b691a4185431d6e47a8/key.h
 
-Bitcoin.require_dependency :ffi, exit: false, message:
-  "Skipping FFI needed for OpenSSL_EC.regenerate_key."
+Bitcoin.require_dependency :ffi, exit: false, message: "Skipping FFI needed for OpenSSL_EC methods."
 
 module Bitcoin
 module OpenSSL_EC
@@ -11,13 +10,13 @@ module OpenSSL_EC
 
   NID_secp256k1 = 714
   POINT_CONVERSION_COMPRESSED = 2
+  POINT_CONVERSION_UNCOMPRESSED = 4
 
   attach_function :SSL_library_init, [], :int
   attach_function :ERR_load_crypto_strings, [], :void
   attach_function :SSL_load_error_strings, [], :void
   attach_function :RAND_poll, [], :int
 
-  #attach_function :BN_bin2bn, [:string, :int, :pointer], :pointer
   attach_function :BN_CTX_free, [:pointer], :int
   attach_function :BN_CTX_new, [], :pointer
   attach_function :BN_add, [:pointer, :pointer, :pointer], :int
@@ -148,25 +147,19 @@ module OpenSSL_EC
   #   signature = the R and S components of the signature, wrapped.
   #   rec_id = which possible key to recover.
   #   is_compressed = whether or not the original pubkey was compressed.
-  def self.recover_public_key_from_signature(message_hash, signature, rec_id,
-    is_compressed)
-    return nil if rec_id < 0
-    return nil if signature.bytesize != 65
+  def self.recover_public_key_from_signature(message_hash, signature, rec_id, is_compressed)
+    return nil if rec_id < 0 or signature.bytesize != 65
     init_ffi_ssl
 
-    # TODO: does this need to be freed?
     signature = FFI::MemoryPointer.from_string(signature)
-    signature_bn = BN_bin2bn(signature, 65, BN_new())
+    #signature_bn = BN_bin2bn(signature, 65, BN_new())
     r = BN_bin2bn(signature[1], 32, BN_new())
     s = BN_bin2bn(signature[33], 32, BN_new())
 
-    n = 0
-    i = rec_id / 2
+    n, i = 0, rec_id / 2
     eckey = EC_KEY_new_by_curve_name(NID_secp256k1)
 
-    if is_compressed
-      EC_KEY_set_conv_form(eckey, POINT_CONVERSION_COMPRESSED)
-    end
+    EC_KEY_set_conv_form(eckey, POINT_CONVERSION_COMPRESSED) if is_compressed
 
     group = EC_KEY_get0_group(eckey)
     order = BN_new()
@@ -179,6 +172,7 @@ module OpenSSL_EC
     EC_GROUP_get_curve_GFp(group, field, nil, nil, nil)
 
     if BN_cmp(x, field) >= 0
+      [r, s, order, x, field].each{|i| BN_free(i) }
       EC_KEY_free(eckey)
       return nil
     end
@@ -192,18 +186,18 @@ module OpenSSL_EC
     BN_rshift(e, e, 8 - (n & 7)) if 8 * message_hash.bytesize > n
 
     ctx = BN_CTX_new()
-    zero = BN_new()
+    zero, rr, sor, eor = BN_new(), BN_new(), BN_new(), BN_new()
     BN_set_word(zero, 0)
     BN_mod_sub(e, zero, e, order, ctx)
-    rr = BN_new()
     BN_mod_inverse(rr, r, order, ctx)
-    sor = BN_new()
     BN_mod_mul(sor, s, rr, order, ctx)
-    eor = BN_new()
     BN_mod_mul(eor, e, rr, order, ctx)
     EC_POINT_mul(group, big_q, eor, big_r, sor, ctx)
     EC_KEY_set_public_key(eckey, big_q)
     BN_CTX_free(ctx)
+
+    [r, s, order, x, field, e, zero, rr, sor, eor].each{|i| BN_free(i) }
+    [big_r, big_q].each{|i| EC_POINT_free(i) }
 
     length = i2o_ECPublicKey(eckey, nil)
     buf = FFI::MemoryPointer.new(:uint8, length)

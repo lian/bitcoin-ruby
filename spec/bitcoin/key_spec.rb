@@ -94,7 +94,7 @@ describe "Bitcoin::Key" do
         expected: true },
       ]
     tests.each do |test|
-      key = Bitcoin::Key.recover_compact(test[:message], test[:signature])
+      key = Bitcoin::Key.recover_compact_signature_to_key(test[:message], test[:signature])
       test[:expected].should == (key.addr == test[:address])
     end
   end
@@ -206,6 +206,20 @@ begin
         keypair = Bitcoin.generate_key;
         Bitcoin::OpenSSL_EC.regenerate_key(keypair.first) == keypair
       }.all?.should == true
+    end
+
+    it 'recover public key from compact signature' do
+      args = [
+              "\x12&\x17\x9D\xDFc\x83\xFB\xCFQ\x02\xC9I%8\xB7 ls\x9A\xE7\x9E\xB0d@\x8C*\xBDg\xD3\x9B\xED",
+              "\x1C\xF0\xEC\xD57\xAC\x03\x8F\x1A\xF6\xEAx@\xE4H\xBA\xE6\xFA\xEDQ\xC13~\xD7\xEB\xAB$\x01\x8C\xF4\x12\xC86\xDE\a_2\xE0\x93`1NE\xCE\x97\x1A\x92\x99\xDB\xF7\xE5'h\x7F\rAy\xEB\xD1I\xC4j\x15g\x9D",
+              1, false
+             ]
+      expected = "047840b97f46d4c32c62119f9e069172272592ec7741a3aec81e339b87387350740dce89837c8332910f349818060b66070b94e8bb11442d49d3f6c0d7f31ba6a6"
+
+      # 10_000.times{|n| # enable for memory leak testing
+      #   puts 'RAM USAGE: ' + `pmap #{Process.pid} | tail -1`[10,40].strip if (n % 1_000) == 0
+        Bitcoin::OpenSSL_EC.recover_public_key_from_signature(*args).should == expected
+      # }
     end
 
   end
