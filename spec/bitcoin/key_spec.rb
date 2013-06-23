@@ -67,6 +67,38 @@ describe "Bitcoin::Key" do
     key.verify("foobar", sig).should == true
   end
 
+  it "recovers public keys from compact signatures" do
+    tests = [
+        # normal
+      { address: "16vqGo3KRKE9kTsTZxKoJKLzwZGTodK3ce",
+        signature: "HPDs1TesA48a9up4QORIuub67VHBM37X66skAYz0Esg23gdfMuCTYDFORc6XGpKZ2/flJ2h/DUF569FJxGoVZ50=",
+        message: "test message",
+        expected: true },
+
+        # different message
+      { address: "16vqGo3KRKE9kTsTZxKoJKLzwZGTodK3ce",
+        signature: "HPDs1TesA48a9up4QORIuub67VHBM37X66skAYz0Esg23gdfMuCTYDFORc6XGpKZ2/flJ2h/DUF569FJxGoVZ50=",
+        message: "not what I signed",
+        expected: false },
+
+        # different address
+      { address: "1JbYZRKyysprVjSSBobs8LX6QVjzsscQNU",
+        signature: "HPDs1TesA48a9up4QORIuub67VHBM37X66skAYz0Esg23gdfMuCTYDFORc6XGpKZ2/flJ2h/DUF569FJxGoVZ50=",
+        message: "test message",
+        expected: false },
+
+        # compressed
+      { address: "18uitB5ARAhyxmkN2Sa9TbEuoGN1he83BX",
+        signature: "IMAtT1SjRyP6bz6vm5tKDTTTNYS6D8w2RQQyKD3VGPq2i2txGd2ar18L8/nvF1+kAMo5tNc4x0xAOGP0HRjKLjc=",
+        message: "testtest",
+        expected: true },
+      ]
+    tests.each do |test|
+      key = Bitcoin::Key.recover_compact(test[:message], test[:signature])
+      test[:expected].should == (key.addr == test[:address])
+    end
+  end
+
   it "should export private key in base58 format" do
     Bitcoin.network = :bitcoin
     str = Bitcoin::Key.new("e9873d79c6d87dc0fb6a5778633389f4453213303da61f20bd67fc233aa33262").to_base58
