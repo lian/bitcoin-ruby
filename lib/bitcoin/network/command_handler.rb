@@ -46,11 +46,11 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   end
 
   # handle +monitor+ command; subscribe client to specified channels
-  # (+block+, +tx+, +connection+).
+  # (+block+, +tx+, +output+, +connection+).
   # Some commands can have parameters, e.g. the number of confirmations
-  # +tx+ should have. Parameters are appended to the command name after
-  # an underscore (_), e.g. subscribe to channel "tx_6" to receive only
-  # transactions with 6 confirmations.
+  # +tx+ or +output+ should have. Parameters are appended to the command
+  # name after an underscore (_), e.g. subscribe to channel "tx_6" to
+  # receive only transactions with 6 confirmations.
   # 
   # Receive new blocks:
   #  bitcoin_node monitor block
@@ -58,6 +58,8 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   #  bitcoin_node monitor tx
   # Receive transactions with 6 confirmations:
   #  bitcoin_node monitor tx_6 
+  # Receive [txhash, address, value] for each output:
+  #  bitcoin_node monitor output
   # Receive peer connections/disconnections:
   #  bitcoin_node monitor connection"
   # Combine multiple channels:
@@ -92,6 +94,25 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     @node.subscribe(:block) do |block, depth|
       block = @node.store.get_block_by_depth(depth - conf + 1)  if conf > 1
       block.tx.each {|tx| @node.notifiers["tx_#{conf}".to_sym].push([tx, conf]) }
+    end
+  end
+
+  # Handle +monitor output+ command.
+  # Receive tx hash, recipient address and value for each output.
+  # This allows easy scanning for new payments without parsing the
+  # tx format and running scripts.
+  # See #handle_monitor_tx for confirmation behavior.
+  def handle_monitor_output conf = 0
+    return  unless (conf = conf.to_i) > 0
+    @node.subscribe(:block) do |block, depth|
+      block = @node.store.get_block_by_depth(depth - conf + 1)  if conf > 1
+      block.tx.each do |tx|
+        tx.out.each do |out|
+          addr = Bitcoin::Script.new(out.pk_script).get_address
+          res = [tx.hash, addr, out.value, conf]
+          @node.push_notification("output_#{conf}".to_sym, res)
+        end
+      end
     end
   end
 

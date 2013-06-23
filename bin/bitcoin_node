@@ -139,6 +139,9 @@ if ARGV.any?
       on_tx do |tx, confirmations|
         puts "tx(#{confirmations}): #{tx['hash']}"
       end
+      on_output do |tx_hash, address, value, confirmations|
+        puts "output(#{confirmations}): tx #{tx_hash[0..8]}: #{address} received #{value.to_f / 1e8} BTC"
+      end
       on_connection do |type, host|
         if type == "connected"
           puts "Connected: #{host['host']}:#{host['port']}"

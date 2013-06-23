@@ -324,6 +324,13 @@ module Bitcoin::Network
             drop.times { @unconfirmed.shift }  if drop > 0
             @unconfirmed[obj[1].hash] = obj[1]
             push_notification(:tx, [obj[1], 0])
+
+            if @notifiers[:output]
+              obj[1].out.each do |out|
+                address = Bitcoin::Script.new(out.pk_script).get_address
+                push_notification(:output, [obj[1].hash, address, out.value, 0])
+              end
+            end
           end
         rescue Bitcoin::Validation::ValidationError
           @log.warn { "ValiationError storing #{obj[0]} #{obj[1].hash}: #{$!.message}" }
