@@ -136,8 +136,8 @@ if ARGV.any?
       on_block do |block, depth|
         puts "block: #{block['hash']} (#{depth})"
       end
-      on_tx do |tx|
-        puts "tx: #{tx['hash']}"
+      on_tx do |tx, confirmations|
+        puts "tx(#{confirmations}): #{tx['hash']}"
       end
       on_connection do |type, host|
         if type == "connected"

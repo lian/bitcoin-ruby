@@ -42,29 +42,65 @@ class Bitcoin::Network::CommandHandler < EM::Connection
       end
     end
   rescue Exception
-    p $!
+    p $!; puts *$@
   end
 
   # handle +monitor+ command; subscribe client to specified channels
-  # (+block+, +tx+, +connection+)
+  # (+block+, +tx+, +connection+).
+  # Some commands can have parameters, e.g. the number of confirmations
+  # +tx+ should have. Parameters are appended to the command name after
+  # an underscore (_), e.g. subscribe to channel "tx_6" to receive only
+  # transactions with 6 confirmations.
+  # 
+  # Receive new blocks:
   #  bitcoin_node monitor block
-  #  bitcoin_node monitor "block tx connection"
+  # Receive new (unconfirmed) transactions:
+  #  bitcoin_node monitor tx
+  # Receive transactions with 6 confirmations:
+  #  bitcoin_node monitor tx_6 
+  # Receive peer connections/disconnections:
+  #  bitcoin_node monitor connection"
+  # Combine multiple channels:
+  #  bitcoin_node monitor "block tx tx_1 tx_6 connection"
+  # 
+  # NOTE: When a new block is found, it might include transactions that we
+  # didn't previously receive as unconfirmed. To make sure you receive all
+  # transactions, also subscribe to the tx_1 channel.
   def handle_monitor *channels
-    channels.each do |channel|
-      @node.notifiers[channel.to_sym].subscribe do |*data|
-        respond("monitor", [channel, *data])
-      end
-      case channel.to_sym
-      when :block
-        head = Bitcoin::P::Block.new(@node.store.get_head.to_payload) rescue nil
-        respond("monitor", ["block", [head, @node.store.get_depth.to_s]])  if head
-      when :connection
-        @node.connections.select {|c| c.connected?}.each do |conn|
-          respond("monitor", [:connection, [:connected, conn.info]])
-        end
-      end
+    channels.map(&:to_sym).each do |channel|
+      @node.subscribe(channel) {|*data| respond("monitor", [channel, *data]) }
+      name, *params = channel.to_s.split("_")
+      send("handle_monitor_#{name}", *params)
+      log.info { "Client subscribed to channel #{channel}" }
     end
     nil
+  end
+
+  # Handle +monitor block+ command; send the current chain head
+  # after client is subscribed to :block channel
+  def handle_monitor_block
+    head = Bitcoin::P::Block.new(@node.store.get_head.to_payload) rescue nil
+    respond("monitor", ["block", [head, @node.store.get_depth.to_s]])  if head
+  end
+
+  # Handle +monitor tx+ command.
+  # When +conf+ is given, don't subscribe to the :tx channel for unconfirmed
+  # transactions. Instead, subscribe to the :block channel, and whenever a new
+  # block comes in, send all transactions that now have +conf+ confirmations.
+  def handle_monitor_tx conf = 0
+    return  unless (conf = conf.to_i) > 0
+    @node.subscribe(:block) do |block, depth|
+      block = @node.store.get_block_by_depth(depth - conf + 1)  if conf > 1
+      block.tx.each {|tx| @node.notifiers["tx_#{conf}".to_sym].push([tx, conf]) }
+    end
+  end
+
+  # Handle +monitor connection+ command; send current connections
+  # after client is subscribed to :connection channel.
+  def handle_monitor_connection
+    @node.connections.select {|c| c.connected?}.each do |conn|
+      respond("monitor", [:connection, [:connected, conn.info]])
+    end
   end
 
   # display various statistics
@@ -147,6 +183,8 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     end.compact
   end
 
+  # display Time Since Last Block.
+  #  bitcoin_node tslb
   def handle_tslb
     { tslb: (Time.now - @node.last_block_time).to_i }
   end

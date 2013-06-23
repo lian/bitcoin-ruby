@@ -68,6 +68,7 @@ module Bitcoin::Network
         :queue => 501,
         :inv => 501,
         :inv_cache => 0,
+        :unconfirmed => 3
       },
       :intervals => {
         :queue => 1,
@@ -88,8 +89,9 @@ module Bitcoin::Network
       load_addrs
       @timers = {}
       @inv_cache = []
-      @notifiers = Hash[[:block, :tx, :connection, :addr].map {|n| [n, EM::Channel.new]}]
+      @notifiers = {}
       @relay_propagation, @last_block_time, @external_ips = {}, Time.now, []
+      @unconfirmed = {}
     end
 
     def set_store
@@ -308,16 +310,20 @@ module Bitcoin::Network
 
       while obj = @queue.shift
         begin
-          if res = @store.send("new_#{obj[0]}", obj[1])
-            if obj[0].to_sym == :block
+          if obj[0].to_sym == :block
+            if res = @store.send("new_#{obj[0]}", obj[1])
               if res[1] == 0  && obj[1].hash == @store.get_head.hash
                 @last_block_time = Time.now
-                @notifiers[:block].push([obj[1], res[0]])
+                push_notification(:block, [obj[1], res[0]])
+                obj[1].tx.each {|tx| @unconfirmed.delete(tx.hash) }
               end
               getblocks  if res[1] == 2
-            else
-              @notifiers[:tx].push([obj[1]])
             end
+          else
+            drop = @unconfirmed.size - @config[:max][:unconfirmed] + 1
+            drop.times { @unconfirmed.shift }  if drop > 0
+            @unconfirmed[obj[1].hash] = obj[1]
+            push_notification(:tx, [obj[1], 0])
           end
         rescue Bitcoin::Validation::ValidationError
           @log.warn { "ValiationError storing #{obj[0]} #{obj[1].hash}: #{$!.message}" }
@@ -347,7 +353,6 @@ module Bitcoin::Network
     # queue inv, caching the most current ones
     def queue_inv inv
       hash = inv[1].unpack("H*")[0]
-      return  if inv[0] == :tx
       return  if @inv_queue.include?(inv) || @queue.select {|i| i[1].hash == hash }.any?
 
       return  if @store.send("has_#{inv[0]}", hash)
@@ -396,6 +401,15 @@ module Bitcoin::Network
       @external_ips.inject({}) {|a, b| a[b] ||= 0; a[b] += 1; a }.sort_by {|k, v| v}[-1][0]
     rescue
       @config[:listen].split(":")[0]
+    end
+
+    def push_notification channel, message
+      @notifiers[channel.to_sym].push(message)  if @notifiers[channel.to_sym]
+    end
+
+    def subscribe channel
+      @notifiers[channel.to_sym] ||= EM::Channel.new
+      @notifiers[channel.to_sym].subscribe {|*data| yield(*data) }
     end
 
   end

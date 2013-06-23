@@ -61,7 +61,7 @@ module Bitcoin::Network
     # connection closed; notify listeners and cleanup connection from node
     def unbind
       log.info { "Disconnected" }
-      @node.notifiers[:connection].push([:disconnected, [@host, @port]])
+      @node.push_notification(:connection, [:disconnected, [@host, @port]])
       @state = :disconnected
       @node.connections.delete(self)
     end
@@ -121,7 +121,7 @@ module Bitcoin::Network
     def on_addr(addr)
       log.debug { ">> addr: #{addr.ip}:#{addr.port} alive: #{addr.alive?}, service: #{addr.service}" }
       @node.addrs << addr
-      @node.notifiers[:addr].push(addr)
+      @node.push_notification(:addr, addr)
     end
 
     # received +tx+ message for given +tx+.
@@ -259,7 +259,7 @@ module Bitcoin::Network
       log.debug { "handshake complete" }
       @state = :connected
       @started = Time.now
-      @node.notifiers[:connection].push([:connected, info])
+      @node.push_notification(:connection, [:connected, info])
       @node.addrs << addr
       # send_getaddr
       send_getblocks
