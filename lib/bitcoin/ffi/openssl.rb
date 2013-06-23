@@ -19,10 +19,21 @@ module OpenSSL_EC
   #attach_function :BN_bin2bn, [:string, :int, :pointer], :pointer
   attach_function :BN_CTX_free, [:pointer], :int
   attach_function :BN_CTX_new, [], :pointer
+  attach_function :BN_add, [:pointer, :pointer, :pointer], :int
   attach_function :BN_bin2bn, [:pointer, :int, :pointer], :pointer
   attach_function :BN_bn2bin, [:pointer, :pointer], :void
+  attach_function :BN_cmp, [:pointer, :pointer], :int
+  attach_function :BN_copy, [:pointer, :pointer], :pointer
   attach_function :BN_free, [:pointer], :int
+  attach_function :BN_mod_inverse, [:pointer, :pointer, :pointer, :pointer], :pointer
+  attach_function :BN_mod_mul, [:pointer, :pointer, :pointer, :pointer, :pointer], :int
+  attach_function :BN_mod_sub, [:pointer, :pointer, :pointer, :pointer, :pointer], :int
+  attach_function :BN_mul_word, [:pointer, :int], :int
   attach_function :BN_new, [], :pointer
+  attach_function :BN_rshift, [:pointer, :pointer, :int], :int
+  attach_function :BN_set_word, [:pointer, :int], :int
+  attach_function :EC_GROUP_get_curve_GFp, [:pointer, :pointer, :pointer, :pointer, :pointer], :int
+  attach_function :EC_GROUP_get_degree, [:pointer], :int
   attach_function :EC_GROUP_get_order, [:pointer, :pointer, :pointer], :int
   attach_function :EC_KEY_free, [:pointer], :int
   attach_function :EC_KEY_get0_group, [:pointer], :pointer
@@ -31,8 +42,10 @@ module OpenSSL_EC
   attach_function :EC_KEY_set_private_key, [:pointer, :pointer], :int
   attach_function :EC_KEY_set_public_key,  [:pointer, :pointer], :int
   attach_function :EC_POINT_free, [:pointer], :int
+  attach_function :EC_POINT_is_at_infinity, [:pointer, :pointer], :int
   attach_function :EC_POINT_mul, [:pointer, :pointer, :pointer, :pointer, :pointer, :pointer], :int
   attach_function :EC_POINT_new, [:pointer], :pointer
+  attach_function :EC_POINT_set_compressed_coordinates_GFp, [:pointer, :pointer, :pointer, :int, :pointer], :int
   attach_function :d2i_ECPrivateKey, [:pointer, :pointer, :long], :pointer
   attach_function :i2d_ECPrivateKey, [:pointer, :pointer], :int
   attach_function :i2o_ECPublicKey, [:pointer, :pointer], :uint
