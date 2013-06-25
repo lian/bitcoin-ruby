@@ -8,12 +8,11 @@ include Bitcoin
 include Bitcoin::Wallet
 
 def txout_mock(value, next_in = true, in_block = true)
-  tx = Mock.new
+  tx, txout = Mock.new, Mock.new
   tx.expect(:get_block, in_block)
-  txout = Mock.new
-  txout.expect(:value, value)
-  txout.expect(:get_next_in, next_in)
-  txout.expect(:hash, [value, next_in].hash)
+  4.times { txout.expect(:value, value) }
+  2.times { txout.expect(:get_next_in, next_in) }
+  6.times { txout.expect(:hash, [value, next_in].hash) }
   txout.expect(:eql?, false, [1])
   txout.expect(:==, false, [1])
   txout.expect(:get_tx, tx)
@@ -24,11 +23,11 @@ describe Bitcoin::Wallet::Wallet do
   class DummyKeyStore
 
     def initialize keys
-      @keys = keys.map{|k|{:key => k}}
+      @keys = keys.map{|k| { key: k, addr: k.addr } }
     end
 
     def key(addr)
-      @keys.select{|k|k[:key].addr==addr}.first
+      @keys.select{|k| k[:key].addr == addr }.first
     end
 
     def keys
@@ -37,12 +36,10 @@ describe Bitcoin::Wallet::Wallet do
 
     def new_key
       k=Bitcoin::Key.generate
-      @keys << {:key => k}
+      @keys << { key: k, addr: k.addr}
       @keys[-1]
     end
   end
-
-
 
   before do
     Bitcoin.network = :bitcoin
@@ -112,17 +109,16 @@ describe Bitcoin::Wallet::Wallet do
     before do
       txout = txout_mock(5000, nil)
       tx = Mock.new
-      tx.expect(:binary_hash, "foo")
-      tx.expect(:out, [txout])
-      tx.expect(:get_block, true)
-      txout.expect(:get_tx, tx)
-      txout.expect(:get_address, @addr)
-      txout.expect(:pk_script,
-        Script.to_address_script(@addr))
-      @storage.expect(:get_txouts_for_address, [txout], [@addr])
-      selector = Mock.new
-      selector.expect(:select, [txout], [[txout]])
-      @selector.expect(:new, selector, [[txout]])
+      2.times { tx.expect(:binary_hash, "foo") }
+      8.times { tx.expect(:out, [txout]) }
+      3.times { tx.expect(:get_block, true) }
+      5.times { txout.expect(:get_tx, tx) }
+      6.times { txout.expect(:get_address, @addr) }
+      8.times { txout.expect(:pk_script, Script.to_address_script(@addr)) }
+
+      2.times { @storage.expect(:get_txouts_for_address, [txout], [@addr]) }
+      selector = Bitcoin::Wallet::SimpleCoinSelector.new([txout])
+      2.times { @selector.expect(:new, selector, [[txout]]) }
       @tx = @wallet.new_tx([[:address, '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7', 1000]])
     end
 
@@ -182,12 +178,14 @@ describe Bitcoin::Wallet::Wallet do
       txout = txout_mock(5000, nil)
       tx = Mock.new
       tx.expect(:binary_hash, "foo")
-      tx.expect(:out, [txout])
+      4.times { tx.expect(:out, [txout]) }
       tx.expect(:get_block, true)
       txout.expect(:get_tx, tx)
-      txout.expect(:get_address, @addr)
-      txout.expect(:pk_script, Script.to_address_script(@addr))
-      @storage.expect(:get_txouts_for_address, [txout], [@addr])
+      2.times { txout.expect(:get_address, @addr) }
+      4.times { txout.expect(:pk_script, Script.to_address_script(@addr)) }
+      @storage.expect(:get_txouts_for_address, [txout], [@key.addr])
+      @storage.expect(:get_txouts_for_address, [txout], [@key2.addr])
+      @storage.expect(:get_txouts_for_address, [txout], [@key3.addr])
       @keystore = DummyKeyStore.new([@key, @key2, @key3])
 
       selector = Mock.new

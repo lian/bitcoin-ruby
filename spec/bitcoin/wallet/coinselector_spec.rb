@@ -8,13 +8,14 @@ include Bitcoin::Wallet
 describe Bitcoin::Wallet::SimpleCoinSelector do
 
   def txout_mock(value, next_in = true, in_block = true)
-    tx = Mock.new
-    tx.expect(:get_block, in_block)
-    txout = Mock.new
-    txout.expect(:value, value)
-    txout.expect(:get_next_in, next_in)
-    txout.expect(:get_address, "addr")
-    txout.expect(:get_tx, tx)
+    tx, txout = Mock.new, Mock.new
+    2.times { tx.expect(:get_block, in_block) }
+    5.times { txout.expect(:value, value) }
+    2.times do
+      txout.expect(:get_next_in, next_in)
+      txout.expect(:get_address, "addr")
+      txout.expect(:get_tx, tx)
+    end
     txout
   end
 
