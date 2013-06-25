@@ -1,3 +1,5 @@
+# encoding: ascii-8bit
+
 require_relative '../spec_helper.rb'
 
 describe 'Bitcoin::Protocol::Parser (notfound)' do

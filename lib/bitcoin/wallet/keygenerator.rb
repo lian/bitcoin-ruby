@@ -1,8 +1,10 @@
+# encoding: ascii-8bit
+
 module Bitcoin::Wallet
 
   # Deterministic key generator as described in
   # https://bitcointalk.org/index.php?topic=11665.0.
-  # 
+  #
   # Takes a seed and generates an arbitrary amount of keys.
   # Protects against brute-force attacks by requiring the
   # key hash to fit a difficulty target, much like the block chain.

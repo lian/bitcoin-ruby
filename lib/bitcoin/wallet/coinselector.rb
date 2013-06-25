@@ -1,3 +1,5 @@
+# encoding: ascii-8bit
+
 module Bitcoin::Wallet
 
   # select unspent txouts to be used by the Wallet when creating a new transaction

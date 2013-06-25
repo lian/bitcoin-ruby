@@ -1,3 +1,5 @@
+# encoding: ascii-8bit
+
 class Bitcoin::Wallet::TxDP
 
   attr_accessor :id, :tx, :inputs

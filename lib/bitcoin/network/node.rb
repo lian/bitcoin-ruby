@@ -1,3 +1,5 @@
+# encoding: ascii-8bit
+
 Bitcoin.require_dependency :eventmachine
 Bitcoin.require_dependency :json
 require 'fileutils'

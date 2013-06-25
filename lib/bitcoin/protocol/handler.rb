@@ -1,3 +1,5 @@
+# encoding: ascii-8bit
+
 module Bitcoin
   module Protocol
 
@@ -30,7 +32,7 @@ module Bitcoin
         #p ['block', block]
         puts block.to_json
       end
-      
+
     end
 
   end

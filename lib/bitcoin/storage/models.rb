@@ -1,3 +1,5 @@
+# encoding: ascii-8bit
+
 # StorageModels defines objects that are returned from storage.
 # These objects inherit from their Bitcoin::Protocol counterpart
 # and add some additional data and methods.

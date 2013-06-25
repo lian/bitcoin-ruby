@@ -1,3 +1,5 @@
+# encoding: ascii-8bit
+
 class Mnemonic
   # ruby version of: https://github.com/spesmilo/electrum/blob/master/lib/mnemonic.py
 

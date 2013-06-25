@@ -1,3 +1,5 @@
+# encoding: ascii-8bit
+
 if Bitcoin.require_dependency :log4r, exit: false
   # monkey-patch Log4r to accept level names as symbols
   class Log4r::Logger

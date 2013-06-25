@@ -1,3 +1,5 @@
+# encoding: ascii-8bit
+
 module Bitcoin::Storage::Backends::SequelMigrations
 
   def migrate

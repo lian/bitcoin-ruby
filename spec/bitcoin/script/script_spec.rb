@@ -1,3 +1,5 @@
+# encoding: ascii-8bit
+
 require_relative '../spec_helper.rb'
 require 'bitcoin/script'
 
@@ -162,9 +164,9 @@ describe 'Bitcoin::Script' do
       Script.new(SCRIPT[1]).get_address.should == nil
       Script.new(SCRIPT[2]).get_address.should ==
         "139k1g5rtTsL4aGZbcASH3Fv3fUh9yBEdW"
-      Script.new(SCRIPT[3]).get_address.should == 
+      Script.new(SCRIPT[3]).get_address.should ==
         "1JiaVc3N3U3CwwcLtzNX1Q4eYfeYxVjtuj"
-      Script.new(SCRIPT[4]).get_address.should == 
+      Script.new(SCRIPT[4]).get_address.should ==
         "1F2Nnyn7niMcheiYhkHrkc18aDxEkFowy5"
     end
 
@@ -251,7 +253,7 @@ describe 'Bitcoin::Script' do
     it "should generate p2sh script" do
       address = "3CkxTG25waxsmd13FFgRChPuGYba3ar36B"
       hash160 = Bitcoin.hash160_from_address address
-      Script.to_p2sh_script(hash160).should == 
+      Script.to_p2sh_script(hash160).should ==
         Script.from_string("OP_HASH160 #{hash160} OP_EQUAL").raw
     end
 
@@ -263,7 +265,7 @@ describe 'Bitcoin::Script' do
 
       address = "3CkxTG25waxsmd13FFgRChPuGYba3ar36B"
       hash160 = Bitcoin.hash160_from_address address
-      Script.to_p2sh_script(hash160).should == 
+      Script.to_p2sh_script(hash160).should ==
         Script.from_string("OP_HASH160 #{hash160} OP_EQUAL").raw
     end
 

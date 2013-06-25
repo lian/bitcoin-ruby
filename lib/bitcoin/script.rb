@@ -1,3 +1,5 @@
+# encoding: ascii-8bit
+
 require 'bitcoin'
 
 class Bitcoin::Script
@@ -279,7 +281,7 @@ class Bitcoin::Script
       #  negative, number = $1, $2.to_i
       #  data = [ negative ? -number : number ].pack("c")
       #  pack_pushdata(data)
-      else 
+      else
         data = [i].pack("H*")
         pack_pushdata(data)
       end
@@ -308,7 +310,7 @@ class Bitcoin::Script
       @debug << @stack.map{|i| i.unpack("H*") rescue i}
       @do_exec = @exec_stack.count(false) == 0 ? true : false
       #p [@stack, @do_exec]
-      
+
       case chunk
       when Fixnum
         next unless (@do_exec || (OP_IF <= chunk && chunk <= OP_ENDIF))
@@ -780,7 +782,7 @@ class Bitcoin::Script
   def op_1negate
     @stack << -1
   end
-  
+
   # Puts the number of stack items onto the stack.
   def op_depth
     @stack << @stack.size

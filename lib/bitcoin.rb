@@ -1,3 +1,4 @@
+# encoding: ascii-8bit
 # Bitcoin Utils and Network Protocol in Ruby.
 
 require 'digest/sha2'

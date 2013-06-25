@@ -1,3 +1,5 @@
+# encoding: ascii-8bit
+
 # The storage implementation supports different backends, which inherit from
 # Storage::StoreBase and implement the same interface.
 # Each backend returns Storage::Models objects to easily access helper methods and metadata.
@@ -189,7 +191,7 @@ module Bitcoin::Storage
             return locator
           end
         end
-        
+
         return [("\x00"*32).hth]  if get_depth == -1
         locator = []
         step = 1

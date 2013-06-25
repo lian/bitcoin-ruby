@@ -1,3 +1,5 @@
+# encoding: ascii-8bit
+
 require 'yaml'
 module Bitcoin
 

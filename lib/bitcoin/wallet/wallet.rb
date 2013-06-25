@@ -1,3 +1,5 @@
+# encoding: ascii-8bit
+
 Bitcoin.require_dependency :eventmachine, exit: false
 
 # The wallet implementation consists of several concepts:
@@ -160,7 +162,7 @@ module Bitcoin::Wallet
     #  [:multisig, 2, 3, <addr>, <addr>, <addr>, <value>]
     #
     # inputs are selected automatically by the SimpleCoinSelector.
-    # 
+    #
     # change_policy controls where the change_output is spent to.
     # see #get_change_addr
     def new_tx outputs, fee = 0, change_policy = :back

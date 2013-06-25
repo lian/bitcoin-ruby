@@ -1,3 +1,5 @@
+# encoding: ascii-8bit
+
 module Bitcoin::Gui::Helpers
 
   def display_tx tx_hash

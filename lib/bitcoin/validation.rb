@@ -1,3 +1,5 @@
+# encoding: ascii-8bit
+
 module Bitcoin::Validation
 
   # maximum size of a block (in bytes)
@@ -183,7 +185,7 @@ module Bitcoin::Validation
       last = store.db[:blk][hash: prev_block.hash.htb.blob]
       first = store.db[:blk][hash: last[:prev_hash].blob]
       (RETARGET-2).times { first = store.db[:blk][hash: first[:prev_hash].blob] }
-      
+
       nActualTimespan = last[:time] - first[:time]
       nTargetTimespan = RETARGET * 600
 

@@ -1,3 +1,5 @@
+# encoding: ascii-8bit
+
 require_relative '../spec_helper.rb'
 require 'bitcoin/script'
 
@@ -148,15 +150,15 @@ describe "Bitcoin::Script OPCODES" do
       op(:max, stack).should == [expected]
     }
   end
-  
+
   it "should do op_2over" do
     op('2over', [1,2,3,4]).should == [1,2,3,4,1,2]
   end
-  
+
   it "should do op_2swap" do
     op("2swap", [1,2,3,4]).should == [3,4,1,2]
   end
-  
+
   it "should do op_ifdup" do
     op(:ifdup, [1]).should == [1,1]
     op(:ifdup, ['a']).should == ['a','a']
@@ -166,7 +168,7 @@ describe "Bitcoin::Script OPCODES" do
   it "should do op_1negate" do
     op("1negate", []).should == [ -1 ]
   end
-  
+
   it "should do op_depth" do
     op(:depth, []).should == [0]
     op(:depth, [1,2,3]).should == [1,2,3,3]

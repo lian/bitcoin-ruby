@@ -1,3 +1,5 @@
+# encoding: ascii-8bit
+
 require_relative "em_gtk.rb"
 require_relative "helpers.rb"
 require_relative "tree_view.rb"

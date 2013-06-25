@@ -1,3 +1,5 @@
+# encoding: ascii-8bit
+
 module Bitcoin
 
   # Optional DSL to help create blocks and transactions.

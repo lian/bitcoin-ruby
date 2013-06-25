@@ -1,3 +1,5 @@
+# encoding: ascii-8bit
+
 Bitcoin.require_dependency :sequel, message:
   "Note: You will also need an adapter for your database like sqlite3, mysql2, postgresql"
 require_relative 'migrations'

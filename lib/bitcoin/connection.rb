@@ -1,3 +1,5 @@
+# encoding: ascii-8bit
+
 require 'socket'
 require 'eventmachine'
 require 'bitcoin'

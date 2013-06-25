@@ -1,3 +1,5 @@
+# encoding: ascii-8bit
+
 module Bitcoin
 
   # Elliptic Curve key as used in bitcoin.

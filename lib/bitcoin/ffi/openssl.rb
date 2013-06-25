@@ -1,3 +1,5 @@
+# encoding: ascii-8bit
+
 # autoload when you need to re-generate a public_key from only its private_key.
 # ported from: https://github.com/sipa/bitcoin/blob/2d40fe4da9ea82af4b652b691a4185431d6e47a8/key.h
 
