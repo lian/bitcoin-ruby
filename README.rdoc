@@ -16,6 +16,11 @@ Some of the main features are:
 * Bitcoin::Wallet is a draft implementation of a simple wallet
 * Bitcoin::Namecoin implements all the namecoin-specific differences (see NAMECOIN)
 
+== Compatible with...
+
+* ruby 1.9.3
+* ruby 2.0.0
+
 == Installation
 
 We assume you already have a ruby 1.9 or 2.0 compatible interpreter and rubygems environment.
@@ -87,7 +92,7 @@ Parse a Bitcoin::Protocol::Block
  blk.tx.count #=> 1
  blk.to_hash #=> ...
  Bitcoin::Protocol::Block.from_json( blk.to_json )
- 
+
 Parse a Bitcoin::Protocol::Tx
 
  raw_tx = File.open('spec/bitcoin/fixtures/rawtx-01.bin', 'rb') {|f| f.read}
@@ -97,7 +102,7 @@ Parse a Bitcoin::Protocol::Tx
  tx.out.size #=> 2
  tx.to_hash #=> ...
  Bitcoin::Protocol::Tx.from_json( tx.to_json )
- 
+
  Bitcoin::Script.new(tx.out[0].pk_script).to_string
  #=> "OP_DUP OP_HASH160 b2e21c1db922e3bdc529de7b38b4c401399e9afd OP_EQUALVERIFY OP_CHECKSIG"
 
@@ -121,7 +126,7 @@ If you want to control the Bitcoin::Script yourself, you can do so
  txin = tx1.in.first
  txout = tx2.out[txin.prev_out_index]
  script = Bitcoin::Script.new(txin.script_sig + txout.pk_script)
- 
+
  result = script.run do |pubkey, sig, hash_type|
    hash = tx1.signature_hash_for_input(0, nil, txout.pk_script)
    Bitcoin.verify_signature(hash, sig, pubkey.unpack("H*")[0])
@@ -198,7 +203,7 @@ lib/bitcoin/network/node.rb for examples.
 
 === Storage / Database backends
 
-There is support for multiple database backends, but currently the only stable one is 
+There is support for multiple database backends, but currently the only stable one is
 the Bitcoin::Storage::Backends::SequelStore backend. All backends implement the interface
 defined in Bitcoin::Storage::Backends::StoreBase and return Bitcoin::Storage::Models.
 
@@ -209,7 +214,7 @@ defined in Bitcoin::Storage::Backends::StoreBase and return Bitcoin::Storage::Mo
  txouts.first.type #=> :pubkey
  txouts.first.get_address #=> "15yN7NPEpu82sHhB6TzCW5z5aXoamiKeGy"
 
-See Bitcoin::Storage::Backends::StoreBase, Bitcoin::Storage::Backends::SequelStore 
+See Bitcoin::Storage::Backends::StoreBase, Bitcoin::Storage::Backends::SequelStore
 and Bitcoin::Storage::Models for details.
 
 == Documentation
@@ -241,3 +246,4 @@ to cleaning up high-level naming conventions, there is something for everyone to
 Even if you are completely lost, just pointing out what is unclear helps a lot!
 
 If you are curious or like to participate in development, drop by \#bitcoin-ruby on irc.freenode.net!
+
