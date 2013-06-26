@@ -158,6 +158,22 @@ describe 'Bitcoin::Protocol::Block' do
       Bitcoin.network = :bitcoin
     end
 
+    it 'should check block hash' do
+      block = Block.from_json(fixtures_file('rawblock-0.json'))
+      h = block.to_hash
+      h['hash'][0] = "1"
+      -> { Block.from_hash(h) }.should.raise(Exception)
+        .message.should == "Block hash mismatch! Claimed: 10000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048, Actual: 00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048"
+    end
+
+    it "should check merkle tree" do
+      block = Block.from_json(fixtures_file('rawblock-0.json'))
+      h = block.to_hash
+      h['tx'][0]['ver'] = 2
+      -> { Block.from_hash(h) }.should.raise(Exception)
+        .message.should == "Block merkle root mismatch!"
+    end
+
   end
 
   it '#header_to_json' do

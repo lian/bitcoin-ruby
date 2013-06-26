@@ -203,10 +203,15 @@ module Bitcoin
         blk.instance_eval{
           @ver, @time, @bits, @nonce = h.values_at('ver', 'time', 'bits', 'nonce')
           @prev_block, @mrkl_root = h.values_at('prev_block', 'mrkl_root').map{|i| i.htb_reverse }
-          recalc_block_hash
+          unless h['hash'] == recalc_block_hash
+            raise "Block hash mismatch! Claimed: #{h['hash']}, Actual: #{@hash}"
+          end
           @aux_pow = AuxPow.from_hash(h['aux_pow'])  if h['aux_pow']
           h['tx'].each{|tx| @tx << Tx.from_hash(tx) }
-          @block_signature = h['signature'].htb_reverse if Bitcoin.network_project == :ppcoin
+          if h['tx'].any? && !Bitcoin.freicoin?
+            raise "Block merkle root mismatch!"  unless verify_mrkl_root
+          end
+          @block_signature = h['signature'].htb_reverse if Bitcoin.ppcoin?
         }
         blk
       end
