@@ -161,6 +161,7 @@ describe "reorg" do
 
   # see https://bitcointalk.org/index.php?topic=46370.0
   it "should pass reorg unit tests" do
+    class Bitcoin::Validation::Block; def difficulty; true; end; end
     Bitcoin.network = :bitcoin
     @store.import "./spec/bitcoin/fixtures/reorg/blk_0_to_4.dat"
     @store.get_depth.should == 4
@@ -179,6 +180,12 @@ describe "reorg" do
     balance("1NiEGXeURREqqMjCvjCeZn6SwEBZ9AdVet").should == 1000000000
     balance("1KXFNhNtrRMfgbdiQeuJqnfD7dR4PhniyJ").should == 0
     balance("1JyMKvPHkrCQd8jQrqTR1rBsAd1VpRhTiE").should == 14000000000
+    class Bitcoin::Validation::Block
+      def difficulty
+        return true  if Bitcoin.network_name == :testnet3
+        block.bits == next_bits_required || [block.bits, next_bits_required]
+      end
+    end
   end
 
 end

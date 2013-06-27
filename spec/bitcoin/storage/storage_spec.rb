@@ -14,6 +14,9 @@ include Bitcoin::Validation
   describe "Bitcoin::Storage::Backends::#{configuration[:name].capitalize}Store" do
 
     before do
+      class Bitcoin::Validation::Block; def difficulty; true; end; end
+      Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("ff"*32)
+
       Bitcoin::network = :testnet
       @store = Bitcoin::Storage.send(configuration[:name], configuration)
       def @store.in_sync?; true; end
@@ -30,9 +33,15 @@ include Bitcoin::Validation
 
       @blk = Bitcoin::Protocol::Block.new(fixtures_file('testnet/block_4.bin'))
       @tx = Bitcoin::Protocol::Tx.new(fixtures_file('rawtx-03.bin'))
+    end
 
-      class Bitcoin::Validation::Block; def difficulty; true; end; end
-      Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("ff"*32)
+    after do
+      class Bitcoin::Validation::Block
+        def difficulty
+          return true  if Bitcoin.network_name == :testnet3
+          block.bits == next_bits_required || [block.bits, next_bits_required]
+        end
+      end
     end
 
     it "should get depth" do

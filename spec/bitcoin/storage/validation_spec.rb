@@ -94,6 +94,7 @@ describe "block rules" do
   it "13. Reject if timestamp is the median time of the last 11 blocks or before" do
     prev_block = @block1
     12.times do |i|
+      class Bitcoin::Validation::Block; def difficulty; true; end; end
       prev_block = create_block(prev_block.hash, false, [])
       prev_block.time = Time.now.to_i - (12-i)
       prev_block.recalc_block_hash
