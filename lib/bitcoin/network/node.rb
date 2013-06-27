@@ -164,8 +164,8 @@ module Bitcoin::Network
     def start_timers
       return EM.add_timer(1) { start_timers }  if @importing
       [:queue, :inv_queue, :addrs, :connect, :relay].each do |name|
-        interval = @config[:intervals][name]
-        next  if !interval || interval == 0
+        interval = @config[:intervals][name].to_f
+        next  if !interval || interval == 0.0
         @timers[name] = EM.add_periodic_timer(interval, method("work_#{name}"))
       end
     end
@@ -186,12 +186,14 @@ module Bitcoin::Network
 
         if @config[:command]
           host, port = *@config[:command].split(":")
+          log.debug { "Trying to bind command socket to #{host}:#{port}" }
           EM.start_server(host, port, CommandHandler, self)
           log.info { "Command socket listening on #{host}:#{port}" }
         end
 
         if @config[:listen]
           host, port = *@config[:listen].split(":")
+          log.debug { "Trying to bind server socket to #{host}:#{port}" }
           EM.start_server(host, port.to_i, ConnectionHandler, self, host, port.to_i, :in)
           log.info { "Server socket listening on #{host}:#{port}" }
         end

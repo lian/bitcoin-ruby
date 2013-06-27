@@ -31,16 +31,20 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   # receive request from the client
   def receive_data data
     @buf.extract(data).each do |packet|
-      cmd, args = JSON::parse(packet)
-      log.debug { [cmd, args] }
-      if cmd == "relay_tx"
-        handle_relay_tx(*args)
-        return
-      end
-      if respond_to?("handle_#{cmd}")
-        respond(cmd, send("handle_#{cmd}", *args))
-      else
-        respond(cmd, {:error => "unknown command: #{cmd}. send 'help' for help."})
+      begin
+        cmd, args = JSON::parse(packet)
+        log.debug { [cmd, args] }
+        if cmd == "relay_tx"
+          handle_relay_tx(*args)
+          return
+        end
+        if respond_to?("handle_#{cmd}")
+          respond(cmd, send("handle_#{cmd}", *args))
+        else
+          respond(cmd, { error: "unknown command: #{cmd}. send 'help' for help." })
+        end
+      rescue ArgumentError
+        respond(cmd, { error: $!.message })
       end
     end
   rescue Exception
@@ -84,7 +88,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   # after client is subscribed to :block channel
   def handle_monitor_block
     head = Bitcoin::P::Block.new(@node.store.get_head.to_payload) rescue nil
-    respond("monitor", ["block", [head, @node.store.get_depth.to_s]])  if head
+    respond("monitor", ["block", [head, @node.store.get_depth]])  if head
   end
 
   # Handle +monitor tx+ command.
@@ -94,7 +98,8 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   def handle_monitor_tx conf = 0
     return  unless (conf = conf.to_i) > 0
     @node.subscribe(:block) do |block, depth|
-      block = @node.store.get_block_by_depth(depth - conf + 1)  if conf > 1
+      block = @node.store.get_block_by_depth(depth - conf + 1)
+      next  unless block
       block.tx.each {|tx| @node.notifiers["tx_#{conf}".to_sym].push([tx, conf]) }
     end
   end
@@ -107,7 +112,8 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   def handle_monitor_output conf = 0
     return  unless (conf = conf.to_i) > 0
     @node.subscribe(:block) do |block, depth|
-      block = @node.store.get_block_by_depth(depth - conf + 1)  if conf > 1
+      block = @node.store.get_block_by_depth(depth - conf + 1)
+      next  unless block
       block.tx.each do |tx|
         tx.out.each do |out|
           addr = Bitcoin::Script.new(out.pk_script).get_address
@@ -213,10 +219,10 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   end
 
   # relay given transaction (in hex)
-  #  bitcoin_node relay_tx <tx data>
-  def handle_relay_tx data, send = 3, wait = 3
+  #  bitcoin_node relay_tx <tx in hex>
+  def handle_relay_tx hex, send = 3, wait = 3
     begin
-      tx = Bitcoin::Protocol::Tx.new(data.htb)
+      tx = Bitcoin::P::Tx.new(hex.htb)
     rescue
       return respond("relay_tx", { error: "Error decoding transaction." })
     end
@@ -257,6 +263,18 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   #  bitcoin_node help
   def handle_help
     self.methods.grep(/^handle_(.*?)/).map {|m| m.to_s.sub(/^(.*?)_/, '')}
+  end
+
+  def handle_store_block hex
+    block = Bitcoin::P::Block.new(hex.htb)
+    @node.queue << [:block, block]
+    { queued: [ :block, block.hash ] }
+  end
+
+  def handle_store_tx hex
+    tx = Bitcoin::P::Tx.new(hex.htb)
+    @node.queue << [:tx, tx]
+    { queued: [ :tx, tx.hash ] }
   end
 
   # format node uptime
