@@ -92,9 +92,8 @@ end
 desc 'Generate RDoc documentation'
 task :rdoc do
   `rm -rf rdoc`
-  system("rdoc -o rdoc -m README.rdoc examples/ doc/ lib/ README.rdoc COPYING")
+  system("rdoc -a -A -H -t 'bitcoin-ruby RDoc' -W 'http://github.com/mhanne/bitcoin-ruby/tree/master/%s' -o rdoc -m README.rdoc examples/ doc/ lib/ README.rdoc COPYING")
 end
-
 
 desc 'Generate test coverage report'
 task :coverage do

@@ -4,25 +4,26 @@ This is a ruby library for interacting with the bitcoin protocol/network.
 
 Some of the main features are:
 
-* bitcoin utility functions for base58, ECC, etc. (Bitcoin::Util)
-* parse/create (almost?) all protocol messages (Bitcoin::Protocol)
-* connect to peers and exchange messages (Bitcoin::Network::Node, NODE)
-* load the blockchain from the network and stay in sync
-* validate block and transaction rules (Bitcoin::Validation)
-* store the blockchain and query for txouts (Bitcoin::Storage)
-* script implementation, create/run scripts and verify signatures (Bitcoin::Script)
-* create transactions (and even blocks!) (Bitcoin::Protocol, Bitcoin::Builder)
-* manage keys (Bitcoin::Key) in a wallet (Bitcoin::Wallet, WALLET)
-* there is even a highly experimental(!) Bitcoin::Gui
+* Bitcoin::Util provides the basic bitcoin utility functions for base58, ECC, etc.
+* Bitcoin::Protocol can parse/create (almost?) all protocol messages
+* Bitcoin::Network::Node connects to peers, fetches the blockchain and keeps it up to date
+  (see NODE for usage)
+* Bitcoin::Validation validates block and transaction rules
+* Bitcoin::Storage stores the blockchain and can be queried for transaction data
+* Bitcoin::Script implementation, create/run scripts and verify signatures
+* Bitcoin::Key provides a high-level API for creating and handling keys/addresses
+* Bitcoin::Builder provides a high-level API for creating transactions (and blocks)
+* Bitcoin::Wallet is a draft implementation of a simple wallet
+* Bitcoin::Namecoin implements all the namecoin-specific differences (see NAMECOIN)
 
 == Installation
 
-We assume you already have a ruby 1.9 compatible interpreter and rubygems environment.
+We assume you already have a ruby 1.9 or 2.0 compatible interpreter and rubygems environment.
 
  git clone https://github.com/lian/bitcoin-ruby.git; cd bitcoin-ruby
  ruby -Ilib bin/bitcoin_node
 
-if you want to install it system-wide, just build the gem and install it
+if you want to have it available system-wide, just build the gem and install it:
 
  gem build bitcoin-ruby.gemspec && gem install bitcoin-ruby-0.0.1.gem
 
@@ -41,22 +42,21 @@ intentionally kept to a minimum, so nobody has to install unneeded dependencies.
 
 == Client
 
-There is a NODE which connects to the network and downloads
-the blockchain into a database. see Bitcoin::Network::Node.
+There is a node which connects to the network and downloads
+the blockchain into a database. see NODE, Bitcoin::Network::Node.
 
-It also opens an extra socket for clients to connect where they can call certain
-methods, ask for information or register callbacks for events.
-see Bitcoin::Network::CommandClient.
-
+It also opens an extra socket where local clients can query statistics,
+monitor blockchain data, and relay there transactions to the network.
+see NODE, Bitcoin::Network::CommandHandler, Bitcoin::Network::CommandClient.
 
 There is a WALLET implementation to manage a set of keys, list balances and create
-transactions. see Bitcoin::Wallet
+transactions. see WALLET, Bitcoin::Wallet.
 
 
 == Library Usage
 
 There are different aspects to the library which can be used separately or in combination.
-Here are some Ideas of what you could do. There are also some scripts which you can run,
+Here are some ideas of what you could do. There are also some demo scripts in examples/,
 see EXAMPLES.
 
 
@@ -130,7 +130,56 @@ If you want to control the Bitcoin::Script yourself, you can do so
 
 === Create Transactions
 
-TODO
+You need to know the previous output you want to spend (tx hash and output index),
+as well as the private key for the address required to sign for it.
+
+ # use testnet so you don't acidentially your whole money!
+ Bitcoin.network = :testnet3
+ 
+ # make the DSL methods available in your scope
+ include Bitcoin::Builder
+ 
+ # the previous transaction that has an output to your address
+ prev_hash = "6c44b284c20fa22bd69c57a9dbff91fb71deddc8c54fb2f5aa41fc78c96c1ad1"
+ 
+ # the number of the output you want to use
+ prev_out_index = 0
+ 
+ # fetch the tx from whereever you like and parse it
+ prev_tx = Bitcoin::P::Tx.from_json(open("http://test.webbtc.com/tx/#{prev_hash}.json"))
+ 
+ # the key needed to sign an input that spends the previous output
+ key = Bitcoin::Key.from_base58("92ZRu28m2GHSKaaF2W7RswJ2iJYpTzVhBaN6ZLs7TENCs4b7ML8")
+ 
+ # create a new transaction (and sign the inputs)
+ new_tx = build_tx do |t|
+ 
+   # add the input you picked out earlier
+   t.input do |i|
+     i.prev_out prev_tx
+     i.prev_out_index prev_out_index
+     i.signature_key key
+   end
+ 
+   # add an output that sends some bitcoins to another address
+   t.output do |o|
+     o.value 50000000 # 0.5 BTC in satoshis
+     o.script {|s| s.recipient "mugwYJ1sKyr8EDDgXtoh8sdDQuNWKYNf88" }
+   end
+ 
+   # add another output spending the remaining amount back to yourself
+   # if you want to pay a tx fee, reduce the value of this output accordingly
+   # if you want to keep your financial history private, use a different address
+   t.output do |o|
+     o.value 49000000 # 0.49 BTC, leave 0.01 BTC as fee
+     o.script {|s| s.recipient key.addr }
+   end
+ 
+ end
+ 
+ # examine your transaction. you can relay it through http://webbtc.com/relay_tx
+ # that will also give you a hint on the error if something goes wrong
+ puts new_tx.to_json
 
 === Node / Network connections
 
@@ -186,5 +235,9 @@ or, if you want to run a single spec
 If you make changes to the code or add functionality, please also add specs.
 
 == Development
+
+Any help or feedback is greatly appreciated! From getting knee-deep into elliptic-curve acrobatics,
+to cleaning up high-level naming conventions, there is something for everyone to do.
+Even if you are completely lost, just pointing out what is unclear helps a lot!
 
 If you are curious or like to participate in development, drop by \#bitcoin-ruby on irc.freenode.net!
