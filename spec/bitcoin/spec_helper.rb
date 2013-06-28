@@ -30,7 +30,7 @@ end
 # accepts an array of +tx+ callbacks
 def create_block prev, store = true, tx = [], key = Bitcoin::Key.new, coinbase_value = 50e8, opts = {}
   opts[:bits] ||= Bitcoin.network[:proof_of_work_limit]
-  block = blk(Bitcoin.decode_compact_bits(opts[:bits])) do |b|
+  block = build_block(Bitcoin.decode_compact_bits(opts[:bits])) do |b|
     b.time opts[:time]  if opts[:time]
     b.prev_block prev
     b.tx do |t|

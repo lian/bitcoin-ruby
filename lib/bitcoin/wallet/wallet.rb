@@ -190,7 +190,7 @@ module Bitcoin::Wallet
       input_value = prev_outs.map(&:value).inject(:+)
       return nil  unless input_value >= (output_value + fee)
 
-      tx = tx do |t|
+      tx = build_tx do |t|
         t.version 0x7100  if Bitcoin.namecoin? && outputs.find {|o| o[0].to_s =~ /^name_/ }
         outputs.each do |type, *addrs, value|
           t.output do |o|

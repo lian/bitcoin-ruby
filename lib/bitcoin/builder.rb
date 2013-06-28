@@ -9,19 +9,21 @@ module Bitcoin
 
     # build a Bitcoin::Protocol::Block matching the given +target+.
     # see BlockBuilder for details.
-    def blk(target = "00".ljust(64, 'f'))
+    def build_block(target = "00".ljust(64, 'f'))
       c = BlockBuilder.new
       yield c
       c.block(target)
     end
+    alias :blk :build_block
 
     # build a Bitcoin::Protocol::Tx.
     # see TxBuilder for details.
-    def tx
+    def build_tx
       c = TxBuilder.new
       yield c
       c.tx
     end
+    alias :tx :build_tx
 
     # build a Bitcoin::Script.
     # see ScriptBuilder for details.

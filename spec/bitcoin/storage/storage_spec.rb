@@ -248,7 +248,7 @@ include Bitcoin::Validation
         @key = Bitcoin::Key.generate
         @store.store_block @blk
         @block = create_block @blk.hash, false, [], @key
-        @tx = tx {|t| create_tx(t, @block.tx.first, 0, [[50, @key]]) }
+        @tx = build_tx {|t| create_tx(t, @block.tx.first, 0, [[50, @key]]) }
         @tx.instance_eval { @in = [] }
       end
 

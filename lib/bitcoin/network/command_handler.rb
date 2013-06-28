@@ -222,7 +222,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   #  bitcoin_node relay_tx <tx in hex>
   def handle_relay_tx hex, send = 3, wait = 3
     begin
-      tx = Bitcoin::P::Tx.new(hex.htb)
+      tx = Bitcoin::Protocol::Tx.new(hex.htb)
     rescue
       return respond("relay_tx", { error: "Error decoding transaction." })
     end

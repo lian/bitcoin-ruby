@@ -13,7 +13,7 @@ describe "Bitcoin::Builder" do
 
     target = "00".ljust(64, 'f')
 
-    block = blk(target) do |b|
+    block = build_block(target) do |b|
       b.prev_block "\x00" * 32
 
       b.tx do |t|
@@ -41,7 +41,7 @@ describe "Bitcoin::Builder" do
 
     tx.out[0].value.should == 5000000000
 
-    tx = tx do |t|
+    tx = build_tx do |t|
       t.input do |i|
         i.prev_out block.tx[0]
         i.prev_out_index 0

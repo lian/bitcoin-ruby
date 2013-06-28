@@ -114,8 +114,8 @@ describe "block rules" do
   end
 
   it "should allow chains of unconfirmed transactions" do
-    tx1 = tx {|t| create_tx(t, @block1.tx.first, 0, [[50, @key]]) }
-    tx2 = tx {|t| create_tx(t, tx1, 0, [[50, @key]]) }
+    tx1 = build_tx {|t| create_tx(t, @block1.tx.first, 0, [[50, @key]]) }
+    tx2 = build_tx {|t| create_tx(t, tx1, 0, [[50, @key]]) }
     block = create_block(@block1.hash, false, [], @key)
     block.tx << tx1; block.tx << tx2
     block.bits = Bitcoin.encode_compact_bits("f"*64)
@@ -159,7 +159,7 @@ describe "tx rules" do
     @store.get_head.should == @block0
     @block1 = create_block @block0.hash, true, [], @key
     @store.get_head.should == @block1
-    @tx = tx {|t| create_tx(t, @block1.tx.first, 0, [[50, @key]]) }
+    @tx = build_tx {|t| create_tx(t, @block1.tx.first, 0, [[50, @key]]) }
   end
 
   def check_tx tx, error
@@ -244,7 +244,7 @@ describe "tx rules" do
   end
 
   it "16. Reject if the sum of input values < sum of output values" do
-    tx = tx {|t| create_tx(t, @block1.tx.first, 0, [[100e8, @key]]) }
+    tx = build_tx {|t| create_tx(t, @block1.tx.first, 0, [[100e8, @key]]) }
     check_tx(tx, [:output_sum, [100e8, 50e8]])
   end
 
