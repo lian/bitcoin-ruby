@@ -25,6 +25,8 @@ def fixtures_file(relative_path)
   Bitcoin::Protocol.read_binary_file( File.join(basedir, relative_path) )
 end
 
+include Bitcoin::Builder
+
 # create block for given +prev+ block
 # if +store+ is true, save it to @store
 # accepts an array of +tx+ callbacks
@@ -73,6 +75,22 @@ end
 
 
 Bitcoin::network = :bitcoin
+
+Bitcoin::NETWORKS[:spec] = {
+  :project => :bitcoin,
+  :magic_head => "spec",
+  :address_version => "6f",
+  :p2sh_version => "c4",
+  :privkey_version => "ef",
+  :default_port => 48333,
+  :protocol_version => 70001,
+  :dns_seeds => [],
+  :genesis_hash => "000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943",
+  :proof_of_work_limit => 553713663,
+  :alert_pubkeys => [],
+  :known_nodes => [],
+  :checkpoints => {}
+}
 
 begin
   require 'bacon'

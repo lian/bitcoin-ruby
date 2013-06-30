@@ -1,21 +1,5 @@
 require_relative '../spec_helper.rb'
 
-Bitcoin::NETWORKS[:spec] = {
-  :project => :bitcoin,
-  :magic_head => "spec",
-  :address_version => "6f",
-  :p2sh_version => "c4",
-  :privkey_version => "ef",
-  :default_port => 48333,
-  :protocol_version => 70001,
-  :dns_seeds => [],
-  :genesis_hash => "000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943",
-  :proof_of_work_limit => 0x1d07fff8,
-  :alert_pubkeys => [],
-  :known_nodes => [],
-  :checkpoints => {}
-}
-
 include Bitcoin::Builder
 
 describe 'Node Command API' do

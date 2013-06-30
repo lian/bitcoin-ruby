@@ -6,15 +6,17 @@ include Bitcoin::Builder
 
 describe "Bitcoin::Builder" do
 
-  it "should build blocks and transactions with in/outputs and signatures" do
+  before do
+    Bitcoin.network = :spec
+    @keys = 5.times.map { Bitcoin::Key.generate }
+    @target = target = "00".ljust(64, 'f')
+    @genesis = create_block("00"*32, false)
+    @block = create_block(@genesis.hash, false, [], @keys[0])
+  end
 
-    keys = []
-    5.times { keys << Bitcoin::Key.generate }
-
-    target = "00".ljust(64, 'f')
-
-    block = build_block(target) do |b|
-      b.prev_block "\x00" * 32
+  it "should build blocks" do
+    block = build_block(@target) do |b|
+      b.prev_block @block.hash
 
       b.tx do |t|
         t.input {|i| i.coinbase "foobar" }
@@ -24,7 +26,7 @@ describe "Bitcoin::Builder" do
 
           o.script do |s|
             s.type :address
-            s.recipient keys[0].addr
+            s.recipient @keys[0].addr
           end
         end
       end
@@ -32,7 +34,7 @@ describe "Bitcoin::Builder" do
 
     block.hash[0..1].should == "00"
     block.ver.should == 1
-    block.prev_block.should == "\x00"*32
+    block.prev_block.should == @block.binary_hash.reverse
     block.tx.size.should == 1
     tx = block.tx[0]
     tx.in.size.should == 1
@@ -40,12 +42,14 @@ describe "Bitcoin::Builder" do
     tx.in[0].script_sig.should == ["foobar"].pack("H*")
 
     tx.out[0].value.should == 5000000000
+  end
 
+  it "should build transactions with in/outputs and signatures" do
     tx = build_tx do |t|
       t.input do |i|
-        i.prev_out block.tx[0]
+        i.prev_out @block.tx[0]
         i.prev_out_index 0
-        i.signature_key keys[0]
+        i.signature_key @keys[0]
       end
 
       t.output do |o|
@@ -53,21 +57,38 @@ describe "Bitcoin::Builder" do
 
         o.script do |s|
           s.type :address
-          s.recipient keys[1].addr
+          s.recipient @keys[1].addr
         end
       end
     end
 
     tx.in[0].prev_out.reverse_hth.should == block.tx[0].hash
     tx.in[0].prev_out_index.should == 0
-    Bitcoin::Script.new(tx.in[0].script_sig).chunks[1].unpack("H*")[0].should == keys[0].pub
+    Bitcoin::Script.new(tx.in[0].script_sig).chunks[1].unpack("H*")[0].should == @keys[0].pub
 
     tx.out[0].value.should == 123
     script = Bitcoin::Script.new(tx.out[0].pk_script)
     script.type.should == :hash160
-    script.get_address.should == keys[1].addr
+    script.get_address.should == @keys[1].addr
 
     tx.verify_input_signature(0, block.tx[0]).should == true
+  end
+
+  it "should build unsigned transactions and add the signature hash" do
+    tx = build_tx do |t|
+      t.input do |i|
+        i.prev_out @block.tx[0]
+        i.prev_out_index 0
+        # no signature key
+      end
+      t.output do |o|
+        o.value 123
+        o.script {|s| s.recipient @keys[1].addr }
+      end
+    end
+
+    tx.is_a?(Bitcoin::P::Tx).should == true
+    tx.in[0].sig_hash.should != nil
   end
 
   it "should build address script" do
