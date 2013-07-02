@@ -177,7 +177,7 @@ module Bitcoin
           end
           prev_tx = inc.instance_variable_get(:@prev_out)
           @sig_hash = @tx.signature_hash_for_input(i, prev_tx)
-          if inc.key
+          if inc.key && inc.key.priv
             sig = inc.key.sign(@sig_hash)
             script_sig = Script.to_signature_pubkey_script(sig, [inc.key.pub].pack("H*"))
             @tx.in[i].script_sig_length = script_sig.bytesize

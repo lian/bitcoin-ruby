@@ -218,11 +218,60 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     { tslb: (Time.now - @node.last_block_time).to_i }
   end
 
+  # Create a transaction, collecting outputs from given +keys+, spending to +recipients+
+  # with an optional +fee+.
+  # Keys is an array that can contain either privkeys, pubkeys or addresses.
+  # When a privkey is given, the corresponding inputs are signed. If not, the
+  # signature_hash is computed and passed along with the response.
+  # After creating an unsigned transaction, one just needs to sign the sig_hashes
+  # and send everything to #assemble_tx, to receive the complete transaction that
+  # can be relayed to the network.
+  def handle_create_tx keys, recipients, fee = 0
+    keystore = Bitcoin::Wallet::SimpleKeyStore.new(file: StringIO.new("[]"))
+    keys.each do |k|
+      begin
+        key = Bitcoin::Key.from_base58(k)
+        key = { addr: key.addr, key: key }
+      rescue
+        if Bitcoin.valid_address?(k)
+          key = { addr: k }
+        else
+          begin
+            key = Bitcoin::Key.new(nil, k)
+            key = { addr: key.addr, key: key }
+          rescue
+            return { error: "Input not valid address, pub- or privkey" }
+          end
+        end
+      end
+      keystore.add_key(key)
+    end
+    wallet = Bitcoin::Wallet::Wallet.new(@node.store, keystore)
+    tx = wallet.new_tx(recipients.map {|r| [:address, r[0], r[1]]}, fee)
+    [ tx.to_payload.hth, tx.in.map {|i| i.sig_hash.hth rescue nil } ]
+  end
+
+  # Assemble an unsigned transaction from the +tx_hex+ and +sig_pubkeys+.
+  # The +tx_hex+ is the regular transaction structure, with empty input scripts
+  # (as returned by #create_tx when called without privkeys).
+  # +sig_pubkeys+ is an array of [signature, pubkey] pairs used to build the
+  # input scripts.
+  def handle_assemble_tx tx_hex, sig_pubs
+    tx = Bitcoin::P::Tx.new(tx_hex.htb)
+    sig_pubs.each.with_index do |sig_pub, idx|
+      sig, pub = *sig_pub.map(&:htb)
+      script_sig = Script.to_signature_pubkey_script(sig, pub)
+      tx.in[idx].script_sig_length = script_sig.bytesize
+      tx.in[idx].script_sig = script_sig
+    end
+    Bitcoin::P::Tx.new(tx.to_payload).to_payload.hth
+  end
+
   # relay given transaction (in hex)
   #  bitcoin_node relay_tx <tx in hex>
   def handle_relay_tx hex, send = 3, wait = 3
     begin
-      tx = Bitcoin::Protocol::Tx.new(hex.htb)
+      tx = Bitcoin::P::Tx.new(hex.htb)
     rescue
       return respond("relay_tx", { error: "Error decoding transaction." })
     end

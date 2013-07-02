@@ -17,6 +17,7 @@ module Bitcoin::Wallet
   # TODO: new tx notification, keygenerators, keystore cleanup
   class Wallet
 
+    include Bitcoin
     include Builder
 
     # the keystore (SimpleKeyStore) managing keys/addresses/labels
@@ -27,12 +28,12 @@ module Bitcoin::Wallet
 
     # open wallet with given +storage+ Storage backend, +keystore+ SimpleKeyStore
     # and +selector+ SimpleCoinSelector
-    def initialize storage, keystore, selector
+    def initialize storage, keystore, selector = SimpleCoinSelector
       @storage = storage
       @keystore = keystore
       @selector = selector
       @callbacks = {}
-      connect_node  if defined?(EM)
+      # connect_node  if defined?(EM)
     end
 
     def connect_node
