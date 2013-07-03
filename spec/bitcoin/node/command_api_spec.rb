@@ -32,10 +32,10 @@ describe 'Node Command API' do
 
 
   before do
-    Bitcoin::Validation::Block::RULES = {
+    Bitcoin::Validation::Block::RULES.merge({
       syntax: [:hash, :tx_list, :bits, :max_timestamp, :coinbase, :coinbase_scriptsig, :transactions_syntax],
       context: [:prev_hash, :coinbase_value, :min_timestamp, :transactions_context]
-    }
+    })
 
     Bitcoin.network = :spec
     @config = {
@@ -50,7 +50,7 @@ describe 'Node Command API' do
     @node = Bitcoin::Network::Node.new(@config)
     @pid = fork do
       $stdout = StringIO.new
-      SimpleCov.running = false
+      SimpleCov.running = false if defined?(SimpleCov)
       @node.run
     end
 
