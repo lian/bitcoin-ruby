@@ -11,5 +11,5 @@ group :development do
   gem 'sqlite3'
 
   gem "rake", ">= 0.8.0"
-  gem "bacon"
+  gem "bacon", ">= 1.2.0"
 end
