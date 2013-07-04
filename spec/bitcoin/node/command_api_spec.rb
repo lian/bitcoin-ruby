@@ -149,7 +149,9 @@ describe 'Node Command API' do
       tx.in[0].script_sig.should == ""
       -> { tx.verify_input_signature(0, @block.tx[0]) }.should.raise(TypeError)
 
-      res[1].each.with_index do |sig_hash, idx|
+      res[1].each.with_index do |sig_data, idx|
+        sig_hash, sig_addr = *sig_data
+        sig_addr.should == @key.addr
         sig = @key.sign(sig_hash.htb)
         script_sig = Script.to_signature_pubkey_script(sig, @key.pub.htb)
         tx.in[idx].script_sig_length = script_sig.bytesize
@@ -165,7 +167,9 @@ describe 'Node Command API' do
       tx.is_a?(P::Tx).should == true
       -> { tx.verify_input_signature(0, @block.tx[0]) }.should.raise(TypeError)
 
-      res[1].each.with_index do |sig_hash, idx|
+      res[1].each.with_index do |sig_data, idx|
+        sig_hash, sig_addr = *sig_data
+        sig_addr.should == @key.addr
         sig = @key.sign(sig_hash.htb)
         script_sig = Script.to_signature_pubkey_script(sig, @key.pub.htb)
         tx.in[idx].script_sig_length = script_sig.bytesize

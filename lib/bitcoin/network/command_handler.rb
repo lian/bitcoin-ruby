@@ -248,7 +248,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     end
     wallet = Bitcoin::Wallet::Wallet.new(@node.store, keystore)
     tx = wallet.new_tx(recipients.map {|r| [:address, r[0], r[1]]}, fee)
-    [ tx.to_payload.hth, tx.in.map {|i| i.sig_hash.hth rescue nil } ]
+    [ tx.to_payload.hth, tx.in.map {|i| [i.sig_hash.hth, i.sig_address] rescue nil } ]
   end
 
   # Assemble an unsigned transaction from the +tx_hex+ and +sig_pubkeys+.

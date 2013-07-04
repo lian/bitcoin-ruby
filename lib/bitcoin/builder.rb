@@ -187,11 +187,12 @@ module Bitcoin
             @tx.in[i].script_sig_length = 0
             @tx.in[i].script_sig = ""
             @tx.in[i].sig_hash = @sig_hash
+            @tx.in[i].sig_address = Script.new(prev_tx.out[@tx.in[i].prev_out_index].pk_script).get_address
           end
         end
-        sig_hashes = @tx.in.map(&:sig_hash)
+        data = @tx.in.map {|i| [i.sig_hash, i.sig_address] }
         tx = P::Tx.new(@tx.to_payload)
-        sig_hashes.each.with_index {|sig_hash, i| tx.in[i].sig_hash = sig_hash }
+        data.each.with_index {|d, i| i = tx.in[i]; i.sig_hash = d[0]; i.sig_address = d[1] }
         raise "Payload Error"  unless tx.to_payload == @tx.to_payload
         tx
       end

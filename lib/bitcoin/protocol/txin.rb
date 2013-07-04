@@ -14,8 +14,9 @@ module Bitcoin
       # script_sig input Script (signature)
       attr_accessor :script_sig, :script_sig_length
 
-      # signature hash (used when dealing with unsigned or partly signed tx)
-      attr_accessor :sig_hash
+      # signature hash and the address of the key that needs to sign it
+      # (used when dealing with unsigned or partly signed tx)
+      attr_accessor :sig_hash, :sig_address
 
       alias :script   :script_sig
       alias :script_length  :script_sig_length
