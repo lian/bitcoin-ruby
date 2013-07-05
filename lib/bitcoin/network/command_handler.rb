@@ -132,7 +132,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     end
   end
 
-  # display various statistics
+  # Get various statistics.
   #  bitcoin_node info
   def handle_info
     blocks = @node.connections.map(&:version).compact.map(&:last_block) rescue nil
@@ -153,13 +153,13 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     Bitcoin.namecoin? ? {:names => @node.store.db[:names].count}.merge(info) : info
   end
 
-  # display configuration hash currently used
+  # Get the currently active configuration.
   #  bitcoin_node config
   def handle_config
     @node.config
   end
 
-  # display connected peers
+  # Get currently connected peers.
   #  bitcoin_node connections
   def handle_connections
     @node.connections.sort{|x,y| y.uptime <=> x.uptime}.map{|c|
@@ -170,14 +170,14 @@ class Bitcoin::Network::CommandHandler < EM::Connection
       "client: #{c.version.user_agent rescue '?'}]" }
   end
 
-  # connect to given peer(s)
+  # Connect to given peer(s).
   #  bitcoin_node connect <ip>:<port>[,<ip>:<port>]
   def handle_connect *args
     args.each {|a| @node.connect_peer(*a.split(':')) }
     {:state => "Connecting..."}
   end
 
-  # disconnect peer(s)
+  # Disconnect given peer(s).
   #  bitcoin_node disconnect <ip>:<port>[,<ip>,<port>]
   def handle_disconnect *args
     args.each do |c|
@@ -188,21 +188,21 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     {:state => "Disconnected"}
   end
 
-  # trigger node to ask peers for new blocks
+  # Trigger the node to ask its peers for new blocks.
   #  bitcoin_node getblocks
   def handle_getblocks
     @node.connections.sample.send_getblocks
     {:state => "Sending getblocks..."}
   end
 
-  # trigger node to ask for new peer addrs
+  # Trigger the node to ask its for new peer addresses.
   #  bitcoin_node getaddr
   def handle_getaddr
     @node.connections.sample.send_getaddr
     {:state => "Sending getaddr..."}
   end
 
-  # display known peer addrs (used by bin/bitcoin_dns_seed)
+  # Get known peer addresses (used by bin/bitcoin_dns_seed)
   #  bitcoin_node addrs [count]
   def handle_addrs count = 32
     @node.addrs.weighted_sample(count.to_i) do |addr|
@@ -212,7 +212,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     end.compact
   end
 
-  # display Time Since Last Block.
+  # Get Time Since Last Block.
   #  bitcoin_node tslb
   def handle_tslb
     { tslb: (Time.now - @node.last_block_time).to_i }
@@ -267,7 +267,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     Bitcoin::P::Tx.new(tx.to_payload).to_payload.hth
   end
 
-  # relay given transaction (in hex)
+  # Relay given transaction (in hex).
   #  bitcoin_node relay_tx <tx in hex>
   def handle_relay_tx hex, send = 3, wait = 3
     begin
@@ -301,25 +301,29 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     respond("relay_tx", { error: $!.message, backtrace: $@ })
   end
 
-  # stop bitcoin node
+  # Stop the bitcoin node.
   #  bitcoin_node stop
   def handle_stop
     Thread.start { sleep 0.1; @node.stop }
     {:state => "Stopping..."}
   end
 
-  # list all commands
+  # List all available commands.
   #  bitcoin_node help
   def handle_help
     self.methods.grep(/^handle_(.*?)/).map {|m| m.to_s.sub(/^(.*?)_/, '')}
   end
 
+  # Validate and store given block (in hex) as if it was received by a peer.
+  #  bitcoin_node store_block <block in hex>
   def handle_store_block hex
     block = Bitcoin::P::Block.new(hex.htb)
     @node.queue << [:block, block]
     { queued: [ :block, block.hash ] }
   end
 
+  # Store given transaction (in hex) as if it was received by a peer.
+  #  bitcoin_node store_tx <tx in hex>
   def handle_store_tx hex
     tx = Bitcoin::P::Tx.new(hex.htb)
     @node.queue << [:tx, tx]

@@ -11,25 +11,155 @@ using the sequel::sqlite3 STORAGE backend):
 
 You can specify options (see +--help+) or pass a config file with +--config+ (see CONFIG).
 
-Some common options you might want to change:
+Some common options you might want to use:
 
 <tt>-n --network</tt> <i><name></i>::
-  +bitcoin+ or +testnet+ network
+  Network to use. Usually +bitcoin+. Support for +namecoin+ is also quite good.
+  Use +testnet+ for development.
+
+<tt>-c --config</tt> <i><file></i>::
+  Read options from config file. See also CONFIG.
+
 <tt>--connect</tt> <i><ip:port></i>::
-  list of peers to connect to
+  List of peers to connect to.
+
 <tt>-s --storage</tt> <i><backend-string></i>::
- storage backend to use (see STORAGE)
+  Storage backend to use. See also STORAGE.
 
-It will take some time to download/store the entire blockchain at first, so be patient ;)
+<tt>--import</tt> <i><blockchain dir></i>::
+  Import blockchain in bitcoind/qt format from given directory.
+
+<tt>-v --verbose</tt>::
+  Display debug output.
+
+<tt>-h --help</tt>::
+  Display all available options.
+
+It will take a long time to download/store the entire blockchain at first, so be patient ;)
 
 
-== Command client
+== Command socket
 
 The node opens a separate command socket which you can connect to and query statistics
-or get notified about new blocks/tx, etc.
+or get notified about new blocks/tx, etc. See below for a list of available commands.
 
- bitcoin_node info  # general statistics
+=== CLI interface
 
- bitcoin_node help  # list all commands
+The easiest way is to just call `bitcoin_node` again in the same way you started it,
+but with an extra command argument:
 
- bitcoin_node monitor block # wait for new blocks and output their hashes
+ bitcoin_node info
+ bitcoin_node -c config.yml info
+ bitcoin_node monitor "block tx"
+
+
+=== CommandClient
+
+If you are programming in an EventMachine context, you might find the
+Bitcoin::Network::CommandClient convenient.
+
+=== Raw socket
+
+Of course you can also connect to the socket by any other means you like, just
+send [<command>, <params>] pairs and receive [<command>, <response>] pairs back (both
+encoded in JSON):
+
+ $ echo -e '["tslb", []]\0' | nc 127.0.0.1 9999
+ ["tslb",{"tslb":2700}]
+
+
+=== Commands
+
+==== info
+
+Get various statistics.
+
+ bitcoin_node info
+
+==== config
+
+Get the currently active configuration.
+
+ bitcoin_node config
+
+==== connections
+
+Get currently connected peers.
+
+ bitcoin_node connections
+
+==== connect
+
+Connect to given peer(s).
+
+ bitcoin_node connect <ip>:<port>[,<ip>:<port>]
+
+==== disconnect
+
+Disconnect given peer(s).
+
+ bitcoin_node disconnect <ip>:<port>[,<ip>,<port>]
+
+==== getblocks
+
+Trigger the node to ask its peers for new blocks.
+
+ bitcoin_node getblocks
+
+==== getaddr
+
+Trigger the node to ask its for new peer addresses.
+
+ bitcoin_node getaddr
+
+==== addrs
+
+Get known peer addresses (used by bin/bitcoin_dns_seed)
+
+ bitcoin_node addrs [count]
+
+==== tslb
+
+Get Time Since Last Block.
+
+ bitcoin_node tslb
+
+==== create_tx
+
+TODO
+
+==== assemble_tx
+
+TODO
+
+==== relay_tx
+
+Relay given transaction (in hex).
+
+ bitcoin_node relay_tx <tx in hex>
+
+==== store_block
+
+Validate and store given block (in hex) as if it was received by a peer.
+
+ bitcoin_node store_block <block in hex>
+
+==== store_tx
+
+Store given transaction (in hex) as if it was received by a peer.
+
+ bitcoin_node store_tx <tx in hex>
+
+==== stop
+
+Stop the bitcoin node.
+
+ bitcoin_node stop
+
+==== help
+
+List all available commands.
+
+ bitcoin_node help
+
+
