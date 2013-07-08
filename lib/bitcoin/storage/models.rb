@@ -170,7 +170,7 @@ module Bitcoin::Storage::Models
     end
 
     def expires_in
-      12000 - (@store.get_depth - get_block.depth) rescue nil
+      36000 - (@store.get_depth - get_block.depth) rescue nil
     end
 
     def to_json(opts = {})
