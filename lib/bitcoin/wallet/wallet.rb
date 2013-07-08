@@ -170,7 +170,7 @@ module Bitcoin::Wallet
       output_value = outputs.map{|o| o[-1] }.inject(:+)
 
       prev_outs = get_selector.select(output_value)
-      return nil  if !prev_outs
+      raise "Insufficient funds."  if !prev_outs
       if Bitcoin.namecoin?
         prev_out = nil
         outputs.each do |out|
@@ -189,7 +189,7 @@ module Bitcoin::Wallet
       end
 
       input_value = prev_outs.map(&:value).inject(:+)
-      return nil  unless input_value >= (output_value + fee)
+      raise "Insufficient funds."  unless input_value >= (output_value + fee)
 
       tx = build_tx do |t|
         t.version 0x7100  if Bitcoin.namecoin? && outputs.find {|o| o[0].to_s =~ /^name_/ }

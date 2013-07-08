@@ -240,7 +240,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
             key = Bitcoin::Key.new(nil, k)
             key = { addr: key.addr, key: key }
           rescue
-            return { error: "Input not valid address, pub- or privkey" }
+            return { error: "Input not valid address, pub- or privkey: #{k}" }
           end
         end
       end
@@ -248,7 +248,10 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     end
     wallet = Bitcoin::Wallet::Wallet.new(@node.store, keystore)
     tx = wallet.new_tx(recipients.map {|r| [:address, r[0], r[1]]}, fee)
+    return { error: "Error creating tx." }  unless tx
     [ tx.to_payload.hth, tx.in.map {|i| [i.sig_hash.hth, i.sig_address] rescue nil } ]
+  rescue
+    { error: "Error creating tx: #{$!.message}" }
   end
 
   # Assemble an unsigned transaction from the +tx_hex+ and +sig_pubkeys+.
@@ -260,11 +263,13 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     tx = Bitcoin::P::Tx.new(tx_hex.htb)
     sig_pubs.each.with_index do |sig_pub, idx|
       sig, pub = *sig_pub.map(&:htb)
-      script_sig = Script.to_signature_pubkey_script(sig, pub)
+      script_sig = Bitcoin::Script.to_signature_pubkey_script(sig, pub)
       tx.in[idx].script_sig_length = script_sig.bytesize
       tx.in[idx].script_sig = script_sig
     end
     Bitcoin::P::Tx.new(tx.to_payload).to_payload.hth
+  rescue
+    { error: "Error assembling tx: #{$!.message}" }
   end
 
   # Relay given transaction (in hex).

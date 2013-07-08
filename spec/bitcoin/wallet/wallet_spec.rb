@@ -164,9 +164,9 @@ describe Bitcoin::Wallet::Wallet do
       Script.new(@tx.out.last.pk_script).get_address.should == @wallet.addrs.last
     end
 
-    it "should return nil if insufficient balance" do
-      @tx = @wallet.new_tx([[:address, '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7', 7000]])
-      @tx.should == nil
+    it "should raise exception if insufficient balance" do
+      -> {@tx = @wallet.new_tx([[:address, '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7', 7000]])}
+      .should.raise(RuntimeError).message.should == "Insufficient funds."
     end
 
 
