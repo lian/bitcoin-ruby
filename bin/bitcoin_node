@@ -81,7 +81,7 @@ optparse = OptionParser.new do |opts|
     options[:max][:connections_in] = count.to_i
   end
 
-  [:addr, :queue, :inv].each do |name|
+  [:addr, :queue, :inv, :unconfirmed].each do |name|
     opts.on("--m#{name.to_s[0]}", "--max-#{name} [COUNT]",
       "Max #{name} (default: #{options[:max][name]})") do |count|
       options[:max][name] = count.to_i

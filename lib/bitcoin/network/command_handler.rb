@@ -95,12 +95,15 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   # When +conf+ is given, don't subscribe to the :tx channel for unconfirmed
   # transactions. Instead, subscribe to the :block channel, and whenever a new
   # block comes in, send all transactions that now have +conf+ confirmations.
-  def handle_monitor_tx conf = 0
-    return  unless (conf = conf.to_i) > 0
+  def handle_monitor_tx conf = nil
+    return  unless conf
+    if conf.to_i == 0 # 'tx_0' is just an alias for 'tx'
+      return @node.subscribe(:tx) {|*a| @node.notifiers[:tx_0].push(*a) }
+    end
     @node.subscribe(:block) do |block, depth|
-      block = @node.store.get_block_by_depth(depth - conf + 1)
+      block = @node.store.get_block_by_depth(depth - conf.to_i + 1)
       next  unless block
-      block.tx.each {|tx| @node.notifiers["tx_#{conf}".to_sym].push([tx, conf]) }
+      block.tx.each {|tx| @node.notifiers["tx_#{conf}".to_sym].push([tx, conf.to_i]) }
     end
   end
 

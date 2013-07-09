@@ -70,7 +70,7 @@ module Bitcoin::Network
         :queue => 501,
         :inv => 501,
         :inv_cache => 0,
-        :unconfirmed => 3
+        :unconfirmed => 100,
       },
       :intervals => {
         :queue => 1,
@@ -326,13 +326,15 @@ module Bitcoin::Network
           else
             drop = @unconfirmed.size - @config[:max][:unconfirmed] + 1
             drop.times { @unconfirmed.shift }  if drop > 0
-            @unconfirmed[obj[1].hash] = obj[1]
-            push_notification(:tx, [obj[1], 0])
+            unless @unconfirmed[obj[1].hash]
+              @unconfirmed[obj[1].hash] = obj[1]
+              push_notification(:tx, [obj[1], 0])
 
-            if @notifiers[:output]
-              obj[1].out.each do |out|
-                address = Bitcoin::Script.new(out.pk_script).get_address
-                push_notification(:output, [obj[1].hash, address, out.value, 0])
+              if @notifiers[:output]
+                obj[1].out.each do |out|
+                  address = Bitcoin::Script.new(out.pk_script).get_address
+                  push_notification(:output, [obj[1].hash, address, out.value, 0])
+                end
               end
             end
           end
@@ -355,7 +357,7 @@ module Bitcoin::Network
       @log.debug { "inv queue worker running" }
       return  if @queue.size >= @config[:max][:queue]
       while inv = @inv_queue.shift
-        next  if !@store.in_sync? && inv[0] == :tx
+        next  if !@store.in_sync? && inv[0] == :tx && @notifiers.empty?
         next  if @queue.map{|i|i[1]}.map(&:hash).include?(inv[1])
         inv[2].send("send_getdata_#{inv[0]}", inv[1])
       end
