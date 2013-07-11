@@ -81,7 +81,7 @@ describe 'Bitcoin::Namecoin' do
   end
 
   [
-   { :name => :utxo, :db => 'sqlite:/' },
+   { :name => :utxo, :db => 'sqlite:/', utxo_cache: 0 },
    { :name => :sequel, :db => 'sqlite:/' },
   ].each do |configuration|
 

@@ -448,9 +448,10 @@ module Bitcoin::Network
       end
     end
 
-
+    # get the external ip that was suggested in version messages
+    # from other peers most often.
     def external_ip
-      @external_ips.inject({}) {|a, b| a[b] ||= 0; a[b] += 1; a }.sort_by {|k, v| v}[-1][0]
+      @external_ips.group_by(&:dup).values.max_by(&:size).first
     rescue
       @config[:listen][0]
     end

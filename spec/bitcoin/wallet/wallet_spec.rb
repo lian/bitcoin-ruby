@@ -100,14 +100,14 @@ describe Bitcoin::Wallet::Wallet do
     list[1].should == 5000
   end
 
-  it "should create new addr" do
-    @wallet.addrs.size.should == 1
+  # it "should create new addr" do
+  #   @wallet.addrs.size.should == 1
 
-    key = Key.generate
-    a = @wallet.get_new_addr
-    @wallet.addrs.size.should == 2
-    @wallet.addrs[1].should == a
-  end
+  #   key = Key.generate
+  #   a = @wallet.get_new_addr
+  #   @wallet.addrs.size.should == 2
+  #   @wallet.addrs[1].should == a
+  # end
 
   describe "Bitcoin::Wallet::Wallet#tx" do
 
@@ -219,7 +219,6 @@ describe Bitcoin::Wallet::Wallet do
   #     @storage.expect(:get_txouts_for_address, [txout], [@key.addr])
   #     @storage.expect(:get_txouts_for_address, [txout], [@key2.addr])
   #     @storage.expect(:get_txouts_for_address, [txout], [@key3.addr])
-
   #     @storage.expect(:class, Bitcoin::Storage::Backends::SequelStore, [])
   #     @keystore = DummyKeyStore.new([@key, @key2, @key3])
   #     selector = Mock.new
