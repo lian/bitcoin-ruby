@@ -4,6 +4,8 @@ Sequel.migration do
 
     $stdout.puts "Running migration #{__FILE__}"
 
+    next  if tables.include?(:tx)
+
     create_table :tx do
       primary_key :id
       column :hash, :varchar, :null => false, :unique => true, :index => true

@@ -12,6 +12,8 @@ Sequel.migration do
       add_column :backend, :varchar # storage backend
     end
 
+    next  if tables.include?(:blk)
+
     create_table :blk do
       primary_key :id
       column :hash, binary, :null => false, :unique => true, :index => true
