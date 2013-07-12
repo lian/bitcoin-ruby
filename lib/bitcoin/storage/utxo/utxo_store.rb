@@ -231,7 +231,7 @@ module Bitcoin::Storage::Backends
 
     # check if transaction +tx_hash+ exists
     def has_tx(tx_hash)
-      !!@db[:utxo].where(:hash => tx_hash.blob).get(1)
+      !!@db[:utxo].where(:tx_hash => tx_hash.blob).get(1)
     end
 
     # get head block (highest block from the MAIN chain)

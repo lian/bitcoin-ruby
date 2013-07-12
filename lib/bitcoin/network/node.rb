@@ -429,18 +429,6 @@ module Bitcoin::Network
       @inv_queue << inv
     end
 
-    def relay_tx(tx)
-      return false  unless @store.in_sync?
-      log.info { "relaying tx #{tx.hash}" }
-      @store.store_tx(tx)
-      @connections.select(&:connected?).sample((@connections.size / 2) + 1).each do |peer|
-        peer.send_inv(:tx, tx)
-      end
-    rescue Bitcoin::Validation::ValidationError
-      @log.warn { "ValiationError storing tx #{tx.hash}: #{$!.message}" }
-      false
-    end
-
     def work_relay
       log.debug { "relay worker running" }
       @store.get_unconfirmed_tx.each do |tx|
