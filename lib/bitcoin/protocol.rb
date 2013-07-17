@@ -22,9 +22,8 @@ module Bitcoin
     DNS_Seed = [ "bitseed.xf2.org", "bitseed.bitcoin.org.uk" ]
     Uniq = rand(0xffffffffffffffff)
 
-    # var_int refers to what Satoshi called "CompactSize"
-    # BitcoinQT has later added even more compact format called CVarInt to use in its local block storage. 
-    # CVarInt is not implemented in bitcoin-ruby.
+    # var_int refers to https://en.bitcoin.it/wiki/Protocol_specification#Variable_length_integer and is what Satoshi called "CompactSize"
+    # BitcoinQT has later added even more compact format called CVarInt to use in its local block storage. CVarInt is not implemented here.
     def self.unpack_var_int(payload)
       case payload.unpack("C")[0] # TODO add test cases
       when 0xfd; payload.unpack("xva*")
