@@ -19,7 +19,6 @@ module Bitcoin
     autoload :Handler, 'bitcoin/protocol/handler'
     autoload :Parser,  'bitcoin/protocol/parser'
 
-    DNS_Seed = [ "bitseed.xf2.org", "bitseed.bitcoin.org.uk" ]
     Uniq = rand(0xffffffffffffffff)
 
     # var_int refers to https://en.bitcoin.it/wiki/Protocol_specification#Variable_length_integer and is what Satoshi called "CompactSize"
