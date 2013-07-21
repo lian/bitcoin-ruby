@@ -1,5 +1,7 @@
 # encoding: ascii-8bit
 
+require 'json'
+
 # Client to connect to CommandHandler and issue requests or register for events
 class Bitcoin::Network::CommandClient < EM::Connection
 

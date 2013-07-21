@@ -270,7 +270,9 @@ class Bitcoin::Network::CommandHandler < EM::Connection
       tx.in[idx].script_sig_length = script_sig.bytesize
       tx.in[idx].script_sig = script_sig
     end
-    Bitcoin::P::Tx.new(tx.to_payload).to_payload.hth
+    tx = Bitcoin::P::Tx.new(tx.to_payload)
+    tx.validator(@node.store).validate(raise_errors: true)
+    tx.to_payload.hth
   rescue
     { error: "Error assembling tx: #{$!.message}" }
   end

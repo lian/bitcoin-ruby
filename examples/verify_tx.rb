@@ -7,7 +7,7 @@
 #
 # see Bitcoin::Protocol::Tx and Bitcoin::Script.
 # Note: For this to work, you need to have the transactions in your storage. see NODE.
-
+# Note: There is also Bitcoin::Validation::Tx which validates a lot more than signatures.
 
 $:.unshift( File.expand_path("../../lib", __FILE__) )
 require 'bitcoin'

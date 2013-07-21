@@ -192,6 +192,8 @@ describe 'Node Command API' do
         t.output {|o| o.value 50e8; o.script {|s| s.recipient @key.addr } }
       end
       sig = @key.sign(tx.in[0].sig_hash)
+      test_command("store_block", [@block.to_payload.hth])
+      sleep 0.1
       res = test_command("assemble_tx", [tx.to_payload.hth, [[sig.hth, @key.pub]]])
       tx = Bitcoin::P::Tx.new(res.htb)
       tx.verify_input_signature(0, @block.tx[0]).should == true
