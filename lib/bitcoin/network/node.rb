@@ -310,7 +310,7 @@ module Bitcoin::Network
     # check for new items in the queue and process them
     def work_queue
       @log.debug { "queue worker running" }
-      return  if @queue.size == 0
+      return getblocks  if @queue.size == 0
 
       while obj = @queue.shift
         begin
@@ -321,7 +321,7 @@ module Bitcoin::Network
                 push_notification(:block, [obj[1], res[0]])
                 obj[1].tx.each {|tx| @unconfirmed.delete(tx.hash) }
               end
-              getblocks  if res[1] == 2
+              getblocks  if res[1] == 2 && @store.in_sync?
             end
           else
             drop = @unconfirmed.size - @config[:max][:unconfirmed] + 1
