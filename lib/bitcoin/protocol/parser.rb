@@ -103,7 +103,7 @@ module Bitcoin
       # https://en.bitcoin.it/wiki/BIP_0035
       def handle_mempool_request(payload)
         return unless @version[:version] >= 60002           # Protocol version >= 60002
-        return unless (@version[:services] & (1 << 0)) == 1 # NODE_NETWORK bit set in Services
+        return unless (@version[:services] & Bitcoin::Protocol::Version::NODE_NETWORK) == 1 # NODE_NETWORK bit set in Services
         @h.on_mempool if @h.respond_to?(:on_mempool)
       end
 

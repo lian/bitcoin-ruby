@@ -21,7 +21,7 @@ describe 'Bitcoin::Protocol::Parser (version)' do
     pkt = handler.pkt
     pkt.fields.should == {
       :version     => 60000,
-      :services    => "\x01\x00\x00\x00\x00\x00\x00\x00",
+      :services    => Bitcoin::Protocol::Version::NODE_NETWORK,
       :time        => 1329775027,
       :from        => "127.0.0.1:18333",
       :to          => "127.0.0.1:57802",
@@ -41,7 +41,7 @@ describe 'Bitcoin::Protocol::Parser (version)' do
     pkt = handler.pkt
     pkt.fields.should == {
       :version     => 40000,
-      :services    => "\x01\x00\x00\x00\x00\x00\x00\x00",
+      :services    => Bitcoin::Protocol::Version::NODE_NETWORK,
       :time        => 1321812496,
       :from        => "127.0.0.1:18333",
       :to          => "127.0.0.1:1234",
@@ -66,7 +66,7 @@ describe 'Bitcoin::Protocol::Parser (version)' do
     pkt = handler.pkt
     pkt.fields.should == {
       :version    => Bitcoin.network[:protocol_version],
-      :services    => "\x01\x00\x00\x00\x00\x00\x00\x00",
+      :services   => Bitcoin::Protocol::Version::NODE_NETWORK,
       :time       => 1337,
       :to         => "127.0.0.1:8333",
       :from       => "127.0.0.1:1234",

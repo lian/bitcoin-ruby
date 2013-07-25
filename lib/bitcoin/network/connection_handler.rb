@@ -303,7 +303,7 @@ module Bitcoin::Network
       return @addr  if @addr
       @addr = P::Addr.new
       @addr.time, @addr.service, @addr.ip, @addr.port =
-        Time.now.tv_sec, @version.services.unpack("Q")[0], @host, @port
+        Time.now.tv_sec, @version.services, @host, @port
       @addr
     end
 

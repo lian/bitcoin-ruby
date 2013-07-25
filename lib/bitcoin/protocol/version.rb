@@ -3,12 +3,17 @@
 module Bitcoin
   module Protocol
 
+    # https://en.bitcoin.it/wiki/Protocol_specification#version
     class Version
+      # services bit constants
+      NODE_NETWORK = (1 << 0)
+
       attr_reader :fields
+
       def initialize(opts={})
         @fields = {
           :version    => Bitcoin.network[:protocol_version],
-          :services   => 1,
+          :services   => NODE_NETWORK,
           :time       => Time.now.tv_sec,
           :from       => "127.0.0.1:8333",
           :to         => "127.0.0.1:8333",
@@ -34,7 +39,7 @@ module Bitcoin
       end
 
       def parse(payload)
-        version, services, timestamp, to, from, nonce, payload = payload.unpack("Va8Qa26a26Qa*")
+        version, services, timestamp, to, from, nonce, payload = payload.unpack("VQQa26a26Qa*")
         to, from = unpack_address_field(to), unpack_address_field(from)
         user_agent, payload = Protocol.unpack_var_string(payload)
         last_block = payload.unpack("V")[0]
