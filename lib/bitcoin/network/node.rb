@@ -54,7 +54,6 @@ module Bitcoin::Network
       :storage => "sequel::sqlite://~/.bitcoin-ruby/<network>/blocks.db",
       :mode => :full,
       :dns => true,
-      :epoll => false,
       :epoll_limit => 10000,
       :epoll_user => nil,
       :addr_file => "~/.bitcoin-ruby/<network>/peers.json",
@@ -170,6 +169,17 @@ module Bitcoin::Network
       end
     end
 
+    # initiate epoll with given file descriptor and set effective user
+    def epoll_init
+      log.info { "EPOLL: Available file descriptors: " +
+        EM.set_descriptor_table_size(@config[:epoll_limit]).to_s }
+      if @config[:epoll_user]
+        EM.set_effective_user(@config[:epoll_user])
+        log.info { "EPOLL: Effective user set to: #{@config[:epoll_user]}" }
+      end
+      EM.epoll = true
+    end
+
     def run
       @started = Time.now
 
@@ -178,7 +188,17 @@ module Bitcoin::Network
         log.info { "Bye" }
       end
 
-      init_epoll  if @config[:epoll]
+      # enable kqueue (BSD, OS X)
+      if EM.kqueue?
+        log.info { 'Using BSD kqueue' }
+        EM.kqueue = true
+      end
+
+      # enable epoll (Linux)
+      if EM.epoll?
+        log.info { 'Using Linux epoll' }
+        epoll_init
+      end
 
       EM.run do
 
@@ -376,18 +396,6 @@ module Bitcoin::Network
 #        (!@store.in_sync? && inv[0] == :tx)
 #      @inv_cache << [inv[0], inv[1]]
       @inv_queue << inv
-    end
-
-
-    # initiate epoll with given file descriptor and set effective user
-    def init_epoll
-      log.info { "EPOLL: Available file descriptors: " +
-        EM.set_descriptor_table_size(@config[:epoll_limit]).to_s }
-      if @config[:epoll_user]
-        EM.set_effective_user(@config[:epoll_user])
-        log.info { "EPOLL: Effective user set to: #{@config[:epoll_user]}" }
-      end
-      EM.epoll
     end
 
     def relay_tx(tx)
