@@ -157,10 +157,18 @@ describe 'Tx' do
 
     # (SIGHASH_ANYONECANPAY | SIGHASH_SINGLE) p2sh transaction
     tx = Bitcoin::P::Tx.from_json(fixtures_file('7208e5edf525f04e705fb3390194e316205b8f995c8c9fcd8c6093abe04fa27d.json'))
-    p tx.hash == "7208e5edf525f04e705fb3390194e316205b8f995c8c9fcd8c6093abe04fa27d"
+    tx.hash.should == "7208e5edf525f04e705fb3390194e316205b8f995c8c9fcd8c6093abe04fa27d"
     outpoint_tx = Bitcoin::P::Tx.from_json(fixtures_file('3e58b7eed0fdb599019af08578effea25c8666bbe8e200845453cacce6314477.json'))
-    p outpoint_tx.hash == "3e58b7eed0fdb599019af08578effea25c8666bbe8e200845453cacce6314477"
+    outpoint_tx.hash.should == "3e58b7eed0fdb599019af08578effea25c8666bbe8e200845453cacce6314477"
     tx.verify_input_signature(0, outpoint_tx).should == true
+
+    # SIGHHASH_SINGLE - https://bitcointalk.org/index.php?topic=260595.0
+    tx = Bitcoin::P::Tx.from_json(fixtures_file('315ac7d4c26d69668129cc352851d9389b4a6868f1509c6c8b66bead11e2619f.json'))
+    tx.hash.should == "315ac7d4c26d69668129cc352851d9389b4a6868f1509c6c8b66bead11e2619f"
+    outpoint_tx = Bitcoin::P::Tx.from_json(fixtures_file('69216b8aaa35b76d6613e5f527f4858640d986e1046238583bdad79b35e938dc.json'))
+    outpoint_tx.hash.should == "69216b8aaa35b76d6613e5f527f4858640d986e1046238583bdad79b35e938dc"
+    tx.verify_input_signature(0, outpoint_tx).should == true
+    tx.verify_input_signature(1, outpoint_tx).should == true
   end
 
   it '#sign_input_signature' do

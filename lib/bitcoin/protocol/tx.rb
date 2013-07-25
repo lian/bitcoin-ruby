@@ -151,6 +151,8 @@ module Bitcoin
         # https://github.com/bitcoin/bitcoin/blob/c2e8c8acd8ae0c94c70b59f55169841ad195bb99/src/script.cpp#L1058
         # https://en.bitcoin.it/wiki/OP_CHECKSIG
 
+        return "\x01".ljust(32, "\x00") if input_idx >= @in.size # ERROR: SignatureHash() : input_idx=%d out of range
+
         hash_type ||= SIGHASH_TYPE[:all]
 
         pin  = @in.map.with_index{|input,idx|
@@ -177,6 +179,7 @@ module Bitcoin
           pout = ""
           out_size = Protocol.pack_var_int(0)
         when SIGHASH_TYPE[:single]
+          return "\x01".ljust(32, "\x00") if input_idx >= @out.size # ERROR: SignatureHash() : input_idx=%d out of range (SIGHASH_SINGLE)
           pout = @out[0...(input_idx+1)].map.with_index{|out,idx| (idx==input_idx) ? out.to_payload : out.to_null_payload }.join
           out_size = Protocol.pack_var_int(input_idx+1)
         end
