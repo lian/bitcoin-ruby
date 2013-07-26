@@ -76,7 +76,7 @@ module Bitcoin
         when 'getdata';  parse_inv(payload, :get)
         when 'addr';     parse_addr(payload)
         when 'getaddr';  @h.on_getaddr  if @h.respond_to?(:on_getaddr)
-        when 'verack';   @h.on_handshake_complete # nop
+        when 'verack';   @h.on_verack  if @h.respond_to?(:on_verack)
         when 'version';  parse_version(payload)
         when 'alert';    parse_alert(payload)
         when 'ping';     @h.on_ping(payload.unpack("Q")[0])
@@ -86,7 +86,7 @@ module Bitcoin
         when 'mempool';  handle_mempool_request(payload)
         when 'notfound'; handle_notfound_reply(payload)
         else
-          p ['unkown-packet', command, payload]
+          p ['unknown-packet', command, payload]
         end
       end
 

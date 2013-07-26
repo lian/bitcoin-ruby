@@ -46,6 +46,10 @@ module Bitcoin
       send_data( Protocol.verack_pkt )
     end
 
+    def on_verack
+      on_handshake_complete
+    end
+
     def on_handshake_complete
       p [@sockaddr, 'handshake complete']
       @connected = true

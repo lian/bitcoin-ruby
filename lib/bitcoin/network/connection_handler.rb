@@ -5,13 +5,15 @@ require 'eventmachine'
 module Bitcoin::Network
 
   # Node network connection to a peer. Handles all the communication with a specific peer.
-  # TODO: incoming/outgoing?
   class ConnectionHandler < EM::Connection
 
     include Bitcoin
     include Bitcoin::Storage
 
-    attr_reader :host, :port, :state, :version, :direction
+    attr_reader :host, :port, :version, :direction
+
+    # :new, :handshake, :connected, :disconnected
+    attr_reader :state
 
     def log
       @log ||= Logger::LogWrapper.new("#@host:#@port", @node.log)
@@ -39,15 +41,19 @@ module Bitcoin::Network
 
     # check if connection is wanted, begin handshake if it is, disconnect if not
     def post_init
-      if incoming? && @node.connections.select(&:incoming?).size >= @node.config[:max][:connections_in]
-        return close_connection  unless @node.config[:connect].include?([@host, @port.to_s])
+      if incoming?
+        begin_handshake
       end
-      log.info { "Established #{@direction} connection" }
-      @state = :established
-      @node.connections << self
-      on_handshake_begin
     rescue Exception
       log.fatal { "Error in #post_init" }
+      p $!; puts *$@
+    end
+
+    # only called for outgoing connection
+    def connection_completed
+      begin_handshake
+    rescue Exception
+      log.fatal { "Error in #connection_completed" }
       p $!; puts *$@
     end
 
@@ -66,6 +72,34 @@ module Bitcoin::Network
       @node.push_notification(:connection, [:disconnected, [@host, @port]])
       @state = :disconnected
       @node.connections.delete(self)
+    end
+
+    # begin handshake
+    # TODO: disconnect if we don't complete within a reasonable time
+    def begin_handshake
+      # FIXME: this logic doesn't belong down in the connection
+      if incoming? && @node.connections.select(&:incoming?).size >= @node.config[:max][:connections_in]
+        return close_connection  unless @node.config[:connect].include?([@host, @port.to_s])
+      end
+      log.info { "Established #{@direction} connection" }
+      @node.connections << self
+      @state = :handshake
+      # incoming connections wait to receive a version
+      send_version if outgoing?
+    rescue Exception
+      log.fatal { "Error in #begin_handshake" }
+      p $!; puts *$@
+    end
+
+    # complete handshake; set state, started time, notify listeners and add address to Node
+    def complete_handshake
+      if @state == :handshake
+        log.debug { 'Handshake completed' }
+        @state = :connected
+        @started = Time.now
+        @node.push_notification(:connection, [:connected, info])
+        @node.addrs << addr
+      end
     end
 
     # received +inv_tx+ message for given +hash+.
@@ -109,15 +143,6 @@ module Bitcoin::Network
       send_data pkt
     end
 
-    # send +inv+ message with given +type+ for given +obj+
-    def send_inv type, *hashes
-      hashes.each_slice(251) do |slice|
-        pkt = Protocol.inv_pkt(type, slice.map(&:htb))
-        log.debug { "<< inv #{type}: #{slice[0][0..16]}" + (slice.size > 1 ? "..#{slice[-1][0..16]}" : "") }
-        send_data(pkt)
-      end
-    end
-
     # received +addr+ message for given +addr+.
     # store addr in node and notify listeners
     def on_addr(addr)
@@ -155,14 +180,14 @@ module Bitcoin::Network
       @version = version
       log.debug { "<< verack" }
       send_data( Protocol.verack_pkt )
-      on_handshake_complete
+      complete_handshake if incoming?
     end
 
     # received +verack+ message.
     # complete handshake if it isn't completed already
     def on_verack
       log.debug { ">> verack" }
-      on_handshake_complete  if handshake?
+      complete_handshake if outgoing?
     end
 
     # received +alert+ message for given +alert+.
@@ -198,6 +223,30 @@ module Bitcoin::Network
       addrs = @node.addrs.select{|a| a.time > Time.now.to_i - 10800 }.shuffle[0..250]
       log.debug { "<< addr (#{addrs.size})" }
       send_data P::Addr.pkt(*addrs)
+    end
+
+    # begin handshake; send +version+ message
+    def send_version
+      from = "#{@node.external_ip}:#{@node.config[:listen][1]}"
+      version = Bitcoin::Protocol::Version.new({
+        :version    => 70001,
+        :last_block => @node.store.get_depth,
+        :from       => from,
+        :to         => @host,
+        :user_agent => "/bitcoin-ruby:#{Bitcoin::VERSION}/",
+        #:user_agent => "/Satoshi:0.8.3/",
+      })
+      send_data(version.to_pkt)
+      log.debug { "<< version: #{Bitcoin.network[:protocol_version]}" }
+    end
+
+    # send +inv+ message with given +type+ for given +obj+
+    def send_inv type, *hashes
+      hashes.each_slice(251) do |slice|
+        pkt = Protocol.inv_pkt(type, slice.map(&:htb))
+        log.debug { "<< inv #{type}: #{slice[0][0..16]}" + (slice.size > 1 ? "..#{slice[-1][0..16]}" : "") }
+        send_data(pkt)
+      end
     end
 
     # send +getdata tx+ message for given tx +hash+
@@ -255,19 +304,6 @@ module Bitcoin::Network
       send_data(pkt)
     end
 
-    # complete handshake; set state, started time, notify listeners and add address to Node
-    def on_handshake_complete
-      return  unless handshake?
-      log.debug { "handshake complete" }
-      @state = :connected
-      @started = Time.now
-      @node.push_notification(:connection, [:connected, info])
-      @node.addrs << addr
-      # send_getaddr
-      send_getblocks
-      # EM.add_periodic_timer(15) { send_ping }
-    end
-
     # received +ping+ message with given +nonce+.
     # send +pong+ message back, if +nonce+ is set.
     # network versions <=60000 don't set the nonce and don't expect a pong.
@@ -280,22 +316,6 @@ module Bitcoin::Network
     # TODO: see #send_ping
     def on_pong nonce
       log.debug { ">> pong (#{nonce})" }
-    end
-
-    # begin handshake; send +version+ message
-    def on_handshake_begin
-      @state = :handshake
-      from = "#{@node.external_ip}:#{@node.config[:listen].split(':')[1]}"
-      version = Bitcoin::Protocol::Version.new({
-        :version    => 70001,
-        :last_block => @node.store.get_depth,
-        :from       => from,
-        :to         => @host,
-        :user_agent => "/bitcoin-ruby:#{Bitcoin::VERSION}/",
-        #:user_agent => "/Satoshi:0.8.1/",
-      })
-      send_data(version.to_pkt)
-      log.debug { "<< version (#{Bitcoin.network[:protocol_version]})" }
     end
 
     # get Addr object for this connection
