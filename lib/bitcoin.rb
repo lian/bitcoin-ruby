@@ -609,7 +609,8 @@ module Bitcoin
       :dns_seeds => [],
       :genesis_hash => "000000000062b72c5e2ceb45fbc8587e807c155b0da735e6483dfba2f0a9c770",
       :proof_of_work_limit => 0x1d00ffff,
-      :known_nodes => ["bitcoin.tunl.in"],
+      :known_nodes => ["bitcoin.tunl.in", "webbtc.com", "178.32.31.41",
+                      "78.47.86.43", "69.164.206.88", ""],
       :checkpoints => {
         0 => "000000000062b72c5e2ceb45fbc8587e807c155b0da735e6483dfba2f0a9c770",
         19200 => "d8a7c3e01e1e95bcee015e6fcc7583a2ca60b79e5a3aa0a171eddd344ada903d",
