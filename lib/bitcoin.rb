@@ -533,9 +533,11 @@ module Bitcoin
       :default_port => 9333,
       :protocol_version => 60002,
       :dns_seeds => [
+        "dnsseed.litecointools.com",
         "dnsseed.litecoinpool.org",
-        "dnsseed.bytesized-vps.com",
         "dnsseed.ltc.xurious.com",
+        "dnsseed.koin-project.com",
+        "dnsseed.weminemnc.com",
       ],
       :genesis_hash => "12a765e31ffd4059bada1e25190f6e98c99d9714d334efa41a195a7e7e04bfe2",
       :proof_of_work_limit => 0,
@@ -554,6 +556,8 @@ module Bitcoin
         120000 => "bd9d26924f05f6daa7f0155f32828ec89e8e29cee9e7121b026a7a3552ac6131",
         161500 => "dbe89880474f4bb4f75c227c77ba1cdc024991123b28b8418dbbf7798471ff43",
         179620 => "2ad9c65c990ac00426d18e446e0fd7be2ffa69e9a7dcb28358a50b2b78b9f709",
+        240000 => "7140d1c4b4c2157ca217ee7636f24c9c73db39c4590c4e6eab2e3ea1555088aa",
+        383640 => "2b6809f094a9215bafc65eb3f110a35127a34be94b7d0590a096c3f126c6f364",
       }
     },
 
@@ -565,7 +569,10 @@ module Bitcoin
       :privkey_version => "ef",
       :default_port => 19333,
       :protocol_version => 60002,
-      :dns_seeds => [],
+      :dns_seeds => [
+        "testnet-seed.litecointools.com",
+        "testnet-seed.weminemnc.com",
+      ],
       :genesis_hash => "f5ae71e26c74beacc88382716aced69cddf3dffff24f384e1808905e0188f68f",
       :proof_of_work_limit => 0,
       :alert_pubkeys => [],
