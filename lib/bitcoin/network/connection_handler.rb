@@ -77,8 +77,7 @@ module Bitcoin::Network
     # begin handshake
     # TODO: disconnect if we don't complete within a reasonable time
     def begin_handshake
-      # FIXME: this logic doesn't belong down in the connection
-      if incoming? && @node.connections.select(&:incoming?).size >= @node.config[:max][:connections_in]
+      if incoming? && !@node.accept_connections?
         return close_connection  unless @node.config[:connect].include?([@host, @port.to_s])
       end
       log.info { "Established #{@direction} connection" }
@@ -180,7 +179,11 @@ module Bitcoin::Network
       @version = version
       log.debug { "<< verack" }
       send_data( Protocol.verack_pkt )
-      complete_handshake if incoming?
+
+      # sometimes other nodes don't bother to send a verack back,
+      # but we can consider the handshake complete once we sent ours.
+      # apparently it can happen on incoming and outgoing connections alike
+      complete_handshake
     end
 
     # received +verack+ message.

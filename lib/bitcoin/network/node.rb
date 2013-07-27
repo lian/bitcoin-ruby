@@ -424,13 +424,22 @@ module Bitcoin::Network
       @config[:listen].split(":")[0]
     end
 
+    # push notification +message+ to +channel+
     def push_notification channel, message
       @notifiers[channel.to_sym].push(message)  if @notifiers[channel.to_sym]
     end
 
+    # subscribe to notification +channel+.
+    # available channels are: block, tx, output, connection.
+    # see CommandHandler for details.
     def subscribe channel
       @notifiers[channel.to_sym] ||= EM::Channel.new
       @notifiers[channel.to_sym].subscribe {|*data| yield(*data) }
+    end
+
+    # should the node accept new incoming connections?
+    def accept_connections?
+      connections.select(&:incoming?).size >= config[:max][:connections_in]
     end
 
   end
