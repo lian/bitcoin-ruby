@@ -16,15 +16,15 @@ module Litecoin
 
       1024.times{|i|
         v[(i*32)...((i*32)+32)] = x.dup
-        x[0...16]  = xor_salsa8(x[0...16], x[16...32])
-        x[16...32] = xor_salsa8(x[16...32], x[0...16])
+        xor_salsa8(x, x, 0, 16)
+        xor_salsa8(x, x, 16, 0)
       }
 
       1024.times{|i|
         j = 32 * (x[16] & 1023)
         32.times{|k| x[k] ^= v[j+k] }
-        x[0...16]  = xor_salsa8(x[0...16], x[16...32])
-        x[16...32] = xor_salsa8(x[16...32], x[0...16])
+        xor_salsa8(x, x, 0, 16)
+        xor_salsa8(x, x, 16, 0)
       }
 
       32.times{|k|
@@ -44,8 +44,8 @@ module Litecoin
       a &= 0xffffffff; ((a << b) | (a >> (32 - b))) & 0xffffffff
     end
 
-    def xor_salsa8(a, b)
-      x = 16.times.map{|n| a[n] ^= b[n] }
+    def xor_salsa8(a, b, a_offset, b_offset)
+      x = 16.times.map{|n| a[a_offset+n] ^= b[b_offset+n] }
 
       4.times{
         [
@@ -63,8 +63,8 @@ module Litecoin
         }
       }
 
-      16.times{|n| a[n] = (a[n] + x[n]) & 0xffffffff }
-      a
+      16.times{|n| a[a_offset+n] = (a[a_offset+n] + x[n]) & 0xffffffff }
+      true
     end
 
     extend self
@@ -74,6 +74,12 @@ end
 
 if $0 == __FILE__
   secret_hex = "020000004c1271c211717198227392b029a64a7971931d351b387bb80db027f270411e398a07046f7d4a08dd815412a8712f874a7ebf0507e3878bd24e20a3b73fd750a667d2f451eac7471b00de6659"
-
   p Litecoin::Scrypt.scrypt_1024_1_1_256(secret_hex) == "00000000002bef4107f882f6115e0b01f348d21195dacd3582aa2dabd7985806"
+
+  require 'benchmark'
+  secret_bytes = [secret_hex].pack("H*")
+  Benchmark.bmbm{|x|
+    #x.report("v1"){ p Litecoin::Scrypt.scrypt_1024_1_1_256_sp_old(secret_bytes) == "00000000002bef4107f882f6115e0b01f348d21195dacd3582aa2dabd7985806" }
+    x.report("v2"){ p Litecoin::Scrypt.scrypt_1024_1_1_256_sp(secret_bytes) == "00000000002bef4107f882f6115e0b01f348d21195dacd3582aa2dabd7985806" }
+  }
 end
