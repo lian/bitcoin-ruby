@@ -32,6 +32,8 @@ module Bitcoin::Network
       @version = nil
       @started = nil
       @port, @host = *Socket.unpack_sockaddr_in(get_peername)  if get_peername
+      @ping_nonce = nil
+      @latency_ms = nil
       @lock = Monitor.new
       @last_getblocks = []  # the last few getblocks messages received
     rescue Exception
@@ -296,9 +298,10 @@ module Bitcoin::Network
     # send +ping+ message
     # TODO: wait for pong and disconnect if it doesn't arrive (and version is new enough)
     def send_ping
-      nonce = rand(0xffffffff)
-      log.debug { "<< ping (#{nonce})" }
-      send_data(Protocol.ping_pkt(nonce))
+      @ping_nonce = rand(0xffffffff)
+      @ping_time = Time.now
+      log.debug { "<< ping (#{@ping_nonce})" }
+      send_data(Protocol.ping_pkt(@ping_nonce))
     end
 
     # ask for the genesis block
@@ -319,7 +322,10 @@ module Bitcoin::Network
     # received +pong+ message with given +nonce+.
     # TODO: see #send_ping
     def on_pong nonce
-      log.debug { ">> pong (#{nonce})" }
+      if @ping_nonce == nonce
+        @latency_ms = (Time.now - @ping_time) * 1000.0
+      end
+      log.debug { ">> pong (#{nonce}), latency: #{@latency_ms.to_i}ms" }
     end
 
     # begin handshake; send +version+ message
