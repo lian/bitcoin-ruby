@@ -11,7 +11,7 @@ module Litecoin
 
     def scrypt_1024_1_1_256_sp(input, scratchpad=[])
       b = pbkdf2_sha256(input, input, 1, 128)
-      x = Array.new(32){|k| b[(4*k)..((4*k)+4)].unpack("V")[0] }
+      x = b.unpack("V*")
       v = scratchpad
 
       1024.times{|i|
@@ -27,11 +27,7 @@ module Litecoin
         xor_salsa8(x, x, 16, 0)
       }
 
-      32.times{|k|
-        b[(4*k)...((4*k)+4)] = [ x[k] ].pack("V")
-      }
-
-      pbkdf2_sha256(input, b, 1, 32).reverse.unpack("H*")[0]
+      pbkdf2_sha256(input, x.pack("V*"), 1, 32).reverse.unpack("H*")[0]
     end
 
     def pbkdf2_sha256(pass, salt, c=1, dk_len=128)
