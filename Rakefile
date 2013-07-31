@@ -104,4 +104,5 @@ task :coverage do
     exit
   end
   sh "bacon", *PROJECT_SPECS
+  system('open coverage/index.html') if RUBY_PLATFORM.include? 'darwin'
 end
