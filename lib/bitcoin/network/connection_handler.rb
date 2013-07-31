@@ -7,6 +7,8 @@ module Bitcoin::Network
   # Node network connection to a peer. Handles all the communication with a specific peer.
   class ConnectionHandler < EM::Connection
 
+    LATENCY_MAX = (5*60*1000) # 5min in ms
+
     include Bitcoin
     include Bitcoin::Storage
 
@@ -14,6 +16,9 @@ module Bitcoin::Network
 
     # :new, :handshake, :connected, :disconnected
     attr_reader :state
+
+    # latency of this connection based on last ping/pong
+    attr_reader :latency_ms
 
     def log
       @log ||= Logger::LogWrapper.new("#@host:#@port", @node.log)
@@ -298,10 +303,18 @@ module Bitcoin::Network
     # send +ping+ message
     # TODO: wait for pong and disconnect if it doesn't arrive (and version is new enough)
     def send_ping
-      @ping_nonce = rand(0xffffffff)
-      @ping_time = Time.now
-      log.debug { "<< ping (#{@ping_nonce})" }
-      send_data(Protocol.ping_pkt(@ping_nonce))
+      if @version.version > Bitcoin::Protocol::BIP0031_VERSION
+        @latency_ms = LATENCY_MAX
+        @ping_nonce = rand(0xffffffff)
+        @ping_time = Time.now
+        log.debug { "<< ping (#{@ping_nonce})" }
+        send_data(Protocol.ping_pkt(@ping_nonce))
+      else
+        # set latency to 5 seconds, terrible but this version should be obsolete now
+        @latency_ms = (5*1000) 
+        log.debug { "<< ping" }
+        send_data(Protocol.ping_pkt)
+      end
     end
 
     # ask for the genesis block
@@ -320,7 +333,6 @@ module Bitcoin::Network
     end
 
     # received +pong+ message with given +nonce+.
-    # TODO: see #send_ping
     def on_pong nonce
       if @ping_nonce == nonce
         @latency_ms = (Time.now - @ping_time) * 1000.0

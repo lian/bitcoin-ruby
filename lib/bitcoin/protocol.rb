@@ -7,6 +7,9 @@ require 'json'
 module Bitcoin
   module Protocol
 
+    # BIP 0031, pong message, is enabled for all versions AFTER this one
+    BIP0031_VERSION = 60000;
+    
     autoload :TxIn,    'bitcoin/protocol/txin'
     autoload :TxOut,   'bitcoin/protocol/txout'
     autoload :Tx,      'bitcoin/protocol/tx'
