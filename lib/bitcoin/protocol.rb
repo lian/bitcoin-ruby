@@ -7,6 +7,9 @@ require 'json'
 module Bitcoin
   module Protocol
 
+    # bitcoin/src/main.h
+    MAX_INV_SZ = 50000
+
     # BIP 0031, pong message, is enabled for all versions AFTER this one
     BIP0031_VERSION = 60000;
     
@@ -119,13 +122,13 @@ module Bitcoin
     TypeLookup = Hash[:tx, 1, :block, 2, nil, 0]
 
     def self.getdata_pkt(type, hashes)
-      return if hashes.size >= 256
+      return if hashes.size > MAX_INV_SZ
       t = [ TypeLookup[type] ].pack("V")
       pkt("getdata", [hashes.size].pack("C") + hashes.map{|hash| t + hash[0..32].reverse }.join)
     end
 
     def self.inv_pkt(type, hashes)
-      return if hashes.size >= 256
+      return if hashes.size > MAX_INV_SZ
       t = [ TypeLookup[type] ].pack("V")
       pkt("inv", [hashes.size].pack("C") + hashes.map{|hash| t + hash[0..32].reverse }.join)
     end
