@@ -11,7 +11,7 @@ module Bitcoin
     MAX_INV_SZ = 50000
 
     # BIP 0031, pong message, is enabled for all versions AFTER this one
-    BIP0031_VERSION = 60000;
+    BIP0031_VERSION = 60000
     
     autoload :TxIn,    'bitcoin/protocol/txin'
     autoload :TxOut,   'bitcoin/protocol/txout'
@@ -124,13 +124,13 @@ module Bitcoin
     def self.getdata_pkt(type, hashes)
       return if hashes.size > MAX_INV_SZ
       t = [ TypeLookup[type] ].pack("V")
-      pkt("getdata", [hashes.size].pack("C") + hashes.map{|hash| t + hash[0..32].reverse }.join)
+      pkt("getdata", pack_var_int(hashes.size) + hashes.map{|hash| t + hash[0..32].reverse }.join)
     end
 
     def self.inv_pkt(type, hashes)
       return if hashes.size > MAX_INV_SZ
       t = [ TypeLookup[type] ].pack("V")
-      pkt("inv", [hashes.size].pack("C") + hashes.map{|hash| t + hash[0..32].reverse }.join)
+      pkt("inv", pack_var_int(hashes.size) + hashes.map{|hash| t + hash[0..32].reverse }.join)
     end
 
     DEFAULT_STOP_HASH = "00"*32
