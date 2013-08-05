@@ -143,9 +143,9 @@ class Bitcoin::Script
     chunks = []
     until program.empty?
       opcode = program.shift(1)[0]
-      if opcode >= 0xf0 and program[0]
-        opcode = (opcode << 8) | program.shift(1)[0]
-      end
+      #if opcode >= 0xf0 and program[0]
+      #  opcode = (opcode << 8) | program.shift(1)[0]
+      #end
 
       if (opcode > 0) && (opcode < OP_PUSHDATA1)
         len, tmp = opcode, program[0]
@@ -328,6 +328,7 @@ class Bitcoin::Script
           @debug << "OP_#{chunk-80}"
         else
           name = OPCODES[chunk] || chunk
+          puts "Bitcoin::Script: opcode #{name} unkown or not implemented\n#{to_string.inspect}"
           raise "opcode #{name} unkown or not implemented"
         end
       when String
