@@ -416,7 +416,7 @@ class Bitcoin::Script
   # is this a multisig tx
   def is_multisig?
     return false  if @chunks.size > 6 || @chunks.size < 4
-    @chunks[-1] == OP_CHECKMULTISIG
+    @chunks[-1] == OP_CHECKMULTISIG and get_multisig_pubkeys.all?{|c| c.is_a?(String) }
   end
 
   # get type of this tx
@@ -453,7 +453,7 @@ class Bitcoin::Script
 
   # get the public keys for this multisig script
   def get_multisig_pubkeys
-    1.upto(@chunks[-2] - 80).map {|i| @chunks[i]}
+    1.upto(@chunks[-2] - 80).map{|i| @chunks[i] }
   end
 
   # get the pubkey addresses for this multisig script
@@ -613,7 +613,7 @@ class Bitcoin::Script
 
   # The top two items on the stack are swapped.
   def op_swap
-    @stack[-2..-1] = @stack[-2..-1].reverse
+    @stack[-2..-1] = @stack[-2..-1].reverse if @stack[-2]
   end
 
   # If both a and b are not 0, the output is 1. Otherwise 0.

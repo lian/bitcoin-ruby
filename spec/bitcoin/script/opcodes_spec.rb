@@ -587,6 +587,15 @@ describe "Bitcoin::Script OPCODES" do
     script = "0 #{sig1} f0f0f0f0 #{sig3} 3 #{k1.pub} #{k2.pub} #{k3.pub} 3 OP_CHECKMULTISIG"
     run_script(script, "foobar").should == false
 
+    # mainnet tx output: 514c46f0b61714092f15c8dfcb576c9f79b3f959989b98de3944b19d98832b58
+    script = "0 #{sig1} 1 0 #{k1.pub} OP_SWAP OP_1ADD OP_CHECKMULTISIG"
+    run_script(script, "foobar").should == true
+    Bitcoin::Script.from_string(script).get_addresses.should == []
+    Bitcoin::Script.from_string(script).is_multisig?.should == false
+    script = "#{k1.pub} OP_SWAP OP_1ADD OP_CHECKMULTISIG"
+    Bitcoin::Script.from_string(script).get_addresses.should == []
+    Bitcoin::Script.from_string(script).is_multisig?.should == false
+
     # # TODO: check signature order; these assertions should fail:
     # script = "0 #{sig2} #{sig1} 2 #{k1.pub} #{k2.pub} #{k3.pub} 3 OP_CHECKMULTISIG"
     # run_script(script, "foobar").should == false
