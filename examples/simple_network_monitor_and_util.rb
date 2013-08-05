@@ -42,8 +42,9 @@ module SimpleNode
     end
 
     def on_handshake_complete
-      log.info { "handshake complete" }
+      return if @connected
       @connected = true
+      log.info { "handshake complete" }
       
       EM.add_timer(0.5){
         if @ask_block
@@ -96,7 +97,7 @@ module SimpleNode
       @version ||= version
       log.info { "received version:  Version:%d (%s)  Block:%d" % version.fields.values_at(:version, :user_agent, :last_block) }
       send_data( Bitcoin::Protocol.verack_pkt )
-      on_handshake_complete if Bitcoin.network_project == :freicoin
+      on_handshake_complete
     end
 
     def initialize(host, port, node=nil, opts={})
