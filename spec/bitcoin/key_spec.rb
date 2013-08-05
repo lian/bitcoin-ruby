@@ -188,7 +188,6 @@ begin
     Bitcoin::OpenSSL_EC
 
     it 'resolves public from private key' do
-      Bitcoin.network = :testnet
       privkey = ["56e28a425a7b588973b5db962a09b1aca7bdc4a7268cdd671d03c52a997255dc"].pack("H*")
       pubkey =  ["04324c6ebdcf079db6c9209a6b715b955622561262cde13a8a1df8ae0ef030eaa1552e31f8be90c385e27883a9d82780283d19507d7fa2e1e71a1d11bc3a52caf3"].pack("H*")
 
@@ -222,6 +221,26 @@ begin
       #   puts 'RAM USAGE: ' + `pmap #{Process.pid} | tail -1`[10,40].strip if (n % 1_000) == 0
         Bitcoin::OpenSSL_EC.recover_public_key_from_signature(*args).should == expected
       # }
+    end
+
+    it 'sign and verify text messages' do
+      [
+        ["5HxWvvfubhXpYYpS3tJkw6fq9jE9j18THftkZjHHfmFiWtmAbrj", false],
+        ["5KC4ejrDjv152FGwP386VD1i2NYc5KkfSMyv1nGy1VGDxGHqVY3", false],
+        ["Kwr371tjA9u2rFSMZjTNun2PXXP3WPZu2afRHTcta6KxEUdm1vEw", true],
+        ["L3Hq7a8FEQwJkW1M2GNKDW28546Vp5miewcCzSqUD9kCAXrJdS3g", true],
+      ].each{|privkey_base58,expected_compression|
+        k = Bitcoin::Key.from_base58(privkey_base58)
+        k.compressed.should == expected_compression
+        k2 = Bitcoin::Key.new(nil, k.pub)
+        k2.compressed.should == expected_compression
+        16.times{|n|
+          msg = "Very secret message %d: 11" % n
+          signature = k.sign_message(msg)
+          k2.verify_message(signature, msg).should == true
+          Bitcoin::Key.verify_message(k.addr, signature, msg).should == true
+        }
+      }
     end
 
   end

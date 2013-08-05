@@ -53,6 +53,12 @@ module OpenSSL_EC
   attach_function :d2i_ECPrivateKey, [:pointer, :pointer, :long], :pointer
   attach_function :i2d_ECPrivateKey, [:pointer, :pointer], :int
   attach_function :i2o_ECPublicKey, [:pointer, :pointer], :uint
+  attach_function :EC_KEY_check_key, [:pointer], :uint
+  attach_function :ECDSA_do_sign, [:pointer, :uint, :pointer], :pointer
+  attach_function :BN_num_bits, [:pointer], :int
+  attach_function :ECDSA_SIG_free, [:pointer], :void
+
+  def self.BN_num_bytes(ptr); (BN_num_bits(ptr) + 7) / 8; end
 
 
   # resolve public from private key, using ffi and libssl.so
@@ -211,6 +217,62 @@ module OpenSSL_EC
     EC_KEY_free(eckey)
 
     pub_hex
+  end
+
+  def self.sign_compact(hash, private_key, public_key_hex = nil, pubkey_compressed = nil)
+    private_key = [private_key].pack("H*") if private_key.bytesize >= 64
+    private_key_hex = private_key.unpack("H*")[0]
+
+    public_key_hex = regenerate_key(private_key_hex).last unless public_key_hex
+    pubkey_compressed = (public_key_hex[0..1] == "04" ? false : true) unless pubkey_compressed
+
+    init_ffi_ssl
+    eckey = EC_KEY_new_by_curve_name(NID_secp256k1)
+    priv_key = BN_bin2bn(private_key, private_key.bytesize, BN_new())
+
+    group, order, ctx = EC_KEY_get0_group(eckey), BN_new(), BN_CTX_new()
+    EC_GROUP_get_order(group, order, ctx)
+
+    pub_key = EC_POINT_new(group)
+    EC_POINT_mul(group, pub_key, priv_key, nil, nil, ctx)
+    EC_KEY_set_private_key(eckey, priv_key)
+    EC_KEY_set_public_key(eckey, pub_key)
+
+    signature = ECDSA_do_sign(hash, hash.bytesize, eckey)
+
+    BN_free(order)
+    BN_CTX_free(ctx)
+    EC_POINT_free(pub_key)
+    BN_free(priv_key)
+    EC_KEY_free(eckey)
+
+    buf, rec_id, head = FFI::MemoryPointer.new(:uint8, 32), nil, nil
+    r, s = signature.get_array_of_pointer(0, 2).map{|i| BN_bn2bin(i, buf); buf.read_string(BN_num_bytes(i)).rjust(32, "\x00") }
+
+    if signature.get_array_of_pointer(0, 2).all?{|i| BN_num_bits(i) <= 256 }
+      4.times{|i|
+        head = [ 27 + i + (pubkey_compressed ? 4 : 0) ].pack("C")
+        if public_key_hex == recover_public_key_from_signature(hash, [head, r, s].join, i, pubkey_compressed)
+          rec_id = i; break
+        end
+      }
+    end
+
+    ECDSA_SIG_free(signature)
+
+    [ head, [r,s] ].join if rec_id
+  end
+
+  def self.recover_compact(hash, signature)
+    return false if signature.bytesize != 65
+    #i = signature.unpack("C")[0] - 27
+    #pubkey = recover_public_key_from_signature(hash, signature, (i & ~4), i >= 4)
+
+    version = signature.unpack('C')[0]
+    return false if version < 27 or version > 34
+
+    compressed = (version >= 31) ? (version -= 4; true) : false
+    pubkey = recover_public_key_from_signature(hash, signature, version-27, compressed)
   end
 
   def self.init_ffi_ssl

@@ -278,6 +278,30 @@ module Bitcoin
       Bitcoin::OpenSSL_EC.regenerate_key(private_key)[1]
     end
 
+    def bitcoin_signed_message_hash(message)
+      # TODO: this will fail horribly on messages with len > 255. It's a cheap implementation of Bitcoin's CDataStream.
+      data = "\x18Bitcoin Signed Message:\n" + [message.bytesize].pack("C") + message
+      Digest::SHA256.digest(Digest::SHA256.digest(data))
+    end
+
+    def sign_message(private_key_hex, public_key_hex, message)
+      hash = bitcoin_signed_message_hash(message)
+      signature = Bitcoin::OpenSSL_EC.sign_compact(hash, private_key_hex, public_key_hex)
+      { 'address' => pubkey_to_address(public_key_hex), 'message' => message, 'signature' => [ signature ].pack("m0") }
+    end
+
+    def verify_message(address, signature, message)
+      hash = bitcoin_signed_message_hash(message)
+      signature = signature.unpack("m0")[0] rescue nil # decode base64
+      raise "invalid address"           unless valid_address?(address)
+      raise "malformed base64 encoding" unless signature
+      raise "malformed signature"       unless signature.bytesize == 65
+      pubkey = Bitcoin::OpenSSL_EC.recover_compact(hash, signature)
+      pubkey_to_address(pubkey) == address if pubkey
+    rescue Exception => ex
+      p [ex.message, ex.backtrace]; false
+    end
+
 
     RETARGET_INTERVAL = 2016
 
@@ -361,6 +385,7 @@ module Bitcoin
     class PKey::EC
       def private_key_hex; private_key.to_hex.rjust(64, '0'); end
       def public_key_hex;  public_key.to_hex.rjust(130, '0'); end
+      def pubkey_compressed?; public_key.group.point_conversion_form == :compressed; end
     end
     class PKey::EC::Point
       def self.from_hex(group, hex)

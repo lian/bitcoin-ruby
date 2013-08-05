@@ -34,7 +34,7 @@ module Bitcoin
     #  Bitcoin::Key.new(nil, pubkey)
     def initialize privkey = nil, pubkey = nil, compressed = false
       @key = Bitcoin.bitcoin_elliptic_curve
-      @pubkey_compressed = compressed
+      @pubkey_compressed = pubkey ? self.class.is_compressed_pubkey?(pubkey) : compressed
       set_priv(privkey)  if privkey
       set_pub(pubkey)  if pubkey
     end
@@ -111,6 +111,19 @@ module Bitcoin
       @key.dsa_verify_asn1(data, sig)
     end
 
+
+    def sign_message(message)
+      Bitcoin.sign_message(priv, pub, message)['signature']
+    end
+
+    def verify_message(signature, message)
+      Bitcoin.verify_message(addr, signature, message)
+    end
+
+    def self.verify_message(address, signature, message)
+      Bitcoin.verify_message(address, signature, message)
+    end
+
     # Thanks to whoever wrote http://pastebin.com/bQtdDzHx
     # for help with compact signatures
     #
@@ -169,8 +182,12 @@ module Bitcoin
 
     # Set +pub+ as the new public key (converting from hex).
     def set_pub(pub)
-      @pubkey_compressed ||= ["02","03"].include?(pub[0..1])
+      @pubkey_compressed ||= self.class.is_compressed_pubkey?(pub)
       @key.public_key = OpenSSL::PKey::EC::Point.from_hex(@key.group, pub)
+    end
+
+    def self.is_compressed_pubkey?(pub)
+      ["02","03"].include?(pub[0..1])
     end
 
   end

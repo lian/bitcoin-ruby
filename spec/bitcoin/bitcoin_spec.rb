@@ -364,6 +364,23 @@ describe 'Bitcoin Address/Hash160/PubKey' do
 
       Bitcoin::OpenSSL_EC.der_to_private_key(der).should == "a29fe0f28b2936dbc89f889f74cd1f0662d18a873ac15d6cd417b808db1ccd0a"
     end
+
+    it 'sign and verify text messages (signmessage/verifymessage)' do
+      [
+        ["1QFqqMUD55ZV3PJEJZtaKCsQmjLT6JkjvJ", "12b004fff7f4b69ef8650e767f18f11ede158148b425660723b9f9a66e61f747",
+         "040b4c866585dd868a9d62348a9cd008d6a312937048fff31670e7e920cfc7a7447b5f0bba9e01e6fe4735c8383e6e7a3347a0fd72381b8f797a19f694054e5a69"],
+        ["1NoJrossxPBKfCHuJXT4HadJrXRE9Fxiqs", "12b004fff7f4b69ef8650e767f18f11ede158148b425660723b9f9a66e61f747",
+         "030b4c866585dd868a9d62348a9cd008d6a312937048fff31670e7e920cfc7a744"]
+      ].each{|address, privkey, pubkey|
+        key = Bitcoin.open_key(privkey)
+        16.times.all?{|n|
+        #10_000.times.all?{|n|
+        #  puts 'RAM USAGE: ' + `pmap #{Process.pid} | tail -1`[10,40].strip if (n % 1_000) == 0
+          s = Bitcoin.sign_message(key.private_key_hex, key.public_key_hex, "Very secret message %d: 11" % n)
+          Bitcoin.verify_message(s['address'], s['signature'], s['message'])
+        }.should == true
+      }
+    end
   rescue LoadError
   end
 
