@@ -109,12 +109,14 @@ module Bitcoin::Validation
     # check that coinbase value is valid; no more than reward + fees
     def coinbase_value
       reward = ((50.0 / (2 ** (store.get_depth / REWARD_DROP.to_f).floor)) * 1e8).to_i
-      fees = block.tx[1..-1].map.with_index do |t, idx|
+      fees = 0
+      block.tx[1..-1].map.with_index do |t, idx|
         val = tx_validators[idx]
-        t.in.map.with_index {|i, idx|
+        fees += t.in.map.with_index {|i, idx|
           val.prev_txs[idx].out[i.prev_out_index].value rescue 0
         }.inject(:+)
-      end.inject(:+) || 0
+        val.clear_cache # memory optimization on large coinbases, see testnet3 block 4110
+      end
       coinbase_output = block.tx[0].out.map(&:value).inject(:+)
       coinbase_output <= reward + fees || [coinbase_output, reward, fees]
     end
@@ -229,6 +231,7 @@ module Bitcoin::Validation
           end
         end
       end
+      clear_cache # memory optimizatons
       true
     end
 
@@ -331,6 +334,13 @@ module Bitcoin::Validation
     # check that the total output value doesn't exceed the total input value
     def output_sum
       total_in >= total_out || [total_out, total_in]
+    end
+
+    # empty prev txs cache
+    def clear_cache
+      @prev_txs = nil
+      @total_in = nil
+      @total_out = nil
     end
 
     # collect prev_txs needed to verify the inputs of this tx.

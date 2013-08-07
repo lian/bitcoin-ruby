@@ -109,8 +109,6 @@ module Bitcoin::Storage::Backends
     # parse script and collect address/txout mappings to index
     def parse_script txout, i
       addrs, names = [], []
-      # skip huge script in testnet3 block 54507 (998000 bytes)
-      return [SCRIPT_TYPES.index(:unknown), [], []]  if txout.pk_script.bytesize > 10_000
 
       script = Bitcoin::Script.new(txout.pk_script) rescue nil
       if script
