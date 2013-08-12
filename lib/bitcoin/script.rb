@@ -569,31 +569,31 @@ class Bitcoin::Script
 
   # The input is hashed using SHA-256.
   def op_sha256
-    buf = @stack.pop
+    buf = pop_string
     @stack << Digest::SHA256.digest(buf)
   end
 
   # The input is hashed using SHA-1.
   def op_sha1
-    buf = @stack.pop
+    buf = pop_string
     @stack << Digest::SHA1.digest(buf)
   end
 
   # The input is hashed twice: first with SHA-256 and then with RIPEMD-160.
   def op_hash160
-    buf = @stack.pop
+    buf = pop_string
     @stack << Digest::RMD160.digest(Digest::SHA256.digest(buf))
   end
 
   # The input is hashed using RIPEMD-160.
   def op_ripemd160
-    buf = @stack.pop
+    buf = pop_string
     @stack << Digest::RMD160.digest(buf)
   end
 
   # The input is hashed two times with SHA-256.
   def op_hash256
-    buf = @stack.pop
+    buf = pop_string
     @stack << Digest::SHA256.digest(Digest::SHA256.digest(buf))
   end
 
@@ -725,7 +725,7 @@ class Bitcoin::Script
 
   # Marks transaction as invalid if top stack value is not true. True is removed, but false is not.
   def op_verify
-    res = @stack.pop
+    res = pop_int
     if res == 0
       @stack << res
       @script_invalid = true # raise 'transaction invalid' ?
@@ -899,7 +899,7 @@ class Bitcoin::Script
     item = @stack[-1]
     size = case item
            when String; item.bytesize
-           when Fixnum; OpenSSL::BN.new(item.to_s(16), 16).to_mpi.size - 4
+           when Numeric; OpenSSL::BN.new(item.to_s).to_mpi.size - 4
            end
     @stack << size
   end
@@ -914,13 +914,24 @@ class Bitcoin::Script
     @stack.pop(count).map{|i| cast_to_bignum(i) }
   end
 
+  def pop_string(count=1)
+    return cast_to_string(@stack.pop) if count == 1
+    @stack.pop(count).map{|i| cast_to_string(i) }
+  end
+
   def cast_to_bignum(buf)
     case buf
     when Numeric; buf
-    #when String; buf.unpack("H*")[0].to_i(16)
     when String; OpenSSL::BN.new([buf.bytesize].pack("N") + buf.reverse, 0).to_i
-    #when String; OpenSSL::BN.new(buf.unpack("H*")[0], 16).to_i
-    else; raise 'cast_to_bignum: failed to cast: %s (%s)' % [buf, buf.class]
+    else; raise TypeError, 'cast_to_bignum: failed to cast: %s (%s)' % [buf, buf.class]
+    end
+  end
+
+  def cast_to_string(buf)
+    case buf
+    when Numeric; OpenSSL::BN.new(buf.to_s).to_s(0)[4..-1]
+    when String; buf;
+    else; raise TypeError, 'cast_to_string: failed to cast: %s (%s)' % [buf, buf.class]
     end
   end
 

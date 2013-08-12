@@ -317,6 +317,10 @@ describe 'Bitcoin::Script' do
     script = Script.new( ["0063bac0d0e0f0f1f2f3f3f4ff675168"].pack("H*") )
     script.to_string.should == "0 OP_IF (opcode-186) (opcode-192) (opcode-208) (opcode-224) (opcode-240) (opcode-241) (opcode-242) (opcode-243) (opcode-243) (opcode-244) (opcode-255) OP_ELSE 1 OP_ENDIF"
     script.run.should == true
+
+    # mainnet tx: 61a078472543e9de9247446076320499c108b52307d8d0fafbe53b5c4e32acc4 redeeming output from 5342c96b946ea2c5e497de5dbf7762021f94aba2c8222c17ed28492fdbb4a6d9
+    script = Bitcoin::Script.from_string("16cfb9bc7654ef1d7723e5c2722fc0c3d505045e OP_SIZE OP_DUP 1 OP_GREATERTHAN OP_VERIFY OP_NEGATE OP_HASH256 OP_HASH160 OP_SHA256 OP_SHA1 OP_RIPEMD160 OP_EQUAL")
+    script.run.should == true
   end
 
 end
