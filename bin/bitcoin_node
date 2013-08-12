@@ -46,6 +46,10 @@ optparse = OptionParser.new do |opts|
     options[:storage] = storage
   end
 
+  opts.on("--skip-validation", "Skip validation of blocks and transactions") do
+    options[:skip_validation] = true
+  end
+
   opts.on("--ho", "--headers-only",
     "Download only block headers") do
     options[:headers_only] = true

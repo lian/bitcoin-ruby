@@ -44,6 +44,8 @@ module Bitcoin::Storage
 
       attr_reader :log
 
+      attr_accessor :config
+
       def initialize(config = {}, getblocks_callback = nil)
         @config = config
         if @config[:db]
@@ -83,8 +85,10 @@ module Bitcoin::Storage
         end
 
         prev_block = get_block(blk.prev_block.reverse_hth)
-        validator = blk.validator(self, prev_block)
-        validator.validate(rules: [:syntax], raise_errors: true)
+        unless @config[:skip_validation]
+          validator = blk.validator(self, prev_block)
+          validator.validate(rules: [:syntax], raise_errors: true)
+        end
 
         if !prev_block || prev_block.chain == ORPHAN
           if blk.hash == Bitcoin.network[:genesis_hash]
@@ -107,7 +111,8 @@ module Bitcoin::Storage
         if prev_block.chain == MAIN
           if prev_block == get_head
             log.debug { "=> main (#{depth})" }
-            if !@checkpoints.any? || depth > @checkpoints.keys.last
+
+            if !@config[:skip_validation] && ( !@checkpoints.any? || depth > @checkpoints.keys.last )
               validator.validate(rules: [:context], raise_errors: true)
             end
             return persist_block(blk, MAIN, depth, prev_block.work)
@@ -119,7 +124,7 @@ module Bitcoin::Storage
           head = get_head
           if prev_block.work + blk.block_work  <= head.work
             log.debug { "=> side (#{depth})" }
-            validator.validate(rules: [:context], raise_errors: true)
+            validator.validate(rules: [:context], raise_errors: true)  unless @config[:skip_validation]
             return persist_block(blk, SIDE, depth, prev_block.work)
           else
             log.debug { "=> reorg" }
@@ -136,7 +141,7 @@ module Bitcoin::Storage
             log.debug { "new main: #{new_main.inspect}" }
             log.debug { "new side: #{new_side.inspect}" }
             update_blocks([[new_side, {:chain => SIDE}]])
-            new_main.each {|b| get_block(b).validator(self).validate(raise_errors: true) }
+            new_main.each {|b| get_block(b).validator(self).validate(raise_errors: true) }  unless @config[:skip_validation]
             update_blocks([[new_main, {:chain => MAIN}]])
             return persist_block(blk, MAIN, depth, prev_block.work)
           end

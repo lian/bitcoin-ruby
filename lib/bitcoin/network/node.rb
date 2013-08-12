@@ -79,6 +79,7 @@ module Bitcoin::Network
         :relay => 0,
       },
       :import => nil,
+      :skip_validation => false,
     }
 
     def initialize config = {}
@@ -98,7 +99,8 @@ module Bitcoin::Network
     def set_store
       backend, config = @config[:storage].split('::')
       @store = Bitcoin::Storage.send(backend, {
-          db: config, mode: @config[:mode], cache_head: true}, ->(locator) {
+          db: config, mode: @config[:mode], cache_head: true,
+          skip_validation: @config[:skip_validation]}, ->(locator) {
           peer = @connections.select(&:connected?).sample
           peer.send_getblocks(locator)
         })

@@ -288,6 +288,12 @@ include Bitcoin::Validation
           .raise(ValidationError).message.should =~ /transactions_context/
       end
 
+      it "should skip validation" do
+        @store.config[:skip_validation] = true
+        @block.tx << @tx
+        @store.store_block(@block).should == [5, 0]
+      end
+
     end
 
   end
