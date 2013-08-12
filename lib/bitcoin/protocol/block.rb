@@ -126,6 +126,10 @@ module Bitcoin
         @hash = Bitcoin.block_hash(@prev_block.reverse_hth, @mrkl_root.reverse_hth, @time, @bits, @nonce, @ver)
       end
 
+      def recalc_mrkl_root
+        @mrkl_root = Bitcoin.hash_mrkl_tree( @tx.map(&:hash) ).last.htb_reverse
+      end
+
       # verify mrkl tree
       def verify_mrkl_root
         @mrkl_root.reverse_hth == Bitcoin.hash_mrkl_tree( @tx.map(&:hash) ).last
@@ -198,18 +202,18 @@ module Bitcoin
       end
 
       # parse ruby hash (see also #to_hash)
-      def self.from_hash(h)
+      def self.from_hash(h, do_raise=true)
         blk = new(nil)
         blk.instance_eval{
           @ver, @time, @bits, @nonce = h.values_at('ver', 'time', 'bits', 'nonce')
           @prev_block, @mrkl_root = h.values_at('prev_block', 'mrkl_root').map{|i| i.htb_reverse }
           unless h['hash'] == recalc_block_hash
-            raise "Block hash mismatch! Claimed: #{h['hash']}, Actual: #{@hash}"
+            raise "Block hash mismatch! Claimed: #{h['hash']}, Actual: #{@hash}" if do_raise
           end
           @aux_pow = AuxPow.from_hash(h['aux_pow'])  if h['aux_pow']
           h['tx'].each{|tx| @tx << Tx.from_hash(tx) }
           if h['tx'].any? && !Bitcoin.freicoin?
-            raise "Block merkle root mismatch!"  unless verify_mrkl_root
+            (raise "Block merkle root mismatch! Block: #{h['hash']}"  unless verify_mrkl_root) if do_raise
           end
           @block_signature = h['signature'].htb_reverse if Bitcoin.ppcoin?
         }

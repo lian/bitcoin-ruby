@@ -171,7 +171,7 @@ describe 'Bitcoin::Protocol::Block' do
       h = block.to_hash
       h['tx'][0]['ver'] = 2
       -> { Block.from_hash(h) }.should.raise(Exception)
-        .message.should == "Block merkle root mismatch!"
+        .message.should.include?("Block merkle root mismatch!")
     end
 
   end
