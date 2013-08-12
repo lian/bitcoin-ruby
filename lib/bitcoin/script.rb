@@ -916,7 +916,7 @@ class Bitcoin::Script
 
   def cast_to_bignum(buf)
     case buf
-    when Fixnum; buf
+    when Numeric; buf
     #when String; buf.unpack("H*")[0].to_i(16)
     when String; OpenSSL::BN.new([buf.bytesize].pack("N") + buf.reverse, 0).to_i
     #when String; OpenSSL::BN.new(buf.unpack("H*")[0], 16).to_i
