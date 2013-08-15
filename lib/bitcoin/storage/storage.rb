@@ -135,6 +135,25 @@ module Bitcoin::Storage
         self.class.name.split("::")[-1].split("Store")[0].downcase
       end
 
+      # check data consistency of the top +count+ blocks. validates that
+      # - the block hash computed from the stored data is the same
+      # - the prev_hash is the same as the previous blocks' hash
+      # - the merkle root computed from all transactions is correct
+      def check_consistency count = 1000
+        return  if get_depth < 1
+        depth = get_depth
+        count = depth - 1  if count >= depth
+        log.info { "Checking consistency of last #{count} blocks..." }
+        prev_blk = get_block_by_depth(depth - count - 1)
+        (depth - count).upto(depth).each do |depth|
+          blk = get_block_by_depth(depth)
+          raise "Block hash #{blk.depth} invalid!"  unless blk.hash == blk.recalc_block_hash
+          raise "Prev hash #{blk.depth} invalid!"  unless blk.prev_block.reverse.hth == prev_blk.hash
+          raise "Merkle root #{blk.depth} invalid!"  unless blk.verify_mrkl_root
+          print "\r#{blk.hash} #{blk.depth} OK"
+          prev_blk = blk
+        end
+      end
 
       # reset the store; delete all data
       def reset

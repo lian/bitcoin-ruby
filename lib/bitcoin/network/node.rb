@@ -108,6 +108,7 @@ module Bitcoin::Network
           peer.send_getblocks(locator)
         })
       @store.log.level = @config[:log][:storage]
+      @store.check_consistency
       if @config[:import]
         @importing = true
         EM.defer do
