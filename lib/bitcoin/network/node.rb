@@ -158,9 +158,9 @@ module Bitcoin::Network
     end
 
     def stop
-      log.info { "Shutting down..." }
+      puts "Shutting down..."
       stop_timers
-      EM.next_tick { EM.stop }
+      EM.stop
     end
 
     def uptime
@@ -239,6 +239,16 @@ module Bitcoin::Network
 
         work_connect if @addrs.any?
         connect_dns  if @config[:dns]
+
+        Signal.trap("INT") do
+          puts "Shutting down. You can force-quit by pressing Ctrl-C again, but it might corrupt your database!"
+          Signal.trap("INT") do
+            puts "Force Quit"
+            exit 1
+          end
+          self.stop
+        end
+
       end
     end
 
