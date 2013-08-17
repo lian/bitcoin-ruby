@@ -823,7 +823,7 @@ class Bitcoin::Script
     value = false
     if @do_exec
       return if @stack.size < 1
-      value = pop_int(1) == 1 ? true : false
+      value = pop_int == 1 ? true : false
     end
     @exec_stack << value
   end
@@ -833,7 +833,7 @@ class Bitcoin::Script
     value = false
     if @do_exec
       return if @stack.size < 1
-      value = pop_int(1) == 1 ? false : true
+      value = pop_int == 1 ? false : true
     end
     @exec_stack << value
   end
@@ -852,14 +852,14 @@ class Bitcoin::Script
 
   # The item n back in the stack is copied to the top.
   def op_pick
-    pos = pop_int(1)
+    pos = pop_int
     item = @stack[-(pos+1)]
     @stack << item if item
   end
 
   # The item n back in the stack is moved to the top.
   def op_roll
-    pos = pop_int(1)
+    pos = pop_int
     idx = -(pos+1)
     item = @stack[idx]
     if item
@@ -909,13 +909,13 @@ class Bitcoin::Script
     # skipped, not defined in origin script.cpp
   end
 
-  def pop_int(count=1)
-    return cast_to_bignum(@stack.pop) if count == 1
+  def pop_int(count=nil)
+    return cast_to_bignum(@stack.pop) unless count
     @stack.pop(count).map{|i| cast_to_bignum(i) }
   end
 
-  def pop_string(count=1)
-    return cast_to_string(@stack.pop) if count == 1
+  def pop_string(count=nil)
+    return cast_to_string(@stack.pop) unless count
     @stack.pop(count).map{|i| cast_to_string(i) }
   end
 
@@ -999,16 +999,16 @@ class Bitcoin::Script
   # TODO: validate signature order
   # TODO: take global opcode count
   def op_checkmultisig(check_callback)
-    n_pubkeys = @stack.pop
+    n_pubkeys = pop_int
     return invalid  unless (0..20).include?(n_pubkeys)
     return invalid  unless @stack.last(n_pubkeys).all?{|e| e.is_a?(String) && e != '' }
     #return invalid  if ((@op_count ||= 0) += n_pubkeys) > 201
-    pubkeys = @stack.pop(n_pubkeys)
+    pubkeys = pop_string(n_pubkeys)
 
-    n_sigs = @stack.pop
+    n_sigs = pop_int
     return invalid  unless (0..n_pubkeys).include?(n_sigs)
     return invalid  unless @stack.last(n_sigs).all?{|e| e.is_a?(String) && e != '' }
-    sigs = (drop_sigs = @stack.pop(n_sigs)).map{|s| parse_sig(s) }
+    sigs = (drop_sigs = pop_string(n_sigs)).map{|s| parse_sig(s) }
     drop_sigs.map!{|i| i.unpack("H*")[0] }
 
     @stack.pop if @stack[-1] == '' # remove OP_NOP from stack

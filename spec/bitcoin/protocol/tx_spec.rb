@@ -169,6 +169,13 @@ describe 'Tx' do
     outpoint_tx.hash.should == "69216b8aaa35b76d6613e5f527f4858640d986e1046238583bdad79b35e938dc"
     tx.verify_input_signature(0, outpoint_tx).should == true
     tx.verify_input_signature(1, outpoint_tx).should == true
+
+    # 0:1:01 <signature> 0:1:01 0:1:00 <pubkey> OP_SWAP OP_1ADD OP_CHECKMULTISIG
+    tx = Bitcoin::P::Tx.from_json(fixtures_file('cd874fa8cb0e2ec2d385735d5e1fd482c4fe648533efb4c50ee53bda58e15ae2.json'))
+    tx.hash.should == "cd874fa8cb0e2ec2d385735d5e1fd482c4fe648533efb4c50ee53bda58e15ae2"
+    outpoint_tx = Bitcoin::P::Tx.from_json(fixtures_file('514c46f0b61714092f15c8dfcb576c9f79b3f959989b98de3944b19d98832b58.json'))
+    outpoint_tx.hash.should == "514c46f0b61714092f15c8dfcb576c9f79b3f959989b98de3944b19d98832b58"
+    tx.verify_input_signature(0, outpoint_tx).should == true
   end
 
   it '#sign_input_signature' do
