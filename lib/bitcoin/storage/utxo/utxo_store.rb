@@ -352,6 +352,10 @@ module Bitcoin::Storage::Backends
       txout
     end
 
+    def check_consistency(*args)
+      log.warn { "Utxo store doesn't support consistency check" }
+    end
+
   end
 
 end
