@@ -82,6 +82,7 @@ module Bitcoin::Network
       },
       :import => nil,
       :skip_validation => false,
+      :check_blocks => 1000,
     }
 
     def initialize config = {}
@@ -108,7 +109,7 @@ module Bitcoin::Network
           peer.send_getblocks(locator)
         })
       @store.log.level = @config[:log][:storage]
-      @store.check_consistency
+      @store.check_consistency(@config[:check_blocks])
       if @config[:import]
         @importing = true
         EM.defer do

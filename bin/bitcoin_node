@@ -52,6 +52,11 @@ optparse = OptionParser.new do |opts|
     options[:skip_validation] = true
   end
 
+  opts.on("--check-blocks COUNT",
+          "Check consistency of COUNT latest blocks; -1 for all (default: 1000)") do |check|
+    options[:check_blocks] = check.to_i
+  end
+
   opts.on("--ho", "--headers-only",
     "Download only block headers") do
     options[:headers_only] = true

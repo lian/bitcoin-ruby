@@ -142,6 +142,7 @@ module Bitcoin::Storage
       def check_consistency count = 1000
         return  if get_depth < 1
         depth = get_depth
+        count = depth - 1  if count == -1
         count = depth - 1  if count >= depth
         log.info { "Checking consistency of last #{count} blocks..." }
         prev_blk = get_block_by_depth(depth - count - 1)

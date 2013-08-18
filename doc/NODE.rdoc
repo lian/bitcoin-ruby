@@ -33,6 +33,9 @@ Some common options you might want to use:
   Skip validation of received blockchain data. Can be used to speed up import/sync when
   blockchain data is received from a trusted source.
 
+<tt>--check-blocks <i><count></i>::
+  Check consistency of the +count+ most recent blocks. Pass -1 to check all blocks.
+
 <tt>-v --verbose</tt>::
   Display debug output.
 
