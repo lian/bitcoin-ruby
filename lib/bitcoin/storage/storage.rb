@@ -98,7 +98,7 @@ module Bitcoin::Storage
 
       # check if schema is up to date and migrate to current version if necessary
       def migrate
-        migrations_path = "./lib/bitcoin/storage/#{backend_name}/migrations"
+        migrations_path = File.join(File.dirname(__FILE__), "#{backend_name}/migrations")
         Sequel.extension :migration
         unless Sequel::Migrator.is_current?(@db, migrations_path)
           Sequel::Migrator.run(@db, migrations_path)
