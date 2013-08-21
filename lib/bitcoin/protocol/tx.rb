@@ -64,11 +64,12 @@ module Bitcoin
         @ver = buf.read(4).unpack("V")[0]
 
         in_size = Protocol.unpack_var_int_from_io(buf)
-        # raise "unkown transaction version: #{@ver}" unless @ver == 1
-        @in = (0...in_size).map{ TxIn.from_io(buf) }
+        @in = []
+        in_size.times{ @in << TxIn.from_io(buf) }
 
         out_size = Protocol.unpack_var_int_from_io(buf)
-        @out = (0...out_size).map{ TxOut.from_io(buf) }
+        @out = []
+        out_size.times{ @out << TxOut.from_io(buf) }
 
         @lock_time = buf.read(4).unpack("V")[0]
 
@@ -88,11 +89,12 @@ module Bitcoin
 
       # output transaction in raw binary format
       def to_payload
-        pin  =  @in.map(&:to_payload).join
-        pout = @out.map(&:to_payload).join
+        pin = ""
+        @in.each{|input| pin << input.to_payload }
+        pout = ""
+        @out.each{|output| pout << output.to_payload }
 
-        in_size, out_size = Protocol.pack_var_int(@in.size), Protocol.pack_var_int(@out.size)
-        [[@ver].pack("V"), in_size, pin, out_size, pout, [@lock_time].pack("V")].join
+        [@ver].pack("V") << Protocol.pack_var_int(@in.size) << pin << Protocol.pack_var_int(@out.size) << pout << [@lock_time].pack("V")
       end
 
 

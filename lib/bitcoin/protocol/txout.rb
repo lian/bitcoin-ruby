@@ -44,10 +44,7 @@ module Bitcoin
       alias :parse_payload :parse_data
 
       def to_payload
-        buf =  [ @value ].pack("Q")
-        buf << Protocol.pack_var_int(@pk_script_length)
-        buf << @pk_script if @pk_script_length > 0
-        buf
+        [@value].pack("Q") << Protocol.pack_var_int(@pk_script_length) << @pk_script
       end
 
       def to_null_payload

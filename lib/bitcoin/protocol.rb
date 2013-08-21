@@ -83,8 +83,8 @@ module Bitcoin
       cmd      = command.ljust(12, "\x00")[0...12]
       length   = [payload.bytesize].pack("V")
       checksum = Digest::SHA256.digest(Digest::SHA256.digest(payload))[0...4]
-
-      [Bitcoin.network[:magic_head].force_encoding(BINARY), cmd.force_encoding(BINARY), length, checksum, payload.force_encoding(BINARY)].join
+      pkt      = "".force_encoding(BINARY)
+      pkt << Bitcoin.network[:magic_head].force_encoding(BINARY) << cmd.force_encoding(BINARY) << length << checksum << payload.force_encoding(BINARY)
     end
 
     def self.version_pkt(from_id, from=nil, to=nil, last_block=nil, time=nil, user_agent=nil, version=nil)

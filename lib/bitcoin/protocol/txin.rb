@@ -25,6 +25,7 @@ module Bitcoin
       attr_accessor :sequence
 
       DEFAULT_SEQUENCE = "\xff\xff\xff\xff"
+      NULL_HASH = "\x00"*32
 
       def initialize *args
         @prev_out, @prev_out_index, @script_sig_length,
@@ -59,10 +60,7 @@ module Bitcoin
       end
 
       def to_payload(script=@script_sig, sequence=@sequence)
-        buf =  [ @prev_out, @prev_out_index ].pack("a32V")
-        buf << Protocol.pack_var_int(script.bytesize)
-        buf << script if script.bytesize > 0
-        buf << (sequence || DEFAULT_SEQUENCE)
+        [@prev_out, @prev_out_index].pack("a32V") << Protocol.pack_var_int(script.bytesize) << script << (sequence || DEFAULT_SEQUENCE)
       end
 
       def to_hash(options = {})
@@ -98,7 +96,7 @@ module Bitcoin
 
       # check if input is coinbase
       def coinbase?
-        (@prev_out_index == 4294967295) && (@prev_out == "\x00"*32)
+        (@prev_out_index == 4294967295) && (@prev_out == NULL_HASH)
       end
 
       # set script_sig and script_sig_length

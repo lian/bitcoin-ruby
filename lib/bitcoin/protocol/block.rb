@@ -81,7 +81,7 @@ module Bitcoin
         return buf if buf.eof?
 
         tx_size = Protocol.unpack_var_int_from_io(buf)
-        (0...tx_size).each{  break if payload == true
+        tx_size.times{  break if payload == true
           t = Tx.new(nil)
           payload = t.parse_data_from_io(buf)
           @tx << t
@@ -115,8 +115,9 @@ module Bitcoin
       def to_payload
         head = [@ver, @prev_block, @mrkl_root, @time, @bits, @nonce].pack("Va32a32VVV")
         head << @aux_pow.to_payload  if @aux_pow
-        return head  unless @tx.any?
-        head << [Protocol.pack_var_int(@tx.size), @tx.map(&:to_payload).join].join
+        return head if @tx.size == 0
+        head << Protocol.pack_var_int(@tx.size)
+        @tx.each{|tx| head << tx.to_payload }
         head
       end
 
