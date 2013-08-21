@@ -58,36 +58,13 @@ module Bitcoin
       # create block from raw binary +data+
       def initialize(data)
         @tx = []
-        #parse_data(data) if data
         parse_data_from_io(data) if data
       end
 
       # parse raw binary data
       def parse_data(data)
-        @ver, @prev_block, @mrkl_root, @time, @bits, @nonce, payload = data.unpack("Va32a32VVVa*")
-        recalc_block_hash
-
-        if (@ver & BLOCK_VERSION_AUXPOW) > 0
-          @aux_pow = AuxPow.new(nil)
-          payload = @aux_pow.parse_data(payload)
-        end
-
-        return  unless payload.size > 0
-
-        tx_size, payload = Protocol.unpack_var_int(payload)
-        (0...tx_size).each{  break if payload == true
-          t = Tx.new(nil)
-          payload = t.parse_data(payload)
-          @tx << t
-        }
-
-        if Bitcoin.network_project == :ppcoin
-          @block_signature, payload = Protocol.unpack_var_string(payload)
-          @block_signature ||= ""
-        end
-
-        @payload = to_payload
-        payload
+        buf = parse_data_from_io(data)
+        buf.eof? ? true : buf.read
       end
 
       # parse raw binary data
@@ -101,7 +78,7 @@ module Bitcoin
           @aux_pow.parse_data_from_io(buf)
         end
 
-        return if buf.eof?
+        return buf if buf.eof?
 
         tx_size = Protocol.unpack_var_int_from_io(buf)
         (0...tx_size).each{  break if payload == true
@@ -118,8 +95,6 @@ module Bitcoin
         @payload = to_payload
         buf
       end
-
-      #alias :parse_data  :parse_data_from_io # enable soon
 
       # recalculate the block hash
       def recalc_block_hash

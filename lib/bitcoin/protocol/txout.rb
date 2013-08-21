@@ -25,12 +25,9 @@ module Bitcoin
 
       # parse raw binary data for transaction output
       def parse_data(data)
-        idx = 0
-        @value = data[idx...idx+=8].unpack("Q")[0]
-        @pk_script_length, tmp = Protocol.unpack_var_int(data[idx..-1])
-        idx += data[idx..-1].bytesize - tmp.bytesize
-        @pk_script = data[idx...idx+=@pk_script_length]
-        idx
+        buf = data.is_a?(String) ? StringIO.new(data) : data
+        parse_data_from_io(buf)
+        buf.pos
       end
 
       def self.from_io(buf)

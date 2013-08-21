@@ -42,13 +42,9 @@ module Bitcoin
 
       # parse raw binary data for transaction input
       def parse_data(data)
-        idx = 0
-        @prev_out, @prev_out_index = data[idx...idx+=36].unpack("a32V")
-        @script_sig_length, tmp = Protocol.unpack_var_int(data[idx..-1])
-        idx += data[idx..-1].bytesize - tmp.bytesize
-        @script_sig = data[idx...idx+=@script_sig_length]
-        @sequence = data[idx...idx+=4]
-        idx
+        buf = data.is_a?(String) ? StringIO.new(data) : data
+        parse_data_from_io(buf)
+        buf.pos
       end
 
       def self.from_io(buf)
@@ -61,8 +57,6 @@ module Bitcoin
         @script_sig = buf.read(@script_sig_length)
         @sequence = buf.read(4)
       end
-
-      alias :parse_payload :parse_data
 
       def to_payload(script=@script_sig, sequence=@sequence)
         buf =  [ @prev_out, @prev_out_index ].pack("a32V")
