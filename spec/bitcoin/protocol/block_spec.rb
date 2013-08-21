@@ -93,27 +93,6 @@ describe 'Bitcoin::Protocol::Block' do
       # Block.from_json(Block.new(block_raw).to_json).to_payload.should == block_raw # slow test
     end
 
-    it "should work with ppcoin blocks" do
-      Bitcoin.network = :ppcoin # change to ppcoin
-      ppcoin_block = "ppcoin-genesis-block-0000000032fe677166d54963b62a4677d8957e87c508eaa4fd7eb1c880cd27e3"
-      Block.from_json(fixtures_file(ppcoin_block + '.json'))
-        .to_payload.should == fixtures_file(ppcoin_block + '.bin')
-
-      json = Block.new(fixtures_file(ppcoin_block + '.bin')).to_json
-      Block.from_json(json)
-        .to_payload.should == fixtures_file(ppcoin_block + '.bin')
-      Block.from_json(json).hash == ppcoin_block.split("-").last
-
-      ppcoin_block = "ppcoin-block-00000000000be4e024af5071ba515c7510767f42ec9e40c5fba56775ff296658"
-      Block.from_json(fixtures_file(ppcoin_block + '.json'))
-        .to_payload.should == fixtures_file(ppcoin_block + '.bin')
-
-      json = Block.new(fixtures_file(ppcoin_block + '.bin')).to_json
-      Block.from_json(json)
-        .to_payload.should == fixtures_file(ppcoin_block + '.bin')
-      Block.from_json(json).hash == ppcoin_block.split("-").last
-    end
-
     it "should work with litecoin blocks" do
       Bitcoin.network = :litecoin # change to litecoin
       litecoin_block = "litecoin-genesis-block-12a765e31ffd4059bada1e25190f6e98c99d9714d334efa41a195a7e7e04bfe2"
