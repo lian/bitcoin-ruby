@@ -122,6 +122,19 @@ class Bitcoin::Script
 
   OP_2_16 = (82..96).to_a
 
+
+  OPCODES_PARSE_BINARY = {}
+  OPCODES.each{|k,v| OPCODES_PARSE_BINARY[k] = v }
+  OP_2_16.each{|i|   OPCODES_PARSE_BINARY[i] = (OP_2_16.index(i)+2).to_s }
+
+  OPCODES_PARSE_STRING = {}
+  OPCODES.each{|k,v|       OPCODES_PARSE_STRING[v] = k }
+  OPCODES_ALIAS.each{|k,v| OPCODES_PARSE_STRING[k] = v }
+  2.upto(16).each{|i|      OPCODES_PARSE_STRING["OP_#{i}"] = OP_2_16[i-2] }
+  2.upto(16).each{|i|      OPCODES_PARSE_STRING["#{i}"   ] = OP_2_16[i-2] }
+  [1,2,4].each{|i|         OPCODES_PARSE_STRING.delete("OP_PUSHDATA#{i}") }
+
+
   attr_reader :raw, :chunks, :debug
 
   # create a new script. +bytes+ is typically input_script + output_script
@@ -143,9 +156,6 @@ class Bitcoin::Script
     chunks = []
     until program.empty?
       opcode = program.shift(1)[0]
-      #if opcode >= 0xf0 and program[0]
-      #  opcode = (opcode << 8) | program.shift(1)[0]
-      #end
 
       if (opcode > 0) && (opcode < OP_PUSHDATA1)
         len, tmp = opcode, program[0]
@@ -189,25 +199,25 @@ class Bitcoin::Script
 
   # string representation of the script
   def to_string(chunks=nil)
-    (chunks || @chunks).map{|i|
-      case i
+    string = ""
+    (chunks || @chunks).each.with_index{|i,idx|
+      string << " " unless idx == 0
+      string << case i
       when Fixnum
-        case i
-        when *OPCODES.keys;          OPCODES[i]
-        when *OP_2_16;               (OP_2_16.index(i)+2).to_s
-        #when *OP_2_16;               "OP_" + (OP_2_16.index(i)+2).to_s
-        else "(opcode-#{i})"
+        if opcode = OPCODES_PARSE_BINARY[i]
+          opcode
+        else
+          "(opcode-#{i})"
         end
       when String
         if i.bitcoin_pushdata
           "#{i.bitcoin_pushdata}:#{i.bitcoin_pushdata_length}:".force_encoding('binary') + i.unpack("H*")[0]
-        #elsif i.bytesize == 1
-        #  i.unpack("c")[0]
         else
           i.unpack("H*")[0]
         end
       end
-    }.join(" ")
+    }
+    string
   end
 
   def to_binary(chunks=nil)
@@ -263,31 +273,33 @@ class Bitcoin::Script
 
   # raw script binary of a string representation
   def self.binary_from_string(script_string)
-    script_string.split(" ").map{|i|
-      case i
-      when /^OP_PUSHDATA[124]$/;     # skip
-      when *OPCODES.values;          OPCODES.find{|k,v| v == i }.first
-      when *OPCODES_ALIAS.keys;      OPCODES_ALIAS.find{|k,v| k == i }.last
-      when /^([2-9]|1[0-6])$/;       OP_2_16[$1.to_i-2]
-      when /^OP_([2-9]|1[0-6])$/;    OP_2_16[$1.to_i-2]
-      when /\(opcode\-(\d+)\)/;      $1.to_i
-      when /^(\d+)\)/;               $1.to_i # fix invalid opcode parsing
-      when /^\(opcode$/;             # skip  # fix invalid opcode parsing
-      when /OP_(.+)$/;               raise ScriptOpcodeError, "#{i} not defined!"
-      when /(\d+):(\d+):(.+)?/
-        pushdata, len, data = $1.to_i, $2.to_i, $3
-        pack_pushdata_align(pushdata, len, [data].pack("H*"))
-      #when /^(-)?([0-9][0-9]?|1[0-1][0-9]|12[0-8])$/
-      #  negative, number = $1, $2.to_i
-      #  data = [ negative ? -number : number ].pack("c")
-      #  pack_pushdata(data)
+    buf = ""
+    script_string.split(" ").each{|i|
+      i = if opcode = OPCODES_PARSE_STRING[i]
+        opcode
       else
-        data = [i].pack("H*")
-        pack_pushdata(data)
+        case i
+        when /OP_PUSHDATA/             # skip
+        when /OP_(.+)$/;               raise ScriptOpcodeError, "#{i} not defined!"
+        when /\(opcode\-(\d+)\)/;      $1.to_i
+        when "(opcode";                # skip  # fix invalid opcode parsing
+        when /^(\d+)\)/;               $1.to_i # fix invalid opcode parsing
+        when /(\d+):(\d+):(.+)?/
+          pushdata, len, data = $1.to_i, $2.to_i, $3
+          pack_pushdata_align(pushdata, len, [data].pack("H*"))
+        else
+          data = [i].pack("H*")
+          pack_pushdata(data)
+        end
       end
-    }.map{|i|
-      i.is_a?(Fixnum) ? [OpenSSL::BN.new(i.to_s,10).to_hex].pack("H*") : i
-    }.join
+
+      buf << if i.is_a?(Fixnum)
+               i < 256 ? [i].pack("C") : [OpenSSL::BN.new(i.to_s,10).to_hex].pack("H*")
+             else
+               i
+             end if i
+    }
+    buf
   end
 
   def invalid?
