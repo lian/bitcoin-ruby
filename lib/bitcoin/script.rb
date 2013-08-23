@@ -230,6 +230,12 @@ class Bitcoin::Script
   end
   alias :to_payload :to_binary
 
+
+  def to_binary_without_signatures(drop_signatures, chunks=nil)
+    to_binary( (chunks || @chunks).select{|i| drop_signatures.none?{|e| e == i } } )
+  end
+
+
   def self.pack_pushdata(data)
     size = data.bytesize
 
@@ -390,13 +396,13 @@ class Bitcoin::Script
     return false unless Bitcoin.hash160(script.unpack("H*")[0]) == script_hash.unpack("H*")[0]
     rest.delete_at(0) if rest[0] == 0
 
-    script = self.class.new(to_binary(rest) + script).inner_p2sh!
+    script = self.class.new(to_binary(rest) + script).inner_p2sh!(script)
     result = script.run(&check_callback)
     @debug = script.debug
     result
   end
 
-  def inner_p2sh!; @inner_p2sh = true; self; end
+  def inner_p2sh!(script=nil); @inner_p2sh = true; @inner_script_code = script; self; end
   def inner_p2sh?; @inner_p2sh; end
 
   def is_pay_to_script_hash?
@@ -972,14 +978,15 @@ class Bitcoin::Script
   def op_checksig(check_callback)
     return invalid if @stack.size < 2
     pubkey = @stack.pop
-    drop_sigs      = [@stack[-1].unpack("H*")[0]]
+    drop_sigs      = [ @stack[-1] ]
     sig, hash_type = parse_sig(@stack.pop)
 
     if @chunks.include?(OP_CHECKHASHVERIFY)
       # Subset of script starting at the most recent codeseparator to OP_CHECKSIG
       script_code, @checkhash = codehash_script(OP_CHECKSIG)
     elsif inner_p2sh?
-      script_code = to_string
+      script_code = to_binary_without_signatures(drop_sigs)
+      drop_sigs = nil
     else
       script_code, drop_sigs = nil, nil
     end
@@ -1021,7 +1028,6 @@ class Bitcoin::Script
     return invalid  unless (0..n_pubkeys).include?(n_sigs)
     return invalid  unless @stack.last(n_sigs).all?{|e| e.is_a?(String) && e != '' }
     sigs = (drop_sigs = pop_string(n_sigs)).map{|s| parse_sig(s) }
-    drop_sigs.map!{|i| i.unpack("H*")[0] }
 
     @stack.pop if @stack[-1] == '' # remove OP_NOP from stack
 
@@ -1029,7 +1035,8 @@ class Bitcoin::Script
       # Subset of script starting at the most recent codeseparator to OP_CHECKMULTISIG
       script_code, @checkhash = codehash_script(OP_CHECKMULTISIG)
     elsif inner_p2sh?
-      script_code = to_string
+      script_code = @inner_script_code || to_binary_without_signatures(drop_sigs)
+      drop_sigs = nil
     else
       script_code, drop_sigs = nil, nil
     end

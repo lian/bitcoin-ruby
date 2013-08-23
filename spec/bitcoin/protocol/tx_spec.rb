@@ -176,6 +176,13 @@ describe 'Tx' do
     outpoint_tx = Bitcoin::P::Tx.from_json(fixtures_file('514c46f0b61714092f15c8dfcb576c9f79b3f959989b98de3944b19d98832b58.json'))
     outpoint_tx.hash.should == "514c46f0b61714092f15c8dfcb576c9f79b3f959989b98de3944b19d98832b58"
     tx.verify_input_signature(0, outpoint_tx).should == true
+
+    # p2sh transaction with non-standard OP_CHECKMULTISIG inside found in testnet3 tx: d3d77d63709e47d9ef58f0b557800115a6b676c6a423012fbb96f45d8fcef830
+    tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-d3d77d63709e47d9ef58f0b557800115a6b676c6a423012fbb96f45d8fcef830.json'))
+    tx.hash.should == "d3d77d63709e47d9ef58f0b557800115a6b676c6a423012fbb96f45d8fcef830"
+    outpoint_tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-313897799b1e37e9ecae15010e56156dddde4e683c96b0e713af95272c38aee0.json'))
+    outpoint_tx.hash.should == "313897799b1e37e9ecae15010e56156dddde4e683c96b0e713af95272c38aee0"
+    tx.verify_input_signature(0, outpoint_tx).should == true
   end
 
   it '#sign_input_signature' do

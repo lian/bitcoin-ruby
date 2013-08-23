@@ -116,8 +116,8 @@ module Bitcoin
         pin  = @in.map.with_index{|input,idx|
           if idx == input_idx
             script_pubkey ||= outpoint_tx.out[ input.prev_out_index ].pk_script
-            script_pubkey = Bitcoin::Script.binary_from_string(script)                if script    # force this string a script
-            script_pubkey = Bitcoin::Script.drop_signatures(script_pubkey, drop_sigs) if drop_sigs # array of signature to drop
+            script_pubkey = script                                                    if script    # force binary aa script
+            script_pubkey = Bitcoin::Script.drop_signatures(script_pubkey, drop_sigs) if drop_sigs # array of signature to drop (slow)
             #p Bitcoin::Script.new(script_pubkey).to_string
             input.to_payload(script_pubkey)
           else
