@@ -108,7 +108,6 @@ class Bitcoin::Script
     "OP_TRUE"  => OP_1,
     "OP_FALSE" => OP_0,
     "OP_EVAL" => OP_NOP1,
-    #"OP_NOP2" => OP_CHECKHASHVERIFY,
     "OP_CHECKHASHVERIFY" => OP_NOP2,
   }
 
@@ -117,8 +116,6 @@ class Bitcoin::Script
     OP_AND, OP_OR, OP_XOR, OP_2MUL, OP_2DIV, OP_MUL,
     OP_DIV, OP_MOD, OP_LSHIFT, OP_RSHIFT
   ]
-
-  OP_CHECKHASHVERIFY = 177 # disabled
 
   OP_2_16 = (82..96).to_a
 
@@ -371,13 +368,6 @@ class Bitcoin::Script
 
   def invalid
     @script_invalid = true; nil
-  end
-
-  def codehash_script(opcode)
-    # CScript scriptCode(pbegincodehash, pend);
-    script    = to_string(@chunks[(@codehash_start||0)...@chunks.size-@chunks.reverse.index(opcode)])
-    checkhash = Bitcoin.hash160(Bitcoin::Script.binary_from_string(script).unpack("H*")[0])
-    [script, checkhash]
   end
 
   def self.drop_signatures(script_pubkey, drop_signatures)
@@ -958,19 +948,19 @@ class Bitcoin::Script
     op_numequal; op_verify
   end
 
-  # https://en.bitcoin.it/wiki/BIP_0017  (old OP_NOP2)
-  # TODO: don't rely on it yet. add guards from wikipage too.
-  def op_checkhashverify
-    # unless @checkhash && (@checkhash == @stack[-1].unpack("H*")[0])
-    #  @script_invalid = true
-    # end
-  end
-
   # All of the signature checking words will only match signatures
   # to the data after the most recently-executed OP_CODESEPARATOR.
   def op_codeseparator
     @codehash_start = @chunks.size - @chunks.reverse.index(OP_CODESEPARATOR)
   end
+
+  def codehash_script(opcode)
+    # CScript scriptCode(pbegincodehash, pend);
+    script    = to_string(@chunks[(@codehash_start||0)...@chunks.size-@chunks.reverse.index(opcode)])
+    checkhash = Bitcoin.hash160(Bitcoin::Script.binary_from_string(script).unpack("H*")[0])
+    [script, checkhash]
+  end
+
 
   # do a CHECKSIG operation on the current stack,
   # asking +check_callback+ to do the actual signature verification.
@@ -981,10 +971,7 @@ class Bitcoin::Script
     drop_sigs      = [ @stack[-1] ]
     sig, hash_type = parse_sig(@stack.pop)
 
-    if @chunks.include?(OP_CHECKHASHVERIFY)
-      # Subset of script starting at the most recent codeseparator to OP_CHECKSIG
-      script_code, @checkhash = codehash_script(OP_CHECKSIG)
-    elsif inner_p2sh?
+    if inner_p2sh?
       script_code = to_binary_without_signatures(drop_sigs)
       drop_sigs = nil
     else
@@ -1031,10 +1018,7 @@ class Bitcoin::Script
 
     @stack.pop if @stack[-1] == '' # remove OP_NOP from stack
 
-    if @chunks.include?(OP_CHECKHASHVERIFY)
-      # Subset of script starting at the most recent codeseparator to OP_CHECKMULTISIG
-      script_code, @checkhash = codehash_script(OP_CHECKMULTISIG)
-    elsif inner_p2sh?
+    if inner_p2sh?
       script_code = @inner_script_code || to_binary_without_signatures(drop_sigs)
       drop_sigs = nil
     else
