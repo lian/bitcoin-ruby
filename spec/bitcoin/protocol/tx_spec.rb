@@ -278,6 +278,15 @@ describe 'Tx' do
       tx.verify_input_signature(0, prev_tx).should == true
     end
 
+    it "should do P2SH with inner OP_CHECKSIG" do
+      # p2sh transaction with non-standard OP_CHECKSIG inside found in testnet3 tx: 3da75972766f0ad13319b0b461fd16823a731e44f6e9de4eb3c52d6a6fb6c8ae
+      tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-3da75972766f0ad13319b0b461fd16823a731e44f6e9de4eb3c52d6a6fb6c8ae.json'))
+      tx.hash.should == "3da75972766f0ad13319b0b461fd16823a731e44f6e9de4eb3c52d6a6fb6c8ae"
+      prev_tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-44b833074e671120ba33106877b49e86ece510824b9af477a3853972bcd8d06a.json'))
+      prev_tx.hash.should == "44b833074e671120ba33106877b49e86ece510824b9af477a3853972bcd8d06a"
+      tx.verify_input_signature(0, prev_tx).should == true
+    end
+
   end
 
 end

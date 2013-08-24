@@ -972,7 +972,7 @@ class Bitcoin::Script
     sig, hash_type = parse_sig(@stack.pop)
 
     if inner_p2sh?
-      script_code = to_binary_without_signatures(drop_sigs)
+      script_code = @inner_script_code || to_binary_without_signatures(drop_sigs)
       drop_sigs = nil
     else
       script_code, drop_sigs = nil, nil
