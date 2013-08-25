@@ -109,6 +109,13 @@ module Bitcoin
         # https://github.com/bitcoin/bitcoin/blob/c2e8c8acd8ae0c94c70b59f55169841ad195bb99/src/script.cpp#L1058
         # https://en.bitcoin.it/wiki/OP_CHECKSIG
 
+        # Note: BitcoinQT checks if input_idx >= @in.size and returns 1 with an error message.
+        # But this check is never actually useful because BitcoinQT would crash 
+        # right before VerifyScript if input index is out of bounds (inside CScriptCheck::operator()()).
+        # That's why we don't need to do such a check here.
+        #
+        # However, if you look at the case SIGHASH_TYPE[:single] below, we must 
+        # return 1 because it's possible to have more inputs than outputs and BitcoinQT returns 1 as well.
         return "\x01".ljust(32, "\x00") if input_idx >= @in.size # ERROR: SignatureHash() : input_idx=%d out of range
 
         hash_type ||= SIGHASH_TYPE[:all]
