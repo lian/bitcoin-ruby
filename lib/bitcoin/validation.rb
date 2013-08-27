@@ -353,12 +353,11 @@ module Bitcoin::Validation
 
 
     def total_in
-      @total_in ||= tx.in.map.with_index {|txin, idx|
-        prev_txs[idx].out[txin.prev_out_index].value }.inject(:+)
+      @total_in ||= tx.in.each_with_index.inject(0){|acc,(input,idx)| acc + prev_txs[idx].out[input.prev_out_index].value }
     end
 
     def total_out
-      @total_out ||= tx.out.map(&:value).inject(:+)
+      @total_out ||= tx.out.inject(0){|acc,output| acc + output.value }
     end
 
   end
