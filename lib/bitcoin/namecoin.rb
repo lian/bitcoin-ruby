@@ -177,7 +177,7 @@ module Bitcoin::Namecoin
                 return nil
               end
 
-              unless blk[:depth] <= get_depth - Namecoin::FIRSTUPDATE_LIMIT
+              unless blk[:depth] <= get_depth - Bitcoin::Namecoin::FIRSTUPDATE_LIMIT
                 log.debug { "name_new not yet valid: #{name_hash}" }
                 return nil
               end
