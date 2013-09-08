@@ -181,6 +181,12 @@ include Bitcoin::Validation
           @store.get_tx("nonexistant").should == nil
         end
 
+        it "should get the position for a given tx" do
+          @store.store_block(@blk)
+          result = @store.get_idx_from_tx_hash(@blk.tx[0].hash)
+          result.should == 0
+        end
+
         it "should get tx for txin" do
           @store.store_tx(@tx, false)
           @store.get_tx(@tx.hash).in[0].get_tx.should == @tx

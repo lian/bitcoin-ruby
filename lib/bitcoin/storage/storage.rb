@@ -334,6 +334,11 @@ module Bitcoin::Storage
         raise "Not implemented"
       end
 
+      # Grab the position of a tx in a given block
+      def get_idx_from_tx_hash(tx_hash)
+        raise "Not implemented"
+      end
+
       # collect all txouts containing the
       # given +script+
       def get_txouts_for_pk_script(script)

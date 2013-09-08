@@ -332,6 +332,15 @@ module Bitcoin::Storage::Backends
       @db[:unconfirmed].map{|t| wrap_tx(t)}
     end
 
+    # Grab the position of a tx in a given block
+    def get_idx_from_tx_hash(tx_hash)
+      tx = @db[:tx][:hash => tx_hash.htb.blob]
+      return nil  unless tx
+      parent = @db[:blk_tx][:tx_id => tx[:id]]
+      return nil  unless parent
+      return parent[:idx]
+    end
+
     # wrap given +block+ into Models::Block
     def wrap_block(block)
       return nil  unless block
