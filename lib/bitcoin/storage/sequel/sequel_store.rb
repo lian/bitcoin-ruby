@@ -412,6 +412,15 @@ module Bitcoin::Storage::Backends
       wrap_name(@db[:names][:txout_id => txout_id])
     end
 
+    # Grab the position of a tx in a given block
+    def get_idx_from_tx_hash(tx_hash)
+      tx = @db[:tx][:hash => tx_hash.htb.blob]
+      return nil  unless tx
+      parent = @db[:blk_tx][:tx_id => tx[:id]]
+      return nil  unless parent
+      return parent[:idx]
+    end
+
     def name_show name
       names = @db[:names].where(:name => name.blob).order(:txout_id).reverse
       return nil  unless names.any?

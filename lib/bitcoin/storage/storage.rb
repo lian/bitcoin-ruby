@@ -60,6 +60,10 @@ module Bitcoin::Storage
         raise "Not implemented"
       end
 
+      def get_idx_from_tx_hash(tx_hash)
+        raise "Not implemented"
+      end
+
 
       def new_block blk
         time = Time.now
