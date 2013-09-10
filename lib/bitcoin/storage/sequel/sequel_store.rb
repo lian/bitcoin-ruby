@@ -405,7 +405,7 @@ module Bitcoin::Storage::Backends
     # - the prev_hash is the same as the previous blocks' hash
     # - the merkle root computed from all transactions is correct
     def check_consistency count = 1000
-      return  if get_depth < 1
+      return  if get_depth < 1 || count <= 0
       depth = get_depth
       count = depth - 1  if count == -1
       count = depth - 1  if count >= depth
