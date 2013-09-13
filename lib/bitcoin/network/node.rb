@@ -53,7 +53,7 @@ module Bitcoin::Network
       :listen => ["0.0.0.0", Bitcoin.network[:default_port]],
       :connect => [],
       :command => ["127.0.0.1", 9999],
-      :storage => "sequel::sqlite://~/.bitcoin-ruby/<network>/blocks.db",
+      :storage => "utxo::sqlite://~/.bitcoin-ruby/<network>/blocks.db",
       :mode => :full,
       :dns => true,
       :epoll_limit => 10000,
