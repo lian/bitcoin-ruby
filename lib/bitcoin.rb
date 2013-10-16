@@ -427,7 +427,6 @@ module Bitcoin
 
   CENT =   1_000_000
   COIN = 100_000_000
-  MAX_MONEY = 21_000_000 * COIN
   MAX_BLOCK_SIZE = 1_000_000
   MAX_BLOCK_SIZE_GEN = MAX_BLOCK_SIZE/2
   MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE/50
@@ -447,6 +446,7 @@ module Bitcoin
       :privkey_version => "80",
       :default_port => 8333,
       :protocol_version => 70001,
+      :max_money => 21_000_000 * COIN,
       :dns_seeds => [
         "seed.bitcoin.sipa.be",
         "dnsseed.bluematt.me",
@@ -499,6 +499,7 @@ module Bitcoin
       :privkey_version => "ef",
       :default_port => 18333,
       :protocol_version => 70001,
+      :max_money => 21_000_000 * COIN,
       :dns_seeds => [
         "testnet-seed.bitcoin.petertodd.org",
         "bitcoin-seednode.bluematt.me",
@@ -522,6 +523,7 @@ module Bitcoin
       :privkey_version => "ef",
       :default_port => 9333,
       :protocol_version => 60002,
+      :max_money => 84_000_000 * COIN,
       :dns_seeds => [
         "dnsseed.litecointools.com",
         "dnsseed.litecoinpool.org",
@@ -559,6 +561,7 @@ module Bitcoin
       :privkey_version => "ef",
       :default_port => 19333,
       :protocol_version => 60002,
+      :max_money => 84_000_000 * COIN,
       :dns_seeds => [
         "testnet-seed.litecointools.com",
         "testnet-seed.weminemnc.com",
@@ -579,6 +582,7 @@ module Bitcoin
       :privkey_version => "80",
       :default_port => 8639,
       :protocol_version => 60002,
+      :max_money => 21_000_000 * COIN,
       :dns_seeds => [ "seed.freico.in", "fledge.freico.in" ],
       :genesis_hash => "000000005b1e3d23ecfd2dd4a6e1a35238aa0392c0a8528c40df52376d7efe2c",
       :proof_of_work_limit => 0,
@@ -596,6 +600,7 @@ module Bitcoin
       :address_version => "34",
       :default_port => 8334,
       :protocol_version => 35000,
+      :max_money => 21_000_000 * COIN,
       :dns_seeds => [],
       :genesis_hash => "000000000062b72c5e2ceb45fbc8587e807c155b0da735e6483dfba2f0a9c770",
       :proof_of_work_limit => 0x1d00ffff,
@@ -615,6 +620,7 @@ module Bitcoin
       :address_version => "34",
       :default_port => 18334,
       :protocol_version => 35000,
+      :max_money => 21_000_000 * COIN,
       :dns_seeds => [],
       :genesis_hash => "00000001f8ab0d14bceaeb50d163b0bef15aecf62b87bd5f5c864d37f201db97",
       :proof_of_work_limit => 0x1d00ffff,
