@@ -8,12 +8,6 @@ module Bitcoin::Validation
   # maximum number of signature operations in a block
   MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE / 50
 
-  # the number of base units ("satoshis") that make up one bitcoin
-  COIN = 100_000_000
-
-  # total number of base units in existence
-  MAX_MONEY = 21_000_000 * COIN
-
   # maximum integer value
   INT_MAX = 0xffffffff
 
@@ -267,7 +261,7 @@ module Bitcoin::Validation
     # check that total output value doesn't exceed MAX_MONEY.
     def output_values
       total = tx.out.inject(0) {|e, out| e + out.value }
-      total <= MAX_MONEY || [total, MAX_MONEY]
+      total <= Bitcoin::network[:max_money] || [total, Bitcoin::network[:max_money]]
     end
 
     # check that none of the inputs is coinbase
@@ -328,7 +322,7 @@ module Bitcoin::Validation
 
     # check that the total input value doesn't exceed MAX_MONEY
     def input_values
-      total_in < MAX_MONEY || [total_in, MAX_MONEY]
+      total_in < Bitcoin::network[:max_money] || [total_in, Bitcoin::network[:max_money]]
     end
 
     # check that the total output value doesn't exceed the total input value

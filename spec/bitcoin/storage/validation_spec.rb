@@ -205,8 +205,8 @@ describe "transaction rules (#{configuration[:name].capitalize}Store)" do
   end
 
   it "4. Each output value, as well as the total, must be in legal money range" do
-    check_tx(@tx, [:output_values, [MAX_MONEY + 1, MAX_MONEY]]) {|tx|
-      tx.out[0].value = MAX_MONEY + 1 }
+    check_tx(@tx, [:output_values, [Bitcoin::network[:max_money] + 1, Bitcoin::network[:max_money]]]) {|tx|
+      tx.out[0].value = Bitcoin::network[:max_money] + 1 }
   end
 
   it "5. Make sure none of the inputs have hash=0, n=-1" do
