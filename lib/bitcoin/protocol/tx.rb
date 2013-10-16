@@ -241,11 +241,11 @@ module Bitcoin
         end
 
         if block_size != 1 && new_block_size >= (Bitcoin::MAX_BLOCK_SIZE_GEN/2)
-          #return Bitcoin::MAX_MONEY if new_block_size >= Bitcoin::MAX_BLOCK_SIZE_GEN
+          #return Bitcoin::network[:max_money] if new_block_size >= Bitcoin::MAX_BLOCK_SIZE_GEN
           min_fee *= Bitcoin::MAX_BLOCK_SIZE_GEN / (Bitcoin::MAX_BLOCK_SIZE_GEN - new_block_size)
         end
 
-        min_fee = Bitcoin::MAX_MONEY unless min_fee.between?(0, Bitcoin::MAX_MONEY)
+        min_fee = Bitcoin::network[:max_money] unless min_fee.between?(0, Bitcoin::network[:max_money])
         min_fee
       end
 
