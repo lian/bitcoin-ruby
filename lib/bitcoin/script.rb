@@ -12,6 +12,7 @@ class Bitcoin::Script
   OP_PUSHDATA1   = 76
   OP_PUSHDATA2   = 77
   OP_PUSHDATA4   = 78
+  OP_PUSHDATA_INVALID = 238 # 0xEE
   OP_NOP         = 97
   OP_DUP         = 118
   OP_HASH160     = 169
@@ -162,6 +163,8 @@ class Bitcoin::Script
         if len == 1 && tmp <= 22
           chunks.last.bitcoin_pushdata = OP_PUSHDATA0
           chunks.last.bitcoin_pushdata_length = len
+        else
+          raise "invalid OP_PUSHDATA0" if len != chunks.last.bytesize
         end
       elsif (opcode == OP_PUSHDATA1)
         len = program.shift(1)[0]
@@ -170,6 +173,8 @@ class Bitcoin::Script
         unless len > OP_PUSHDATA1 && len <= 0xff
           chunks.last.bitcoin_pushdata = OP_PUSHDATA1
           chunks.last.bitcoin_pushdata_length = len
+        else
+          raise "invalid OP_PUSHDATA1" if len != chunks.last.bytesize
         end
       elsif (opcode == OP_PUSHDATA2)
         len = program.shift(2).pack("C*").unpack("v")[0]
@@ -178,6 +183,8 @@ class Bitcoin::Script
         unless len > 0xff && len <= 0xffff
           chunks.last.bitcoin_pushdata = OP_PUSHDATA2
           chunks.last.bitcoin_pushdata_length = len
+        else
+          raise "invalid OP_PUSHDATA2" if len != chunks.last.bytesize
         end
       elsif (opcode == OP_PUSHDATA4)
         len = program.shift(4).pack("C*").unpack("V")[0]
@@ -186,12 +193,21 @@ class Bitcoin::Script
         unless len > 0xffff # && len <= 0xffffffff
           chunks.last.bitcoin_pushdata = OP_PUSHDATA4
           chunks.last.bitcoin_pushdata_length = len
+        else
+          raise "invalid OP_PUSHDATA4" if len != chunks.last.bytesize
         end
       else
         chunks << opcode
       end
     end
     chunks
+  rescue Exception => ex
+    # bail out! #run returns false but serialization roundtrips still create the right payload.
+    @parse_invalid = true
+    c = bytes.unpack("C*").pack("C*")
+    c.bitcoin_pushdata = OP_PUSHDATA_INVALID
+    c.bitcoin_pushdata_length = c.bytesize
+    chunks = [ c ]
   end
 
   # string representation of the script
@@ -262,6 +278,8 @@ class Bitcoin::Script
       [OP_PUSHDATA2, len].pack("Cv") + data
     when OP_PUSHDATA4
       [OP_PUSHDATA4, len].pack("CV") + data
+    when OP_PUSHDATA_INVALID
+      data
     else # OP_PUSHDATA0
       [len].pack("C") + data
     end
@@ -311,6 +329,8 @@ class Bitcoin::Script
 
   # run the script. +check_callback+ is called for OP_CHECKSIG operations
   def run(block_timestamp=Time.now.to_i, &check_callback)
+    return false if @parse_invalid
+
     #p [to_string, block_timestamp, is_p2sh?]
     @script_invalid = true if @raw.bytesize > 10_000
 

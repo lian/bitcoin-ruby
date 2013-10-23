@@ -66,6 +66,21 @@ describe 'Bitcoin::Script' do
       Script.new("\x4d\x01\x00").to_string.should == "77:1:"
       Script.from_string("77:1:").to_payload.should == "\x4d\x01\x00"
 
+      [ # mainnet tx: ebc9fa1196a59e192352d76c0f6e73167046b9d37b8302b6bb6968dfd279b767 outputs
+        ["\x01",                        "238:1:01",            true],
+        ["\x02\x01",                    "238:2:0201",          true],
+        ["L",                           "238:1:4c",            true],
+        ["L\x02\x01",                   "76:2:01",              nil],
+        ["M",                           "238:1:4d",            true],
+        ["M\xff\xff\x01",               "238:4:4dffff01",      true],
+        ["N",                           "238:1:4e",            true],
+        ["N\xff\xff\xff\xff\x01",       "238:6:4effffffff01",  true],
+      ].each{|payload,string,parse_invalid|
+        Script.new(payload).to_string.should == string
+        Script.new(payload).instance_eval{ @parse_invalid }.should == parse_invalid
+        Script.from_string(string).to_payload == payload
+      }
+
       Bitcoin::Script.from_string("(opcode-230) 4 1 2").to_string.should == "(opcode-230) 4 1 2"
       Bitcoin::Script.from_string("(opcode 230) 4 1 2").to_string.should == "(opcode-230) 4 1 2"
       Bitcoin::Script.from_string("(opcode-65449) 4 1 2").to_string.should == "(opcode-255) OP_HASH160 4 1 2"
