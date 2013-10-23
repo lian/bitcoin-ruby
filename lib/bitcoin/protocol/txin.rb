@@ -26,6 +26,7 @@ module Bitcoin
 
       DEFAULT_SEQUENCE = "\xff\xff\xff\xff"
       NULL_HASH = "\x00"*32
+      COINBASE_INDEX = 0xffffffff
 
       def initialize *args
         @prev_out, @prev_out_index, @script_sig_length,
@@ -96,7 +97,7 @@ module Bitcoin
 
       # check if input is coinbase
       def coinbase?
-        (@prev_out_index == 4294967295) && (@prev_out == NULL_HASH)
+        (@prev_out_index == COINBASE_INDEX) && (@prev_out == NULL_HASH)
       end
 
       # set script_sig and script_sig_length

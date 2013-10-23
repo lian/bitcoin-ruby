@@ -249,6 +249,10 @@ module Bitcoin
         min_fee
       end
 
+      def is_coinbase?
+        inputs.size == 1 and inputs.first.coinbase?
+      end
+
     end
   end
 end
