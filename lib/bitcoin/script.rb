@@ -526,6 +526,7 @@ class Bitcoin::Script
   def self.to_pubkey_script_sig(signature, pubkey)
     hash_type = "\x01"
     #pubkey = [pubkey].pack("H*") if pubkey.bytesize != 65
+    return [ [signature.bytesize+1].pack("C"), signature, hash_type ].join unless pubkey
 
     case pubkey[0]
     when "\x04"
