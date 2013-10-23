@@ -447,6 +447,9 @@ module Bitcoin
       :privkey_version => "80",
       :default_port => 8333,
       :protocol_version => 70001,
+      :coinbase_maturity => 100,
+      :retarget_interval => 2016,
+      :retarget_time => 1209600, # 2 weeks
       :dns_seeds => [
         "seed.bitcoin.sipa.be",
         "dnsseed.bluematt.me",
@@ -499,6 +502,9 @@ module Bitcoin
       :privkey_version => "ef",
       :default_port => 18333,
       :protocol_version => 70001,
+      :coinbase_maturity => 100,
+      :retarget_interval => 2016,
+      :retarget_time => 1209600, # 2 weeks
       :dns_seeds => [
         "testnet-seed.bitcoin.petertodd.org",
         "bitcoin-seednode.bluematt.me",
