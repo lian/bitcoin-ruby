@@ -150,10 +150,15 @@ module Bitcoin
       # introduced in block version 2 by BIP_0034
       # blockchain height as seen by the block itself.
       # do not trust this value, instead verify with chain storage.
-      def bip34_block_height
+      def bip34_block_height(height=nil)
         return nil unless @ver >= 2
-        coinbase = @tx.first.inputs.first.script_sig
-        coinbase[1..coinbase[0].ord].ljust(4, "\x00").unpack("V").first
+        if height # generate height binary
+          buf = [height].pack("V").gsub(/\x00+$/,"")
+          [buf.bytesize, buf].pack("Ca*")
+        else
+          coinbase = @tx.first.inputs.first.script_sig
+          coinbase[1..coinbase[0].ord].ljust(4, "\x00").unpack("V").first
+        end
       rescue
         nil
       end
