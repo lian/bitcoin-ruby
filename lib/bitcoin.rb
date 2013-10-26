@@ -534,6 +534,9 @@ module Bitcoin
       :protocol_version => 60002,
       :max_money => 84_000_000 * COIN,
       :min_tx_fee => 2_000_000,
+      :coinbase_maturity => 100,
+      :retarget_interval => 2016,
+      :retarget_time => 302400, # 3.5 days
       :min_relay_tx_fee => 1_000_000,
       :dns_seeds => [
         "dnsseed.litecointools.com",
@@ -574,6 +577,9 @@ module Bitcoin
       :protocol_version => 60002,
       :min_tx_fee => 2_000_000,
       :min_relay_tx_fee => 1_000_000,
+      :coinbase_maturity => 100,
+      :retarget_interval => 2016,
+      :retarget_time => 302400, # 3.5 days
       :max_money => 84_000_000 * COIN,
       :dns_seeds => [
         "testnet-seed.litecointools.com",
