@@ -938,7 +938,7 @@ class Bitcoin::Script
 
   # Transaction is invalid unless occuring in an unexecuted OP_IF branch
   def op_ver
-    # skipped, not defined in origin script.cpp
+    invalid if @do_exec
   end
 
   def pop_int(count=nil)
