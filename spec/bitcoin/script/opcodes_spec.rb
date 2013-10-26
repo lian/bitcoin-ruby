@@ -679,4 +679,12 @@ describe "Bitcoin::Script OPCODES" do
     }
   end
 
+  it "should not allow DISABLED_OPCODES" do
+    Bitcoin::Script::DISABLED_OPCODES.each{|opcode|
+      s = Bitcoin::Script.from_string(Bitcoin::Script::OPCODES[opcode] + " 1"); s.run.should == false; s.invalid?.should == true
+      s = Bitcoin::Script.from_string("1 OP_IF #{Bitcoin::Script::OPCODES[opcode]} 1 OP_ELSE 1 OP_ENDIF"); s.run.should == false; s.invalid?.should == true
+      s = Bitcoin::Script.from_string("1 OP_IF 1 OP_ELSE #{Bitcoin::Script::OPCODES[opcode]} 1 OP_ENDIF"); s.run.should == false; s.invalid?.should == true
+    }
+  end
+
 end

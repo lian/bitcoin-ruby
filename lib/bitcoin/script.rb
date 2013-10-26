@@ -348,12 +348,15 @@ class Bitcoin::Script
 
       case chunk
       when Fixnum
+        if DISABLED_OPCODES.include?(chunk)
+          @script_invalid = true
+          @debug << "DISABLED_#{OPCODES[chunk]}"
+          break
+        end
+
         next unless (@do_exec || (OP_IF <= chunk && chunk <= OP_ENDIF))
 
         case chunk
-        when *DISABLED_OPCODES
-          @script_invalid = true
-          @debug << "DISABLED_#{OPCODES[chunk]}"
         when *OPCODES_METHOD.keys
           m = method( n=OPCODES_METHOD[chunk] )
           @debug << n.to_s.upcase
