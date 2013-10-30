@@ -511,7 +511,7 @@ module Bitcoin
       :min_relay_tx_fee => 10_000,
       :dns_seeds => [
         "testnet-seed.bitcoin.petertodd.org",
-        "bitcoin-seednode.bluematt.me",
+        "testnet-seed.bluematt.me",
       ],
       :genesis_hash => "000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943",
       :proof_of_work_limit => 0x1d07fff8,
