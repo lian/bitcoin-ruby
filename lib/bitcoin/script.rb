@@ -404,10 +404,10 @@ class Bitcoin::Script
   def pay_to_script_hash(check_callback)
     return false if @chunks.size < 4
     *rest, script, _, script_hash, _ = @chunks
+    script, script_hash = cast_to_string(script), cast_to_string(script_hash)
 
-    return false unless [script, script_hash].all?{|i| i.is_a?(String) }
     return false unless Bitcoin.hash160(script.unpack("H*")[0]) == script_hash.unpack("H*")[0]
-    rest.delete_at(0) if rest[0] == 0
+    rest.delete_at(0) if rest[0] && cast_to_bignum(rest[0]) == 0
 
     script = self.class.new(to_binary(rest) + script).inner_p2sh!(script)
     result = script.run(&check_callback)
