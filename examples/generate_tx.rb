@@ -12,7 +12,7 @@ value = prev_tx.outputs[prev_tx_output_index].value
 tx = Bitcoin::Protocol::Tx.new
 tx.add_in Bitcoin::Protocol::TxIn.new(prev_tx.binary_hash, prev_tx_output_index, 0)
 
-tx.add_out Bitcoin::Protocol::TxOut.value_to_address(value, "13qSwBXayVcJYATJ49b5uHQGwE9rQiBHqK") # <- dest address
+tx.add_out Bitcoin::Protocol::TxOut.value_to_address(value, "1MiQ3zD3hzZBZ4cUDfPd8Eqnjcedkwt5jy") # <- dest address (our donation address)
 
 # if all in and outputs are defined, start signing inputs.
 key = Bitcoin.open_key("9b2f08ebc186d435ffc1d10f3627f05ce4b983b72c76b0aee4fcce99e57b0342") # <- privkey
@@ -25,8 +25,10 @@ tx = Bitcoin::Protocol::Tx.new( tx.to_payload )
 p tx.hash
 p tx.verify_input_signature(0, prev_tx) == true
 
+puts "json:\n"
 puts tx.to_json # json
-#puts tx.to_payload.unpack("H*")[0] # hex binary
+puts "\nhex:\n"
+puts tx.to_payload.unpack("H*")[0] # hex binary
 
 # use this json file for example with `ruby simple_network_monitor_and_util.rb send_tx=<filename>` to push/send it to the network
 File.open(tx.hash + ".json", 'wb'){|f| f.print tx.to_json }
