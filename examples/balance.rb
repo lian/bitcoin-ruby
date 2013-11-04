@@ -15,7 +15,7 @@ store = Bitcoin::Storage.sequel(:db => "sqlite://bitcoin.db")
 address = ARGV.shift
 
 unless Bitcoin.valid_address?(address)
-  puts "Address #{address} is invalid."
+  puts "Address #{address} is invalid for #{Bitcoin.network_name} network."
   exit 1
 end
 
@@ -38,8 +38,14 @@ if ARGV[0] == "--list"
     total += txout.value
     puts "#{tx.hash} |#{str_val(txout.value, '+ ')}  |=> #{str_val(total)}"
 
-    txout.get_tx.in.map(&:get_prev_out).each do |prev_out|
-      puts "  from #{prev_out.get_addresses.join(", ")}"
+    tx = txout.get_tx
+    if tx.is_coinbase?
+      puts " "*12 + "generated (#{tx.get_block.hash})"
+    else
+      tx.in.each do |txin|
+        addresses = txin.get_prev_out.get_addresses.join(", ")
+        puts "  #{str_val(txin.get_prev_out.value)} from #{addresses}"
+      end
     end
     puts
 
@@ -48,7 +54,7 @@ if ARGV[0] == "--list"
       total -= txout.value
       puts "#{tx.hash} |#{str_val(txout.value, '- ')}  |=> #{str_val(total)}"
       txin.get_tx.out.each do |out|
-        puts "  to #{out.get_addresses.join(", ")}"
+        puts "  #{str_val(out.value)} to #{out.get_addresses.join(", ")}"
       end
       puts
     end
