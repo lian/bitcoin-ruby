@@ -52,9 +52,10 @@ module Bitcoin
       end
 
       def parse_headers(payload)
-        count, payload = Protocol.unpack_var_int(payload)
-        idx = 0
-        headers = count.times.map{ Block.new(payload[idx..idx+=81]) }
+        return unless @h.respond_to?(:on_headers)
+        buf = StringIO.new(payload)
+        count = Protocol.unpack_var_int_from_io(buf)
+        headers = count.times.map{ b = Block.new; b.parse_data_from_io(buf, header_only=true); b }
         @h.on_headers(headers)
       end
 
