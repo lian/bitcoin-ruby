@@ -3,7 +3,7 @@
 module Bitcoin::Storage::Backends::SequelMigrations
 
   def migrate
-    binary = @db.adapter_scheme == :postgres ? :bytea : :blob
+    binary = @db.database_type == :postgres ? :bytea : :blob
 
     unless @db.tables.include?(:blk)
       @db.create_table :blk do

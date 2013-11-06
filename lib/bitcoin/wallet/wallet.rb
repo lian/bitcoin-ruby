@@ -33,7 +33,10 @@ module Bitcoin::Wallet
       @keystore = keystore
       @selector = selector
       @callbacks = {}
+
+      @keystore.keys.each {|key| @storage.add_watched_address(key[:addr]) }
       # connect_node  if defined?(EM)
+
     end
 
     def connect_node
@@ -108,7 +111,7 @@ module Bitcoin::Wallet
     def get_txouts(unconfirmed = false)
       txouts = @keystore.keys.map {|k|
         @storage.get_txouts_for_address(k[:addr])}.flatten.uniq
-      unconfirmed ? txouts : txouts.select {|o| !!o.get_tx.get_block}
+      (unconfirmed || @storage.class.name =~ /Utxo/) ? txouts : txouts.select {|o| !!o.get_tx.get_block}
     end
 
     # get total balance for all addresses in this wallet
@@ -125,6 +128,7 @@ module Bitcoin::Wallet
     # add +key+ to wallet
     def add_key key
       @keystore.add_key(key)
+      @storage.add_watched_address(key[:addr])
     end
 
     # set label for key +old+ to +new+
@@ -146,7 +150,19 @@ module Bitcoin::Wallet
 
     # create new key and return its address
     def get_new_addr
-      @keystore.new_key.addr
+      key = @keystore.new_key
+      @storage.add_watched_address(key.addr)
+      key.addr
+    end
+
+    def import_key base58, label = nil
+      key = @keystore.import(base58, label)
+      @storage.add_watched_address(key.addr)
+      key.addr
+    end
+
+    def rescan
+      @storage.rescan
     end
 
     # get SimpleCoinSelector with txouts for this wallet

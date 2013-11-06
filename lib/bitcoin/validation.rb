@@ -8,12 +8,6 @@ module Bitcoin::Validation
   # maximum number of signature operations in a block
   MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE / 50
 
-  # the number of base units ("satoshis") that make up one bitcoin
-  COIN = 100_000_000
-
-  # total number of base units in existence
-  MAX_MONEY = 21_000_000 * COIN
-
   # maximum integer value
   INT_MAX = 0xffffffff
 
@@ -109,12 +103,14 @@ module Bitcoin::Validation
     # check that coinbase value is valid; no more than reward + fees
     def coinbase_value
       reward = ((50.0 / (2 ** (store.get_depth / REWARD_DROP.to_f).floor)) * 1e8).to_i
-      fees = block.tx[1..-1].map.with_index do |t, idx|
+      fees = 0
+      block.tx[1..-1].map.with_index do |t, idx|
         val = tx_validators[idx]
-        t.in.map.with_index {|i, idx|
+        fees += t.in.map.with_index {|i, idx|
           val.prev_txs[idx].out[i.prev_out_index].value rescue 0
         }.inject(:+)
-      end.inject(:+) || 0
+        val.clear_cache # memory optimization on large coinbases, see testnet3 block 4110
+      end
       coinbase_output = block.tx[0].out.map(&:value).inject(:+)
       coinbase_output <= reward + fees || [coinbase_output, reward, fees]
     end
@@ -229,6 +225,7 @@ module Bitcoin::Validation
           end
         end
       end
+      clear_cache # memory optimizatons
       true
     end
 
@@ -264,7 +261,7 @@ module Bitcoin::Validation
     # check that total output value doesn't exceed MAX_MONEY.
     def output_values
       total = tx.out.inject(0) {|e, out| e + out.value }
-      total <= MAX_MONEY || [total, MAX_MONEY]
+      total <= Bitcoin::network[:max_money] || [total, Bitcoin::network[:max_money]]
     end
 
     # check that none of the inputs is coinbase
@@ -325,7 +322,7 @@ module Bitcoin::Validation
 
     # check that the total input value doesn't exceed MAX_MONEY
     def input_values
-      total_in < MAX_MONEY || [total_in, MAX_MONEY]
+      total_in < Bitcoin::network[:max_money] || [total_in, Bitcoin::network[:max_money]]
     end
 
     # check that the total output value doesn't exceed the total input value
@@ -333,18 +330,26 @@ module Bitcoin::Validation
       total_in >= total_out || [total_out, total_in]
     end
 
+    # empty prev txs cache
+    def clear_cache
+      @prev_txs = nil
+      @total_in = nil
+      @total_out = nil
+    end
+
     # collect prev_txs needed to verify the inputs of this tx.
     # only returns tx that are in a block in the main chain or the current block.
     def prev_txs
       @prev_txs ||= tx.in.map {|i|
         prev_tx = store.get_tx(i.prev_out.reverse_hth)
+        next prev_tx  if store.class.name =~ /UtxoStore/ && prev_tx
         next nil  if !prev_tx && !@block
 
-        if store.db && store.db.is_a?(Sequel::Database)
+        if store.class.name =~ /SequelStore/
           block = store.db[:blk][id: prev_tx.blk_id]  if prev_tx
           next prev_tx  if block && block[:chain] == 0
         else
-          next prev_tx  if prev_tx.get_block && prev_tx.get_block.chain == 0
+          next prev_tx  if prev_tx && prev_tx.get_block && prev_tx.get_block.chain == 0
         end
         next  nil if !@block
         @block.tx.find {|t| t.binary_hash == i.prev_out }
@@ -353,12 +358,11 @@ module Bitcoin::Validation
 
 
     def total_in
-      @total_in ||= tx.in.map.with_index {|txin, idx|
-        prev_txs[idx].out[txin.prev_out_index].value }.inject(:+)
+      @total_in ||= tx.in.each_with_index.inject(0){|acc,(input,idx)| acc + prev_txs[idx].out[input.prev_out_index].value }
     end
 
     def total_out
-      @total_out ||= tx.out.map(&:value).inject(:+)
+      @total_out ||= tx.out.inject(0){|acc,output| acc + output.value }
     end
 
   end

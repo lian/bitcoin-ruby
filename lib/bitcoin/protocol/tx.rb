@@ -223,7 +223,7 @@ module Bitcoin
       def minimum_block_fee; calculate_minimum_fee(1_000, true, :block); end
 
       def calculate_minimum_fee(block_size=1, allow_free=true, mode=:block)
-        base_fee       = (mode == :relay) ? Bitcoin::MIN_RELAY_TX_FEE : Bitcoin::MIN_TX_FEE
+        base_fee       = (mode == :relay) ? Bitcoin.network[:min_relay_tx_fee] : Bitcoin.network[:min_tx_fee]
         tx_size        = to_payload.bytesize
         new_block_size = block_size + tx_size
         min_fee       = (1 + tx_size / 1_000) * base_fee
@@ -241,12 +241,16 @@ module Bitcoin
         end
 
         if block_size != 1 && new_block_size >= (Bitcoin::MAX_BLOCK_SIZE_GEN/2)
-          #return Bitcoin::MAX_MONEY if new_block_size >= Bitcoin::MAX_BLOCK_SIZE_GEN
+          #return Bitcoin::network[:max_money] if new_block_size >= Bitcoin::MAX_BLOCK_SIZE_GEN
           min_fee *= Bitcoin::MAX_BLOCK_SIZE_GEN / (Bitcoin::MAX_BLOCK_SIZE_GEN - new_block_size)
         end
 
-        min_fee = Bitcoin::MAX_MONEY unless min_fee.between?(0, Bitcoin::MAX_MONEY)
+        min_fee = Bitcoin::network[:max_money] unless min_fee.between?(0, Bitcoin::network[:max_money])
         min_fee
+      end
+
+      def is_coinbase?
+        inputs.size == 1 and inputs.first.coinbase?
       end
 
     end

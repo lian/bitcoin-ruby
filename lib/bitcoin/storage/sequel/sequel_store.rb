@@ -2,7 +2,6 @@
 
 Bitcoin.require_dependency :sequel, message:
   "Note: You will also need an adapter for your database like sqlite3, mysql2, postgresql"
-require_relative 'migrations'
 
 module Bitcoin::Storage::Backends
 
@@ -10,48 +9,24 @@ module Bitcoin::Storage::Backends
   # Inherits from StoreBase and implements its interface.
   class SequelStore < StoreBase
 
-    Sequel.extension(:core_extensions, :sequel_3_dataset_methods)
-
-    # possible script types
-    SCRIPT_TYPES = [:unknown, :pubkey, :hash160, :multisig, :p2sh]
-    if Bitcoin.namecoin?
-      [:name_new, :name_firstupdate, :name_update].each {|n| SCRIPT_TYPES << n }
-    end
-
-    # name_new must have 12 confirmations before corresponding name_firstupdate is valid.
-    NAMECOIN_FIRSTUPDATE_LIMIT = 12
-
     # sequel database connection
     attr_accessor :db
-
-    include Bitcoin::Storage::Backends::SequelMigrations
 
     DEFAULT_CONFIG = { mode: :full, cache_head: false }
 
     # create sequel store with given +config+
     def initialize config, *args
-      @config = DEFAULT_CONFIG.merge(config)
       super config, *args
-      connect
     end
 
     # connect to database
     def connect
-      {:sqlite => "sqlite3", :postgres => "pg", :mysql => "mysql",
-      }.each do |adapter, name|
-        if @config[:db].split(":").first == adapter.to_s
-          Bitcoin.require_dependency name, gem: name
-        end
-      end
-      @db = Sequel.connect(@config[:db].sub("~", ENV["HOME"]))
-      @db.extend_datasets(Sequel::Sequel3DatasetMethods)
-      log.info { "opened database #{@db.uri}" }
-      migrate
+      super
     end
 
     # reset database; delete all data
     def reset
-      [:blk, :blk_tx, :tx, :txin, :txout, :addr, :addr_txout, :names].each {|table| @db[table].delete}
+      [:blk, :blk_tx, :tx, :txin, :txout, :addr, :addr_txout, :names].each {|table| @db[table].delete }
       @head = nil
     end
 
@@ -123,20 +98,17 @@ module Bitcoin::Storage::Backends
       end
     end
 
-    # update +attrs+ for block with given +hash+.
-    def update_blocks updates
+    def reorg new_side, new_main
       @db.transaction do
-        updates.each do |blocks, attrs|
-          @db[:blk].filter(:hash => blocks.map{|h| h.htb.blob}).update(attrs)
-        end
+        @db[:blk].where(hash: new_side.map {|h| h.htb.blob }).update(chain: SIDE)
+        new_main.each {|b| get_block(b).validator(self).validate(raise_errors: true) }  unless @config[:skip_validation]
+        @db[:blk].where(hash: new_main.map {|h| h.htb.blob }).update(chain: MAIN)
       end
     end
 
     # parse script and collect address/txout mappings to index
     def parse_script txout, i
       addrs, names = [], []
-      # skip huge script in testnet3 block 54507 (998000 bytes)
-      return [SCRIPT_TYPES.index(:unknown), [], []]  if txout.pk_script.bytesize > 10_000
 
       script = Bitcoin::Script.new(txout.pk_script) rescue nil
       if script
@@ -231,58 +203,6 @@ module Bitcoin::Storage::Backends
       persist_addrs addrs.map {|i, h| [txout_id, h] }
       names.each {|i, script| store_name(script, txout_id) }
       txout_id
-    end
-
-    # store address +hash160+
-    def store_addr(txout_id, hash160)
-      addr = @db[:addr][:hash160 => hash160]
-      addr_id = addr[:id]  if addr
-      addr_id ||= @db[:addr].insert({:hash160 => hash160})
-      @db[:addr_txout].insert({:addr_id => addr_id, :txout_id => txout_id})
-    end
-
-    # if this is a namecoin script, update the names index
-    def store_name(script, txout_id)
-      if script.type == :name_new
-        log.info { "name_new #{script.get_namecoin_hash}" }
-        @db[:names].insert({
-            :txout_id => txout_id,
-            :hash => script.get_namecoin_hash
-          })
-
-      elsif script.type == :name_firstupdate
-        name_hash = script.get_namecoin_hash
-        name_new = @db[:names].where(:hash => name_hash).order(:txout_id).first
-        txout = @db[:txout][id: name_new[:txout_id]] if name_new
-        tx = @db[:tx][id: txout[:tx_id]] if txout
-        blk_tx = @db[:blk_tx][tx_id: tx[:id]]  if tx
-        blk = @db[:blk][id: blk_tx[:blk_id]] if blk_tx
-        unless name_new && blk && blk[:chain] == 0
-          log.warn { "name_new not found: #{name_hash}" }
-          return nil
-        end
-        unless blk[:depth] <= get_depth - NAMECOIN_FIRSTUPDATE_LIMIT
-          log.warn { "name_new not yet valid: #{name_hash}" }
-          return nil
-        end
-
-        log.info { "#{script.type}: #{script.get_namecoin_name}" }
-        @db[:names].where(:txout_id => name_new[:txout_id], :name => nil).update({
-            :name => script.get_namecoin_name.to_s.blob })
-        @db[:names].insert({
-            :txout_id => txout_id,
-            :hash => name_hash,
-            :name => script.get_namecoin_name.to_s.blob,
-            :value => script.get_namecoin_value.to_s.blob,
-          })
-      elsif script.type == :name_update
-        log.info { "#{script.type}: #{script.get_namecoin_name}" }
-        @db[:names].insert({
-            :txout_id => txout_id,
-            :name => script.get_namecoin_name.to_s.blob,
-            :value => script.get_namecoin_value.to_s.blob,
-          })
-      end
     end
 
     # delete transaction
@@ -403,6 +323,10 @@ module Bitcoin::Storage::Backends
       txouts
     end
 
+    def get_txouts_for_name_hash(hash)
+      @db[:names].filter(hash: hash).map {|n| get_txout_by_id(n[:txout_id]) }
+    end
+
     # get all unconfirmed Models::TxOut
     def get_unconfirmed_tx
       @db[:unconfirmed].map{|t| wrap_tx(t)}
@@ -500,13 +424,28 @@ module Bitcoin::Storage::Backends
       txout
     end
 
-    def wrap_name(data)
-      return nil  unless data
-      Bitcoin::Storage::Models::Name.new(self, data)
+    # check data consistency of the top +count+ blocks. validates that
+    # - the block hash computed from the stored data is the same
+    # - the prev_hash is the same as the previous blocks' hash
+    # - the merkle root computed from all transactions is correct
+    def check_consistency count = 1000
+      return  if get_depth < 1 || count <= 0
+      depth = get_depth
+      count = depth - 1  if count == -1
+      count = depth - 1  if count >= depth
+      log.info { "Checking consistency of last #{count} blocks..." }
+      prev_blk = get_block_by_depth(depth - count - 1)
+      (depth - count).upto(depth).each do |depth|
+        blk = get_block_by_depth(depth)
+        raise "Block hash #{blk.depth} invalid!"  unless blk.hash == blk.recalc_block_hash
+        raise "Prev hash #{blk.depth} invalid!"  unless blk.prev_block.reverse.hth == prev_blk.hash
+        raise "Merkle root #{blk.depth} invalid!"  unless blk.verify_mrkl_root
+        print "#{blk.hash} #{blk.depth} OK\r"
+        prev_blk = blk
+      end
+      log.info { "Last #{count} blocks are consistent." }
     end
+
   end
 
 end
-
-# TODO: someday sequel will support #blob directly and #to_sequel_blob will be gone
-class String; def blob; to_sequel_blob; end; end

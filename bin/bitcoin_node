@@ -27,23 +27,34 @@ optparse = OptionParser.new do |opts|
   end
 
   opts.on("--command [HOST:PORT]",
-    "Command socket (default: #{options[:command]})") do |command|
-    options[:command] = command
+          "Command socket (default: #{options[:command].join(':')})") do |command|
+    options[:command] = command.split(":")
   end
 
   opts.on("-l", "--listen [HOST:PORT]",
-    "Listen address/port (default: #{options[:listen]})") do |listen|
-    options[:listen] = listen
+    "Listen address/port (default: #{options[:listen].join(':')})") do |listen|
+    options[:listen] = listen.split(":")
   end
 
   opts.on("--connect [HOST:PORT]",
-    "Hosts to connect to (default: #{options[:connect]})") do |connect|
-    options[:connect] << connect.split(":")
+    "Hosts to connect to (default: #{options[:connect].map{|c|c.join(':')}.join(',')})") do |connect|
+    connect.split(",").each do |host|
+      options[:connect] << host.split(":")
+    end
   end
 
   opts.on("-s", "--storage [BACKEND::CONFIG]",
     "Use storage backend (default: #{options[:storage]})") do |storage|
     options[:storage] = storage
+  end
+
+  opts.on("--skip-validation", "Skip validation of blocks and transactions") do
+    options[:skip_validation] = true
+  end
+
+  opts.on("--check-blocks COUNT",
+          "Check consistency of COUNT latest blocks; -1 for all (default: 1000)") do |check|
+    options[:check_blocks] = check.to_i
   end
 
   opts.on("--ho", "--headers-only",
@@ -126,7 +137,7 @@ FileUtils.mkdir_p File.join(ENV['HOME'], ".bitcoin-ruby/#{Bitcoin.network_name}"
 
 if ARGV.any?
   EM.run do
-    Bitcoin::Network::CommandClient.connect(*options[:command].split(":")) do
+    Bitcoin::Network::CommandClient.connect(*options[:command]) do
       on_response do |cmd, data|
         unless cmd == "monitor"
           puts JSON.pretty_generate data

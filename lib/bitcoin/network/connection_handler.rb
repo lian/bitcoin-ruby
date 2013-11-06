@@ -7,6 +7,8 @@ module Bitcoin::Network
   # Node network connection to a peer. Handles all the communication with a specific peer.
   class ConnectionHandler < EM::Connection
 
+    LATENCY_MAX = (5*60*1000) # 5min in ms
+
     include Bitcoin
     include Bitcoin::Storage
 
@@ -14,6 +16,9 @@ module Bitcoin::Network
 
     # :new, :handshake, :connected, :disconnected
     attr_reader :state
+
+    # latency of this connection based on last ping/pong
+    attr_reader :latency_ms
 
     def log
       @log ||= Logger::LogWrapper.new("#@host:#@port", @node.log)
@@ -32,6 +37,8 @@ module Bitcoin::Network
       @version = nil
       @started = nil
       @port, @host = *Socket.unpack_sockaddr_in(get_peername)  if get_peername
+      @ping_nonce = nil
+      @latency_ms = nil
       @lock = Monitor.new
       @last_getblocks = []  # the last few getblocks messages received
     rescue Exception
@@ -125,6 +132,7 @@ module Bitcoin::Network
     def on_get_transaction(hash)
       log.debug { ">> get transaction: #{hash.hth}" }
       tx = @node.store.get_tx(hash.hth)
+      tx ||= @node.relay_tx[hash.hth]
       return  unless tx
       pkt = Bitcoin::Protocol.pkt("tx", tx.to_payload)
       log.debug { "<< tx: #{tx.hash}" }
@@ -295,9 +303,18 @@ module Bitcoin::Network
     # send +ping+ message
     # TODO: wait for pong and disconnect if it doesn't arrive (and version is new enough)
     def send_ping
-      nonce = rand(0xffffffff)
-      log.debug { "<< ping (#{nonce})" }
-      send_data(Protocol.ping_pkt(nonce))
+      if @version.version > Bitcoin::Protocol::BIP0031_VERSION
+        @latency_ms = LATENCY_MAX
+        @ping_nonce = rand(0xffffffff)
+        @ping_time = Time.now
+        log.debug { "<< ping (#{@ping_nonce})" }
+        send_data(Protocol.ping_pkt(@ping_nonce))
+      else
+        # set latency to 5 seconds, terrible but this version should be obsolete now
+        @latency_ms = (5*1000) 
+        log.debug { "<< ping" }
+        send_data(Protocol.ping_pkt)
+      end
     end
 
     # ask for the genesis block
@@ -316,9 +333,27 @@ module Bitcoin::Network
     end
 
     # received +pong+ message with given +nonce+.
-    # TODO: see #send_ping
     def on_pong nonce
-      log.debug { ">> pong (#{nonce})" }
+      if @ping_nonce == nonce
+        @latency_ms = (Time.now - @ping_time) * 1000.0
+      end
+      log.debug { ">> pong (#{nonce}), latency: #{@latency_ms.to_i}ms" }
+    end
+
+    # begin handshake; send +version+ message
+    def on_handshake_begin
+      @state = :handshake
+      from = "#{@node.external_ip}:#{@node.config[:listen][1]}"
+      version = Bitcoin::Protocol::Version.new({
+        :version    => 70001,
+        :last_block => @node.store.get_depth,
+        :from       => from,
+        :to         => @host,
+        :user_agent => "/bitcoin-ruby:#{Bitcoin::VERSION}/",
+        #:user_agent => "/Satoshi:0.8.1/",
+      })
+      send_data(version.to_pkt)
+      log.debug { "<< version (#{Bitcoin.network[:protocol_version]})" }
     end
 
     # get Addr object for this connection

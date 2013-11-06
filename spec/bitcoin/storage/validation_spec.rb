@@ -6,15 +6,19 @@ include Bitcoin::Builder
 include Bitcoin::Storage
 include Bitcoin::Validation
 
-describe "block rules" do
+[ { :name => :utxo, :db => 'sqlite:/', :index_all_addrs => true },
+  { :name => :sequel, :db => 'sqlite:/' } ].each do |configuration|
+
+  describe "block rules (#{configuration[:name].capitalize}Store)" do
 
   def balance addr
     @store.get_balance(Bitcoin.hash160_from_address(addr))
   end
 
   before do
-    Bitcoin.network = :testnet
-    @store = Bitcoin::Storage.sequel(:db => "sqlite:/")
+    Bitcoin.network = :spec
+    @store = Bitcoin::Storage.send(configuration[:name], configuration)
+    @store.reset
     @store.log.level = :warn
     Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("f"*64)
     @key = Bitcoin::Key.generate
@@ -94,7 +98,6 @@ describe "block rules" do
   it "13. Reject if timestamp is the median time of the last 11 blocks or before" do
     prev_block = @block1
     12.times do |i|
-      class Bitcoin::Validation::Block; def difficulty; true; end; end
       prev_block = create_block(prev_block.hash, false, [])
       prev_block.time = Time.now.to_i - (12-i)
       prev_block.recalc_block_hash
@@ -144,11 +147,12 @@ describe "block rules" do
 
 end
 
-describe "tx rules" do
+describe "transaction rules (#{configuration[:name].capitalize}Store)" do
 
   before do
-    Bitcoin.network = :testnet
-    @store = Bitcoin::Storage.sequel(:db => "sqlite:/")
+    Bitcoin.network = :spec
+    @store = Bitcoin::Storage.send(configuration[:name], configuration)
+    @store.reset
     @store.log.level = :warn
 
     Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("f"*64)
@@ -201,8 +205,8 @@ describe "tx rules" do
   end
 
   it "4. Each output value, as well as the total, must be in legal money range" do
-    check_tx(@tx, [:output_values, [MAX_MONEY + 1, MAX_MONEY]]) {|tx|
-      tx.out[0].value = MAX_MONEY + 1 }
+    check_tx(@tx, [:output_values, [Bitcoin::network[:max_money] + 1, Bitcoin::network[:max_money]]]) {|tx|
+      tx.out[0].value = Bitcoin::network[:max_money] + 1 }
   end
 
   it "5. Make sure none of the inputs have hash=0, n=-1" do
@@ -235,11 +239,15 @@ describe "tx rules" do
   it "14. For each input, if the referenced output has already been spent by a transaction in the main branch, reject this transaction" do
     block2 = create_block(@block1.hash, true, [
         ->(tx) {create_tx(tx, @block1.tx.first, 0, [[50, @key]])}], @key)
-    check_tx(@tx, [:spent, [0]])
+    if @store.class.name =~ /Utxo/
+      check_tx(@tx, [:prev_out, [[@tx.in[0].prev_out.reverse_hth, 0]]])
+    else
+      check_tx(@tx, [:spent, [0]])
+    end
   end
-
+  
   it "15. Using the referenced output transactions to get input values, check that each input value, as well as the sum, are in legal money range" do
-    @store.db[:txout].where(id: 2).update(value: 22e14)
+    @store.db[@store.class.name =~ /Utxo/ ? :utxo : :txout].where(id: 2).update(value: 22e14)
     check_tx(@tx, [:input_values, [22e14, 21e14]])
   end
 
@@ -247,5 +255,7 @@ describe "tx rules" do
     tx = build_tx {|t| create_tx(t, @block1.tx.first, 0, [[100e8, @key]]) }
     check_tx(tx, [:output_sum, [100e8, 50e8]])
   end
+
+end
 
 end

@@ -115,6 +115,8 @@ module Bitcoin::Storage::Models
     # get the next input that references this output
     def get_next_in
       @store.get_txin_for_txout(get_tx.hash, @tx_idx)
+    rescue
+      nil
     end
 
     # get all addresses this txout corresponds to (if possible)
@@ -137,45 +139,6 @@ module Bitcoin::Storage::Models
 
     def script
       @_script = Bitcoin::Script.new(@pk_script)
-    end
-
-  end
-
-  class Name
-
-    attr_reader :store, :txout_id, :hash, :name, :value
-
-    def initialize store, data
-      @store = store
-      @txout_id = data[:txout_id]
-      @hash = data[:hash]
-      @name = data[:name]
-      @value = data[:value]
-    end
-
-    def get_txout
-      @store.get_txout_by_id(@txout_id)
-    end
-
-    def get_address
-      get_txout.get_address
-    end
-
-    def get_tx
-      get_txout.get_tx rescue nil
-    end
-
-    def get_block
-      get_tx.get_block rescue nil
-    end
-
-    def expires_in
-      36000 - (@store.get_depth - get_block.depth) rescue nil
-    end
-
-    def to_json(opts = {})
-      JSON.pretty_generate({ name: @name, value: @value, txid: get_tx.hash,
-          address: get_address, expires_in: expires_in }, opts)
     end
 
   end

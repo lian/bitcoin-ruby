@@ -205,11 +205,14 @@ when "key"
 
 when "import"
   if wallet.keystore.respond_to?(:import)
-    addr = wallet.keystore.import(cmdopts[0])
+    addr = wallet.import_key(cmdopts[0])
     puts "Key for #{addr} imported."
   else
     puts "Keystore doesn't support importing."
   end
+
+when "rescan"
+  wallet.rescan
 
 when "export"
   base58 = wallet.keystore.export(cmdopts[0])

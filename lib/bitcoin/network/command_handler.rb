@@ -205,7 +205,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     {:state => "Sending getaddr..."}
   end
 
-  # Get known peer addresses (used by bin/bitcoin_dns_seed)
+  # Get known peer addresses (used by bin/bitcoin_dns_seed).
   #  bitcoin_node addrs [count]
   def handle_addrs count = 32
     @node.addrs.weighted_sample(count.to_i) do |addr|
@@ -213,6 +213,13 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     end.map do |addr|
       [addr.ip, addr.port, Time.now.tv_sec - addr.time] rescue nil
     end.compact
+  end
+
+  # Trigger a rescan operation when used with a UtxoStore.
+  #  bitcoin_node rescan
+  def handle_rescan
+    EM.defer { @node.store.rescan }
+    {:state => "Rescanning ..."}
   end
 
   # Get Time Since Last Block.
@@ -296,7 +303,8 @@ class Bitcoin::Network::CommandHandler < EM::Connection
                      details: validator.error })
     end
 
-    @node.store.store_tx(tx)
+    #@node.store.store_tx(tx)
+    @node.relay_tx[tx.hash] = tx
     @node.relay_propagation[tx.hash] = 0
     @node.connections.select(&:connected?).sample(send).each {|c| c.send_inv(:tx, tx.hash) }
 

@@ -13,7 +13,7 @@ module Bitcoin::Storage
   @log = Bitcoin::Logger.create(:storage)
   def self.log; @log; end
 
-  BACKENDS = [:dummy, :sequel]
+  BACKENDS = [:dummy, :sequel, :utxo]
   BACKENDS.each do |name|
     module_eval <<-EOS
       def self.#{name} config, *args
@@ -42,17 +42,97 @@ module Bitcoin::Storage
       # orphan branch (not connected to main branch / genesis block)
       ORPHAN = 2
 
-      attr_reader :log
+      # possible script types
+      SCRIPT_TYPES = [:unknown, :pubkey, :hash160, :multisig, :p2sh]
+      if Bitcoin.namecoin?
+        [:name_new, :name_firstupdate, :name_update].each {|n| SCRIPT_TYPES << n }
+      end
+
+      DEFAULT_CONFIG = {
+        sqlite_pragmas: {
+          # journal_mode pragma
+          journal_mode: false,
+          # synchronous pragma
+          synchronous: false,
+          # cache_size pragma
+          # positive specifies number of cache pages to use,
+          # negative specifies cache size in kilobytes.
+          cache_size: -200_000,
+        }
+      }
+
+      SEQUEL_ADAPTERS = { :sqlite => "sqlite3", :postgres => "pg", :mysql => "mysql" }
+
+      attr_reader :log, :config
+
+      attr_accessor :config
 
       def initialize(config = {}, getblocks_callback = nil)
-        @config = config
-        if @config[:db]
-          @config[:db].sub!("~", ENV["HOME"])
-          @config[:db].sub!("<network>", Bitcoin.network_name.to_s)
-        end
-        @getblocks_callback = getblocks_callback
+        base = self.class.ancestors.select {|a| a.name =~ /StoreBase$/ }[0]::DEFAULT_CONFIG
+        @config = base.merge(self.class::DEFAULT_CONFIG).merge(config)
         @log    = config[:log] || Bitcoin::Storage.log
+        @log.level = @config[:log_level]  if @config[:log_level]
+        init_sequel_store
+        @getblocks_callback = getblocks_callback
         @checkpoints = Bitcoin.network[:checkpoints] || {}
+        @watched_addrs = []
+      end
+
+      def init_sequel_store
+        return  unless (self.is_a?(SequelStore) || self.is_a?(UtxoStore)) && @config[:db]
+        @config[:db].sub!("~", ENV["HOME"])
+        @config[:db].sub!("<network>", Bitcoin.network_name.to_s)
+        adapter = SEQUEL_ADAPTERS[@config[:db].split(":").first] rescue nil
+        Bitcoin.require_dependency(adapter, gem: adapter)  if adapter
+        connect
+      end
+
+      # connect to database
+      def connect
+        Sequel.extension(:core_extensions, :sequel_3_dataset_methods)
+        @db = Sequel.connect(@config[:db].sub("~", ENV["HOME"]))
+        @db.extend_datasets(Sequel::Sequel3DatasetMethods)
+        sqlite_pragmas; migrate; check_metadata
+        log.info { "opened database #{@db.uri}" }
+      end
+
+      # check if schema is up to date and migrate to current version if necessary
+      def migrate
+        migrations_path = File.join(File.dirname(__FILE__), "#{backend_name}/migrations")
+        Sequel.extension :migration
+        unless Sequel::Migrator.is_current?(@db, migrations_path)
+          Sequel::Migrator.run(@db, migrations_path)
+          unless (v = @db[:schema_info].first) && v[:magic] && v[:backend]
+            @db[:schema_info].update(
+              magic: Bitcoin.network[:magic_head].hth, backend: backend_name)
+          end
+        end
+      end
+
+      # check that database network magic and backend match the ones we are using
+      def check_metadata
+        version = @db[:schema_info].first
+        unless version[:magic] == Bitcoin.network[:magic_head].hth
+          name = Bitcoin::NETWORKS.find{|n,d| d[:magic_head].hth == version[:magic]}[0]
+          raise "Error: DB #{@db.url} was created for '#{name}' network!"
+        end
+        unless version[:backend] == backend_name
+          raise "Error: DB #{@db.url} was created for '#{version[:backend]}' backend!"
+        end
+      end
+
+      # set pragma options for sqlite (if it is sqlite)
+      def sqlite_pragmas
+        return  unless (@db.is_a?(Sequel::SQLite::Database) rescue false)
+        @config[:sqlite_pragmas].each do |name, value|
+          @db.pragma_set name, value
+          log.debug { "set sqlite pragma #{name} to #{value}" }
+        end
+      end
+
+      # name of the storage backend currently in use ("sequel" or "utxo")
+      def backend_name
+        self.class.name.split("::")[-1].split("Store")[0].downcase
       end
 
       # reset the store; delete all data
@@ -64,13 +144,13 @@ module Bitcoin::Storage
         raise "Not implemented"
       end
 
-
+      # handle a new block incoming from the network
       def new_block blk
         time = Time.now
         res = store_block(blk)
         log.info { "block #{blk.hash} " +
           "[#{res[0]}, #{['main', 'side', 'orphan'][res[1]]}] " +
-          "(#{"%.4fs, %.3fkb" % [(Time.now - time), blk.payload.bytesize.to_f/1000]})" }  if res && res[1]
+          "(#{"%.4fs, %3dtx, %.3fkb" % [(Time.now - time), blk.tx.size, blk.payload.bytesize.to_f/1000]})" }  if res && res[1]
         res
       end
 
@@ -87,8 +167,10 @@ module Bitcoin::Storage
         end
 
         prev_block = get_block(blk.prev_block.reverse_hth)
-        validator = blk.validator(self, prev_block)
-        validator.validate(rules: [:syntax], raise_errors: true)
+        unless @config[:skip_validation]
+          validator = blk.validator(self, prev_block)
+          validator.validate(rules: [:syntax], raise_errors: true)
+        end
 
         if !prev_block || prev_block.chain == ORPHAN
           if blk.hash == Bitcoin.network[:genesis_hash]
@@ -111,7 +193,11 @@ module Bitcoin::Storage
         if prev_block.chain == MAIN
           if prev_block == get_head
             log.debug { "=> main (#{depth})" }
-            if !@checkpoints.any? || depth > @checkpoints.keys.last
+            if !@config[:skip_validation] && ( !@checkpoints.any? || depth > @checkpoints.keys.last )
+              if self.class.name =~ /UtxoStore/
+                @config[:utxo_cache] = 0
+                @config[:block_cache] = 120
+              end
               validator.validate(rules: [:context], raise_errors: true)
             end
             return persist_block(blk, MAIN, depth, prev_block.work)
@@ -123,7 +209,7 @@ module Bitcoin::Storage
           head = get_head
           if prev_block.work + blk.block_work  <= head.work
             log.debug { "=> side (#{depth})" }
-            validator.validate(rules: [:context], raise_errors: true)
+            validator.validate(rules: [:context], raise_errors: true)  unless @config[:skip_validation]
             return persist_block(blk, SIDE, depth, prev_block.work)
           else
             log.debug { "=> reorg" }
@@ -139,9 +225,7 @@ module Bitcoin::Storage
             end
             log.debug { "new main: #{new_main.inspect}" }
             log.debug { "new side: #{new_side.inspect}" }
-            update_blocks([[new_side, {:chain => SIDE}]])
-            new_main.each {|b| get_block(b).validator(self).validate(raise_errors: true) }
-            update_blocks([[new_main, {:chain => MAIN}]])
+            reorg(new_side.reverse, new_main.reverse)
             return persist_block(blk, MAIN, depth, prev_block.work)
           end
         end
@@ -163,7 +247,7 @@ module Bitcoin::Storage
       end
 
       # store given +tx+
-      def store_tx(tx)
+      def store_tx(tx, validate = true)
         raise "Not implemented"
       end
 
@@ -254,6 +338,11 @@ module Bitcoin::Storage
         raise "Not implemented"
       end
 
+      # Grab the position of a tx in a given block
+      def get_idx_from_tx_hash(tx_hash)
+        raise "Not implemented"
+      end
+
       # collect all txouts containing the
       # given +script+
       def get_txouts_for_pk_script(script)
@@ -276,6 +365,52 @@ module Bitcoin::Storage
         nil
       end
 
+
+      # store address +hash160+
+      def store_addr(txout_id, hash160)
+        addr = @db[:addr][:hash160 => hash160]
+        addr_id = addr[:id]  if addr
+        addr_id ||= @db[:addr].insert({:hash160 => hash160})
+        @db[:addr_txout].insert({:addr_id => addr_id, :txout_id => txout_id})
+      end
+
+      # parse script and collect address/txout mappings to index
+      def parse_script txout, i
+        addrs, names = [], []
+        # skip huge script in testnet3 block 54507 (998000 bytes)
+        return [SCRIPT_TYPES.index(:unknown), [], []]  if txout.pk_script.bytesize > 10_000
+        script = Bitcoin::Script.new(txout.pk_script) rescue nil
+        if script
+          if script.is_hash160? || script.is_pubkey?
+            addrs << [i, script.get_hash160]
+          elsif script.is_multisig?
+            script.get_multisig_pubkeys.map do |pubkey|
+              addrs << [i, Bitcoin.hash160(pubkey.unpack("H*")[0])]
+            end
+          elsif Bitcoin.namecoin? && script.is_namecoin?
+            addrs << [i, script.get_hash160]
+            names << [i, script]
+          else
+            log.debug { "Unknown script type"}# #{tx.hash}:#{txout_idx}" }
+          end
+          script_type = SCRIPT_TYPES.index(script.type)
+        else
+          log.error { "Error parsing script"}# #{tx.hash}:#{txout_idx}" }
+          script_type = SCRIPT_TYPES.index(:unknown)
+        end
+        [script_type, addrs, names]
+      end
+
+      def add_watched_address address
+        hash160 = Bitcoin.hash160_from_address(address)
+        @db[:addr].insert(hash160: hash160)  unless @db[:addr][hash160: hash160]
+        @watched_addrs << hash160  unless @watched_addrs.include?(hash160)
+      end
+
+      def rescan
+        raise "Not implemented"
+      end
+
       # import satoshi bitcoind blk0001.dat blockchain file
       def import filename, max_depth = nil
         if File.file?(filename)
@@ -293,7 +428,7 @@ module Bitcoin::Storage
         elsif File.directory?(filename)
           Dir.entries(filename).sort.each do |file|
             next  unless file =~ /^blk.*?\.dat$/
-            import(File.join(filename, file))
+            import(File.join(filename, file), max_depth)
           end
         else
           raise "Import dir/file #{filename} not found"
@@ -303,6 +438,10 @@ module Bitcoin::Storage
       def in_sync?
         (get_head && (Time.now - get_head.time).to_i < 3600) ? true : false
       end
+
     end
   end
 end
+
+# TODO: someday sequel will support #blob directly and #to_sequel_blob will be gone
+class String; def blob; to_sequel_blob; end; end

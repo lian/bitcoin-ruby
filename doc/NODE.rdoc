@@ -29,6 +29,13 @@ Some common options you might want to use:
 <tt>--import</tt> <i><blockchain dir></i>::
   Import blockchain in bitcoind/qt format from given directory.
 
+<tt>--skip-validation</tt>::
+  Skip validation of received blockchain data. Can be used to speed up import/sync when
+  blockchain data is received from a trusted source.
+
+<tt>--check-blocks <i><count></i>::
+  Check consistency of the +count+ most recent blocks. Pass -1 to check all blocks.
+
 <tt>-v --verbose</tt>::
   Display debug output.
 

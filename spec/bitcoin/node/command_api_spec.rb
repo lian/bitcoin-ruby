@@ -8,7 +8,7 @@ describe 'Node Command API' do
   def test_command command, params = [], response = nil, &block
     $responses = {}
     EM.run do
-      @client = Bitcoin::Network::CommandClient.connect(*@config[:command].split(":")) do
+      @client = Bitcoin::Network::CommandClient.connect(*@config[:command]) do
         on_connected do
           request(command, *params)
         end
@@ -39,8 +39,8 @@ describe 'Node Command API' do
 
     Bitcoin.network = :spec
     @config = {
-      listen: "127.0.0.1:38333",
-      command: "127.0.0.1:38332",
+      listen: ["127.0.0.1", 38333],
+      command: ["127.0.0.1", 38332],
       storage: "sequel::sqlite:/",
       dns: false,
       intervals: { queue: 0.01 },
@@ -248,7 +248,7 @@ describe 'Node Command API' do
   describe :monitor do
 
     before do
-      @client = TCPSocket.new(*@config[:command].split(":"))
+      @client = TCPSocket.new(*@config[:command])
 
       def send data
         @client.write(data.to_json + "\x00")

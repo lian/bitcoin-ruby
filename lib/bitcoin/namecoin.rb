@@ -1,7 +1,27 @@
 # encoding: ascii-8bit
 
+# This module includes (almost) everything necessary to add namecoin support
+# to bitcoin-ruby. When switching to a :namecoin network, it will load its
+# functionality into the Script class and the Storage backend.
+# The only things not included here should be parsing the AuxPow, which is
+# done in Protocol::Block directly, and passing the txout to #store_name from
+# the storage backend.
 module Bitcoin::Namecoin
 
+  def self.load
+    Bitcoin::Script.class_eval { include Script }
+    Bitcoin::Storage::Backends::StoreBase.class_eval { include Storage::Backend }
+    Bitcoin::Storage::Models.class_eval { include Storage::Models }
+  end
+
+  # name_new must have 12 confirmations before corresponding name_firstupdate is valid.
+  FIRSTUPDATE_LIMIT = 12
+
+  # number of blocks after which a name expires.
+  EXPIRATION_DEPTH = 36000
+
+  # Namecoin-specific Script methods for parsing and creating of namecoin scripts,
+  # as well as methods to extract address, name_hash, name and value.
   module Script
 
     def self.included(base)
@@ -119,4 +139,141 @@ module Bitcoin::Namecoin
     end
 
   end
+
+  # Namecoin-specific storage methods.
+  # The storage backend only needs to check txout scripts with #is_namecoin? and
+  # pass them to #store_name.
+  # TODO: move rules into Validation
+  module Storage
+
+    module Backend
+
+      def self.included(base)
+        base.constants.each {|c| const_set(c, base.const_get(c)) unless constants.include?(c) }
+        base.class_eval do
+
+          # if this is a namecoin script, update the names index
+          def store_name(script, txout_id)
+            if script.type == :name_new
+              log.debug { "name_new #{script.get_namecoin_hash}" }
+              @db[:names].insert({
+                :txout_id => txout_id,
+                :hash => script.get_namecoin_hash })
+            elsif script.type == :name_firstupdate
+              name_hash = script.get_namecoin_hash
+              name_new = @db[:names].where(:hash => name_hash).order(:txout_id).first
+              if self.class.name =~ /UtxoStore/
+                txout = @db[:utxo][id: name_new[:txout_id]] if name_new
+                blk = @db[:blk][id: txout[:blk_id]]  if txout
+              else
+                txout = @db[:txout][id: name_new[:txout_id]] if name_new
+                tx = @db[:tx][id: txout[:tx_id]] if txout
+                blk_tx = @db[:blk_tx][tx_id: tx[:id]]  if tx
+                blk = @db[:blk][id: blk_tx[:blk_id]] if blk_tx
+              end
+
+              unless name_new && blk && blk[:chain] == 0
+                log.debug { "name_new not found: #{name_hash}" }
+                return nil
+              end
+
+              unless blk[:depth] <= get_depth - Bitcoin::Namecoin::FIRSTUPDATE_LIMIT
+                log.debug { "name_new not yet valid: #{name_hash}" }
+                return nil
+              end
+
+              log.debug { "#{script.type}: #{script.get_namecoin_name}" }
+              @db[:names].where(:txout_id => name_new[:txout_id], :name => nil).update({
+                :name => script.get_namecoin_name.to_s.to_sequel_blob })
+              @db[:names].insert({
+                :txout_id => txout_id,
+                :hash => name_hash,
+                :name => script.get_namecoin_name.to_s.to_sequel_blob,
+                :value => script.get_namecoin_value.to_s.to_sequel_blob })
+            elsif script.type == :name_update
+              log.debug { "#{script.type}: #{script.get_namecoin_name}" }
+              @db[:names].insert({
+                :txout_id => txout_id,
+                :name => script.get_namecoin_name.to_s.to_sequel_blob,
+                :value => script.get_namecoin_value.to_s.to_sequel_blob })
+            end
+          end
+
+          def name_show name
+            names = @db[:names].where(:name => name.to_sequel_blob).order(:txout_id).reverse
+            return nil  unless names.any?
+            wrap_name(names.first)
+          end
+          alias :get_name :name_show
+
+          def name_history name
+            history = @db[:names].where(:name => name.to_sequel_blob)
+              .where("value IS NOT NULL").order(:txout_id).map {|n| wrap_name(n) }
+            history.select! {|n| n.get_tx.blk_id }  unless self.class.name =~ /Utxo/ 
+            history
+          end
+
+          def get_name_by_txout_id txout_id
+            wrap_name(@db[:names][:txout_id => txout_id])
+          end
+
+          def wrap_name(data)
+            return nil  unless data
+            Bitcoin::Storage::Models::Name.new(self, data)
+          end
+
+        end
+      end
+
+    end
+
+    module Models
+
+      class Name
+
+        attr_reader :store, :txout_id, :hash, :name, :value
+
+        def initialize store, data
+          @store = store
+          @txout_id = data[:txout_id]
+          @hash = data[:hash]
+          @name = data[:name]
+          @value = data[:value]
+        end
+
+        def get_txout
+          if @txout_id.is_a?(Array)
+            @store.get_tx(@txout_id[0]).out[@txout_id[1]]
+          else
+            @store.get_txout_by_id(@txout_id)
+          end
+        end
+
+        def get_address
+          get_txout.get_address
+        end
+
+        def get_tx
+          get_txout.get_tx rescue nil
+        end
+
+        def get_block
+          get_tx.get_block rescue nil
+        end
+
+        def expires_in
+          Namecoin::EXPIRATION_DEPTH - (@store.get_depth - get_block.depth) rescue nil
+        end
+
+        def to_json(opts = {})
+          JSON.pretty_generate({ name: @name, value: @value, txid: get_tx.hash,
+                                 address: get_address, expires_in: expires_in }, opts)
+        end
+
+      end
+
+    end
+
+  end
+
 end

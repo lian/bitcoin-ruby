@@ -66,6 +66,21 @@ describe 'Bitcoin::Script' do
       Script.new("\x4d\x01\x00").to_string.should == "77:1:"
       Script.from_string("77:1:").to_payload.should == "\x4d\x01\x00"
 
+      [ # mainnet tx: ebc9fa1196a59e192352d76c0f6e73167046b9d37b8302b6bb6968dfd279b767 outputs
+        ["\x01",                        "238:1:01",            true],
+        ["\x02\x01",                    "238:2:0201",          true],
+        ["L",                           "238:1:4c",            true],
+        ["L\x02\x01",                   "76:2:01",              nil],
+        ["M",                           "238:1:4d",            true],
+        ["M\xff\xff\x01",               "238:4:4dffff01",      true],
+        ["N",                           "238:1:4e",            true],
+        ["N\xff\xff\xff\xff\x01",       "238:6:4effffffff01",  true],
+      ].each{|payload,string,parse_invalid|
+        Script.new(payload).to_string.should == string
+        Script.new(payload).instance_eval{ @parse_invalid }.should == parse_invalid
+        Script.from_string(string).to_payload == payload
+      }
+
       Bitcoin::Script.from_string("(opcode-230) 4 1 2").to_string.should == "(opcode-230) 4 1 2"
       Bitcoin::Script.from_string("(opcode 230) 4 1 2").to_string.should == "(opcode-230) 4 1 2"
       Bitcoin::Script.from_string("(opcode-65449) 4 1 2").to_string.should == "(opcode-255) OP_HASH160 4 1 2"
@@ -320,6 +335,10 @@ describe 'Bitcoin::Script' do
 
     # mainnet tx: 61a078472543e9de9247446076320499c108b52307d8d0fafbe53b5c4e32acc4 redeeming output from 5342c96b946ea2c5e497de5dbf7762021f94aba2c8222c17ed28492fdbb4a6d9
     script = Bitcoin::Script.from_string("16cfb9bc7654ef1d7723e5c2722fc0c3d505045e OP_SIZE OP_DUP 1 OP_GREATERTHAN OP_VERIFY OP_NEGATE OP_HASH256 OP_HASH160 OP_SHA256 OP_SHA1 OP_RIPEMD160 OP_EQUAL")
+    script.run.should == true
+
+    # mainnet tx: 340aa9f72206d600b7e89c9137e4d2d77a920723f83e34707ff452121fd48492 redeeming output from f2d72a7bf22e29e3f2dc721afbf0a922860f81db9fc7eb397937f9d7e87cc438
+    script = Bitcoin::Script.from_string("027ce87f6f41dd4d7d874b40889f7df6b288f77f OP_DEPTH OP_HASH256 OP_HASH160 OP_SHA256 OP_SHA1 OP_RIPEMD160 OP_EQUAL")
     script.run.should == true
   end
 

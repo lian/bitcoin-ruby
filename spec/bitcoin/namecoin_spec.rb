@@ -80,69 +80,103 @@ describe 'Bitcoin::Namecoin' do
 
   end
 
-  describe "Namecoin" do
+  [
+   { :name => :utxo, :db => 'sqlite:/', utxo_cache: 0 },
+   { :name => :sequel, :db => 'sqlite:/' },
+  ].each do |configuration|
 
-    before do
-      Bitcoin.network = :namecoin
-      class Bitcoin::Validation::Block; def difficulty; true; end; end
-      class Bitcoin::Validation::Block; def min_timestamp; true; end; end
-      Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("ff"*32)
-      [:name_new, :name_firstupdate, :name_update].each {|type|
-        Bitcoin::Storage::Backends::SequelStore::SCRIPT_TYPES << type }
-      @store = Bitcoin::Storage.sequel(db: "sqlite:/")
-      @store.reset
-      @store.log.level = 4
-      @key = Bitcoin::Key.generate
-      @block = create_block "00"*32, false, [], @key
-      Bitcoin.network[:genesis_hash] = @block.hash
-      @store.store_block(@block)
-    end
+    describe "Namecoin (#{configuration[:name]} store)" do
 
-    def set_rand r; @rand = r; end
+      before do
+        Bitcoin.network = :namecoin
+        class Bitcoin::Validation::Block; def difficulty; true; end; end
+        class Bitcoin::Validation::Block; def min_timestamp; true; end; end
+        Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("ff"*32)
+        [:name_new, :name_firstupdate, :name_update].each {|type|
+          Bitcoin::Storage::Backends::SequelStore::SCRIPT_TYPES << type }
+        @store = Bitcoin::Storage.send(configuration[:name], configuration)
+        @store.reset
+        @store.log.level = :error
+        @key = Bitcoin::Key.generate
+        @block = create_block "00"*32, false, [], @key
+        Bitcoin.network[:genesis_hash] = @block.hash
+        @store.store_block(@block)
+      end
 
-    it "should store names" do
-      # create name_new
-      @block = create_block @block.hash, true, [->(t) {
-        t.input {|i| i.prev_out @block.tx[0]; i.prev_out_index 0; i.signature_key @key }
-        t.output {|o| o.value 50e8; o.script {|s| s.type(:name_new)
-          s.recipient(self, "test", @key.addr) } } }], @key
-      @store.db[:names][hash: Bitcoin.hash160(@rand + "test".hth)].should != nil
+      def set_rand r; @rand = r; end
 
-      # name_firstupdate should not be valid yet
-      @block = create_block @block.hash, true, [->(t) {
-        t.input {|i| i.prev_out @block.tx[0]; i.prev_out_index 0; i.signature_key @key }
-        t.output {|o| o.value 50e8; o.script {|s| s.type(:name_firstupdate)
-          s.recipient("test", @rand, "testvalue", @key.addr) } } }], @key
-      @store.name_show("test").should == nil
+      it "should store names" do
+        # create name_new
+        @block = create_block @block.hash, true, [->(t) {
+          t.input {|i| i.prev_out @block.tx[0]; i.prev_out_index 0; i.signature_key @key }
+          t.output {|o| o.value 50e8; o.script {|s| s.type(:name_new)
+            s.recipient(self, "test", @key.addr) } } }], @key
+        @store.db[:names][hash: Bitcoin.hash160(@rand + "test".hth)].should != nil
 
-      # create enough blocks for name_new to become valid
-      i = Bitcoin::Storage::Backends::SequelStore::NAMECOIN_FIRSTUPDATE_LIMIT
-      i.times { @block = create_block @block.hash, true, [], @key }
+        # name_firstupdate should not be valid yet
+        @block = create_block @block.hash, true, [->(t) {
+          t.input {|i| i.prev_out @block.tx[0]; i.prev_out_index 0; i.signature_key @key }
+          t.output {|o| o.value 50e8; o.script {|s| s.type(:name_firstupdate)
+            s.recipient("test", @rand, "testvalue", @key.addr) } } }], @key
+        @store.name_show("test").should == nil
 
-      # name_firstupdate should be valid now
-      @block = create_block @block.hash, true, [->(t) {
-        t.input {|i| i.prev_out @block.tx[0]; i.prev_out_index 0; i.signature_key @key }
-        t.output {|o| o.value 50e8; o.script {|s|; s.type(:name_firstupdate)
-          s.recipient("test", @rand, "testvalue", @key.addr) } } }], @key
+        # create enough blocks for name_new to become valid
+        Namecoin::FIRSTUPDATE_LIMIT.times {
+          @block = create_block @block.hash, true, [], @key }
 
-      name = @store.name_show("test")
-      name.get_address.should == @key.addr
-      name.name.should == "test"
-      name.value.should == "testvalue"
-      name.hash.should == Bitcoin.hash160(@rand + "test".hth)
+        # name_firstupdate should be valid now
+        @block = create_block @block.hash, true, [->(t) {
+          t.input {|i| i.prev_out @block.tx[0]; i.prev_out_index 0; i.signature_key @key }
+          t.output {|o| o.value 50e8; o.script {|s|; s.type(:name_firstupdate)
+            s.recipient("test", @rand, "testvalue", @key.addr) } } }], @key
 
-      # create name_update
-      @new_key = Bitcoin::Key.generate
-      @block = create_block @block.hash, true, [->(t) {
-        t.input {|i| i.prev_out @block.tx[0]; i.prev_out_index 0; i.signature_key @key}
-          t.output {|o|o.value 50e8; o.script {|s| s.type(:name_update)
+        name = @store.name_show("test")
+        name.get_address.should == @key.addr
+        name.name.should == "test"
+        name.value.should == "testvalue"
+        name.hash.should == Bitcoin.hash160(@rand + "test".hth)
+
+        # create name_update
+        @new_key = Bitcoin::Key.generate
+        @block = create_block @block.hash, true, [->(t) {
+          t.input {|i| i.prev_out @block.tx[0]; i.prev_out_index 0; i.signature_key @key}
+            t.output {|o|o.value 50e8; o.script {|s| s.type(:name_update)
               s.recipient("test", "testupdate", @new_key.addr) } } }], @new_key
 
-      name = @store.name_show("test")
-      name.get_address.should == @new_key.addr
-      name.value.should == "testupdate"
+        name = @store.name_show("test")
+        name.get_address.should == @new_key.addr
+        name.value.should == "testupdate"
+
+        h = @store.name_history("test")
+        h.size.should == 2
+        h[0].value.should == "testvalue"
+        h[0].get_address.should == @key.addr
+        h[1].value.should == "testupdate"
+        h[1].get_address.should == @new_key.addr
+      end
+
+      it "should expire names" do
+        @block = create_block @block.hash, true, [->(t) {
+          t.input {|i| i.prev_out @block.tx[0]; i.prev_out_index 0; i.signature_key @key }
+          t.output {|o| o.value 50e8; o.script {|s| s.type(:name_new)
+            s.recipient(self, "test", @key.addr) } } }], @key
+        @store.db[:names][hash: Bitcoin.hash160(@rand + "test".hth)].should != nil
+
+        # create enough blocks for name_new to become valid
+        Namecoin::FIRSTUPDATE_LIMIT.times {
+          @block = create_block @block.hash, true, [], @key }
+
+        # name_firstupdate should be valid now
+        @block = create_block @block.hash, true, [->(t) {
+          t.input {|i| i.prev_out @block.tx[0]; i.prev_out_index 0; i.signature_key @key }
+          t.output {|o| o.value 50e8; o.script {|s|; s.type(:name_firstupdate)
+            s.recipient("test", @rand, "testvalue", @key.addr) } } }], @key
+
+        @store.name_show("test").expires_in.should == Namecoin::EXPIRATION_DEPTH
+        @block = create_block @block.hash, true, [], @key
+        @store.name_show("test").expires_in.should == Namecoin::EXPIRATION_DEPTH - 1
+      end
+
     end
-
   end
-
 end
