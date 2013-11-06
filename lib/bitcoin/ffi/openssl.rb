@@ -8,7 +8,11 @@ Bitcoin.require_dependency :ffi, exit: false, message: "Skipping FFI needed for 
 module Bitcoin
 module OpenSSL_EC
   extend FFI::Library
-  ffi_lib 'ssl'
+  if FFI::Platform.windows?
+    ffi_lib 'libeay32', 'ssleay32'
+  else
+    ffi_lib 'ssl'
+  end
 
   NID_secp256k1 = 714
   POINT_CONVERSION_COMPRESSED = 2
