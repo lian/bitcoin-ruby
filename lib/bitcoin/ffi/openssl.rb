@@ -8,8 +8,7 @@ Bitcoin.require_dependency :ffi, exit: false, message: "Skipping FFI needed for 
 module Bitcoin
 module OpenSSL_EC
   extend FFI::Library
-
-  if ENV["OS"].downcase.include?("windows") # There should be a better way to check this
+  if FFI::Platform.windows?
     ffi_lib 'libeay32', 'ssleay32'
   else
     ffi_lib 'ssl'
