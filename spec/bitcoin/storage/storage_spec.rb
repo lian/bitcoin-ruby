@@ -147,6 +147,16 @@ include Bitcoin::Validation
       @store.get_block_by_tx(@blk.tx[0].hash).should == @blk
     end
 
+    it "should get the position for a given tx" do
+      @store.store_block(@blk)
+      result = @store.get_idx_from_tx_hash(@blk.tx[0].hash)
+      result.should == 0
+    end
+
+    it "should store tx" do
+      @store.store_tx(@tx, false).should != false
+    end
+
     # TODO calling .is_a? on @store breaks it (?!?)
     if @store.class.name =~ /SequelStore/
       describe :transactions do
