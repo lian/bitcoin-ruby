@@ -993,6 +993,9 @@ class Bitcoin::Script
     return invalid if @stack.size < 2
     pubkey = @stack.pop
     drop_sigs      = [ @stack[-1] ]
+
+    @stack.pop if @stack.last && cast_to_bignum(@stack.last) == 0
+
     sig, hash_type = parse_sig(@stack.pop)
 
     if inner_p2sh?
