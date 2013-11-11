@@ -1044,9 +1044,9 @@ class Bitcoin::Script
     n_sigs = pop_int
     return invalid  unless (0..n_pubkeys).include?(n_sigs)
     return invalid  unless @stack.last(n_sigs).all?{|e| e.is_a?(String) && e != '' }
-    sigs = (drop_sigs = pop_string(n_sigs)).map{|s| parse_sig(s) }
+    sigs = drop_sigs = pop_string(n_sigs)
 
-    @stack.pop if @stack[-1] == '' # remove OP_NOP from stack
+    @stack.pop if @stack[-1] && cast_to_bignum(@stack[-1]) == 0 # remove OP_0 from stack
 
     if inner_p2sh?
       script_code = @inner_script_code || to_binary_without_signatures(drop_sigs)
@@ -1056,8 +1056,10 @@ class Bitcoin::Script
     end
 
     valid_sigs = 0
-    sigs.each{|sig, hash_type| pubkeys.each{|pubkey|
-        valid_sigs += 1  if check_callback.call(pubkey, sig, hash_type, drop_sigs, script_code)
+    sigs.each{|sig| pubkeys.each{|pubkey|
+        next if sig == ""
+        signature, hash_type = parse_sig(sig)
+        valid_sigs += 1  if check_callback.call(pubkey, signature, hash_type, drop_sigs, script_code)
       }}
 
     @stack << ((valid_sigs >= n_sigs) ? 1 : (invalid; 0))
