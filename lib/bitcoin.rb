@@ -492,7 +492,13 @@ module Bitcoin
       :proof_of_work_limit => 0x1d07fff8,
       :alert_pubkeys => ["04302390343f91cc401d56d68b123028bf52e5fca1939df127f63c6467cdf9c8e2c14b61104cf817d0b780da337893ecc4aaff1309e536162dabbdb45200ca2b0a"],
       :known_nodes => [],
-      :checkpoints => {}
+      :checkpoints => {},
+      :coinbase_maturity => 100,
+      :retarget_interval => 2016,
+      :retarget_time => 1209600, # 2 weeks
+      :max_money => 21_000_000 * COIN,
+      :min_tx_fee => 50_000,
+      :min_relay_tx_fee => 10_000,
     },
 
     :testnet3 => {
