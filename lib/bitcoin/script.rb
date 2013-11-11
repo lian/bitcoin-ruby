@@ -992,11 +992,14 @@ class Bitcoin::Script
   def op_checksig(check_callback)
     return invalid if @stack.size < 2
     pubkey = @stack.pop
+    #return (@stack << 0) unless Bitcoin::Script.is_canonical_pubkey?(pubkey) # only for isStandard
     drop_sigs      = [ @stack[-1] ]
 
-    @stack.pop if @stack.last && cast_to_bignum(@stack.last) == 0
+    signature = cast_to_string(@stack.pop)
+    #return (@stack << 0) unless Bitcoin::Script.is_canonical_signature?(signature) # only for isStandard
+    return (@stack << 0) if signature == ""
 
-    sig, hash_type = parse_sig(@stack.pop)
+    sig, hash_type = parse_sig(signature)
 
     if inner_p2sh?
       script_code = @inner_script_code || to_binary_without_signatures(drop_sigs)
