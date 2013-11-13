@@ -276,14 +276,13 @@ module Bitcoin::Storage
       def get_locator pointer = get_head
         if @locator
           locator, head = @locator
-          if head == get_head
+          if head == pointer
             return locator
           end
         end
 
         return [("\x00"*32).hth]  if get_depth == -1
-        locator = []
-        step = 1
+        locator, step, orig_pointer = [], 1, pointer
         while pointer && pointer.hash != Bitcoin::network[:genesis_hash]
           locator << pointer.hash
           depth = pointer.depth - step
@@ -294,7 +293,7 @@ module Bitcoin::Storage
           step *= 2  if locator.size > 10
         end
         locator << Bitcoin::network[:genesis_hash]
-        @locator = [locator, get_head]
+        @locator = [locator, orig_pointer]
         locator
       end
 
