@@ -250,8 +250,8 @@ describe 'Tx' do
     tx.minimum_relay_fee.should == 0
     tx.minimum_block_fee.should == 0
     tx = Tx.from_json(fixtures_file('bc179baab547b7d7c1d5d8d6f8b0cc6318eaa4b0dd0a093ad6ac7f5a1cb6b3ba.json'))
-    tx.minimum_relay_fee.should == 10_000
-    tx.minimum_block_fee.should == 50_000
+    tx.minimum_relay_fee.should == 0
+    tx.minimum_block_fee.should == 10_000
   end
 
   describe "Tx - BIP Scripts" do

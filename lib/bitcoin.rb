@@ -448,7 +448,7 @@ module Bitcoin
       :retarget_interval => 2016,
       :retarget_time => 1209600, # 2 weeks
       :max_money => 21_000_000 * COIN,
-      :min_tx_fee => 50_000,
+      :min_tx_fee => 10_000,
       :min_relay_tx_fee => 10_000,
       :dns_seeds => [
         "seed.bitcoin.sipa.be",
@@ -497,7 +497,7 @@ module Bitcoin
       :retarget_interval => 2016,
       :retarget_time => 1209600, # 2 weeks
       :max_money => 21_000_000 * COIN,
-      :min_tx_fee => 50_000,
+      :min_tx_fee => 10_000,
       :min_relay_tx_fee => 10_000,
     },
 
@@ -513,7 +513,7 @@ module Bitcoin
       :retarget_interval => 2016,
       :retarget_time => 1209600, # 2 weeks
       :max_money => 21_000_000 * COIN,
-      :min_tx_fee => 50_000,
+      :min_tx_fee => 10_000,
       :min_relay_tx_fee => 10_000,
       :dns_seeds => [
         "testnet-seed.bitcoin.petertodd.org",

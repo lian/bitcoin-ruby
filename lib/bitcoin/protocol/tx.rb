@@ -219,30 +219,31 @@ module Bitcoin
         @validator ||= Bitcoin::Validation::Tx.new(self, store, block)
       end
 
-      def minimum_relay_fee; calculate_minimum_fee(1_000, true, :relay); end
-      def minimum_block_fee; calculate_minimum_fee(1_000, true, :block); end
+      DEFAULT_BLOCK_PRIORITY_SIZE = 27000
 
-      def calculate_minimum_fee(block_size=1, allow_free=true, mode=:block)
-        base_fee       = (mode == :relay) ? Bitcoin.network[:min_relay_tx_fee] : Bitcoin.network[:min_tx_fee]
-        tx_size        = to_payload.bytesize
-        new_block_size = block_size + tx_size
-        min_fee       = (1 + tx_size / 1_000) * base_fee
+      def minimum_relay_fee; calculate_minimum_fee(allow_free=true, :relay); end
+      def minimum_block_fee; calculate_minimum_fee(allow_free=true, :block); end
+
+      def calculate_minimum_fee(allow_free=true, mode=:block)
+        # Base fee is either nMinTxFee or nMinRelayTxFee
+        base_fee  = (mode == :relay) ? Bitcoin.network[:min_relay_tx_fee] : Bitcoin.network[:min_tx_fee]
+        tx_size   = to_payload.bytesize
+        min_fee   = (1 + tx_size / 1_000) * base_fee
 
         if allow_free
-          if block_size == 1
-            min_fee = 0 if tx_size < 10_000
-          else
-            min_fee = 0 if new_block_size < 27_000
-          end
+          # There is a free transaction area in blocks created by most miners,
+          # * If we are relaying we allow transactions up to DEFAULT_BLOCK_PRIORITY_SIZE - 1000
+          #   to be considered to fall into this category. We don't want to encourage sending
+          #   multiple transactions instead of one big transaction to avoid fees.
+          # * If we are creating a transaction we allow transactions up to 1,000 bytes
+          #   to be considered safe and assume they can likely make it into this section.
+          min_fee = 0 if tx_size < (mode == :block ? 1_000 : DEFAULT_BLOCK_PRIORITY_SIZE - 1_000)
         end
 
-        if min_fee < base_fee
+        # This code can be removed after enough miners have upgraded to version 0.9.
+        # Until then, be safe when sending and require a fee if any output is less than CENT
+        if min_fee < base_fee && mode == :block
           outputs.each{|output| (min_fee = base_fee; break) if output.value < Bitcoin::CENT }
-        end
-
-        if block_size != 1 && new_block_size >= (Bitcoin::MAX_BLOCK_SIZE_GEN/2)
-          #return Bitcoin::network[:max_money] if new_block_size >= Bitcoin::MAX_BLOCK_SIZE_GEN
-          min_fee *= Bitcoin::MAX_BLOCK_SIZE_GEN / (Bitcoin::MAX_BLOCK_SIZE_GEN - new_block_size)
         end
 
         min_fee = Bitcoin::network[:max_money] unless min_fee.between?(0, Bitcoin::network[:max_money])
