@@ -1,4 +1,4 @@
-= Bitcoin-ruby
+= Bitcoin-ruby {<img src="https://secure.travis-ci.org/lian/bitcoin-ruby" />}[http://travis-ci.org/lian/bitcoin-ruby]
 
 This is a ruby library for interacting with the bitcoin protocol/network.
 
