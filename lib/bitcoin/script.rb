@@ -1089,6 +1089,27 @@ class Bitcoin::Script
     true
   end
 
+
+  SIGHASH_TYPE = { all: 1, none: 2, single: 3, anyonecanpay: 128 }
+
+  def self.is_canonical_signature?(sig)
+    return false if sig.bytesize < 9 # Non-canonical signature: too short
+    return false if sig.bytesize > 73 # Non-canonical signature: too long
+
+    s = sig.unpack("C*")
+
+    hash_type = s[-1] & (~(SIGHASH_TYPE[:anyonecanpay]))
+    return false if hash_type < SIGHASH_TYPE[:all]   ||  hash_type > SIGHASH_TYPE[:single] # Non-canonical signature: unknown hashtype byte
+
+    return false if s[0] != 0x30 # Non-canonical signature: wrong type
+    return false if s[1] != s.size-3 # Non-canonical signature: wrong length marker
+
+    # TODO: add/port rest from bitcoind
+
+    true
+  end
+
+
   private
 
   def parse_sig(sig)
