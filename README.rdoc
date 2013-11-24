@@ -46,7 +46,7 @@ intentionally kept to a minimum, so nobody has to install unneeded dependencies.
 * +bacon+ to run the specs
 
 If you would like to install using Bundler, put it in your Gemfile and run bundle install
- gem "bitcoin-ruby", require: "bitcoin"
+ gem 'bitcoin-ruby', git: 'https://github.com/lian/bitcoin-ruby', branch: 'master', require: 'bitcoin'
 
 == Client
 
