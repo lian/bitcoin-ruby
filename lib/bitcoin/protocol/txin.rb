@@ -31,6 +31,8 @@ module Bitcoin
       def initialize *args
         @prev_out, @prev_out_index, @script_sig_length,
         @script_sig, @sequence = *args
+        @script_sig_length ||= 0
+        @script_sig ||= ''
         @sequence ||= DEFAULT_SEQUENCE
       end
 
