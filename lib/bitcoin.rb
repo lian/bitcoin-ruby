@@ -112,7 +112,15 @@ module Bitcoin
     end
 
     def hash160_to_address(hex)
-      hex = address_version + hex
+      encode_address hex, address_version
+    end
+
+    def hash160_to_p2sh_address(hex)
+      encode_address hex, p2sh_version
+    end
+
+    def encode_address(hex, version)
+      hex = version + hex
       encode_base58(hex + checksum(hex))
     end
 
