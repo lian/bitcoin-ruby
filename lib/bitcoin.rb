@@ -62,6 +62,7 @@ module Bitcoin
 
     def address_version; Bitcoin.network[:address_version]; end
     def p2sh_version; Bitcoin.network[:p2sh_version]; end
+    def privkey_version; Bitcoin.network[:privkey_version]; end
 
     # hash160 is a 20 bytes (160bits) rmd610-sha256 hexdigest.
     def hash160(hex)
@@ -126,6 +127,11 @@ module Bitcoin
 
     def pubkey_to_address(pubkey)
       hash160_to_address( hash160(pubkey) )
+    end
+
+    def privkey_to_wif(privkey)
+      extended_pk = privkey_version + privkey
+      encode_base58(extended_pk + checksum(extended_pk))
     end
 
     def int_to_base58(int_val, leading_zero_bytes=0)

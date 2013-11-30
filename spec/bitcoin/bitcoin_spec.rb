@@ -24,6 +24,16 @@ describe 'Bitcoin Address/Hash160/PubKey' do
       .should == "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
   end
 
+  it 'private key to wallet import format (WIF)' do
+    privkey = "636000ddadd56d0dc5d30ce91b8fbd3ca033ba5320586b6c2ed0c37c4f63b5d8"
+
+    Bitcoin::network = :bitcoin
+    Bitcoin.privkey_to_wif(privkey).should == "5Ja3yxYnP7cajfotd8az6YTjJopwQDk5sGtMyhGR6pzXnGamemq"
+
+    Bitcoin::network = :testnet
+    Bitcoin.privkey_to_wif(privkey).should == "92LgZhNKyLgihjKBFUUty91gxUBeZPHHDDkK4KcvSZjaZHSKphQ"
+  end
+
   it 'bitcoin p2sh address from bitcoin-hash160' do
     Bitcoin::network = :testnet
     Bitcoin.hash160_to_p2sh_address("d11e2f2f385efeecd30f867f1d55c0bc8a27f29e")
