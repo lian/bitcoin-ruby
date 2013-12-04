@@ -543,7 +543,7 @@ module Bitcoin
       :magic_head => "\xfb\xc0\xb6\xdb",
       :address_version => "30",
       :p2sh_version => "05",
-      :privkey_version => "ef",
+      :privkey_version => "b0",
       :default_port => 9333,
       :protocol_version => 60002,
       :max_money => 84_000_000 * COIN,
