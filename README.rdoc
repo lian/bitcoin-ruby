@@ -240,6 +240,11 @@ or, if you want to run a single spec
 
  ruby spec/bitcoin/bitcoin_spec.rb
 
+To test the postgres/mysql storage backend, create a database and set it as an environment variable:
+
+ echo "create database bitcoin_test" | psql
+ TEST_DB_POSTGRES="postgres:/bitcoin_test" rake bacon
+
 If you make changes to the code or add functionality, please also add specs.
 
 == Development

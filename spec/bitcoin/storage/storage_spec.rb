@@ -8,21 +8,28 @@ include Bitcoin::Storage::Backends
 include Bitcoin::Builder
 include Bitcoin::Validation
 
-[ { :name => :dummy },
-  { :name => :utxo, :db => 'sqlite:/', :index_all_addrs => true },
-  { :name => :sequel, :db => 'sqlite:/' } ].each do |configuration|
+Bitcoin::network = :testnet
+[
+ [:dummy],
+ [:sequel, :sqlite],
+ [:utxo, :sqlite, index_all_addrs: true],
+ [:sequel, :postgres],
+ [:utxo, :postgres, index_all_addrs: true],
+ [:sequel, :mysql],
+ [:utxo, :mysql, index_all_addrs: true],
+].compact.each do |options|
 
-  describe "Bitcoin::Storage::Backends::#{configuration[:name].capitalize}Store" do
+  next  unless storage = setup_db(*options)
+
+  describe "Storage::Backends::#{options[0].to_s.capitalize}Store (#{options[1]})" do
 
     before do
       class Bitcoin::Validation::Block; def difficulty; true; end; end
       Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("ff"*32)
 
-      Bitcoin::network = :testnet
-      @store = Bitcoin::Storage.send(configuration[:name], configuration)
+      @store = storage
       def @store.in_sync?; true; end
       @store.reset
-      @store.log.level = 4
 
       @store.store_block(P::Block.new(fixtures_file('testnet/block_0.bin')))
       @store.store_block(P::Block.new(fixtures_file('testnet/block_1.bin')))
@@ -48,7 +55,7 @@ include Bitcoin::Validation
     end
 
     it "should get backend name" do
-      @store.backend_name.should == configuration[:name].to_s
+      @store.backend_name.should == options[0].to_s
     end
 
     it "should get depth" do

@@ -3,7 +3,7 @@ Sequel.migration do
 
   up do
 
-    $stdout.puts "Running migration #{__FILE__}"
+    @log.info { "Running migration #{__FILE__}" }
 
     binary = adapter_scheme == :postgres ? :bytea : :varchar
 

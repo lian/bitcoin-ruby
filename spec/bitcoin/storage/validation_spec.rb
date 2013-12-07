@@ -6,18 +6,27 @@ include Bitcoin::Builder
 include Bitcoin::Storage
 include Bitcoin::Validation
 
-[ { :name => :utxo, :db => 'sqlite:/', :index_all_addrs => true },
-  { :name => :sequel, :db => 'sqlite:/' } ].each do |configuration|
+Bitcoin.network = :spec
 
-  describe "block rules (#{configuration[:name].capitalize}Store)" do
+[
+ [:sequel, :sqlite],
+ [:utxo, :sqlite, index_all_addrs: true],
+ [:sequel, :postgres],
+ [:utxo, :postgres, index_all_addrs: true],
+ [:sequel, :mysql],
+ [:utxo, :mysql, index_all_addrs: true],
+].compact.each do |options|
+
+  next  unless storage = setup_db(*options)
+
+  describe "block rules (#{options[0]} - #{options[1]})" do
 
   def balance addr
     @store.get_balance(Bitcoin.hash160_from_address(addr))
   end
 
   before do
-    Bitcoin.network = :spec
-    @store = Bitcoin::Storage.send(configuration[:name], configuration)
+    @store = storage
     @store.reset
     @store.log.level = :warn
     Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("f"*64)
@@ -147,11 +156,11 @@ include Bitcoin::Validation
 
 end
 
-describe "transaction rules (#{configuration[:name].capitalize}Store)" do
+describe "transaction rules (#{options[0]} - #{options[1]})" do
 
   before do
     Bitcoin.network = :spec
-    @store = Bitcoin::Storage.send(configuration[:name], configuration)
+    @store = storage
     @store.reset
     @store.log.level = :warn
 
@@ -247,7 +256,7 @@ describe "transaction rules (#{configuration[:name].capitalize}Store)" do
   end
   
   it "15. Using the referenced output transactions to get input values, check that each input value, as well as the sum, are in legal money range" do
-    @store.db[@store.class.name =~ /Utxo/ ? :utxo : :txout].where(id: 2).update(value: 22e14)
+    @store.db[@store.class.name =~ /Utxo/ ? :utxo : :txout].order(:id).reverse.limit(1).update(value: 22e14)
     check_tx(@tx, [:input_values, [22e14, 21e14]])
   end
 

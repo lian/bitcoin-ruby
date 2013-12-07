@@ -2,7 +2,7 @@ Sequel.migration do
 
   up do
 
-    $stdout.puts "Running migration #{__FILE__}"
+    @log.info { "Running migration #{__FILE__}" }
 
     if adapter_scheme == :postgres
       add_column :txin, :tmp_script_sig, :bytea

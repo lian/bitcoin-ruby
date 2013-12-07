@@ -2,7 +2,7 @@ Sequel.migration do
 
   up do
 
-    $stdout.puts "Running migration #{__FILE__}"
+    @log.info { "Running migration #{__FILE__}" }
 
     next  if tables.include?(:tx)
 
@@ -39,11 +39,6 @@ Sequel.migration do
       column :value, :bigint
       column :type, :int, :null => false, :index => true
     end
-
-    create_view(:unconfirmed,
-      "SELECT * FROM tx WHERE NOT EXISTS " +
-      "(SELECT 1 FROM blk_tx WHERE blk_tx.tx_id = tx.id)" +
-      "ORDER BY tx.id DESC")
 
   end
 

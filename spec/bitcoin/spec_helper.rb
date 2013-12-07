@@ -102,3 +102,24 @@ rescue LoadError
 end
 Bacon.summary_on_exit
 require 'minitest/mock'
+
+require 'sequel'
+def setup_db backend, db = nil, conf = {}
+  uri = case db
+        when :sqlite
+          "sqlite:/"
+        when :postgres
+          ENV["TEST_DB_POSTGRES"].dup rescue nil
+        when :mysql
+          ENV["TEST_DB_MYSQL"].dup rescue nil
+        end
+  if [:postgres, :mysql].include?(db)
+    unless uri
+      puts "Skipping #{db} tests"  
+      return nil
+    end
+    db = Sequel.connect(uri)
+    db.drop_table(*db.tables, cascade: true)
+  end
+  Bitcoin::Storage.send(backend, conf.merge(db: uri, log_level: :warn))
+end

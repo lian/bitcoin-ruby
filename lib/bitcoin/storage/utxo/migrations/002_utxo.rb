@@ -2,7 +2,7 @@ Sequel.migration do
 
   up do
 
-    $stdout.puts "Running migration #{__FILE__}"
+    @log.info { "Running migration #{__FILE__}" }
 
     create_table :utxo do
       primary_key :id
