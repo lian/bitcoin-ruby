@@ -8,7 +8,7 @@ Sequel.migration do
       add_column :txin, :tmp_prev_out, :bytea
       self[:txin].where.update("tmp_prev_out = prev_out::bytea")
       drop_column :txin, :prev_out
-      add_column :txin, :prev_out, :bytea
+      add_column :txin, :prev_out, :bytea, index: true
       self[:txin].where.update("prev_out = tmp_prev_out")
       drop_column :txin, :tmp_prev_out
     end
