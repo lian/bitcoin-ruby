@@ -542,6 +542,12 @@ describe "Bitcoin::Script OPCODES" do
     script = "0 #{sig1} #{sig2} 2 #{k1.pub} #{k2.pub} 2 OP_CHECKMULTISIG"
     run_script(script, "foobar").should == true
 
+    script = "0 #{sig2} #{sig1} 2 #{k1.pub} #{k2.pub} 2 OP_CHECKMULTISIG"
+    run_script(script, "foobar").should == false
+
+    script = "0 #{sig1} #{sig2} 2 #{k2.pub} #{k1.pub} 2 OP_CHECKMULTISIG"
+    run_script(script, "foobar").should == false
+
     script = "0 #{sig1} #{sig2} 2 #{k1.pub} #{k2.pub} #{k3.pub} 3 OP_CHECKMULTISIG"
     run_script(script, "foobar").should == true
 

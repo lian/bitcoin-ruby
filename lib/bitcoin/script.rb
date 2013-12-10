@@ -1035,15 +1035,17 @@ class Bitcoin::Script
   # TODO: validate signature order
   # TODO: take global opcode count
   def op_checkmultisig(check_callback)
+    return invalid if @stack.size < 1
     n_pubkeys = pop_int
     return invalid  unless (0..20).include?(n_pubkeys)
-    return invalid  unless @stack.last(n_pubkeys).all?{|e| e.is_a?(String) && e != '' }
-    #return invalid  if ((@op_count ||= 0) += n_pubkeys) > 201
+    #return invalid  if (nOpCount += n_pubkeys) > 201
+    return invalid if @stack.size < n_pubkeys
     pubkeys = pop_string(n_pubkeys)
 
+    return invalid if @stack.size < 1
     n_sigs = pop_int
-    return invalid  unless (0..n_pubkeys).include?(n_sigs)
-    return invalid  unless @stack.last(n_sigs).all?{|e| e.is_a?(String) && e != '' }
+    return invalid if n_sigs < 0 || n_sigs > n_pubkeys
+    return invalid if @stack.size < n_sigs
     sigs = drop_sigs = pop_string(n_sigs)
 
     @stack.pop if @stack[-1] && cast_to_bignum(@stack[-1]) == 0 # remove OP_0 from stack
@@ -1055,14 +1057,20 @@ class Bitcoin::Script
       script_code, drop_sigs = nil, nil
     end
 
-    valid_sigs = 0
-    sigs.each{|sig| pubkeys.each{|pubkey|
-        next if sig == ""
-        signature, hash_type = parse_sig(sig)
-        valid_sigs += 1  if check_callback.call(pubkey, signature, hash_type, drop_sigs, script_code)
-      }}
+    success = true
+    while success && n_sigs > 0
+      sig, pub = sigs.pop, pubkeys.pop
+      signature, hash_type = parse_sig(sig)
+      if check_callback.call(pub, signature, hash_type, drop_sigs, script_code)
+        n_sigs -= 1
+      else
+        sigs << sig
+      end
+      n_pubkeys -= 1
+      success = false if n_sigs > n_pubkeys
+    end
 
-    @stack << ((valid_sigs >= n_sigs) ? 1 : (invalid; 0))
+    @stack << (success ? 1 : (invalid; 0))
   end
 
   # op_eval: https://en.bitcoin.it/wiki/BIP_0012
