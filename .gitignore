@@ -12,3 +12,4 @@ coverage/
 *.conf
 *.db
 .rbx/
+/vendor
