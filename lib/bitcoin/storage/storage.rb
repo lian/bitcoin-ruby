@@ -419,7 +419,12 @@ module Bitcoin::Storage
           File.open(filename) do |file|
             until file.eof?
               magic = file.read(4)
-              raise "invalid network magic"  unless Bitcoin.network[:magic_head] == magic
+
+              # bitcoind pads the ends of the block files so that it doesn't
+              # have to reallocate space on every new block.
+              break if magic == "\0\0\0\0"
+              raise "invalid network magic" unless Bitcoin.network[:magic_head] == magic
+
               size = file.read(4).unpack("L")[0]
               blk = Bitcoin::P::Block.new(file.read(size))
               depth, chain = new_block(blk)
