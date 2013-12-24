@@ -100,6 +100,7 @@ class Bitcoin::Script
   OP_LSHIFT = 152
   OP_RSHIFT = 153
 
+  OP_INVALIDOPCODE = 0xff
 
   OPCODES = Hash[*constants.grep(/^OP_/).map{|i| [const_get(i), i.to_s] }.flatten]
   OPCODES[0] = "0"
