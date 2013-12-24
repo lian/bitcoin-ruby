@@ -43,6 +43,10 @@ module Bitcoin
 
       alias :parse_payload :parse_data
 
+      def get_script
+        @script_cache || Bitcoin::Script.new(@pk_script)
+      end
+
       def to_payload
         [@value].pack("Q") << Protocol.pack_var_int(@pk_script_length) << @pk_script
       end
@@ -52,7 +56,7 @@ module Bitcoin
       end
 
       def to_hash(options = {})
-        script = Bitcoin::Script.new(@pk_script)
+        script = get_script
         h = { 'value' => "%.8f" % (@value / 100000000.0),
           'scriptPubKey' => script.to_string }
         h["address"] = script.get_address  if script.is_hash160? && options[:with_address]
