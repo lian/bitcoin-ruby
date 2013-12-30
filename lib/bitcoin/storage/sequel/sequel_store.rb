@@ -345,7 +345,7 @@ module Bitcoin::Storage::Backends
     def wrap_block(block)
       return nil  unless block
 
-      data = {:id => block[:id], :depth => block[:depth], :chain => block[:chain], :work => block[:work].to_i, :hash => block[:hash].hth}
+      data = {:id => block[:id], :depth => block[:depth], :chain => block[:chain], :work => block[:work].to_i, :hash => block[:hash].hth, :size => block[:blk_size]}
       blk = Bitcoin::Storage::Models::Block.new(self, data)
 
       blk.ver = block[:version]
