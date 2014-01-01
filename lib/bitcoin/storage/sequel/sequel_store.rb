@@ -371,7 +371,7 @@ module Bitcoin::Storage::Backends
       block_id ||= @db[:blk_tx].join(:blk, id: :blk_id)
         .where(tx_id: transaction[:id], chain: 0).first[:blk_id] rescue nil
 
-      data = {id: transaction[:id], blk_id: block_id}
+      data = {id: transaction[:id], blk_id: block_id, size: transaction[:tx_size], idx: transaction[:idx]}
       tx = Bitcoin::Storage::Models::Tx.new(self, data)
 
       inputs = db[:txin].filter(:tx_id => transaction[:id]).order(:tx_idx)

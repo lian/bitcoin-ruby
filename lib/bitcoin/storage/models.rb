@@ -42,12 +42,14 @@ module Bitcoin::Storage::Models
   class Tx < Bitcoin::Protocol::Tx
 
     attr_accessor :ver, :lock_time, :hash
-    attr_reader :store, :id, :blk_id
+    attr_reader :store, :id, :blk_id, :size, :idx
 
     def initialize store, data
       @store = store
       @id = data[:id]
       @blk_id = data[:blk_id]
+      @size = data[:size]
+      @idx  = data[:idx]
       super(nil)
     end
 

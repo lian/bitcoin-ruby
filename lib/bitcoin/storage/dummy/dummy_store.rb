@@ -107,6 +107,7 @@ module Bitcoin::Storage::Backends
       [:ver, :prev_block, :mrkl_root, :time, :bits, :nonce].each do |attr|
         blk.send("#{attr}=", block.send(attr))
       end
+      blk.send(":size=", block[:blk_size])
       block.tx.each do |tx|
         blk.tx << get_tx(tx.hash)
       end
@@ -135,6 +136,7 @@ module Bitcoin::Storage::Backends
       [:prev_out, :prev_out_index, :script_sig_length, :script_sig, :sequence].each do |attr|
         txin.send("#{attr}=", input.send(attr))
       end
+      txin.send(":size=", input[:blk_size])
       txin
     end
 
