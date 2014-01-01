@@ -56,7 +56,7 @@ module Bitcoin::Storage::Models
     # get the block this transaction is in
     def get_block
       return nil  unless @blk_id
-      @store.get_block_by_id(@blk_id)
+      @block ||= @store.get_block_by_id(@blk_id)
     end
 
     # get the number of blocks that confirm this tx in the main chain
@@ -80,15 +80,16 @@ module Bitcoin::Storage::Models
 
     # get the transaction this input is in
     def get_tx
-
-      @store.get_tx_by_id(@tx_id)
+      @tx ||= @store.get_tx_by_id(@tx_id)
     end
 
     # get the previous output referenced by this input
     def get_prev_out
-      prev_tx = @store.get_tx(@prev_out.reverse_hth)
-      return nil  unless prev_tx
-      prev_tx.out[@prev_out_index]
+      @prev_tx_out ||= begin
+        prev_tx = @store.get_tx(@prev_out.reverse_hth)
+        return nil  unless prev_tx
+        prev_tx.out[@prev_out_index]
+      end
     end
 
   end
@@ -112,7 +113,7 @@ module Bitcoin::Storage::Models
 
     # get the transaction this output is in
     def get_tx
-      @store.get_tx_by_id(@tx_id)
+      @tx ||= @store.get_tx_by_id(@tx_id)
     end
 
     # get the next input that references this output
