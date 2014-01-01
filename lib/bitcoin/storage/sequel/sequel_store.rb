@@ -431,6 +431,22 @@ module Bitcoin::Storage::Backends
       log.info { "Last #{count} blocks are consistent." }
     end
 
+    # get total received of +address+ address
+    def get_received(address)
+      return 0 unless Bitcoin.valid_address?(address)
+
+      txouts = get_txouts_for_address(address)
+      return 0 unless txouts.any?
+
+      txouts.inject(0){ |m, out| m + out.value }
+
+      # total = 0
+      # txouts.each do |txout|
+      #   tx = txout.get_tx
+      #   total += txout.value
+      # end
+    end
+
   end
 
 end
