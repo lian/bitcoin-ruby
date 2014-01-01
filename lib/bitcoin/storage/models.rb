@@ -36,6 +36,17 @@ module Bitcoin::Storage::Models
       @store.get_block_by_prev_hash(@hash)
     end
 
+    def total_out
+      @total_out ||= tx.inject(0){ |m,t| m + t.total_out }
+    end
+
+    def total_in
+      @total_in ||= tx.inject(0){ |m,t| m + t.total_in }
+    end
+
+    def total_fee
+      @total_fee ||= tx.inject(0){ |m,t| m + t.fee }
+    end
   end
 
   # Transaction retrieved from storage. (see Bitcoin::Protocol::Tx)
@@ -63,6 +74,21 @@ module Bitcoin::Storage::Models
     def confirmations
       return 0  unless get_block
       @store.get_head.depth - get_block.depth + 1
+    end
+
+    def total_out
+      @total_out ||= self.out.inject(0){ |e, o| e + o.value }
+    end
+
+    # if tx_in is coinbase, set in value as total_out, fee could be 0
+    def total_in
+      @total_in ||= self.in.inject(0){ |m, input|
+        m + (input.coinbase? ? total_out : (input.get_prev_out.try(:value) || 0))
+      }
+    end
+
+    def fee
+      @fee ||= total_in - total_out
     end
   end
 
