@@ -83,12 +83,12 @@ describe 'Bitcoin::Script' do
 
       Bitcoin::Script.from_string("(opcode-230) 4 1 2").to_string.should == "(opcode-230) 4 1 2"
       Bitcoin::Script.from_string("(opcode 230) 4 1 2").to_string.should == "(opcode-230) 4 1 2"
-      Bitcoin::Script.from_string("(opcode-65449) 4 1 2").to_string.should == "(opcode-255) OP_HASH160 4 1 2"
+      Bitcoin::Script.from_string("(opcode-65449) 4 1 2").to_string.should == "OP_INVALIDOPCODE OP_HASH160 4 1 2"
 
       # found in testnet3 block 0000000000ac85bb2530a05a4214a387e6be02b22d3348abc5e7a5d9c4ce8dab transactions
-      Script.new("\xff\xff\xff\xff").to_string.should == "(opcode-255) (opcode-255) (opcode-255) (opcode-255)"
+      Script.new("\xff\xff\xff\xff").to_string.should == "OP_INVALIDOPCODE OP_INVALIDOPCODE OP_INVALIDOPCODE OP_INVALIDOPCODE"
       Script.from_string(Script.new("\xff\xff\xff\xff").to_string).raw.should == "\xFF\xFF\xFF\xFF"
-      Script.new("\xff\xff\xff").to_string.should == "(opcode-255) (opcode-255) (opcode-255)"
+      Script.new("\xff\xff\xff").to_string.should == "OP_INVALIDOPCODE OP_INVALIDOPCODE OP_INVALIDOPCODE"
       Script.from_string(Script.new("\xff\xff\xff").to_string).raw.should == "\xFF\xFF\xFF"
     end
 
@@ -330,7 +330,7 @@ describe 'Bitcoin::Script' do
 
     # testnet3 tx: 5dea81f9d9d2ea6d06ce23ff225d1e240392519017643f75c96fa2e4316d948a
     script = Script.new( ["0063bac0d0e0f0f1f2f3f3f4ff675168"].pack("H*") )
-    script.to_string.should == "0 OP_IF (opcode-186) (opcode-192) (opcode-208) (opcode-224) (opcode-240) (opcode-241) (opcode-242) (opcode-243) (opcode-243) (opcode-244) (opcode-255) OP_ELSE 1 OP_ENDIF"
+    script.to_string.should == "0 OP_IF (opcode-186) (opcode-192) (opcode-208) (opcode-224) (opcode-240) (opcode-241) (opcode-242) (opcode-243) (opcode-243) (opcode-244) OP_INVALIDOPCODE OP_ELSE 1 OP_ENDIF"
     script.run.should == true
 
     # mainnet tx: 61a078472543e9de9247446076320499c108b52307d8d0fafbe53b5c4e32acc4 redeeming output from 5342c96b946ea2c5e497de5dbf7762021f94aba2c8222c17ed28492fdbb4a6d9
