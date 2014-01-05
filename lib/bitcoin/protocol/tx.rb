@@ -219,6 +219,10 @@ module Bitcoin
         @validator ||= Bitcoin::Validation::Tx.new(self, store, block)
       end
 
+      def size
+        payload.bytesize
+      end
+
       DEFAULT_BLOCK_PRIORITY_SIZE = 27000
 
       def minimum_relay_fee; calculate_minimum_fee(allow_free=true, :relay); end

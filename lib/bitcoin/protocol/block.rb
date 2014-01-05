@@ -138,6 +138,10 @@ module Bitcoin
         h
       end
 
+      def size
+        payload.bytesize
+      end
+
       def hextarget
         Bitcoin.decode_compact_bits(@bits)
       end
