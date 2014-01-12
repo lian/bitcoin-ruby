@@ -347,13 +347,13 @@ describe 'Node Command API' do
         send ["store_tx", [ tx.to_payload.hth ]]
         should_receive ["store_tx", { "queued" => [ "tx", tx.hash ]}]
         addr = Bitcoin::Script.new(tx.out[0].pk_script).get_address
-        should_receive ["monitor", ["output", [ tx.hash, addr, tx.out[0].value, 0]]]
+        should_receive ["monitor", ["output", [ tx.hash, 0, addr, tx.out[0].value, 0]]]
       end
 
       it "should monitor confirmed output" do
         send ["monitor", ["output_1"]]
         store_block @block
-        should_receive ["monitor", ["output_1", [ @tx.hash, @addr, @out.value, 1 ]]]
+        should_receive ["monitor", ["output_1", [ @tx.hash, 0, @addr, @out.value, 1 ]]]
       end
 
       it "should monitor output for given confirmation level" do
@@ -363,11 +363,11 @@ describe 'Node Command API' do
         store_block @block
         tx = @genesis.tx[0]; out = tx.out[0]
         addr = Bitcoin::Script.new(out.pk_script).get_address
-        should_receive ["monitor", ["output_3", [ tx.hash, addr, out.value, 3 ]]]
+        should_receive ["monitor", ["output_3", [ tx.hash, 0, addr, out.value, 3 ]]]
 
         @block = create_block @block.hash, false
         store_block @block
-        should_receive ["monitor", ["output_3", [ @tx.hash, @addr, @out.value, 3 ]]]
+        should_receive ["monitor", ["output_3", [ @tx.hash, 0, @addr, @out.value, 3 ]]]
         
       end
 

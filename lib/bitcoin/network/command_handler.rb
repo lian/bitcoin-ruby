@@ -118,9 +118,9 @@ class Bitcoin::Network::CommandHandler < EM::Connection
       block = @node.store.get_block_by_depth(depth - conf + 1)
       next  unless block
       block.tx.each do |tx|
-        tx.out.each do |out|
+        tx.out.each.with_index do |out, idx|
           addr = Bitcoin::Script.new(out.pk_script).get_address
-          res = [tx.hash, addr, out.value, conf]
+          res = [tx.hash, idx, addr, out.value, conf]
           @node.push_notification("output_#{conf}".to_sym, res)
         end
       end
