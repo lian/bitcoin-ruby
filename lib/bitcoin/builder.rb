@@ -69,10 +69,9 @@ module Bitcoin
       end
 
       # add transactions to the block (see TxBuilder).
-      def tx
-        c = TxBuilder.new
-        yield c
-        @block.tx << c.tx
+      def tx tx = nil
+        tx ||= ( c = TxBuilder.new; yield c; c.tx )
+        @block.tx << tx
       end
 
       # create the block according to values specified via DSL.
