@@ -206,9 +206,9 @@ lib/bitcoin/network/node.rb for examples.
 
 === Storage / Database backends
 
-There is support for multiple database backends, but currently the only stable one is
-the Bitcoin::Storage::Backends::SequelStore backend. All backends implement the interface
-defined in Bitcoin::Storage::Backends::StoreBase and return Bitcoin::Storage::Models.
+There is support for different storage backends. Each backend can be used with
+sqlite, postgres or mysql. All backends implement the interface defined in
+Bitcoin::Storage::Backends::StoreBase and return Bitcoin::Storage::Models.
 
  store = Bitcoin::Storage.sequel(:db => "sqlite://bitcoin.db") # in-memory db
  store.get_head #=> block
@@ -217,8 +217,7 @@ defined in Bitcoin::Storage::Backends::StoreBase and return Bitcoin::Storage::Mo
  txouts.first.type #=> :pubkey
  txouts.first.get_address #=> "15yN7NPEpu82sHhB6TzCW5z5aXoamiKeGy"
 
-See Bitcoin::Storage::Backends::StoreBase, Bitcoin::Storage::Backends::SequelStore
-and Bitcoin::Storage::Models for details.
+See also STORAGE, Bitcoin::Storage::Backends::UtxoStore, Bitcoin::Storage::Backends::SequelStore and Bitcoin::Storage::Backends::DummyStore for details.
 
 == Documentation
 

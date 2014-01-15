@@ -1,13 +1,25 @@
 = Storage
 
-There is support for different storage backends, currently the `sequel` backend is the most stable and should work with `sqlite` and `postgres` databases. see Bitcoin::Storage
+There is support for different storage backends, currently there are two. Each backend can be used with sqlite, postgres or mysql.
 
 == Backends
 
+=== UTXO
+
+The `utxo` backend stores only the minimum amount of information needed to validate new blocks, namely the `Unspent TX Outputs`. So it can be used to independently validate the whole blockchain as it goes, but it cannot query old data or serve blocks to peers. There is however a way to tell it specific addresses for which it will keep the history (the ones in your wallet).
+
+=== Sequel
+
+The `sequel` backend stores the whole blockchain into a fully normalized SQL DB. It can be used to run arbitrary queries on the blockchain data, but the database gets huge and it takes a very long time to do an initial sync.
+
+It is used to run http://webbtc.com and there are also postgres dumps to get you started faster on http://dumps.webbtc.com.
+
+
+== Config
+
 For examples that require storage backends, you can specify them using
 a string containing the backend name and a configuration string.
-The default backend is +sequel::sqlite://bitcoin.db+ which is a sqlite database
-called +bitcoin.db+ in the current directory
+The default backend is +utxo::sqlite:~/.bitcoin-ruby/<network>blocks.db+, which is a sqlite database called +blocks.db+ in a directory named after the network you're using, inside your homedir.
 
  sequel::sqlite:/ # in-memory
  sequel::sqlite://bitcoin.db
@@ -18,4 +30,4 @@ called +bitcoin.db+ in the current directory
 == Custom Backends
 
 To implement a custom backend you need to inherit from Bitcoin::Storage::Backends::StoreBase
-and implement the methods defined there.
+and implement the methods defined there. When returning blocks/tx, you should wrap them in Bitcoin::Storage::Models objects. See the `dummy` backend for a simple example.

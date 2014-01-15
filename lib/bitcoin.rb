@@ -495,7 +495,7 @@ module Bitcoin
       :privkey_version => "ef",
       :default_port => 18333,
       :max_money => 21_000_000 * COIN,
-      :dns_seeds => [ "testseed.bitcoin.interesthings.de" ],
+      :dns_seeds => [ ],
       :genesis_hash => "00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008",
       :proof_of_work_limit => 0x1d07fff8,
       :alert_pubkeys => ["04302390343f91cc401d56d68b123028bf52e5fca1939df127f63c6467cdf9c8e2c14b61104cf817d0b780da337893ecc4aaff1309e536162dabbdb45200ca2b0a"],
