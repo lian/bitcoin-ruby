@@ -4,10 +4,15 @@ module Bitcoin
   module Protocol
 
     class Parser
+      attr_reader :stats
 
       def initialize(handler=nil)
         @h = handler || Handler.new
         @buf = ""
+        @stats = {
+          'total_packets' => 0,
+          'total_bytes' => 0
+        }
       end
 
       def log
@@ -69,6 +74,9 @@ module Bitcoin
       end
 
       def process_pkt(command, payload)
+        @stats['total_packets'] += 1
+        @stats['total_bytes'] += payload.bytesize
+        @stats[command] ? (@stats[command] += 1) : @stats[command] = 1
         case command
         when 'tx';       @h.on_tx( Tx.new(payload) )
         when 'block';    @h.on_block( Block.new(payload) )
