@@ -448,7 +448,7 @@ class Bitcoin::Script
 
   # is this a multisig tx
   def is_multisig?
-    return false  if @chunks.size > 6 || @chunks.size < 4
+    return false  if @chunks.size > 6 || @chunks.size < 4 || !@chunks[-2].is_a?(Fixnum)
     @chunks[-1] == OP_CHECKMULTISIG and get_multisig_pubkeys.all?{|c| c.is_a?(String) }
   end
 

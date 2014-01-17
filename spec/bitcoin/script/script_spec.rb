@@ -226,6 +226,7 @@ describe 'Bitcoin::Script' do
       Script.new("OP_DUP OP_DROP 2 #{PUBKEYS[0..2].join(' ')} 3 OP_CHECKMULTISIG")
         .is_multisig?.should == false
       Script.new("OP_DROP OP_CHECKMULTISIG").is_multisig?.should == false
+      Script.from_string("d366fb5cbf048801b1bf0742bb0d873f65afb406f41756bd4a31865870f6a928 OP_DROP 2 02aae4b5cd593da83679a9c5cadad4c180c008a40dd3ed240cceb2933b9912da36 03a5aebd8b1b6eec06abc55fb13c72a9ed2143f9eed7d665970e38853d564bf1ab OP_CHECKMULTISIG").is_multisig?.should == false
     end
 
     it "#type" do
