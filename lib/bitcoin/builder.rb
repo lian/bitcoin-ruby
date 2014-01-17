@@ -18,10 +18,10 @@ module Bitcoin
 
     # build a Bitcoin::Protocol::Tx.
     # see TxBuilder for details.
-    def build_tx
+    def build_tx opts = {}
       c = TxBuilder.new
       yield c
-      c.tx
+      c.tx opts
     end
     alias :tx :build_tx
 
@@ -164,9 +164,29 @@ module Bitcoin
       # sign each input that has a signature key specified. if there is
       # no key, store the sig_hash in the input, so it can easily be
       # signed later.
-      def tx
+      def tx opts = {}
+        if opts[:change_address] && !opts[:input_value]
+          raise "Must give 'input_value' when auto-generating change output!"
+        end
         @ins.each {|i| @tx.add_in(i.txin) }
         @outs.each {|o| @tx.add_out(o.txout) }
+
+        if opts[:change_address]
+          output_value = @tx.out.map(&:value).inject(:+)
+          change_value = opts[:input_value] - output_value
+          if opts[:leave_fee]
+            if change_value >= @tx.minimum_block_fee
+              change_value -= @tx.minimum_block_fee
+            else
+              change_value = 0
+            end
+          end
+          if change_value > 0
+            script = Script.to_address_script(opts[:change_address])
+            @tx.add_out(P::TxOut.new(change_value, script))
+          end
+        end
+
         @ins.each_with_index do |inc, i|
           if @tx.in[i].coinbase?
             script_sig = [inc.coinbase_data].pack("H*")

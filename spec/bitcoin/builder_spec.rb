@@ -102,6 +102,39 @@ describe "Bitcoin::Builder" do
     tx.in[0].sig_hash.should != nil
   end
 
+  it "should add change output" do
+    change_address = Bitcoin::Key.generate.addr
+    tx = build_tx(input_value: @block.tx[0].out.map(&:value).inject(:+),
+                  change_address: change_address) do |t|
+      t.input {|i| i.prev_out @block.tx[0]; i.prev_out_index 0; i.signature_key @keys[0] }
+      t.output {|o| o.value 12345; o.script {|s| s.recipient @keys[1].addr } }
+    end
+    tx.out.count.should == 2
+    tx.out.last.value.should == 50e8 - 12345
+    Bitcoin::Script.new(tx.out.last.pk_script).get_address.should == change_address
+  end
+
+  it "should add change output and leave fee" do
+    change_address = Bitcoin::Key.generate.addr
+    tx = build_tx(input_value: @block.tx[0].out.map(&:value).inject(:+),
+                  change_address: change_address, leave_fee: true) do |t|
+      t.input {|i| i.prev_out @block.tx[0]; i.prev_out_index 0; i.signature_key @keys[0] }
+      t.output {|o| o.value 12345; o.script {|s| s.recipient @keys[1].addr } }
+    end
+    tx.out.count.should == 2
+    tx.out.last.value.should == 50e8 - 12345 - Bitcoin.network[:min_tx_fee]
+    Bitcoin::Script.new(tx.out.last.pk_script).get_address.should == change_address
+
+    tx = build_tx(input_value: @block.tx[0].out.map(&:value).inject(:+),
+                  change_address: change_address, leave_fee: true) do |t|
+      t.input {|i| i.prev_out @block.tx[0]; i.prev_out_index 0; i.signature_key @keys[0] }
+      49.times { t.output {|o| o.value 1e8; o.script {|s| s.recipient @keys[1].addr } } }
+      t.output {|o| o.value(1e8 - 10000); o.script {|s| s.recipient @keys[1].addr } }
+    end
+    tx.out.size.should == 50
+    tx.out.map(&:value).inject(:+).should == 50e8 - 10000
+  end
+
   it "should build address script" do
     key = Bitcoin::Key.generate
     s = script {|s| s.type :address; s.recipient key.addr }
