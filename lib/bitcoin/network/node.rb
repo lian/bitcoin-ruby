@@ -253,6 +253,14 @@ module Bitcoin::Network
           self.stop
         end
 
+        subscribe(:block) do |blk, depth|
+          @log.debug { "Relaying block #{blk.hash}" }
+          @connections.each do |conn|
+            next  unless conn.connected?
+            conn.send_inv(:block, blk.hash)
+          end
+        end
+
       end
     end
 
