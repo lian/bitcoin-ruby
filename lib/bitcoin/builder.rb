@@ -209,8 +209,8 @@ module Bitcoin
       end
 
       # previous transaction that contains the output we want to use.
-      def prev_out tx
-        @prev_out = tx
+      def prev_out tx, idx = nil
+        @prev_out, @prev_out_index = tx, idx
       end
 
       # index of the output in the #prev_out transaction.

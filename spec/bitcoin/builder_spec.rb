@@ -72,6 +72,17 @@ describe "Bitcoin::Builder" do
     script.get_address.should == @keys[1].addr
 
     tx.verify_input_signature(0, block.tx[0]).should == true
+
+
+    # check shortcuts also work
+    tx2 = build_tx do |t|
+      t.input {|i| i.prev_out @block.tx[0], 0; i.signature_key @keys[0] }
+      t.output {|o| o.value 123; o.script {|s| s.recipient @keys[1].addr } }
+    end
+    tx2.in[0].prev_out.should == tx.in[0].prev_out
+    tx2.in[0].prev_out_index.should == tx.in[0].prev_out_index
+    tx2.out[0].value.should == tx.out[0].value
+    tx2.out[0].pk_script.should == tx.out[0].pk_script
   end
 
   it "should build unsigned transactions and add the signature hash" do
