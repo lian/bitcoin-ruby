@@ -402,7 +402,7 @@ module Bitcoin::Network
             end
           end
         rescue Bitcoin::Validation::ValidationError
-          @log.warn { "ValiationError storing #{obj[0]} #{obj[1].hash}: #{$!.message}" }
+          @log.warn { "ValidationError storing #{obj[0]} #{obj[1].hash}: #{$!.message}" }
           # File.open("./validation_error_#{obj[0]}_#{obj[1].hash}.bin", "w") {|f|
           #   f.write(obj[1].to_payload) }
           # EM.stop
