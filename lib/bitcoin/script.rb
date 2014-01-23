@@ -476,6 +476,7 @@ class Bitcoin::Script
   # get the hash160 for this hash160 or pubkey script
   def get_hash160
     return @chunks[2..-3][0].unpack("H*")[0]  if is_hash160?
+    return @chunks[-2].unpack("H*")[0]        if is_p2sh?
     return Bitcoin.hash160(get_pubkey)        if is_pubkey?
   end
 
@@ -499,11 +500,16 @@ class Bitcoin::Script
     }.compact
   end
 
+  def get_p2sh_address
+    Bitcoin.hash160_to_p2sh_address(get_hash160)
+  end
+
   # get all addresses this script corresponds to (if possible)
   def get_addresses
     return [get_pubkey_address]    if is_pubkey?
     return [get_hash160_address]   if is_hash160?
     return get_multisig_addresses  if is_multisig?
+    return [get_p2sh_address]      if is_p2sh?
     []
   end
 
