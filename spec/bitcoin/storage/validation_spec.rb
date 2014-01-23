@@ -67,7 +67,7 @@ Bitcoin.network = :spec
   it "4. Block hash must satisfy claimed nBits proof of work" do
     @block.bits = Bitcoin.encode_compact_bits("0000#{"ff" * 30}")
     @block.recalc_block_hash
-    target = Bitcoin.decode_compact_bits(block.bits).to_i(16)
+    target = Bitcoin.decode_compact_bits(@block.bits).to_i(16)
     check_block(@block, [:bits, [@block.hash.to_i(16), target]])
   end
 
@@ -108,20 +108,27 @@ Bitcoin.network = :spec
     prev_block = @block1
     12.times do |i|
       prev_block = create_block(prev_block.hash, false, [])
-      prev_block.time = Time.now.to_i - (12-i)
+      prev_block.time = i
       prev_block.recalc_block_hash
       @store.store_block(prev_block).should == [i+2, 0]
     end
+
     block = create_block(prev_block.hash, false, [], @key)
 
-    fake_time = Time.now.to_i - 100
+    fake_time = @store.get_block_by_depth(8).time - 1
     times = @store.db[:blk].where("depth > 2").map{|b|b[:time]}.sort
     m, r = times.size.divmod(2)
     min_time = (r == 0 ? times[m-1, 2].inject(:+) / 2.0 : times[m])
+
+    # reject before median time
     check_block(block, [:min_timestamp, [fake_time, min_time]]) {|b| b.time = fake_time }
 
+    # reject at exactly median time
     fake_time = @store.get_block_by_depth(8).time
     check_block(block, [:min_timestamp, [fake_time, fake_time]]) {|b| b.time = fake_time }
+
+    # accept after median time
+    block.time = @store.get_block_by_depth(8).time + 1; block.recalc_block_hash
     @store.store_block(block).should == [14, 0]
   end
 
@@ -242,7 +249,7 @@ describe "transaction rules (#{options[0]} - #{options[1]})" do
   end
 
   it "13. Verify crypto signatures for each input; reject if any are bad" do
-    check_tx(@tx, [:signatures, [0]]) {|tx| @tx.in[0].script_sig[-1] = "\x00" }
+    check_tx(@tx, [:signatures, [0]]) {|tx| @tx.in[0].script_sig = "bad sig" }
   end
 
   it "14. For each input, if the referenced output has already been spent by a transaction in the main branch, reject this transaction" do
