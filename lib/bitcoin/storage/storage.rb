@@ -211,7 +211,6 @@ module Bitcoin::Storage
           head = get_head
           if prev_block.work + blk.block_work  <= head.work
             log.debug { "=> side (#{depth})" }
-            validator.validate(rules: [:context], raise_errors: true)  unless @config[:skip_validation]
             return persist_block(blk, SIDE, depth, prev_block.work)
           else
             log.debug { "=> reorg" }

@@ -99,6 +99,39 @@ Bitcoin::Validation::Block::RETARGET = 10
     @store.get_head.hash.should == block_b.hash
   end
 
+  it "should validate duplicate tx in a side chain" do
+    block1 = create_block @block0.hash, true, [], @key
+
+    block_2_0 = create_block block1.hash, false, [ ->(t) {
+        t.input {|i| i.prev_out block1.tx[0], 0; i.signature_key @key }
+        t.output {|o| o.value 50e8; o.script {|s| s.recipient @key.addr } }
+      }], @key
+
+    @store.store_block(block_2_0).should == [2, 0]
+
+    block_3_0 = create_block block_2_0.hash, false, [->(t) {
+        t.input {|i| i.prev_out block_2_0.tx[1], 0; i.signature_key @key }
+        t.output {|o| o.value 50e8; o.script {|s| s.recipient @key.addr } }
+       }], @key
+    @store.store_block(block_3_0).should == [3, 0]
+
+    block_2_1 = create_block block1.hash, false
+    block_2_1.tx << block_2_0.tx[1]
+    block_2_1.recalc_mrkl_root
+    block_2_1.recalc_block_hash
+    @store.store_block(block_2_1).should == [2, 1]
+
+    block_3_1 = create_block block_2_1.hash, false
+    block_3_1.tx << block_3_0.tx[1]
+    block_3_1.recalc_mrkl_root
+    block_3_1.recalc_block_hash
+
+    @store.store_block(block_3_1).should == [3, 1]
+
+    block_4 = create_block block_3_1.hash, false
+    @store.store_block(block_4).should == [4, 0]
+  end
+
   it "should reorg a single side block" do
     @store.get_head.should == @block0
 

@@ -101,8 +101,12 @@ module Bitcoin::Storage::Backends
     def reorg new_side, new_main
       @db.transaction do
         @db[:blk].where(hash: new_side.map {|h| h.htb.blob }).update(chain: SIDE)
-        new_main.each {|b| get_block(b).validator(self).validate(raise_errors: true) }  unless @config[:skip_validation]
-        @db[:blk].where(hash: new_main.map {|h| h.htb.blob }).update(chain: MAIN)
+        new_main.each do |block_hash|
+          unless @config[:skip_validation]
+            get_block(block_hash).validator(self).validate(raise_errors: true)
+          end
+          @db[:blk].where(hash: block_hash.htb.blob).update(chain: MAIN)
+        end
       end
     end
 
