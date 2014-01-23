@@ -54,7 +54,7 @@ There is a node which connects to the network and downloads
 the blockchain into a database. see NODE, Bitcoin::Network::Node.
 
 It also opens an extra socket where local clients can query statistics,
-monitor blockchain data, and relay there transactions to the network.
+monitor blockchain data, and relay their own transactions to the network.
 see NODE, Bitcoin::Network::CommandHandler, Bitcoin::Network::CommandClient.
 
 There is a WALLET implementation to manage a set of keys, list balances and create
