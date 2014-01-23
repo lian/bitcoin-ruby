@@ -249,6 +249,15 @@ describe 'Bitcoin::Script' do
       Script.new(SCRIPT[5]).is_p2sh?.should == true
     end
 
+    it '#is_p2sh?' do
+      Script.new(SCRIPT[0]).is_p2sh?.should == false
+      Script.new(SCRIPT[1]).is_p2sh?.should == false
+      Script.new(SCRIPT[2]).is_p2sh?.should == false
+      Script.new(SCRIPT[3]).is_p2sh?.should == false
+      Script.new(SCRIPT[4]).is_p2sh?.should == false
+      Script.new(SCRIPT[5]).is_p2sh?.should == true
+    end
+
     it "#type" do
       Script.new(SCRIPT[0]).type.should == :pubkey
       Script.new(SCRIPT[1]).type.should == :unknown
