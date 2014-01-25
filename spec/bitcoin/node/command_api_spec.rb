@@ -257,13 +257,20 @@ describe 'Node Command API' do
       end
 
       def should_receive expected
-        buf = ""
-        while b = @client.read(1)
-          break  if b == "\x00"
-          buf << b
+        begin
+          Timeout.timeout(1) do
+            buf = ""
+            while b = @client.read(1)
+              break  if b == "\x00"
+              buf << b
+            end
+            resp = JSON.load(buf)
+            resp.should == expected
+          end
+        rescue Timeout::Error
+          print " [TIMEOUT]"
+          :timeout.should == nil
         end
-        resp = JSON.load(buf)
-        resp.should == expected
       end
 
       def store_block block
@@ -302,6 +309,21 @@ describe 'Node Command API' do
         should_receive ["monitor", ["block", [ @block.to_hash, 2 ]]]
       end
 
+      it "should received missed blocks when last height is given" do
+        @client = TCPSocket.new(*@config[:command])
+        blocks = [@block]
+        3.times do
+          blocks << create_block(blocks.last.hash, false)
+          store_block blocks.last
+        end
+        sleep 0.1
+        send ["monitor", ["block_1"]]
+        should_receive ["monitor", ["block_1", [ blocks[1].to_hash, 2]]]
+        should_receive ["monitor", ["block_1", [ blocks[2].to_hash, 3]]]
+        should_receive ["monitor", ["block_1", [ blocks[3].to_hash, 4]]]
+      end
+
+
     end
 
     describe :tx do
@@ -330,6 +352,21 @@ describe 'Node Command API' do
         @block = create_block @block.hash, false
         store_block @block
         should_receive ["monitor", ["tx_3", [ @tx.to_hash, 3 ]]]
+      end
+
+      it "should receive missed txs when last txhash is given" do
+        @client = TCPSocket.new(*@config[:command])
+        blocks = [@block]; store_block @block
+        3.times do
+          blocks << create_block(blocks.last.hash, false)
+          store_block blocks.last
+        end
+        sleep 0.1
+        channel = "tx_1_#{blocks[0].tx[0].hash}"
+        send ["monitor", [channel]]
+        should_receive ["monitor", [channel, [ blocks[1].tx[0].to_hash, 3]]]
+        should_receive ["monitor", [channel, [ blocks[2].tx[0].to_hash, 2]]]
+        should_receive ["monitor", [channel, [ blocks[3].tx[0].to_hash, 1]]]
       end
 
     end
@@ -369,6 +406,24 @@ describe 'Node Command API' do
         store_block @block
         should_receive ["monitor", ["output_3", [ @tx.hash, 0, @addr, @out.value, 3 ]]]
         
+      end
+
+
+      it "should receive missed outputs when last txhash:idx is given" do
+        @key = Bitcoin::Key.generate
+        @client = TCPSocket.new(*@config[:command])
+        blocks = [@block]; store_block @block
+        3.times do
+          blocks << create_block(blocks.last.hash, false, [], @key)
+          store_block blocks.last
+        end
+        sleep 0.1
+        channel = "output_1_#{blocks[0].tx[0].hash}:0"
+
+        send ["monitor", [channel]]
+        should_receive ["monitor", [channel, [ blocks[1].tx[0].hash, 0, @key.addr, 50e8, 3]]]
+        should_receive ["monitor", [channel, [ blocks[2].tx[0].hash, 0, @key.addr, 50e8, 2]]]
+        should_receive ["monitor", [channel, [ blocks[3].tx[0].hash, 0, @key.addr, 50e8, 1]]]
       end
 
     end

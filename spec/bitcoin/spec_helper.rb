@@ -30,7 +30,7 @@ include Bitcoin::Builder
 # create block for given +prev+ block
 # if +store+ is true, save it to @store
 # accepts an array of +tx+ callbacks
-def create_block prev, store = true, tx = [], key = Bitcoin::Key.new, coinbase_value = 50e8, opts = {}
+def create_block prev, store = true, tx = [], key = Bitcoin::Key.generate, coinbase_value = 50e8, opts = {}
   opts[:bits] ||= Bitcoin.network[:proof_of_work_limit]
   block = build_block(Bitcoin.decode_compact_bits(opts[:bits])) do |b|
     b.time opts[:time]  if opts[:time]

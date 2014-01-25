@@ -51,21 +51,29 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     p $!; puts *$@
   end
 
-  # handle +monitor+ command; subscribe client to specified channels
+  # Handle +monitor+ command; subscribe client to specified channels
   # (+block+, +tx+, +output+, +connection+).
-  # Some commands can have parameters, e.g. the number of confirmations
+  # Parameters can be appended to the channel name, e.g. the number of confirmations
   # +tx+ or +output+ should have. Parameters are appended to the command
   # name after an underscore (_), e.g. subscribe to channel "tx_6" to
   # receive only transactions with 6 confirmations.
+  # You can send the last block/tx/output you know about, and it will also send you
+  # all the objects you're missing.
   # 
   # Receive new blocks:
   #  bitcoin_node monitor block
+  # Receive blocks since block 123, and new ones as they come in:
+  #  bitcoin_node monitor block_123
   # Receive new (unconfirmed) transactions:
   #  bitcoin_node monitor tx
   # Receive transactions with 6 confirmations:
-  #  bitcoin_node monitor tx_6 
-  # Receive [txhash, address, value] for each output:
+  #  bitcoin_node monitor tx_6
+  # Receive transactions since <txhash>, and new ones as they come in:
+  #  bitcoin_node monitor tx_1_<txhash>
+  # Receive [txhash, idx, address, value] for each output:
   #  bitcoin_node monitor output
+  # Receive outputs since <txhash>:<idx>, and new ones as they come in:
+  #  bitcoin_node monitor output_1_<txhash>:<idx>
   # Receive peer connections/disconnections:
   #  bitcoin_node monitor connection"
   # Combine multiple channels:
@@ -86,24 +94,46 @@ class Bitcoin::Network::CommandHandler < EM::Connection
 
   # Handle +monitor block+ command; send the current chain head
   # after client is subscribed to :block channel
-  def handle_monitor_block
+  def handle_monitor_block *params
+    last, _ = *params
     head = Bitcoin::P::Block.new(@node.store.get_head.to_payload) rescue nil
-    respond("monitor", ["block", [head, @node.store.get_depth]])  if head
+    if last
+      ((last.to_i+1)..@node.store.get_depth).each do |i|
+        blk = @node.store.get_block_by_depth(i)
+        respond("monitor", [["block", *params].join("_"), [blk, blk.depth]])
+      end
+    else
+      respond("monitor", [["block", *params].join("_"), [head, @node.store.get_depth]])  if head
+    end
   end
 
   # Handle +monitor tx+ command.
   # When +conf+ is given, don't subscribe to the :tx channel for unconfirmed
   # transactions. Instead, subscribe to the :block channel, and whenever a new
   # block comes in, send all transactions that now have +conf+ confirmations.
-  def handle_monitor_tx conf = nil
+  def handle_monitor_tx *params
+    conf, last = *params
     return  unless conf
+    if last && last_tx = @node.store.get_tx(last)
+      notify = false
+      depth = @node.store.get_depth
+      (last_tx.get_block.depth..depth).each do |i|
+        blk = @node.store.get_block_by_depth(i)
+        blk.tx.each do |tx|
+          @node.push_notification(["tx", *params].join("_"), [tx, (depth - blk.depth + 1)])  if notify
+          notify = true  if tx.hash == last_tx.hash
+        end
+      end
+    end
     if conf.to_i == 0 # 'tx_0' is just an alias for 'tx'
-      return @node.subscribe(:tx) {|*a| @node.notifiers[:tx_0].push(*a) }
+      return @node.subscribe(:tx) {|*a| @node.push_notification(:tx_0, *a) }
     end
     @node.subscribe(:block) do |block, depth|
       block = @node.store.get_block_by_depth(depth - conf.to_i + 1)
       next  unless block
-      block.tx.each {|tx| @node.notifiers["tx_#{conf}".to_sym].push([tx, conf.to_i]) }
+      block.tx.each {|tx|
+        @node.push_notification(["tx", *params].join("_"), [tx, conf.to_i])
+      }
     end
   end
 
@@ -112,7 +142,27 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   # This allows easy scanning for new payments without parsing the
   # tx format and running scripts.
   # See #handle_monitor_tx for confirmation behavior.
-  def handle_monitor_output conf = 0
+  def handle_monitor_output *params
+    conf, last = *params
+    if last
+      last_hash, last_idx = *last.split(":"); last_idx = last_idx.to_i
+      if (last_tx = @node.store.get_tx(last_hash)) && last_out = last_tx.out[last_idx]
+        notify = false
+        depth = @node.store.get_depth
+        (last_tx.get_block.depth..depth).each do |i|
+          blk = @node.store.get_block_by_depth(i)
+          blk.tx.each do |tx|
+            tx.out.each.with_index do |out, idx|
+              addr = Bitcoin::Script.new(out.pk_script).get_address
+              res = [tx.hash, idx, addr, out.value, (depth - blk.depth + 1)]
+              @node.push_notification(["output", *params].join("_"), res)  if notify
+              notify = true  if tx.hash == last_hash && idx == last_idx
+            end
+          end
+        end
+      end
+    end
+
     return  unless (conf = conf.to_i) > 0
     @node.subscribe(:block) do |block, depth|
       block = @node.store.get_block_by_depth(depth - conf + 1)
@@ -121,7 +171,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
         tx.out.each.with_index do |out, idx|
           addr = Bitcoin::Script.new(out.pk_script).get_address
           res = [tx.hash, idx, addr, out.value, conf]
-          @node.push_notification("output_#{conf}".to_sym, res)
+          @node.push_notification(["output", *params].join("_"), res)
         end
       end
     end
