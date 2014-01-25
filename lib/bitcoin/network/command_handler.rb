@@ -115,25 +115,19 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     conf, last = *params
     return  unless conf
     if last && last_tx = @node.store.get_tx(last)
-      notify = false
-      depth = @node.store.get_depth
+      notify = false; depth = @node.store.get_depth
       (last_tx.get_block.depth..depth).each do |i|
         blk = @node.store.get_block_by_depth(i)
         blk.tx.each do |tx|
-          @node.push_notification(["tx", *params].join("_"), [tx, (depth - blk.depth + 1)])  if notify
+          respond("monitor", [["tx", *params].join("_"), [tx, (depth - blk.depth + 1)]])  if notify
           notify = true  if tx.hash == last_tx.hash
         end
       end
     end
-    if conf.to_i == 0 # 'tx_0' is just an alias for 'tx'
-      return @node.subscribe(:tx) {|*a| @node.push_notification(:tx_0, *a) }
-    end
     @node.subscribe(:block) do |block, depth|
       block = @node.store.get_block_by_depth(depth - conf.to_i + 1)
       next  unless block
-      block.tx.each {|tx|
-        @node.push_notification(["tx", *params].join("_"), [tx, conf.to_i])
-      }
+      block.tx.each {|tx| respond("monitor", [["tx", *params].join("_"), [tx, conf.to_i]]) }
     end
   end
 
@@ -155,7 +149,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
             tx.out.each.with_index do |out, idx|
               addr = Bitcoin::Script.new(out.pk_script).get_address
               res = [tx.hash, idx, addr, out.value, (depth - blk.depth + 1)]
-              @node.push_notification(["output", *params].join("_"), res)  if notify
+              respond("monitor", [["output", *params].join("_"), res])  if notify
               notify = true  if tx.hash == last_hash && idx == last_idx
             end
           end
@@ -171,7 +165,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
         tx.out.each.with_index do |out, idx|
           addr = Bitcoin::Script.new(out.pk_script).get_address
           res = [tx.hash, idx, addr, out.value, conf]
-          @node.push_notification(["output", *params].join("_"), res)
+          respond("monitor", [["output", *params].join("_"), res])
         end
       end
     end

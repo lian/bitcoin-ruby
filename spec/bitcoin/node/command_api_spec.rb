@@ -49,7 +49,7 @@ describe 'Node Command API' do
 
     @node = Bitcoin::Network::Node.new(@config)
     @pid = fork do
-      $stdout = StringIO.new
+#      $stdout = StringIO.new
       SimpleCov.running = false if defined?(SimpleCov)
       @node.run
     end
@@ -252,15 +252,15 @@ describe 'Node Command API' do
     before do
       @client = TCPSocket.new(*@config[:command])
 
-      def send data
-        @client.write(data.to_json + "\x00")
+      def send data, client = @client
+        client.write(data.to_json + "\x00")
       end
 
-      def should_receive expected
+      def should_receive expected, client = @client
         begin
           Timeout.timeout(1) do
             buf = ""
-            while b = @client.read(1)
+            while b = client.read(1)
               break  if b == "\x00"
               buf << b
             end
@@ -276,6 +276,59 @@ describe 'Node Command API' do
       def store_block block
         send ["store_block", [ block.to_payload.hth ]]
         should_receive ["store_block", {"queued" => [ "block", block.hash ]}]
+      end
+
+    end
+
+    describe :channels do
+
+      it "should combine multiple channels" do
+        send ["monitor", ["block", "tx_1"]]
+        should_receive ["monitor", ["block", [ @genesis.to_hash, 0 ]]]
+        store_block @block
+        should_receive ["monitor", ["block", [ @block.to_hash, 1 ]]]
+        should_receive ["monitor", ["tx_1", [ @block.tx[0].to_hash, 1 ]]]
+      end
+
+      it "should handle multiple clients" do
+        @client2 = TCPSocket.new(*@config[:command])
+
+        send ["monitor", ["tx_1"]]
+        send ["monitor", ["block"]], @client2
+        should_receive ["monitor", ["block", [ @genesis.to_hash, 0 ]]], @client2
+
+        store_block @block
+        should_receive ["monitor", ["block", [ @block.to_hash, 1 ]]], @client2
+        should_receive ["monitor", ["tx_1", [ @block.tx[0].to_hash, 1 ]]]
+
+        block = create_block @block.hash, false
+        store_block block
+        should_receive ["monitor", ["block", [ block.to_hash, 2 ]]], @client2
+        should_receive ["monitor", ["tx_1", [ block.tx[0].to_hash, 1 ]]]
+
+        send ["monitor", ["tx_1"]], @client2
+        send ["monitor", ["block"]]
+        should_receive ["monitor", ["block", [ block.to_hash, 2 ]]]
+
+        block = create_block block.hash, false
+        store_block block
+
+        should_receive ["monitor", ["block", [ block.to_hash, 3 ]]], @client2
+        should_receive ["monitor", ["tx_1", [ block.tx[0].to_hash, 1 ]]], @client2
+
+        should_receive ["monitor", ["tx_1", [ block.tx[0].to_hash, 1 ]]]
+
+        # if something was wrong, we would now receive the last tx again
+
+        should_receive ["monitor", ["block", [ block.to_hash, 3 ]]]
+
+        block = create_block block.hash, false
+        store_block block
+        should_receive ["monitor", ["tx_1", [ block.tx[0].to_hash, 1 ]]]
+        should_receive ["monitor", ["block", [ block.to_hash, 4 ]]]
+        should_receive ["monitor", ["block", [ block.to_hash, 4 ]]], @client2
+        should_receive ["monitor", ["tx_1", [ block.tx[0].to_hash, 1 ]]], @client2
+
       end
 
     end
