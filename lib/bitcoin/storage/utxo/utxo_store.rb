@@ -116,9 +116,9 @@ module Bitcoin::Storage::Backends
             @config[:index_all_addrs] ? a : a.select {|a| @watched_addrs.include?(a[1]) },
             Bitcoin.namecoin? ? n : [] ]
         end
+        flush_spent_outs(depth)  if @spent_outs.size > @config[:utxo_cache]
+        flush_new_outs(depth)  if @new_outs.size > @config[:utxo_cache]
       end
-      flush_spent_outs(depth)  if @spent_outs.size > @config[:utxo_cache]
-      flush_new_outs(depth)  if @new_outs.size > @config[:utxo_cache]
     end
 
     def reorg new_side, new_main
