@@ -643,6 +643,12 @@ describe "Bitcoin::Script OPCODES" do
     address = "3CkxTG25waxsmd13FFgRChPuGYba3ar36B"
     script = Bitcoin::Script.new(Bitcoin::Script.to_address_script(address))
     script.type.should == :p2sh
+
+    inner_script = Bitcoin::Script.from_string("0 OP_NOT").raw.unpack("H*")[0]
+    script_hash = Bitcoin.hash160(inner_script)
+    script = Bitcoin::Script.from_string("#{inner_script} OP_HASH160 #{script_hash} OP_EQUAL")
+    script.is_p2sh?.should == true
+    run_script(script.to_string, "foobar").should == true
   end
 
   it "should skip OP_EVAL" do
