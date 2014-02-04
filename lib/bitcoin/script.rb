@@ -998,9 +998,9 @@ class Bitcoin::Script
   # This is used by Protocol::Tx#verify_input_signature
   def op_checksig(check_callback)
     return invalid if @stack.size < 2
-    pubkey = @stack.pop
+    pubkey = cast_to_string(@stack.pop)
     #return (@stack << 0) unless Bitcoin::Script.is_canonical_pubkey?(pubkey) # only for isStandard
-    drop_sigs      = [ @stack[-1] ]
+    drop_sigs      = [ cast_to_string(@stack[-1]) ]
 
     signature = cast_to_string(@stack.pop)
     #return (@stack << 0) unless Bitcoin::Script.is_canonical_signature?(signature) # only for isStandard

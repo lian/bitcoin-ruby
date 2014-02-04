@@ -487,6 +487,11 @@ describe "Bitcoin::Script OPCODES" do
     }
     @script.op_checksig(verify_callback).should == [1]
 
+    @script.stack = [signature + hash_type, intger_pubkey=1]
+    verify_callback = proc{|pub,sig,hash_type|
+      pub.is_a?(String)
+    }
+    @script.op_checksig(verify_callback).should == [1]
 
     @script.stack = [signature + hash_type, pubkey]
     verify_callback = proc{|pub,sig,hash_type|
