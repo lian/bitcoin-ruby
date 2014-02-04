@@ -528,8 +528,8 @@ describe "Bitcoin::Script OPCODES" do
   def run_script(string, hash)
     script = Bitcoin::Script.from_string(string)
     script.run do |pk, sig, hash_type|
-      k = Bitcoin::Key.new nil, pk.unpack("H*")[0]
-      k.verify(hash, sig) rescue false
+      k = Bitcoin::Key.new(nil, pk.unpack("H*")[0]) rescue false
+      k && k.verify(hash, sig) rescue false
     end == true
   end
 
@@ -597,6 +597,12 @@ describe "Bitcoin::Script OPCODES" do
 
     script = "0 #{sig1} f0f0f0f0 #{sig3} 3 #{k1.pub} #{k2.pub} #{k3.pub} 3 OP_CHECKMULTISIG"
     run_script(script, "foobar").should == false
+
+    script = "0 #{sig1} f0f0f0f0 #{sig3} 3 #{k1.pub} #{k2.pub} #{k3.pub} 3 OP_CHECKMULTISIG OP_NOT"
+    run_script(script, "foobar").should == true
+
+    script = "1 1 1 1 1 OP_CHECKMULTISIG OP_NOT"
+    run_script(script, "foobar").should == true
 
     # mainnet tx output: 514c46f0b61714092f15c8dfcb576c9f79b3f959989b98de3944b19d98832b58
     script = "0 #{sig1} 1 0 #{k1.pub} OP_SWAP OP_1ADD OP_CHECKMULTISIG"

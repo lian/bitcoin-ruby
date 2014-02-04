@@ -1077,7 +1077,7 @@ class Bitcoin::Script
       success = false if n_sigs > n_pubkeys
     end
 
-    @stack << (success ? 1 : (invalid; 0))
+    @stack << (success ? 1 : 0)
   end
 
   # op_eval: https://en.bitcoin.it/wiki/BIP_0012
