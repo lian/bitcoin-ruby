@@ -958,6 +958,7 @@ class Bitcoin::Script
   end
 
   def cast_to_bignum(buf)
+    return (invalid; 0) unless buf
     case buf
     when Numeric; buf
     when String; OpenSSL::BN.new([buf.bytesize].pack("N") + buf.reverse, 0).to_i
@@ -966,6 +967,7 @@ class Bitcoin::Script
   end
 
   def cast_to_string(buf)
+    return (invalid; "") unless buf
     case buf
     when Numeric; OpenSSL::BN.new(buf.to_s).to_s(0)[4..-1]
     when String; buf;

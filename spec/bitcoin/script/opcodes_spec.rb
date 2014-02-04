@@ -716,4 +716,10 @@ describe "Bitcoin::Script OPCODES" do
     }
   end
 
+  it "check before casting and mark bad cases invalid" do
+    s = Bitcoin::Script.from_string("OP_NOT") # tries to pop off an element from the empty stack here.
+    s.run.should == false
+    s.invalid?.should == true
+  end
+
 end

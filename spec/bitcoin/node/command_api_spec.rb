@@ -147,7 +147,8 @@ describe 'Node Command API' do
       tx = P::Tx.new(res[0].htb)
       tx.is_a?(P::Tx).should == true
       tx.in[0].script_sig.should == ""
-      -> { tx.verify_input_signature(0, @block.tx[0]) }.should.raise(TypeError)
+      #-> { tx.verify_input_signature(0, @block.tx[0]) }.should.raise(TypeError)
+      tx.verify_input_signature(0, @block.tx[0]).should == false
 
       res[1].each.with_index do |sig_data, idx|
         sig_hash, sig_addr = *sig_data
@@ -165,7 +166,8 @@ describe 'Node Command API' do
       res = test_command("create_tx", [[@key.pub], [[@key2.addr, 10e8], [@key.addr, 40e8]]])
       tx = P::Tx.new(res[0].htb)
       tx.is_a?(P::Tx).should == true
-      -> { tx.verify_input_signature(0, @block.tx[0]) }.should.raise(TypeError)
+      #-> { tx.verify_input_signature(0, @block.tx[0]) }.should.raise(TypeError)
+      tx.verify_input_signature(0, @block.tx[0]).should == false
 
       res[1].each.with_index do |sig_data, idx|
         sig_hash, sig_addr = *sig_data
