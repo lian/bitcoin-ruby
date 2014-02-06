@@ -85,6 +85,29 @@ describe "Bitcoin::Builder" do
     tx2.out[0].pk_script.should == tx.out[0].pk_script
   end
 
+  it "should allow txin.prev_out as tx or hash" do
+    prev_tx = @block.tx[0]
+    tx1 = build_tx do |t|
+      t.input {|i| i.prev_out prev_tx, 0 }
+    end
+    tx2 = build_tx do |t|
+      t.input {|i| i.prev_out prev_tx.hash, 0, prev_tx.out[0].pk_script }
+    end
+    tx1.in[0].should == tx2.in[0]
+  end
+
+
+  it "should provide txout#to shortcut" do
+    tx1 = build_tx do |t|
+      t.output {|o| o.value 123; o.to @keys[1].addr }
+    end
+    tx2 = build_tx do |t|
+      t.output {|o| o.value 123
+        o.script {|s| s.recipient @keys[1].addr } }
+    end
+    tx1.out[0].should == tx2.out[0]
+  end
+
   it "should build unsigned transactions and add the signature hash" do
     tx = build_tx do |t|
       t.input do |i|

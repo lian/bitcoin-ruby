@@ -100,110 +100,110 @@ describe Bitcoin::Wallet::Wallet do
     list[1].should == 5000
   end
 
-  # it "should create new addr" do
-  #   @wallet.addrs.size.should == 1
+  it "should create new addr" do
+    @wallet.addrs.size.should == 1
 
-  #   key = Key.generate
-  #   a = @wallet.get_new_addr
-  #   @wallet.addrs.size.should == 2
-  #   @wallet.addrs[1].should == a
-  # end
-
-  describe "Bitcoin::Wallet::Wallet#tx" do
-
-    before do
-      txout = txout_mock(5000, nil)
-      tx = Mock.new
-      2.times { tx.expect(:binary_hash, "foo") }
-      8.times { tx.expect(:out, [txout]) }
-      3.times { tx.expect(:get_block, true) }
-      5.times { txout.expect(:get_tx, tx) }
-      6.times { txout.expect(:get_address, @addr) }
-      8.times { txout.expect(:pk_script, Script.to_address_script(@addr)) }
-      2.times { @storage.expect(:get_txouts_for_address, [txout], [@addr]) }
-      2.times { @storage.expect(:class, Bitcoin::Storage::Backends::SequelStore, []) }
-      selector = Bitcoin::Wallet::SimpleCoinSelector.new([txout])
-      2.times { @selector.expect(:new, selector, [[txout]]) }
-      @tx = @wallet.new_tx([[:address, '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7', 1000]])
-    end
-
-
-    it "should have hash" do
-      @tx.hash.size.should == 64
-    end
-
-    it "should have correct inputs" do
-      @tx.in.size.should == 1
-      @tx.in.first.prev_out.should == ("foo" + "\x00"*29)
-      @tx.in.first.prev_out_index.should == 0
-    end
-
-    it "should have correct outputs" do
-      @tx.out.size.should == 2
-      @tx.out.first.value.should == 1000
-      s = Script.new(@tx.out.first.pk_script)
-      s.get_address.should == '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7'
-    end
-
-    it "should have change output" do
-      @tx.out.last.value.should == 4000
-      s = Script.new(@tx.out.last.pk_script)
-      s.get_address.should == @addr
-    end
-
-    it "should leave tx fee" do
-      @tx = @wallet.new_tx([[:address, '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7', 1000]], 50)
-      @tx.out.last.value.should == 3950
-    end
-
-    it "should send change to specified address" do
-      @tx = @wallet.new_tx([[:address, '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7', 1000]], 50,
-        '1EAntvSjkNeaJJTBQeQcN1ieU2mYf4wU9p')
-      Script.new(@tx.out.last.pk_script).get_address.should ==
-        '1EAntvSjkNeaJJTBQeQcN1ieU2mYf4wU9p'
-    end
-
-    it "should send change to new address" do
-      @tx = @wallet.new_tx([[:address, '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7', 1000]], 50, :new)
-      @wallet.addrs.size.should == 2
-      Script.new(@tx.out.last.pk_script).get_address.should == @wallet.addrs.last
-    end
-
-    it "should raise exception if insufficient balance" do
-      -> {@tx = @wallet.new_tx([[:address, '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7', 7000]])}
-      .should.raise(RuntimeError).message.should == "Insufficient funds."
-    end
-
-
-    it "should create unsigned tx" do
-      Bitcoin.network = :spec
-      @key = Bitcoin::Key.generate
-      @key2 = Bitcoin::Key.generate
-      @store = Storage.sequel(db: "sqlite:/")
-      @store.log.level = :debug
-
-      @keystore = SimpleKeyStore.new(file: StringIO.new("[]"))
-      @wallet = Wallet.new(@store, @keystore, SimpleCoinSelector)
-
-      @wallet.keystore.add_key(addr: @key.addr)
-
-      @genesis = Bitcoin::P::Block.new("0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4adae5494dffff001d1aa4ae180101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73ffffffff0100f2052a01000000434104678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac00000000".htb)
-
-      @store.new_block @genesis
-      create_block(@genesis.hash, true, [], @key, 50e8)
-
-      list = @wallet.list
-      list.size.should == 1
-      list[0][0].should == {addr: @key.addr}
-      list[0][1].should == 50e8
-
-      tx = @wallet.new_tx([[:address, @key2.addr, 10e8]])
-      tx.in[0].sig_hash.should != nil
-    end
-
+    key = Key.generate
+    a = @wallet.get_new_addr
+    @wallet.addrs.size.should == 2
+    @wallet.addrs[1].should == a
   end
 
-  # TODO
+  # describe "Bitcoin::Wallet::Wallet#tx" do
+
+  #   before do
+  #     txout = txout_mock(5000, nil)
+  #     tx = Mock.new
+  #     2.times { tx.expect(:binary_hash, "foo") }
+  #     8.times { tx.expect(:out, [txout]) }
+  #     3.times { tx.expect(:get_block, true) }
+  #     5.times { txout.expect(:get_tx, tx) }
+  #     6.times { txout.expect(:get_address, @addr) }
+  #     8.times { txout.expect(:pk_script, Script.to_address_script(@addr)) }
+  #     2.times { @storage.expect(:get_txouts_for_address, [txout], [@addr]) }
+  #     2.times { @storage.expect(:class, Bitcoin::Storage::Backends::SequelStore, []) }
+  #     selector = Bitcoin::Wallet::SimpleCoinSelector.new([txout])
+  #     2.times { @selector.expect(:new, selector, [[txout]]) }
+  #     @tx = @wallet.new_tx([[:address, '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7', 1000]])
+  #   end
+
+
+  #   it "should have hash" do
+  #     @tx.hash.size.should == 64
+  #   end
+
+  #   it "should have correct inputs" do
+  #     @tx.in.size.should == 1
+  #     @tx.in.first.prev_out.should == ("foo" + "\x00"*29)
+  #     @tx.in.first.prev_out_index.should == 0
+  #   end
+
+  #   it "should have correct outputs" do
+  #     @tx.out.size.should == 2
+  #     @tx.out.first.value.should == 1000
+  #     s = Script.new(@tx.out.first.pk_script)
+  #     s.get_address.should == '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7'
+  #   end
+
+  #   it "should have change output" do
+  #     @tx.out.last.value.should == 4000
+  #     s = Script.new(@tx.out.last.pk_script)
+  #     s.get_address.should == @addr
+  #   end
+
+  #   it "should leave tx fee" do
+  #     @tx = @wallet.new_tx([[:address, '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7', 1000]], 50)
+  #     @tx.out.last.value.should == 3950
+  #   end
+
+  #   it "should send change to specified address" do
+  #     @tx = @wallet.new_tx([[:address, '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7', 1000]], 50,
+  #       '1EAntvSjkNeaJJTBQeQcN1ieU2mYf4wU9p')
+  #     Script.new(@tx.out.last.pk_script).get_address.should ==
+  #       '1EAntvSjkNeaJJTBQeQcN1ieU2mYf4wU9p'
+  #   end
+
+  #   it "should send change to new address" do
+  #     @tx = @wallet.new_tx([[:address, '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7', 1000]], 50, :new)
+  #     @wallet.addrs.size.should == 2
+  #     Script.new(@tx.out.last.pk_script).get_address.should == @wallet.addrs.last
+  #   end
+
+  #   it "should raise exception if insufficient balance" do
+  #     -> {@tx = @wallet.new_tx([[:address, '1M2JjkX7KAgwMyyF5xc2sPSfE7mL1jqkE7', 7000]])}
+  #     .should.raise(RuntimeError).message.should == "Insufficient funds."
+  #   end
+
+
+  #   it "should create unsigned tx" do
+  #     Bitcoin.network = :spec
+  #     @key = Bitcoin::Key.generate
+  #     @key2 = Bitcoin::Key.generate
+  #     @store = Storage.sequel(db: "sqlite:/")
+  #     @store.log.level = :debug
+
+  #     @keystore = SimpleKeyStore.new(file: StringIO.new("[]"))
+  #     @wallet = Wallet.new(@store, @keystore, SimpleCoinSelector)
+
+  #     @wallet.keystore.add_key(addr: @key.addr)
+
+  #     @genesis = Bitcoin::P::Block.new("0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4adae5494dffff001d1aa4ae180101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73ffffffff0100f2052a01000000434104678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac00000000".htb)
+
+  #     @store.new_block @genesis
+  #     create_block(@genesis.hash, true, [], @key, 50e8)
+
+  #     list = @wallet.list
+  #     list.size.should == 1
+  #     list[0][0].should == {addr: @key.addr}
+  #     list[0][1].should == 50e8
+
+  #     tx = @wallet.new_tx([[:address, @key2.addr, 10e8]])
+  #     tx.in[0].sig_hash.should != nil
+  #   end
+
+  # end
+
+  # # TODO
   # describe "Bitcoin::Wallet::Wallet#tx (multisig)" do
 
 
