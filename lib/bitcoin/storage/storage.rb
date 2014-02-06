@@ -356,6 +356,16 @@ module Bitcoin::Storage
         get_txouts_for_hash160(hash160, unconfirmed)
       end
 
+      # collect all unspent txouts containing a
+      # standard tx to given +address+
+      def get_unspent_txouts_for_address(address, unconfirmed = false)
+        txouts = self.get_txouts_for_address(address, unconfirmed)
+        txouts.select! do |t|
+          not t.get_next_in
+        end
+        txouts
+      end
+
       # get balance for given +hash160+
       def get_balance(hash160, unconfirmed = false)
         txouts = get_txouts_for_hash160(hash160, unconfirmed)
