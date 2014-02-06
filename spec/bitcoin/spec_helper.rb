@@ -47,8 +47,8 @@ end
 
 # create transaction given builder +tx+
 # +outputs+ is an array of [value, key] pairs
-def create_tx(tx, prev_tx, prev_out_index, outputs)
-  tx.input {|i| i.prev_out prev_tx; i.prev_out_index prev_out_index; i.signature_key @key }
+def create_tx(tx, prev_tx, prev_out_index, outputs, key = @key)
+  tx.input {|i| i.prev_out prev_tx; i.prev_out_index prev_out_index; i.signature_key key }
   outputs.each do |value, key|
     tx.output {|o| o.value value; o.script {|s| s.recipient key.addr } }
   end
