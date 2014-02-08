@@ -154,7 +154,7 @@ class Bitcoin::Script
     program = bytes.unpack("C*")
     chunks = []
     until program.empty?
-      opcode = program.shift(1)[0]
+      opcode = program.shift
 
       if (opcode > 0) && (opcode < OP_PUSHDATA1)
         len, tmp = opcode, program[0]
