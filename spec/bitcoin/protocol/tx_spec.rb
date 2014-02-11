@@ -49,6 +49,23 @@ describe 'Tx' do
     tx.binary_hash.should == "\xB4\x02-\x9F\xE5(\xFB\x90pP\x01\x16K\f\xC3\xA8\xF5\xA1\x9C\xB8\xED\x02\xBF\xD4\xFC,\xB6%f\xD1\x9Dn"
   end
 
+  it '#normalized_hash' do
+    tx = Tx.new( @payload[0] )
+    tx.normalized_hash.size.should == 64
+    tx.normalized_hash.should == "402e30100b6937cc13828ca096377c93afc0ff227ad2f249245e5b1db9123a39"
+
+    new_tx = JSON.parse(tx.to_json)
+    script =  Bitcoin::Script.from_string(new_tx['in'][0]['scriptSig'])
+    script.chunks[0].bitcoin_pushdata = Bitcoin::Script::OP_PUSHDATA2
+    script.chunks[0].bitcoin_pushdata_length = script.chunks[0].bytesize
+    new_tx['in'][0]['scriptSig'] = script.to_string
+    new_tx = Bitcoin::P::Tx.from_hash(new_tx)
+
+    new_tx.hash.should != tx.hash
+    new_tx.normalized_hash.size.should == 64
+    new_tx.normalized_hash.should == "402e30100b6937cc13828ca096377c93afc0ff227ad2f249245e5b1db9123a39"
+  end
+
   it '#to_payload' do
     tx = Tx.new( @payload[0] )
     tx.to_payload.size.should == @payload[0].size

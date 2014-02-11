@@ -170,7 +170,7 @@ module Bitcoin
       def to_hash(options = {})
         @hash ||= hash_from_payload(to_payload)
         h = {
-          'hash' => @hash, 'ver' => @ver,
+          'hash' => @hash, 'ver' => @ver, # 'nid' => normalized_hash,
           'vin_sz' => @in.size, 'vout_sz' => @out.size,
           'lock_time' => @lock_time, 'size' => (@payload ||= to_payload).bytesize,
           'in'  =>  @in.map{|i| i.to_hash(options) },
@@ -256,6 +256,10 @@ module Bitcoin
 
       def is_coinbase?
         inputs.size == 1 and inputs.first.coinbase?
+      end
+
+      def normalized_hash
+        signature_hash_for_input(-1, nil, nil, SIGHASH_TYPE[:all]).unpack("H*")[0]
       end
 
     end
