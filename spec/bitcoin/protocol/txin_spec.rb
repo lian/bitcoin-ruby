@@ -14,5 +14,16 @@ describe 'TxIn' do
     end
   end
 
+  it "should compare txins" do
+    i1 = Tx.new(fixtures_file('rawtx-01.bin')).in[0]
+    i1_1 = TxIn.new(i1.prev_out, i1.prev_out_index, i1.script_sig_length, i1.script_sig)
+    i2 = Tx.new(fixtures_file('rawtx-02.bin')).in[0]
+
+    (i1 == i1).should == true
+    (i1 == i1_1).should == true
+    (i1 == i2).should == false
+    (i1 == nil).should == false
+  end
+
 end
 

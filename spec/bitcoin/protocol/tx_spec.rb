@@ -271,6 +271,14 @@ describe 'Tx' do
     tx.minimum_block_fee.should == 10_000
   end
 
+  it "should compare transactions" do
+    tx1 = Tx.new( @payload[0] )
+    tx2 = Tx.new( @payload[1] )
+    (tx1 == Bitcoin::P::Tx.from_json(tx1.to_json)).should == true
+    (tx1 == tx2).should == false
+    (tx1 == nil).should == false
+  end
+
   describe "Tx - BIP Scripts" do
 
     it "should do OP_CHECKMULTISIG" do

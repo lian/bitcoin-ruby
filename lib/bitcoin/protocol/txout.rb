@@ -20,7 +20,7 @@ module Bitcoin
       end
 
       def ==(other)
-        @value == other.value && @pk_script == other.pk_script
+        @value == other.value && @pk_script == other.pk_script rescue false
       end
 
       # parse raw binary data for transaction output
