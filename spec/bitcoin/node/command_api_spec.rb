@@ -3,6 +3,12 @@ require_relative '../spec_helper.rb'
 include Bitcoin
 include Builder
 
+class Hash
+  def stringify_keys
+    Hash[map {|k, v| [k.to_s, v] }]
+  end
+end
+
 describe 'Node Command API' do
 
   def test_command command, params = [], response = nil, &block
@@ -26,7 +32,7 @@ describe 'Node Command API' do
     if block
       block.call(result)
     else
-      result.should == response
+      raise "ERROR: #{result} != #{response}"  unless result.should == response
     end
   end
 
@@ -62,6 +68,8 @@ describe 'Node Command API' do
 
     test_command "store_block", [@genesis.to_payload.hth]
     sleep 0.1
+
+    @id = 0
   end
 
   after do
@@ -69,11 +77,11 @@ describe 'Node Command API' do
   end
 
   it "should return error for unknown command" do
-    test_command("foo").should == {"error" => "unknown command: foo. send 'help' for help."}
+    test_command("foo", nil, {"error" => "unknown command: foo. send 'help' for help."})
   end
 
   it "should return error for wrong parameters" do
-    test_command("info", "foo").should == {"error" => "wrong number of arguments (1 for 0)"}
+    test_command("info", "foo", {"error" => "wrong number of arguments (1 for 0)"})
   end
 
   it "should query tslb" do
@@ -252,11 +260,14 @@ describe 'Node Command API' do
     before do
       @client = TCPSocket.new(*@config[:command])
 
-      def send data, client = @client
-        client.write(data.to_json + "\x00")
+      def send method, params, client = @client
+        request = { id: @id += 1, method: method, params: params }
+        client.write(request.to_json + "\x00")
+        request.stringify_keys
       end
 
-      def should_receive expected, client = @client
+      def should_receive request, expected, client = @client
+        expected = expected.stringify_keys  if expected.is_a?(Hash)
         begin
           Timeout.timeout(1) do
             buf = ""
@@ -265,7 +276,7 @@ describe 'Node Command API' do
               buf << b
             end
             resp = JSON.load(buf)
-            resp.should == expected
+            resp.should == request.merge(result: expected).stringify_keys
           end
         rescue Timeout::Error
           print " [TIMEOUT]"
@@ -274,8 +285,8 @@ describe 'Node Command API' do
       end
 
       def store_block block
-        send ["store_block", [ block.to_payload.hth ]]
-        should_receive ["store_block", {"queued" => [ "block", block.hash ]}]
+        request = send("store_block", [ block.to_payload.hth ])
+        should_receive(request, {"queued" => [ "block", block.hash ]})
       end
 
     end
@@ -283,52 +294,52 @@ describe 'Node Command API' do
     describe :channels do
 
       it "should combine multiple channels" do
-        send ["monitor", ["block", "tx_1"]]
-        should_receive ["monitor", ["block", [ @genesis.to_hash, 0 ]]]
+        request = send("monitor", ["block", "tx_1"])
+        should_receive(request, ["block", [ @genesis.to_hash, 0 ]])
+
         store_block @block
-        should_receive ["monitor", ["block", [ @block.to_hash, 1 ]]]
-        should_receive ["monitor", ["tx_1", [ @block.tx[0].to_hash, 1 ]]]
+        should_receive(request, ["block", [ @block.to_hash, 1 ]])
+        should_receive(request, ["tx_1", [ @block.tx[0].to_hash, 1 ]])
       end
 
       it "should handle multiple clients" do
         @client2 = TCPSocket.new(*@config[:command])
 
-        send ["monitor", ["tx_1"]]
-        send ["monitor", ["block"]], @client2
-        should_receive ["monitor", ["block", [ @genesis.to_hash, 0 ]]], @client2
+        r1_1 = send "monitor", ["tx_1"]
+        r1_2 = send "monitor", ["block"], @client2
+        should_receive r1_2, ["block", [ @genesis.to_hash, 0 ]], @client2
 
         store_block @block
-        should_receive ["monitor", ["block", [ @block.to_hash, 1 ]]], @client2
-        should_receive ["monitor", ["tx_1", [ @block.tx[0].to_hash, 1 ]]]
+        should_receive r1_2, ["block", [ @block.to_hash, 1 ]], @client2
+        should_receive r1_1, ["tx_1", [ @block.tx[0].to_hash, 1 ]]
 
         block = create_block @block.hash, false
         store_block block
-        should_receive ["monitor", ["block", [ block.to_hash, 2 ]]], @client2
-        should_receive ["monitor", ["tx_1", [ block.tx[0].to_hash, 1 ]]]
+        should_receive r1_2, ["block", [ block.to_hash, 2 ]], @client2
+        should_receive r1_1, ["tx_1", [ block.tx[0].to_hash, 1 ]]
 
-        send ["monitor", ["tx_1"]], @client2
-        send ["monitor", ["block"]]
-        should_receive ["monitor", ["block", [ block.to_hash, 2 ]]]
+        r2_2 = send "monitor", ["tx_1"], @client2
+        r2_1 = send "monitor", ["block"]
+        should_receive r2_1, ["block", [ block.to_hash, 2 ]]
 
         block = create_block block.hash, false
         store_block block
 
-        should_receive ["monitor", ["block", [ block.to_hash, 3 ]]], @client2
-        should_receive ["monitor", ["tx_1", [ block.tx[0].to_hash, 1 ]]], @client2
+        should_receive r1_2, ["block", [ block.to_hash, 3 ]], @client2
+        should_receive r2_2, ["tx_1", [ block.tx[0].to_hash, 1 ]], @client2
 
-        should_receive ["monitor", ["tx_1", [ block.tx[0].to_hash, 1 ]]]
+        should_receive r1_1, ["tx_1", [ block.tx[0].to_hash, 1 ]]
 
         # if something was wrong, we would now receive the last tx again
 
-        should_receive ["monitor", ["block", [ block.to_hash, 3 ]]]
+        should_receive r2_1, ["block", [ block.to_hash, 3 ]]
 
         block = create_block block.hash, false
         store_block block
-        should_receive ["monitor", ["tx_1", [ block.tx[0].to_hash, 1 ]]]
-        should_receive ["monitor", ["block", [ block.to_hash, 4 ]]]
-        should_receive ["monitor", ["block", [ block.to_hash, 4 ]]], @client2
-        should_receive ["monitor", ["tx_1", [ block.tx[0].to_hash, 1 ]]], @client2
-
+        should_receive r1_1, ["tx_1", [ block.tx[0].to_hash, 1 ]]
+        should_receive r2_1, ["block", [ block.to_hash, 4 ]]
+        should_receive r1_2, ["block", [ block.to_hash, 4 ]], @client2
+        should_receive r2_2, ["tx_1", [ block.tx[0].to_hash, 1 ]], @client2
       end
 
     end
@@ -336,16 +347,16 @@ describe 'Node Command API' do
     describe :block do
 
       before do
-        send ["monitor", ["block"]]
-        should_receive ["monitor", ["block", [ @genesis.to_hash, 0 ]]]
+        @request = send "monitor", ["block"]
+        should_receive @request, ["block", [ @genesis.to_hash, 0 ]]
         store_block @block
-        should_receive ["monitor", ["block", [ @block.to_hash, 1 ]]]
+        should_receive @request, ["block", [ @block.to_hash, 1 ]]
       end
 
       it "should monitor block" do
         @block = create_block @block.hash, false
         store_block @block
-        should_receive ["monitor", ["block", [ @block.to_hash, 2 ]]]
+        should_receive @request, ["block", [ @block.to_hash, 2 ]]
       end
 
 
@@ -359,7 +370,7 @@ describe 'Node Command API' do
         # should not send side or orphan block only the next main block
         @block = create_block @block.hash, false
         store_block @block
-        should_receive ["monitor", ["block", [ @block.to_hash, 2 ]]]
+        should_receive @request, ["block", [ @block.to_hash, 2 ]]
       end
 
       it "should received missed blocks when last height is given" do
@@ -370,41 +381,40 @@ describe 'Node Command API' do
           store_block blocks.last
         end
         sleep 0.1
-        send ["monitor", ["block_1"]]
-        should_receive ["monitor", ["block_1", [ blocks[1].to_hash, 2]]]
-        should_receive ["monitor", ["block_1", [ blocks[2].to_hash, 3]]]
-        should_receive ["monitor", ["block_1", [ blocks[3].to_hash, 4]]]
+        r = send "monitor", ["block_1"]
+        should_receive r, ["block_1", [ blocks[1].to_hash, 2]]
+        should_receive r, ["block_1", [ blocks[2].to_hash, 3]]
+        should_receive r, ["block_1", [ blocks[3].to_hash, 4]]
       end
-
 
     end
 
     describe :tx do
 
       it "should monitor unconfirmed tx" do
-        send ["monitor", ["tx"]]
+        r1 = send "monitor", ["tx"]
         tx = @block.tx[0]
-        send ["store_tx", [ tx.to_payload.hth ] ]
-        should_receive ["store_tx", { "queued" => [ "tx", tx.hash ]}]
-        should_receive ["monitor", ["tx", [ tx.to_hash, 0 ]]]
+        r2 = send "store_tx", [ tx.to_payload.hth ]
+        should_receive r2, { "queued" => [ "tx", tx.hash ]}
+        should_receive r1,["tx", [ tx.to_hash, 0 ]]
       end
 
       it "should monitor confirmed tx" do
-        send ["monitor", ["tx_1"]]
+        r = send "monitor", ["tx_1"]
         store_block @block
-        should_receive ["monitor", ["tx_1", [ @block.tx[0].to_hash, 1 ]]]
+        should_receive r, ["tx_1", [ @block.tx[0].to_hash, 1 ]]
       end
 
       it "should monitor tx for given confirmation level" do
-        send ["monitor", ["tx_3"]]
+        r = send "monitor", ["tx_3"]
         @tx = @block.tx[0]
         store_block @block
         @block = create_block @block.hash, false
         store_block @block
-        should_receive ["monitor", ["tx_3", [ @genesis.tx[0].to_hash, 3 ]]]
+        should_receive r, ["tx_3", [ @genesis.tx[0].to_hash, 3 ]]
         @block = create_block @block.hash, false
         store_block @block
-        should_receive ["monitor", ["tx_3", [ @tx.to_hash, 3 ]]]
+        should_receive r, ["tx_3", [ @tx.to_hash, 3 ]]
       end
 
       it "should receive missed txs when last txhash is given" do
@@ -416,10 +426,10 @@ describe 'Node Command API' do
         end
         sleep 0.1
         channel = "tx_1_#{blocks[0].tx[0].hash}"
-        send ["monitor", [channel]]
-        should_receive ["monitor", [channel, [ blocks[1].tx[0].to_hash, 3]]]
-        should_receive ["monitor", [channel, [ blocks[2].tx[0].to_hash, 2]]]
-        should_receive ["monitor", [channel, [ blocks[3].tx[0].to_hash, 1]]]
+        r = send "monitor", [channel]
+        should_receive r, [channel, [ blocks[1].tx[0].to_hash, 3]]
+        should_receive r, [channel, [ blocks[2].tx[0].to_hash, 2]]
+        should_receive r, [channel, [ blocks[3].tx[0].to_hash, 1]]
       end
 
     end
@@ -432,33 +442,32 @@ describe 'Node Command API' do
       end
 
       it "should monitor unconfirmed outputs" do
-        send ["monitor", ["output"]]
+        r1 = send "monitor", ["output"]
         tx = @block.tx[0]
-        send ["store_tx", [ tx.to_payload.hth ]]
-        should_receive ["store_tx", { "queued" => [ "tx", tx.hash ]}]
+        r2 = send "store_tx", [ tx.to_payload.hth ]
+        should_receive r2, { "queued" => [ "tx", tx.hash ]}
         addr = Bitcoin::Script.new(tx.out[0].pk_script).get_address
-        should_receive ["monitor", ["output", [ tx.hash, 0, addr, tx.out[0].value, 0]]]
+        should_receive r1, ["output", [ tx.hash, 0, addr, tx.out[0].value, 0]]
       end
 
       it "should monitor confirmed output" do
-        send ["monitor", ["output_1"]]
+        r = send "monitor", ["output_1"]
         store_block @block
-        should_receive ["monitor", ["output_1", [ @tx.hash, 0, @addr, @out.value, 1 ]]]
+        should_receive r, ["output_1", [ @tx.hash, 0, @addr, @out.value, 1 ]]
       end
 
       it "should monitor output for given confirmation level" do
-        send ["monitor", ["output_3"]]
+        r = send "monitor", ["output_3"]
         store_block @block
         @block = create_block @block.hash, false
         store_block @block
         tx = @genesis.tx[0]; out = tx.out[0]
         addr = Bitcoin::Script.new(out.pk_script).get_address
-        should_receive ["monitor", ["output_3", [ tx.hash, 0, addr, out.value, 3 ]]]
+        should_receive r, ["output_3", [ tx.hash, 0, addr, out.value, 3 ]]
 
         @block = create_block @block.hash, false
         store_block @block
-        should_receive ["monitor", ["output_3", [ @tx.hash, 0, @addr, @out.value, 3 ]]]
-        
+        should_receive r, ["output_3", [ @tx.hash, 0, @addr, @out.value, 3 ]]
       end
 
 
@@ -473,10 +482,10 @@ describe 'Node Command API' do
         sleep 0.1
         channel = "output_1_#{blocks[0].tx[0].hash}:0"
 
-        send ["monitor", [channel]]
-        should_receive ["monitor", [channel, [ blocks[1].tx[0].hash, 0, @key.addr, 50e8, 3]]]
-        should_receive ["monitor", [channel, [ blocks[2].tx[0].hash, 0, @key.addr, 50e8, 2]]]
-        should_receive ["monitor", [channel, [ blocks[3].tx[0].hash, 0, @key.addr, 50e8, 1]]]
+        r = send "monitor", [channel]
+        should_receive r, [channel, [ blocks[1].tx[0].hash, 0, @key.addr, 50e8, 3]]
+        should_receive r, [channel, [ blocks[2].tx[0].hash, 0, @key.addr, 50e8, 2]]
+        should_receive r, [channel, [ blocks[3].tx[0].hash, 0, @key.addr, 50e8, 1]]
       end
 
     end

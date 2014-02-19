@@ -21,10 +21,11 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   end
 
   # respond to a command; send serialized response to the client
-  def respond(cmd, data)
+  def respond(request, data)
     return  unless data
+    request["result"] = data
     @lock.synchronize do
-      send_data([cmd, data].to_json + "\x00")
+      send_data(request.to_json + "\x00")
     end
   end
 
@@ -32,23 +33,30 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   def receive_data data
     @buf.extract(data).each do |packet|
       begin
-        cmd, args = JSON::parse(packet)
-        log.debug { [cmd, args] }
-        if cmd == "relay_tx"
-          handle_relay_tx(*args)
-          return
-        end
-        if respond_to?("handle_#{cmd}")
-          respond(cmd, send("handle_#{cmd}", *args))
+        request = JSON::parse(packet)
+        log.debug { request }
+        case request['method']
+        when "relay_tx"
+          return handle_relay_tx(request, *request['params'])
+        when "monitor"
+          respond(request, handle_monitor(request, *request['params']))
         else
-          respond(cmd, { error: "unknown command: #{cmd}. send 'help' for help." })
+          if respond_to?("handle_#{request['method']}")
+            respond(request, send("handle_#{request['method']}", *request['params']))
+          else
+            respond(request, { error: "unknown command: #{request['method']}. send 'help' for help." })
+          end
         end
       rescue ArgumentError
-        respond(cmd, { error: $!.message })
+        respond(request, { error: $!.message })
       end
     end
   rescue Exception
     p $!; puts *$@
+  end
+
+  def handle_connected
+    "connected"
   end
 
   # Handle +monitor+ command; subscribe client to specified channels
@@ -82,11 +90,11 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   # NOTE: When a new block is found, it might include transactions that we
   # didn't previously receive as unconfirmed. To make sure you receive all
   # transactions, also subscribe to the tx_1 channel.
-  def handle_monitor *channels
+  def handle_monitor request, *channels
     channels.map(&:to_sym).each do |channel|
-      @node.subscribe(channel) {|*data| respond("monitor", [channel, *data]) }
+      @node.subscribe(channel) {|*data| respond(request, [channel, *data]) }
       name, *params = channel.to_s.split("_")
-      send("handle_monitor_#{name}", *params)
+      send("handle_monitor_#{name}", request, *params)
       log.info { "Client subscribed to channel #{channel}" }
     end
     nil
@@ -94,16 +102,16 @@ class Bitcoin::Network::CommandHandler < EM::Connection
 
   # Handle +monitor block+ command; send the current chain head
   # after client is subscribed to :block channel
-  def handle_monitor_block *params
+  def handle_monitor_block request, *params
     last, _ = *params
     head = Bitcoin::P::Block.new(@node.store.get_head.to_payload) rescue nil
     if last
       ((last.to_i+1)..@node.store.get_depth).each do |i|
         blk = @node.store.get_block_by_depth(i)
-        respond("monitor", [["block", *params].join("_"), [blk, blk.depth]])
+        respond(request, [["block", *params].join("_"), [blk, blk.depth]])
       end
     else
-      respond("monitor", [["block", *params].join("_"), [head, @node.store.get_depth]])  if head
+      respond(request, [["block", *params].join("_"), [head, @node.store.get_depth]])  if head
     end
   end
 
@@ -111,7 +119,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   # When +conf+ is given, don't subscribe to the :tx channel for unconfirmed
   # transactions. Instead, subscribe to the :block channel, and whenever a new
   # block comes in, send all transactions that now have +conf+ confirmations.
-  def handle_monitor_tx *params
+  def handle_monitor_tx request, *params
     conf, last = *params
     return  unless conf
     if last && last_tx = @node.store.get_tx(last)
@@ -119,7 +127,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
       (last_tx.get_block.depth..depth).each do |i|
         blk = @node.store.get_block_by_depth(i)
         blk.tx.each do |tx|
-          respond("monitor", [["tx", *params].join("_"), [tx, (depth - blk.depth + 1)]])  if notify
+          respond(request, [["tx", *params].join("_"), [tx, (depth - blk.depth + 1)]])  if notify
           notify = true  if tx.hash == last_tx.hash
         end
       end
@@ -127,7 +135,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     @node.subscribe(:block) do |block, depth|
       block = @node.store.get_block_by_depth(depth - conf.to_i + 1)
       next  unless block
-      block.tx.each {|tx| respond("monitor", [["tx", *params].join("_"), [tx, conf.to_i]]) }
+      block.tx.each {|tx| respond(request, [["tx", *params].join("_"), [tx, conf.to_i]]) }
     end
   end
 
@@ -136,7 +144,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   # This allows easy scanning for new payments without parsing the
   # tx format and running scripts.
   # See #handle_monitor_tx for confirmation behavior.
-  def handle_monitor_output *params
+  def handle_monitor_output request, *params
     conf, last = *params
     if last
       last_hash, last_idx = *last.split(":"); last_idx = last_idx.to_i
@@ -149,7 +157,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
             tx.out.each.with_index do |out, idx|
               addr = Bitcoin::Script.new(out.pk_script).get_address
               res = [tx.hash, idx, addr, out.value, (depth - blk.depth + 1)]
-              respond("monitor", [["output", *params].join("_"), res])  if notify
+              respond(request, [["output", *params].join("_"), res])  if notify
               notify = true  if tx.hash == last_hash && idx == last_idx
             end
           end
@@ -165,7 +173,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
         tx.out.each.with_index do |out, idx|
           addr = Bitcoin::Script.new(out.pk_script).get_address
           res = [tx.hash, idx, addr, out.value, conf]
-          respond("monitor", [["output", *params].join("_"), res])
+          respond(request, [["output", *params].join("_"), res])
         end
       end
     end
@@ -173,9 +181,9 @@ class Bitcoin::Network::CommandHandler < EM::Connection
 
   # Handle +monitor connection+ command; send current connections
   # after client is subscribed to :connection channel.
-  def handle_monitor_connection
+  def handle_monitor_connection request
     @node.connections.select {|c| c.connected?}.each do |conn|
-      respond("monitor", [:connection, [:connected, conn.info]])
+      respond(request, [:connection, [:connected, conn.info]])
     end
   end
 
@@ -330,20 +338,20 @@ class Bitcoin::Network::CommandHandler < EM::Connection
 
   # Relay given transaction (in hex).
   #  bitcoin_node relay_tx <tx in hex>
-  def handle_relay_tx hex, send = 3, wait = 3
+  def handle_relay_tx request, hex, send = 3, wait = 3
     begin
       tx = Bitcoin::P::Tx.new(hex.htb)
     rescue
-      return respond("relay_tx", { error: "Error decoding transaction." })
+      return respond(request, { error: "Error decoding transaction." })
     end
 
     validator = tx.validator(@node.store)
     unless validator.validate(rules: [:syntax])
-      return respond("relay_tx", { error: "Transaction syntax invalid.",
+      return respond(request, { error: "Transaction syntax invalid.",
                      details: validator.error })
     end
     unless validator.validate(rules: [:context])
-      return respond("relay_tx", { error: "Transaction context invalid.",
+      return respond(request, { error: "Transaction context invalid.",
                      details: validator.error })
     end
 
@@ -356,11 +364,11 @@ class Bitcoin::Network::CommandHandler < EM::Connection
       received = @node.relay_propagation[tx.hash]
       total = @node.connections.select(&:connected?).size - send
       percent = 100.0 / total * received
-      respond("relay_tx", { success: true, hash: tx.hash, propagation: {
-                  received: received, sent: 1, percent: percent } })
+      respond(request, { success: true, hash: tx.hash, propagation: {
+            received: received, sent: 1, percent: percent } })
     end
   rescue
-    respond("relay_tx", { error: $!.message, backtrace: $@ })
+    respond(request, { error: $!.message, backtrace: $@ })
   end
 
   # Stop the bitcoin node.
