@@ -95,7 +95,7 @@ class Bitcoin::Network::CommandClient < EM::Connection
   def register_monitor_callbacks
     on_monitor do |type, data|
       type, *params = type.split("_")
-      callback(type, *((data || []) + (params || [])))
+      callback(type, data)
     end
   end
 

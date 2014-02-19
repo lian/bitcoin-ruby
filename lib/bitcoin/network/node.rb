@@ -406,7 +406,7 @@ module Bitcoin::Network
               if @notifiers[:output]
                 obj[1].out.each.with_index do |out, idx|
                   address = Bitcoin::Script.new(out.pk_script).get_address
-                  push_notification(:output, [obj[1].hash, idx, address, out.value, 0])
+                  push_notification(:output, { nhash: obj[1].nhash, hash: obj[1].hash, idx: idx, address: address, value: out.value, confirmations: 0 })
                 end
               end
             end

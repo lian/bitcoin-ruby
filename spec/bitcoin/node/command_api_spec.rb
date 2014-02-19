@@ -3,9 +3,20 @@ require_relative '../spec_helper.rb'
 include Bitcoin
 include Builder
 
+class Array
+  def stringify_keys
+    map do |e|
+      (e.is_a?(Array) || e.is_a?(Hash)) ? e.stringify_keys : e
+    end
+  end
+end
+
 class Hash
   def stringify_keys
-    Hash[map {|k, v| [k.to_s, v] }]
+    Hash[map do |k, v|
+      v = v.stringify_keys  if v.is_a?(Hash) || v.is_a?(Array)
+      [k.to_s, v]
+    end]
   end
 end
 
@@ -447,13 +458,15 @@ describe 'Node Command API' do
         r2 = send "store_tx", [ tx.to_payload.hth ]
         should_receive r2, { "queued" => [ "tx", tx.hash ]}
         addr = Bitcoin::Script.new(tx.out[0].pk_script).get_address
-        should_receive r1, ["output", [ tx.hash, 0, addr, tx.out[0].value, 0]]
+        should_receive r1, ["output", { nhash: tx.nhash, hash: tx.hash, idx: 0,
+                              address: addr, value: tx.out[0].value, confirmations: 0 }]
       end
 
       it "should monitor confirmed output" do
         r = send "monitor", ["output_1"]
         store_block @block
-        should_receive r, ["output_1", [ @tx.hash, 0, @addr, @out.value, 1 ]]
+        should_receive r, ["output_1", { nhash: @tx.nhash, hash: @tx.hash, idx: 0,
+                             address: @addr, value: @out.value, confirmations: 1 }]
       end
 
       it "should monitor output for given confirmation level" do
@@ -463,11 +476,13 @@ describe 'Node Command API' do
         store_block @block
         tx = @genesis.tx[0]; out = tx.out[0]
         addr = Bitcoin::Script.new(out.pk_script).get_address
-        should_receive r, ["output_3", [ tx.hash, 0, addr, out.value, 3 ]]
+        should_receive r, ["output_3", { nhash: tx.nhash, hash: tx.hash, idx: 0,
+                              address: addr, value: out.value, confirmations: 3 }]
 
         @block = create_block @block.hash, false
         store_block @block
-        should_receive r, ["output_3", [ @tx.hash, 0, @addr, @out.value, 3 ]]
+        should_receive r, ["output_3", { nhash: @tx.nhash, hash: @tx.hash, idx: 0,
+                              address: @addr, value: @out.value, confirmations: 3 }]
       end
 
 
@@ -483,9 +498,9 @@ describe 'Node Command API' do
         channel = "output_1_#{blocks[0].tx[0].hash}:0"
 
         r = send "monitor", [channel]
-        should_receive r, [channel, [ blocks[1].tx[0].hash, 0, @key.addr, 50e8, 3]]
-        should_receive r, [channel, [ blocks[2].tx[0].hash, 0, @key.addr, 50e8, 2]]
-        should_receive r, [channel, [ blocks[3].tx[0].hash, 0, @key.addr, 50e8, 1]]
+        should_receive r, [channel, { nhash: blocks[1].tx[0].nhash, hash: blocks[1].tx[0].hash, idx: 0, address: @key.addr, value: 50e8, confirmations: 3 }]
+        should_receive r, [channel, { nhash: blocks[2].tx[0].nhash, hash: blocks[2].tx[0].hash, idx: 0, address: @key.addr, value: 50e8, confirmations: 2 }]
+        should_receive r, [channel, { nhash: blocks[3].tx[0].nhash, hash: blocks[3].tx[0].hash, idx: 0, address: @key.addr, value: 50e8, confirmations: 1 }]
       end
 
     end

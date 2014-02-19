@@ -156,7 +156,8 @@ class Bitcoin::Network::CommandHandler < EM::Connection
           blk.tx.each do |tx|
             tx.out.each.with_index do |out, idx|
               addr = Bitcoin::Script.new(out.pk_script).get_address
-              res = [tx.hash, idx, addr, out.value, (depth - blk.depth + 1)]
+              res = { nhash: tx.nhash, hash: tx.hash, idx: idx, address: addr,
+                value: out.value, confirmations: (depth - blk.depth + 1) }
               respond(request, [["output", *params].join("_"), res])  if notify
               notify = true  if tx.hash == last_hash && idx == last_idx
             end
@@ -172,7 +173,8 @@ class Bitcoin::Network::CommandHandler < EM::Connection
       block.tx.each do |tx|
         tx.out.each.with_index do |out, idx|
           addr = Bitcoin::Script.new(out.pk_script).get_address
-          res = [tx.hash, idx, addr, out.value, conf]
+          res = { nhash: tx.nhash, hash: tx.hash, idx: idx, address: addr,
+            value: out.value, confirmations: conf }
           respond(request, [["output", *params].join("_"), res])
         end
       end
