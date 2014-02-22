@@ -115,6 +115,10 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     end
   end
 
+  # already handled
+  def handle_monitor_reorg *args
+  end
+
   # Handle +monitor tx+ command.
   # When +conf+ is given, don't subscribe to the :tx channel for unconfirmed
   # transactions. Instead, subscribe to the :block channel, and whenever a new

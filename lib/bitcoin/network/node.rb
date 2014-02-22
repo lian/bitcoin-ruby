@@ -261,6 +261,22 @@ module Bitcoin::Network
           end
         end
 
+        @store.subscribe(:block) do |blk, depth, chain|
+          if chain == 0 && blk.hash == @store.get_head.hash
+            @last_block_time = Time.now
+            push_notification(:block, [blk, depth])
+            blk.tx.each {|tx| @unconfirmed.delete(tx.hash) }
+          end
+          getblocks  if chain == 2 && @store.in_sync?
+        end
+
+        @store.subscribe(:reorg) do |new_main, new_side|
+          @log.warn { "Reorg of #{new_side.size} blocks." }
+          new_main.each {|b| @log.debug { "new main: #{b}" } }
+          new_side.each {|b| @log.debug { "new side: #{b}" } }
+          push_notification(:reorg, [new_main, new_side])
+        end
+
       end
     end
 
@@ -388,14 +404,7 @@ module Bitcoin::Network
       while obj = @queue.shift
         begin
           if obj[0].to_sym == :block
-            if res = @store.send("new_#{obj[0]}", obj[1])
-              if res[1] == 0  && obj[1].hash == @store.get_head.hash
-                @last_block_time = Time.now
-                push_notification(:block, [obj[1], res[0]])
-                obj[1].tx.each {|tx| @unconfirmed.delete(tx.hash) }
-              end
-              getblocks  if res[1] == 2 && @store.in_sync?
-            end
+            @store.new_block(obj[1])
           else
             drop = @unconfirmed.size - @config[:max][:unconfirmed] + 1
             drop.times { @unconfirmed.shift }  if drop > 0

@@ -287,7 +287,8 @@ describe 'Node Command API' do
               buf << b
             end
             resp = JSON.load(buf)
-            resp.should == request.merge(result: expected).stringify_keys
+            expected = request.merge(result: expected).stringify_keys
+            raise "ERROR: #{resp} != #{expected}"  unless resp.should == expected
           end
         rescue Timeout::Error
           print " [TIMEOUT]"
@@ -370,7 +371,6 @@ describe 'Node Command API' do
         should_receive @request, ["block", [ @block.to_hash, 2 ]]
       end
 
-
       it "should not monitor side or orphan blocks" do
         @side = create_block @genesis.hash, false
         store_block @side
@@ -399,6 +399,23 @@ describe 'Node Command API' do
       end
 
     end
+
+      describe :reorg do
+
+        before do
+          @request = send "monitor", ["reorg"]
+          store_block @block
+        end
+
+        it "should monitor reorg" do
+          @block1 = create_block @genesis.hash, false
+          store_block @block1
+          @block2 = create_block @block1.hash, false
+          store_block @block2
+          should_receive @request, ["reorg", [ [@block1.hash], [@block.hash] ]]
+        end
+
+      end
 
     describe :tx do
 

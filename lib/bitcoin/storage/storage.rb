@@ -76,6 +76,7 @@ module Bitcoin::Storage
         @getblocks_callback = getblocks_callback
         @checkpoints = Bitcoin.network[:checkpoints] || {}
         @watched_addrs = []
+        @notifiers = {}
       end
 
       def init_sequel_store
@@ -202,7 +203,9 @@ module Bitcoin::Storage
               end
               validator.validate(rules: [:context], raise_errors: true)
             end
-            return persist_block(blk, MAIN, depth, prev_block.work)
+            res = persist_block(blk, MAIN, depth, prev_block.work)
+            push_notification(:block, [blk, *res])
+            return res
           else
             log.debug { "=> side (#{depth})" }
             return persist_block(blk, SIDE, depth, prev_block.work)
@@ -226,6 +229,9 @@ module Bitcoin::Storage
             end
             log.debug { "new main: #{new_main.inspect}" }
             log.debug { "new side: #{new_side.inspect}" }
+
+            push_notification(:reorg, [ new_main, new_side ])
+
             reorg(new_side.reverse, new_main.reverse)
             return persist_block(blk, MAIN, depth, prev_block.work)
           end
@@ -452,6 +458,15 @@ module Bitcoin::Storage
 
       def in_sync?
         (get_head && (Time.now - get_head.time).to_i < 3600) ? true : false
+      end
+
+      def push_notification channel, message
+        @notifiers[channel.to_sym].push(message)  if @notifiers[channel.to_sym]
+      end
+
+      def subscribe channel
+        @notifiers[channel.to_sym] ||= EM::Channel.new
+        @notifiers[channel.to_sym].subscribe {|*data| yield(*data) }
       end
 
     end
