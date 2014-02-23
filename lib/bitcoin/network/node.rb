@@ -55,6 +55,8 @@ module Bitcoin::Network
       :command => ["127.0.0.1", 9999],
       :storage => "utxo::sqlite://~/.bitcoin-ruby/<network>/blocks.db",
       :mode => :full,
+      :cache_head => true,
+      :index_nhash => false,
       :dns => true,
       :epoll_limit => 10000,
       :epoll_user => nil,
@@ -102,8 +104,8 @@ module Bitcoin::Network
     def set_store
       backend, config = @config[:storage].split('::')
       @store = Bitcoin::Storage.send(backend, {
-          db: config, mode: @config[:mode], cache_head: true,
-          skip_validation: @config[:skip_validation],
+          db: config, mode: @config[:mode], cache_head: @config[:cache_head],
+          skip_validation: @config[:skip_validation], index_nhash: @config[:index_nhash],
           log_level: @config[:log][:storage]}, ->(locator) {
           peer = @connections.select(&:connected?).sample
           peer.send_getblocks(locator)
