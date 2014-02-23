@@ -261,6 +261,7 @@ module Bitcoin
       def normalized_hash
         signature_hash_for_input(-1, nil, nil, SIGHASH_TYPE[:all]).unpack("H*")[0]
       end
+      alias :nhash :normalized_hash
 
     end
   end

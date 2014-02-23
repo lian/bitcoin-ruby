@@ -12,7 +12,16 @@ module Bitcoin::Storage::Backends
     # sequel database connection
     attr_accessor :db
 
-    DEFAULT_CONFIG = { mode: :full, cache_head: false }
+    DEFAULT_CONFIG = {
+      # TODO
+      mode: :full,
+
+      # cache head block. only the instance that is updating the head should do this.
+      cache_head: false,
+
+      # store an index of tx.nhash values
+      index_nhash: false
+    }
 
     # create sequel store with given +config+
     def initialize config, *args
@@ -160,10 +169,13 @@ module Bitcoin::Storage::Backends
 
     # prepare transaction data for storage
     def tx_data tx
-      { hash: tx.hash.htb.blob,
+      data = {
+        hash: tx.hash.htb.blob,
         version: tx.ver, lock_time: tx.lock_time,
         coinbase: tx.in.size == 1 && tx.in[0].coinbase?,
         tx_size: tx.payload.bytesize }
+      data[:nhash] = tx.nhash.htb.blob  if @config[:index_nhash]
+      data
     end
 
     # store transaction +tx+

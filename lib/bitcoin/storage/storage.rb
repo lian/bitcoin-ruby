@@ -101,7 +101,7 @@ module Bitcoin::Storage
         migrations_path = File.join(File.dirname(__FILE__), "#{backend_name}/migrations")
         Sequel.extension :migration
         unless Sequel::Migrator.is_current?(@db, migrations_path)
-          log = @log; @db.instance_eval { @log = log }
+          store = self; log = @log; @db.instance_eval { @log = log; @store = store }
           Sequel::Migrator.run(@db, migrations_path)
           unless (v = @db[:schema_info].first) && v[:magic] && v[:backend]
             @db[:schema_info].update(
