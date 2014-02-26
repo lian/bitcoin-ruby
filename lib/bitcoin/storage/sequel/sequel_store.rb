@@ -125,7 +125,7 @@ module Bitcoin::Storage::Backends
 
       script = Bitcoin::Script.new(txout.pk_script) rescue nil
       if script
-        if script.is_hash160? || script.is_pubkey?
+        if script.is_hash160? || script.is_pubkey? || script.is_p2sh?
           addrs << [i, script.get_hash160]
         elsif script.is_multisig?
           script.get_multisig_pubkeys.map do |pubkey|
