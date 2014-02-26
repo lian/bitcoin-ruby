@@ -43,7 +43,7 @@ module Bitcoin::Storage
       ORPHAN = 2
 
       # possible script types
-      SCRIPT_TYPES = [:unknown, :pubkey, :hash160, :multisig, :p2sh]
+      SCRIPT_TYPES = [:unknown, :pubkey, :hash160, :multisig, :p2sh, :op_return]
       if Bitcoin.namecoin?
         [:name_new, :name_firstupdate, :name_update].each {|n| SCRIPT_TYPES << n }
       end

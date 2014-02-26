@@ -443,17 +443,17 @@ class Bitcoin::Script
 
   # check if script is in one of the recognized standard formats
   def is_standard?
-    is_pubkey? || is_hash160? || is_multisig? || is_p2sh?
+    is_pubkey? || is_hash160? || is_multisig? || is_p2sh?  || is_op_return?
   end
 
-  # is this a pubkey tx
+  # is this a pubkey script
   def is_pubkey?
     return false if @chunks.size != 2
     (@chunks[1] == OP_CHECKSIG) && @chunks[0].size > 1
   end
   alias :is_send_to_ip? :is_pubkey?
 
-  # is this a hash160 (address) tx
+  # is this a hash160 (address) script
   def is_hash160?
     return false  if @chunks.size != 5
     (@chunks[0..1] + @chunks[-2..-1]) ==
@@ -461,10 +461,15 @@ class Bitcoin::Script
       @chunks[2].is_a?(String) && @chunks[2].bytesize == 20
   end
 
-  # is this a multisig tx
+  # is this a multisig script
   def is_multisig?
     return false  if @chunks.size > 6 || @chunks.size < 4 || !@chunks[-2].is_a?(Fixnum)
     @chunks[-1] == OP_CHECKMULTISIG and get_multisig_pubkeys.all?{|c| c.is_a?(String) }
+  end
+
+  # is this an op_return script
+  def is_op_return?
+    @chunks[0] == OP_RETURN
   end
 
   # get type of this tx
@@ -473,6 +478,7 @@ class Bitcoin::Script
     elsif is_pubkey?;   :pubkey
     elsif is_multisig?; :multisig
     elsif is_p2sh?;     :p2sh
+    elsif is_op_return?;:op_return
     else;               :unknown
     end
   end
@@ -517,6 +523,12 @@ class Bitcoin::Script
 
   def get_p2sh_address
     Bitcoin.hash160_to_p2sh_address(get_hash160)
+  end
+
+  # get the data possibly included in an OP_RETURN script
+  def get_op_return_data
+    return nil  unless is_op_return?
+    @chunks[1].unpack("H*")[0]  if @chunks[1]
   end
 
   # get all addresses this script corresponds to (if possible)
@@ -565,6 +577,13 @@ class Bitcoin::Script
   def self.to_multisig_script(m, *pubkeys)
     pubs = pubkeys.map{|pk|p=[pk].pack("H*"); [p.bytesize].pack("C") + p}
     [ [80 + m.to_i].pack("C"), *pubs, [80 + pubs.size].pack("C"), "\xAE"].join
+  end
+
+  # generate OP_RETURN script with given data
+  def self.to_op_return_script(data = nil)
+    return "\x6A"  unless data
+    data = [data].pack("H*")
+    ["\x6A", [data.bytesize].pack("C"), data].join
   end
 
   # generate pubkey script sig for given +signature+ and +pubkey+

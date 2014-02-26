@@ -13,6 +13,7 @@ describe 'Bitcoin::Script' do
     "524104573b6e9f3a714440048a7b87d606bcbf9e45b8586e70a67a3665ea720c095658471a523e5d923f3f3e015626e7c900bd08560ddffeb17d33c5b52c96edb875954104039c2f4e413a26901e67ad4adbb6a4759af87bc16c7120459ecc9482fed3dd4a4502947f7b4c7782dcadc2bed513ed14d5e770452b97ae246ac2030f13b80a5141048b0f9d04e495c3c754f8c3c109196d713d0778882ef098f785570ee6043f8c192d8f84df43ebafbcc168f5d95a074dc4010b62c003e560abc163c312966b74b653ae", # multisig 2 of 3
     "5141040ee607b584b36e995f2e96dec35457dbb40845d0ce0782c84002134e816a6b8cbc65e9eed047ae05e10760e4113f690fd49ad73b86b04a1d7813d843f8690ace4104220a78f5f6741bb0739675c2cc200643516b02cfdfda5cba21edeaa62c0f954936b30dfd956e3e99af0a8e7665cff6ac5b429c54c418184c81fbcd4bde4088f552ae", # multisig 1 of 2
     "a9149471864495192e39f5f74574b6c8c513588a820487", # p2sh
+    "6a04deadbeef" # OP_RETURN deadbeef
   ].map{|s|[s].pack("H*")}
   PUBKEYS = [
     "04fb0123fe2c399981bc77d522e2ae3268d2ab15e9a84ae49338a4b1db3886a1ea04cdab955d81e9fa1fcb0c062cb9a5af1ad5dd5064f4afcca322402b07030ec2",
@@ -199,6 +200,13 @@ describe 'Bitcoin::Script' do
         .should == ["1JiaVc3N3U3CwwcLtzNX1Q4eYfeYxVjtuj",
         "19Fm2gY7qDTXriNTEhFY2wjxbHna3Gvenk", "1B6k6g1d2L975i7beAbiBRxfBWhxomPxvy"]
     end
+
+    it "should get op_return data" do
+      Script.new(SCRIPT[6]).get_op_return_data.should == "deadbeef"
+      Script.new(SCRIPT[1]).get_op_return_data.should == nil
+      Script.from_string("OP_RETURN").get_op_return_data.should == nil
+    end
+
   end
 
   describe "determine type" do
@@ -210,6 +218,7 @@ describe 'Bitcoin::Script' do
       Script.new(SCRIPT[3]).is_standard?.should == true
       Script.new(SCRIPT[4]).is_standard?.should == true
       Script.new(SCRIPT[5]).is_standard?.should == true
+      Script.new(SCRIPT[6]).is_standard?.should == true
     end
 
     it '#is_pubkey?' do
@@ -219,6 +228,7 @@ describe 'Bitcoin::Script' do
       Script.new(SCRIPT[3]).is_pubkey?.should == false
       Script.new(SCRIPT[4]).is_send_to_ip?.should == false
       Script.new(SCRIPT[5]).is_pubkey?.should == false
+      Script.new(SCRIPT[6]).is_pubkey?.should == false
     end
 
     it "#is_hash160?" do
@@ -228,12 +238,14 @@ describe 'Bitcoin::Script' do
       Script.from_string("OP_DUP OP_HASH160 0 OP_EQUALVERIFY OP_CHECKSIG")
         .is_hash160?.should == false
       Script.new(SCRIPT[5]).is_hash160?.should == false
+      Script.new(SCRIPT[6]).is_hash160?.should == false
     end
 
     it "#is_multisig?" do
       Script.new(SCRIPT[3]).is_multisig?.should == true
       Script.new(SCRIPT[4]).is_multisig?.should == true
       Script.new(SCRIPT[0]).is_multisig?.should == false
+      Script.new(SCRIPT[6]).is_multisig?.should == false
       Script.new("OP_DUP OP_DROP 2 #{PUBKEYS[0..2].join(' ')} 3 OP_CHECKMULTISIG")
         .is_multisig?.should == false
       Script.new("OP_DROP OP_CHECKMULTISIG").is_multisig?.should == false
@@ -247,6 +259,17 @@ describe 'Bitcoin::Script' do
       Script.new(SCRIPT[3]).is_p2sh?.should == false
       Script.new(SCRIPT[4]).is_p2sh?.should == false
       Script.new(SCRIPT[5]).is_p2sh?.should == true
+      Script.new(SCRIPT[6]).is_p2sh?.should == false
+    end
+
+    it '#is_op_return?' do
+      Script.new(SCRIPT[0]).is_op_return?.should == false
+      Script.new(SCRIPT[1]).is_op_return?.should == false
+      Script.new(SCRIPT[2]).is_op_return?.should == false
+      Script.new(SCRIPT[3]).is_op_return?.should == false
+      Script.new(SCRIPT[4]).is_op_return?.should == false
+      Script.new(SCRIPT[5]).is_op_return?.should == false
+      Script.new(SCRIPT[6]).is_op_return?.should == true
     end
 
     it "#type" do
@@ -256,6 +279,7 @@ describe 'Bitcoin::Script' do
       Script.new(SCRIPT[3]).type.should == :multisig
       Script.new(SCRIPT[4]).type.should == :multisig
       Script.new(SCRIPT[5]).type.should == :p2sh
+      Script.new(SCRIPT[6]).type.should == :op_return
     end
 
   end
@@ -291,6 +315,11 @@ describe 'Bitcoin::Script' do
       hash160 = Bitcoin.hash160_from_address address
       Script.to_p2sh_script(hash160).should ==
         Script.from_string("OP_HASH160 #{hash160} OP_EQUAL").raw
+    end
+
+    it "should generate op_return script" do
+      Script.to_op_return_script("deadbeef").should == SCRIPT[6]
+      Script.to_op_return_script.should == Script.from_string("OP_RETURN").raw
     end
 
     it "should determine type for address script" do
