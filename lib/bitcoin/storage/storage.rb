@@ -385,13 +385,12 @@ module Bitcoin::Storage
       end
 
       # parse script and collect address/txout mappings to index
-      def parse_script txout, i
+      def parse_script txout, i, tx_hash = "", tx_idx
         addrs, names = [], []
-        # skip huge script in testnet3 block 54507 (998000 bytes)
-        return [SCRIPT_TYPES.index(:unknown), [], []]  if txout.pk_script.bytesize > 10_000
+
         script = Bitcoin::Script.new(txout.pk_script) rescue nil
         if script
-          if script.is_hash160? || script.is_pubkey?
+          if script.is_hash160? || script.is_pubkey? || script.is_p2sh?
             addrs << [i, script.get_hash160]
           elsif script.is_multisig?
             script.get_multisig_pubkeys.map do |pubkey|
@@ -401,11 +400,12 @@ module Bitcoin::Storage
             addrs << [i, script.get_hash160]
             names << [i, script]
           else
-            log.debug { "Unknown script type"}# #{tx.hash}:#{txout_idx}" }
+            log.info { "Unknown script type in #{tx_hash}:#{tx_idx}" }
+            log.debug { script.to_string }
           end
           script_type = SCRIPT_TYPES.index(script.type)
         else
-          log.error { "Error parsing script"}# #{tx.hash}:#{txout_idx}" }
+          log.error { "Error parsing script #{tx_hash}:#{tx_idx}" }
           script_type = SCRIPT_TYPES.index(:unknown)
         end
         [script_type, addrs, names]

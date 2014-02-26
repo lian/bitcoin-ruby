@@ -119,33 +119,6 @@ module Bitcoin::Storage::Backends
       end
     end
 
-    # parse script and collect address/txout mappings to index
-    def parse_script txout, i, tx_hash = "", tx_idx
-      addrs, names = [], []
-
-      script = Bitcoin::Script.new(txout.pk_script) rescue nil
-      if script
-        if script.is_hash160? || script.is_pubkey? || script.is_p2sh?
-          addrs << [i, script.get_hash160]
-        elsif script.is_multisig?
-          script.get_multisig_pubkeys.map do |pubkey|
-            addrs << [i, Bitcoin.hash160(pubkey.unpack("H*")[0])]
-          end
-        elsif Bitcoin.namecoin? && script.is_namecoin?
-          addrs << [i, script.get_hash160]
-          names << [i, script]
-        else
-          log.info { "Unknown script type in #{tx_hash}:#{tx_idx}" }
-          log.debug { script.to_string }
-        end
-        script_type = SCRIPT_TYPES.index(script.type)
-      else
-        log.error { "Error parsing script #{tx_hash}:#{tx_idx}" }
-        script_type = SCRIPT_TYPES.index(:unknown)
-      end
-      [script_type, addrs, names]
-    end
-
     # bulk-store addresses and txout mappings
     def persist_addrs addrs
       addr_txouts, new_addrs = [], []

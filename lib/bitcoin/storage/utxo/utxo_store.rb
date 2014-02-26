@@ -106,7 +106,7 @@ module Bitcoin::Storage::Backends
             tx_idx: txin.prev_out_index  }  if @new_outs.size == size
         end
         tx.out.each.with_index do |txout, txout_tx_idx|
-          _, a, n = *parse_script(txout, txout_tx_idx)
+          _, a, n = *parse_script(txout, txout_tx_idx, tx.hash, txout_tx_idx)
           @new_outs << [{
               :tx_hash => tx.hash.blob,
               :tx_idx => txout_tx_idx,
