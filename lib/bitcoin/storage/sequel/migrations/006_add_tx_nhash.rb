@@ -11,9 +11,9 @@ Sequel.migration do
       end
     end
 
-    if $stdin.tty? && !$0 =~ /spec/
+    if $stdin.tty?
       print "Do you want to build an index for normalized tx hashes? (~1GB) (y/N) "
-      if $stdin.gets.chomp == "y"
+      if $0 =~ /spec/ || $stdin.gets.chomp == "y"
         puts "Building normalized hash index..."
 
         add_column :tx, :nhash, :bytea
