@@ -263,7 +263,7 @@ module Bitcoin::Namecoin
         end
 
         def expires_in
-          Namecoin::EXPIRATION_DEPTH - (@store.get_depth - get_block.depth) rescue nil
+          Bitcoin::Namecoin::EXPIRATION_DEPTH - (@store.get_depth - get_block.depth) rescue nil
         end
 
         def as_json(opts = {})
