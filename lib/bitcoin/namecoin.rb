@@ -32,6 +32,7 @@ module Bitcoin::Namecoin
         def get_hash160
           return @chunks[2..-3][0].unpack("H*")[0]  if is_hash160?
           return @chunks[-3].unpack("H*")[0]        if is_namecoin?
+          return @chunks[-2].unpack("H*")[0]        if is_p2sh?
           return Bitcoin.hash160(get_pubkey)        if is_pubkey?
         end
 
