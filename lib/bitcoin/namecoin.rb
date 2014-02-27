@@ -265,9 +265,9 @@ module Bitcoin::Namecoin
           Namecoin::EXPIRATION_DEPTH - (@store.get_depth - get_block.depth) rescue nil
         end
 
-        def to_json(opts = {})
-          JSON.pretty_generate({ name: @name, value: @value, txid: get_tx.hash,
-                                 address: get_address, expires_in: expires_in }, opts)
+        def as_json(opts = {})
+          { name: @name, value: @value, txid: get_tx.hash,
+                                 address: get_address, expires_in: expires_in }
         end
 
       end
