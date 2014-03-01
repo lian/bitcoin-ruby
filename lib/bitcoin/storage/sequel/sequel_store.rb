@@ -69,6 +69,7 @@ module Bitcoin::Storage::Backends
             existing = @db[:tx][hash: tx.hash.htb.blob]
             existing ? blk_tx[idx] = existing[:id] : new_tx << [tx, idx]
           end
+
           new_tx_ids = @db[:tx].insert_multiple(new_tx.map {|tx, _| tx_data(tx) })
           new_tx_ids.each.with_index {|tx_id, idx| blk_tx[new_tx[idx][1]] = tx_id }
 
@@ -374,15 +375,20 @@ module Bitcoin::Storage::Backends
 
       blk.aux_pow = Bitcoin::P::AuxPow.new(block[:aux_pow])  if block[:aux_pow]
 
-      db[:blk_tx].filter(blk_id: block[:id]).join(:tx, id: :tx_id)
-        .order(:idx).each {|tx| blk.tx << wrap_tx(tx, block[:id]) }
+      blk_tx = db[:blk_tx].filter(blk_id: block[:id]).join(:tx, id: :tx_id).order(:idx)
+
+      # fetch inputs and outputs for all transactions in the block to avoid additional queries for each transaction
+      inputs = db[:txin].filter(:tx_id => blk_tx.map{ |tx| tx[:id] }).order(:tx_idx).map.group_by{ |txin| txin[:tx_id] }
+      outputs = db[:txout].filter(:tx_id => blk_tx.map{ |tx| tx[:id] }).order(:tx_idx).map.group_by{ |txout| txout[:tx_id] }
+
+      blk.tx = blk_tx.map { |tx| wrap_tx(tx, block[:id], inputs: inputs[tx[:id]], outputs: outputs[tx[:id]]) }
 
       blk.recalc_block_hash
       blk
     end
 
     # wrap given +transaction+ into Models::Transaction
-    def wrap_tx(transaction, block_id = nil)
+    def wrap_tx(transaction, block_id = nil, prefetched = {})
       return nil  unless transaction
 
       block_id ||= @db[:blk_tx].join(:blk, id: :blk_id)
@@ -391,10 +397,10 @@ module Bitcoin::Storage::Backends
       data = {id: transaction[:id], blk_id: block_id, size: transaction[:tx_size], idx: transaction[:idx]}
       tx = Bitcoin::Storage::Models::Tx.new(self, data)
 
-      inputs = db[:txin].filter(:tx_id => transaction[:id]).order(:tx_idx)
+      inputs = prefetched[:inputs] || db[:txin].filter(:tx_id => transaction[:id]).order(:tx_idx)
       inputs.each { |i| tx.add_in(wrap_txin(i)) }
 
-      outputs = db[:txout].filter(:tx_id => transaction[:id]).order(:tx_idx)
+      outputs = prefetched[:outputs] || db[:txout].filter(:tx_id => transaction[:id]).order(:tx_idx)
       outputs.each { |o| tx.add_out(wrap_txout(o)) }
       tx.ver = transaction[:version]
       tx.lock_time = transaction[:lock_time]
