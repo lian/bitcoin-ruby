@@ -270,6 +270,8 @@ describe 'Bitcoin::Script' do
       Script.new(SCRIPT[4]).is_op_return?.should == false
       Script.new(SCRIPT[5]).is_op_return?.should == false
       Script.new(SCRIPT[6]).is_op_return?.should == true
+      script = Script.from_string("OP_RETURN dead beef")
+      script.is_op_return?.should == false
     end
 
     it "#type" do

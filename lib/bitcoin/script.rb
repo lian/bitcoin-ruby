@@ -469,7 +469,7 @@ class Bitcoin::Script
 
   # is this an op_return script
   def is_op_return?
-    @chunks[0] == OP_RETURN
+    @chunks[0] == OP_RETURN && @chunks.size <= 2
   end
 
   # get type of this tx
