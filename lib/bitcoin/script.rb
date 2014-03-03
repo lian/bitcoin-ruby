@@ -4,10 +4,26 @@ require 'bitcoin'
 
 class Bitcoin::Script
 
-  OP_1           = 81
-  OP_TRUE        = 81
   OP_0           = 0
   OP_FALSE       = 0
+  OP_1           = 81
+  OP_TRUE        = 81
+  OP_2           = 0x52
+  OP_3           = 0x53
+  OP_4           = 0x54
+  OP_5           = 0x55
+  OP_6           = 0x56
+  OP_7           = 0x57
+  OP_8           = 0x58
+  OP_9           = 0x59
+  OP_10          = 0x5a
+  OP_11          = 0x5b
+  OP_12          = 0x5c
+  OP_13          = 0x5d
+  OP_14          = 0x5e
+  OP_15          = 0x5f
+  OP_16          = 0x60
+  
   OP_PUSHDATA0   = 0
   OP_PUSHDATA1   = 76
   OP_PUSHDATA2   = 77
@@ -584,6 +600,43 @@ class Bitcoin::Script
     return false unless is_multisig?
     @chunks[0] - 80
   end
+  
+  # This matches CScript::GetSigOpCount(bool fAccurate)
+  # Note: this does not cover P2SH script which is to be unserialized 
+  #       and checked explicitly when validating blocks.
+  def get_signatures_count_accurate(is_accurate)
+    count = 0
+    last_opcode = nil
+    @chunks.each do |chunk| # pushdate or opcode
+      if chunk == OP_CHECKSIG || chunk == OP_CHECKSIGVERIFY
+        count += 1
+      elsif chunk == OP_CHECKMULTISIG || chunk == OP_CHECKMULTISIGVERIFY
+        if is_accurate && last_opcode.is_a?(Fixnum) && last_opcode >= OP_1 && last_opcode <= OP_16
+          count += Script.decode_OP_N(last_opcode)
+        else     
+          count += 20
+        end
+      end
+      last_opcode = chunk
+    end
+    count
+  end
+  
+  # Converts OP_{0,1,2,...,16} into 0, 1, 2, ..., 16.
+  # Returns nil for other opcodes.
+  def self.decode_OP_N(opcode)
+    if opcode == OP_0
+      return 0
+    end
+    if opcode.is_a?(Fixnum) && opcode >= OP_1 && opcode <= OP_16
+      return opcode - (OP_1 - 1);
+    else
+      nil
+    end
+  end
+  
+  
+  
 
   ## OPCODES
 
