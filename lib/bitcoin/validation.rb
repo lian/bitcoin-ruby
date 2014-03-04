@@ -255,7 +255,7 @@ module Bitcoin::Validation
 
     # check that lock_time doesn't exceed INT_MAX
     def lock_time
-      tx.lock_time <= INT_MAX || [tx.lock_time, INT_MAX]
+      tx.lock_time <= UINT32_MAX || [tx.lock_time, UINT32_MAX]
     end
 
     # check that min_size is at least 86 bytes

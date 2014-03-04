@@ -232,8 +232,8 @@ describe "transaction rules (#{options[0]} - #{options[1]})" do
     end
   end
 
-  it "6. Check that nLockTime <= INT_MAX, size in bytes >= 100, and sig opcount <= 2" do
-    check_tx(@tx, [:lock_time, [INT_MAX + 1, INT_MAX]]) {|tx| tx.lock_time = INT_MAX + 1 }
+  it "6. Check that nLockTime <= UINT32_MAX, size in bytes >= 100, and sig opcount <= 2" do
+    check_tx(@tx, [:lock_time, [UINT32_MAX + 1, UINT32_MAX]]) {|tx| tx.lock_time = UINT32_MAX + 1 }
     # TODO: validate sig opcount
   end
 

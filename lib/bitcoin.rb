@@ -421,8 +421,9 @@ module Bitcoin
     @network_project
   end
 
-  def self.network= name
+  def self.network=(name)
     raise "Network descriptor '#{name}' not found."  unless NETWORKS[name.to_sym]
+    @network_options = nil # clear cached parameters
     @network = name.to_sym
     @network_project = network[:project] rescue nil
     Bitcoin::Namecoin.load  if namecoin?
@@ -446,8 +447,12 @@ module Bitcoin
   # maximum number of orphan transactions to be kept in memory
   MAX_ORPHAN_TRANSACTIONS = MAX_BLOCK_SIZE/100
 
+  # Threshold for lock_time: below this value it is interpreted as block number, otherwise as UNIX timestamp.
+  LOCKTIME_THRESHOLD = 500000000 # Tue Nov  5 00:53:20 1985 UTC
+
   # maximum integer value
-  INT_MAX = 0xffffffff
+  UINT32_MAX = 0xffffffff
+  INT_MAX = 0xffffffff # deprecated name, left here for compatibility with existing users.
 
   # number of confirmations required before coinbase tx can be spent
   COINBASE_MATURITY = 100
