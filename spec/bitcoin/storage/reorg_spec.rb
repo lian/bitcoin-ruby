@@ -6,7 +6,7 @@ include Bitcoin::Builder
 
 Bitcoin.network = :testnet
 
-Bitcoin::Validation::Block::RETARGET = 10
+Bitcoin.network[:retarget_interval] = 10
 
 [
  [:utxo, :sqlite, index_all_addrs: true],
@@ -197,6 +197,7 @@ Bitcoin::Validation::Block::RETARGET = 10
 
   it "should handle existing blocks" do
     Bitcoin.network = :testnet
+    Bitcoin.network[:retarget_interval] = 10
     blocks = [@block0]
     3.times { blocks << create_block(blocks.last.hash, false) }
     blocks[1..-1].each.with_index {|b, idx| @store.store_block(b).should == [idx+1, 0] }
@@ -208,6 +209,7 @@ Bitcoin::Validation::Block::RETARGET = 10
   it "should pass reorg unit tests" do
     class Bitcoin::Validation::Block; def difficulty; true; end; end
     Bitcoin.network = :bitcoin
+    Bitcoin.network[:retarget_interval] = 10
     @store.import "./spec/bitcoin/fixtures/reorg/blk_0_to_4.dat"
     @store.get_depth.should == 4
     @store.get_head.hash.should =~ /000000002f264d65040/
@@ -226,6 +228,7 @@ Bitcoin::Validation::Block::RETARGET = 10
     balance("1KXFNhNtrRMfgbdiQeuJqnfD7dR4PhniyJ").should == 0
     balance("1JyMKvPHkrCQd8jQrqTR1rBsAd1VpRhTiE").should == 14000000000
     Bitcoin.network = :testnet
+    Bitcoin.network[:retarget_interval] = 10
     class Bitcoin::Validation::Block
       def difficulty
         return true  if Bitcoin.network_name == :testnet3

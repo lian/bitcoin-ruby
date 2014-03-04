@@ -311,8 +311,6 @@ module Bitcoin
     end
 
 
-    RETARGET_INTERVAL = 2016
-
     # block count when the next retarget will take place.
     def block_next_retarget(block_height)
       (block_height + (RETARGET_INTERVAL-block_height.divmod(RETARGET_INTERVAL).last)) - 1
@@ -411,6 +409,7 @@ module Bitcoin
   def self.network
     # Store the copy of network options so we can modify them in tests without breaking the defaults
     @network_options ||= NETWORKS[@network].dup
+    NETWORKS[@network]
   end
 
   def self.network_name
@@ -458,8 +457,10 @@ module Bitcoin
   COINBASE_MATURITY = 100
 
   # interval (in blocks) for difficulty retarget
-  RETARGET = 2016
-
+  RETARGET_INTERVAL = 2016
+  RETARGET = 2016 # deprecated constant
+  
+  
   # interval (in blocks) for mining reward reduction
   REWARD_DROP = 210_000
 

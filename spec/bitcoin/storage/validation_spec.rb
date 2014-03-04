@@ -152,13 +152,13 @@ Bitcoin.network = :spec
     block3 = create_block(block2.hash, false, [], @key, 60e8)
     -> { @store.store_block(block3) }.should.raise(ValidationError)
 
-    Bitcoin::Validation::REWARD_DROP = 2
+    Bitcoin::REWARD_DROP = 2
     block4 = create_block(block2.hash, false, [], @key, 50e8)
     -> { @store.store_block(block4) }.should.raise(ValidationError)
 
     block5 = create_block(block2.hash, false, [], @key, 25e8)
     @store.store_block(block5).should == [3, 0]
-    Bitcoin::Validation::REWARD_DROP = 210_000
+    Bitcoin::REWARD_DROP = 210_000
   end
 
 end
@@ -214,10 +214,10 @@ describe "transaction rules (#{options[0]} - #{options[1]})" do
   end
 
   it "3. Size in bytes < MAX_BLOCK_SIZE" do
-    max = Bitcoin::Validation::MAX_BLOCK_SIZE; Bitcoin::Validation::MAX_BLOCK_SIZE = 1000
+    max = Bitcoin::MAX_BLOCK_SIZE; Bitcoin::MAX_BLOCK_SIZE = 1000
     check_tx(@tx, [:max_size, [@tx.payload.bytesize+978, 1000]]) {|tx|
       tx.out[0].pk_script = "\x00" * 1001 }
-    Bitcoin::Validation::MAX_BLOCK_SIZE = max
+    Bitcoin::MAX_BLOCK_SIZE = max
   end
 
   it "4. Each output value, as well as the total, must be in legal money range" do
@@ -233,7 +233,7 @@ describe "transaction rules (#{options[0]} - #{options[1]})" do
   end
 
   it "6. Check that nLockTime <= UINT32_MAX, size in bytes >= 100, and sig opcount <= 2" do
-    check_tx(@tx, [:lock_time, [UINT32_MAX + 1, UINT32_MAX]]) {|tx| tx.lock_time = UINT32_MAX + 1 }
+    check_tx(@tx, [:lock_time, [Bitcoin::UINT32_MAX + 1, Bitcoin::UINT32_MAX]]) {|tx| tx.lock_time = Bitcoin::UINT32_MAX + 1 }
     # TODO: validate sig opcount
   end
 
