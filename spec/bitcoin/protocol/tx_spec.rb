@@ -266,6 +266,17 @@ describe 'Tx' do
     Tx.new(@payload[0]).legacy_sigops_count.should == 2
     Tx.new(@payload[1]).legacy_sigops_count.should == 2
     Tx.new(@payload[2]).legacy_sigops_count.should == 2
+    
+    # Test sig ops count in inputs too.
+    tx = Tx.new
+    txin = TxIn.new
+    txin.script_sig = Bitcoin::Script.from_string("10 OP_CHECKMULTISIGVERIFY OP_CHECKSIGVERIFY").to_binary
+    tx.add_in(txin)
+    txout = TxOut.new
+    txout.pk_script = Bitcoin::Script.from_string("5 OP_CHECKMULTISIG OP_CHECKSIG").to_binary
+    tx.add_out(txout)
+    tx.legacy_sigops_count.should == (20 + 1 + 20 + 1)
+    
   end
 
   it '#calculate_minimum_fee' do
