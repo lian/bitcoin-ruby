@@ -2,23 +2,6 @@
 
 module Bitcoin::Validation
 
-  # maximum size of a block (in bytes)
-  MAX_BLOCK_SIZE = 1_000_000
-
-  # maximum number of signature operations in a block
-  MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE / 50
-
-  # maximum integer value
-  INT_MAX = 0xffffffff
-
-  # number of confirmations required before coinbase tx can be spent
-  COINBASE_MATURITY = 100
-
-  # interval (in blocks) for difficulty retarget
-  RETARGET = 2016
-
-  # interval (in blocks) for mining reward reduction
-  REWARD_DROP = 210_000
 
   class ValidationError < StandardError
   end

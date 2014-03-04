@@ -409,7 +409,8 @@ module Bitcoin
   @network = :bitcoin
 
   def self.network
-    NETWORKS[@network]
+    # Store the copy of network options so we can modify them in tests without breaking the defaults
+    @network_options ||= NETWORKS[@network].dup
   end
 
   def self.network_name
@@ -433,13 +434,33 @@ module Bitcoin
   end
 
 
-  CENT =   1_000_000
-  COIN = 100_000_000
+  # maximum size of a block (in bytes)
   MAX_BLOCK_SIZE = 1_000_000
+  
+  # soft limit for new blocks
   MAX_BLOCK_SIZE_GEN = MAX_BLOCK_SIZE/2
-  MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE/50
+
+  # maximum number of signature operations in a block
+  MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE / 50
+
+  # maximum number of orphan transactions to be kept in memory
   MAX_ORPHAN_TRANSACTIONS = MAX_BLOCK_SIZE/100
 
+  # maximum integer value
+  INT_MAX = 0xffffffff
+
+  # number of confirmations required before coinbase tx can be spent
+  COINBASE_MATURITY = 100
+
+  # interval (in blocks) for difficulty retarget
+  RETARGET = 2016
+
+  # interval (in blocks) for mining reward reduction
+  REWARD_DROP = 210_000
+
+  CENT =   1_000_000
+  COIN = 100_000_000
+  
   MIN_FEE_MODE     = [ :block, :relay, :send ]
 
   NETWORKS = {
