@@ -229,6 +229,20 @@ module Bitcoin
       def size
         payload.bytesize
       end
+      
+      def legacy_sigops_count
+        # Note: input scripts normally never have any opcodes since 
+        # every input script can be statically reduced to a pushdata-only script.
+        # But technically some wiseguy may create non-standard transaction with some opcodes in the inputs.
+        count = 0
+        self.in.each do |txin|
+          count += txin.script_sig.sigops_count_accurate(false)
+        end
+        self.out.each do |txout|
+          count += txout.pk_script.sigops_count_accurate(false)
+        end
+        count
+      end
 
       DEFAULT_BLOCK_PRIORITY_SIZE = 27000
 

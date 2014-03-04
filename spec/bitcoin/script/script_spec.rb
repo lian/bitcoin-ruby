@@ -334,6 +334,73 @@ describe 'Bitcoin::Script' do
       }.should.raise
     end
   end
+  
+  
+  describe "signatures_count" do
+    
+    it "should be zero in data-only scripts" do
+      [false, true].each do |accurate|        
+        Script.from_string("").sigops_count_accurate(accurate).should == 0
+        Script.from_string("DEADBEEF").sigops_count_accurate(accurate).should == 0
+        Script.from_string("DEAD BEEF").sigops_count_accurate(accurate).should == 0
+        Script.from_string("DE AD BE EF").sigops_count_accurate(accurate).should == 0
+        Script.from_string("OP_NOP").sigops_count_accurate(accurate).should == 0
+        Script.from_string("0").sigops_count_accurate(accurate).should == 0
+        Script.from_string("0 1").sigops_count_accurate(accurate).should == 0
+        Script.from_string("0 1 2 3").sigops_count_accurate(accurate).should == 0
+      end
+    end
+
+    it "should count sigops" do
+      [false, true].each do |accurate|        
+        Script.from_string("OP_CHECKSIG").sigops_count_accurate(accurate).should == 1
+        Script.from_string("OP_CHECKSIGVERIFY").sigops_count_accurate(accurate).should == 1
+        Script.from_string("OP_CHECKSIG OP_CHECKSIGVERIFY").sigops_count_accurate(accurate).should == 2
+        Script.from_string("OP_CHECKSIG OP_CHECKSIG OP_CHECKSIG OP_CHECKSIG").sigops_count_accurate(accurate).should == 4
+        Script.from_string("1 OP_CHECKSIG 2 OP_CHECKSIG DEADBEEF OP_CHECKSIG 3 OP_CHECKSIG 4").sigops_count_accurate(accurate).should == 4
+      end
+    end
+    
+    it "should count multisig as 20 sigops in legact inaccurate mode" do
+      Script.from_string("OP_CHECKMULTISIG").sigops_count_accurate(false).should == 20
+      Script.from_string("OP_CHECKMULTISIGVERIFY").sigops_count_accurate(false).should == 20
+      Script.from_string("OP_CHECKMULTISIG OP_CHECKMULTISIGVERIFY").sigops_count_accurate(false).should == 40
+      Script.from_string("1 OP_CHECKMULTISIG").sigops_count_accurate(false).should == 20
+      Script.from_string("5 OP_CHECKMULTISIG").sigops_count_accurate(false).should == 20
+      Script.from_string("40 OP_CHECKMULTISIG").sigops_count_accurate(false).should == 20
+    end
+    
+    it "should count multisig accurately using number of pubkeys" do
+      Script.from_string("1 OP_CHECKMULTISIG").sigops_count_accurate(true).should == 1
+      Script.from_string("1 OP_CHECKMULTISIGVERIFY").sigops_count_accurate(true).should == 1
+      Script.from_string("2 OP_CHECKMULTISIG").sigops_count_accurate(true).should == 2
+      Script.from_string("2 OP_CHECKMULTISIGVERIFY").sigops_count_accurate(true).should == 2
+      Script.from_string("15 OP_CHECKMULTISIG").sigops_count_accurate(true).should == 15
+      Script.from_string("15 OP_CHECKMULTISIGVERIFY").sigops_count_accurate(true).should == 15
+      Script.from_string("16 OP_CHECKMULTISIG").sigops_count_accurate(true).should == 16
+      Script.from_string("16 OP_CHECKMULTISIGVERIFY").sigops_count_accurate(true).should == 16
+      Script.from_string("4 OP_CHECKMULTISIG 7 OP_CHECKMULTISIGVERIFY").sigops_count_accurate(true).should == 11
+    end
+    
+    it "should count multisig as 20 sigops in accurate mode when the pubkey count is missing" do
+      Script.from_string("OP_CHECKMULTISIG").sigops_count_accurate(true).should == 20
+      Script.from_string("OP_CHECKMULTISIGVERIFY").sigops_count_accurate(true).should == 20
+    end
+    
+    it "should count multisig as 20 sigops when pubkey count is not OP_{1,...,16}, but bignum as pushdata" do
+      Script.from_string("#{Script::OP_PUSHDATA1}:1:01 OP_CHECKMULTISIG").sigops_count_accurate(true).should == 20
+      Script.from_string("#{Script::OP_PUSHDATA1}:1:02 OP_CHECKMULTISIGVERIFY").sigops_count_accurate(true).should == 20
+    end
+
+    it "should count multisig as 20 sigops in accurate mode when the pubkey count is out of bounds" do
+      Script.from_string("0 OP_CHECKMULTISIG").sigops_count_accurate(true).should == 20
+      Script.from_string("0 OP_CHECKMULTISIGVERIFY").sigops_count_accurate(true).should == 20
+      Script.from_string("0 OP_CHECKMULTISIG 0 OP_CHECKMULTISIGVERIFY").sigops_count_accurate(true).should == 40
+      Script.from_string("DEADBEEF OP_CHECKMULTISIG").sigops_count_accurate(true).should == 20
+      Script.from_string("#{Script::OP_PUSHDATA1}:1:11 OP_CHECKMULTISIG").sigops_count_accurate(true).should == 20
+    end
+    
+  end
 
   it '#run' do
     script = SCRIPT[1] + SCRIPT[0]

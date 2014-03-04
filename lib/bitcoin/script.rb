@@ -604,14 +604,16 @@ class Bitcoin::Script
   # This matches CScript::GetSigOpCount(bool fAccurate)
   # Note: this does not cover P2SH script which is to be unserialized 
   #       and checked explicitly when validating blocks.
-  def get_signatures_count_accurate(is_accurate)
+  def sigops_count_accurate(is_accurate)
     count = 0
     last_opcode = nil
     @chunks.each do |chunk| # pushdate or opcode
       if chunk == OP_CHECKSIG || chunk == OP_CHECKSIGVERIFY
         count += 1
       elsif chunk == OP_CHECKMULTISIG || chunk == OP_CHECKMULTISIGVERIFY
-        if is_accurate && last_opcode.is_a?(Fixnum) && last_opcode >= OP_1 && last_opcode <= OP_16
+        # Accurate mode counts exact number of pubkeys required (not signatures, but pubkeys!). Only used in P2SH scripts.
+        # Inaccurate mode counts every multisig as 20 signatures.
+        if is_accurate && last_opcode && last_opcode.is_a?(Fixnum) && last_opcode >= OP_1 && last_opcode <= OP_16
           count += Script.decode_OP_N(last_opcode)
         else     
           count += 20
