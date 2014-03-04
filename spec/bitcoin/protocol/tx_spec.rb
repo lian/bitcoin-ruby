@@ -261,6 +261,12 @@ describe 'Tx' do
     prev_tx.hash.should == "52250a162c7d03d2e1fbc5ebd1801a88612463314b55102171c5b5d817d2d7b2"
     #File.open("rawtx-#{prev_tx.hash}.json",'wb'){|f| f.print prev_tx.to_json }
   end
+  
+  it "#legacy_sigops_count" do
+    Tx.new(@payload[0]).legacy_sigops_count.should == 2
+    Tx.new(@payload[1]).legacy_sigops_count.should == 2
+    Tx.new(@payload[2]).legacy_sigops_count.should == 2
+  end
 
   it '#calculate_minimum_fee' do
     tx = Tx.new( fixtures_file('rawtx-b5d4e8883533f99e5903ea2cf001a133a322fa6b1370b18a16c57c946a40823d.bin') )
