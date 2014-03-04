@@ -409,7 +409,6 @@ module Bitcoin
   def self.network
     # Store the copy of network options so we can modify them in tests without breaking the defaults
     @network_options ||= NETWORKS[@network].dup
-    NETWORKS[@network]
   end
 
   def self.network_name
