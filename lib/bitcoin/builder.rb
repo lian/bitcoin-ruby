@@ -18,10 +18,10 @@ module Bitcoin
 
     # build a Bitcoin::Protocol::Tx.
     # see TxBuilder for details.
-    def build_tx
+    def build_tx opts = {}
       c = TxBuilder.new
       yield c
-      c.tx
+      c.tx opts
     end
     alias :tx :build_tx
 
@@ -40,13 +40,12 @@ module Bitcoin
     #      t.input {|i| i.coinbase }
     #      t.output do |o|
     #        o.value 5000000000;
-    #        o.script do |s|
-    #          s.type :address
-    #          s.recipient Bitcoin::Key.generate.addr
-    #        end
+    #        o.to Bitcoin::Key.generate.addr
     #      end
     #    end
     #  end
+    #
+    # See Bitcoin::Builder::TxBuilder for details on building transactions.
     class BlockBuilder
 
       def initialize
@@ -69,10 +68,9 @@ module Bitcoin
       end
 
       # add transactions to the block (see TxBuilder).
-      def tx
-        c = TxBuilder.new
-        yield c
-        @block.tx << c.tx
+      def tx tx = nil
+        tx ||= ( c = TxBuilder.new; yield c; c.tx )
+        @block.tx << tx
       end
 
       # create the block according to values specified via DSL.
@@ -117,18 +115,20 @@ module Bitcoin
     # DSL to create Bitcoin::Protocol::Tx used by Builder#build_tx.
     #  tx = tx do |t|
     #    t.input do |i|
-    #      i.prev_out prev_tx  # previous transaction
-    #      i.prev_out_index 0  # index of previous output
-    #      i.signature_key key # Bitcoin::Key used to sign the input
+    #      i.prev_out prev_tx, 0
+    #      i.signature_key key
     #    end
     #    t.output do |o|
     #      o.value 12345 # 0.00012345 BTC
-    #      o.script {|s| s.type :address; s.recipient key.addr }
+    #      o.to key.addr
     #    end
     #  end
     #
-    # signs every input that has a signature key. if the signature key is
-    # not specified, the input will include the #sig_hash that needs to be signed.
+    # Signs every input that has a signature key and where the previous outputs
+    # pk_script is known. If unable to sign, the resulting txin will include
+    # the #sig_hash that needs to be signed.
+    #
+    # See TxInBuilder and TxOutBuilder for details on how to build in/outputs.
     class TxBuilder
 
       def initialize
@@ -165,9 +165,29 @@ module Bitcoin
       # sign each input that has a signature key specified. if there is
       # no key, store the sig_hash in the input, so it can easily be
       # signed later.
-      def tx
+      def tx opts = {}
+        if opts[:change_address] && !opts[:input_value]
+          raise "Must give 'input_value' when auto-generating change output!"
+        end
         @ins.each {|i| @tx.add_in(i.txin) }
         @outs.each {|o| @tx.add_out(o.txout) }
+
+        if opts[:change_address]
+          output_value = @tx.out.map(&:value).inject(:+)
+          change_value = opts[:input_value] - output_value
+          if opts[:leave_fee]
+            if change_value >= @tx.minimum_block_fee
+              change_value -= @tx.minimum_block_fee
+            else
+              change_value = 0
+            end
+          end
+          if change_value > 0
+            script = Script.to_address_script(opts[:change_address])
+            @tx.add_out(P::TxOut.new(change_value, script))
+          end
+        end
+
         @ins.each_with_index do |inc, i|
           if @tx.in[i].coinbase?
             script_sig = [inc.coinbase_data].pack("H*")
@@ -175,19 +195,27 @@ module Bitcoin
             @tx.in[i].script_sig = script_sig
             next
           end
-          prev_tx = inc.instance_variable_get(:@prev_out)
-          @sig_hash = @tx.signature_hash_for_input(i, prev_tx)
-          if inc.key && inc.key.priv
+
+          if prev_tx = inc.prev_tx
+            @prev_script = prev_tx.out[@tx.in[i].prev_out_index].pk_script
+          else
+            @prev_script = inc.instance_variable_get(:@prev_out_script)
+          end
+
+          @sig_hash = @tx.signature_hash_for_input(i, nil, @prev_script)  if @prev_script
+
+
+          if @sig_hash && inc.key && inc.key.priv
             sig = inc.key.sign(@sig_hash)
             script_sig = Script.to_signature_pubkey_script(sig, [inc.key.pub].pack("H*"))
             @tx.in[i].script_sig_length = script_sig.bytesize
             @tx.in[i].script_sig = script_sig
-            raise "Signature error"  unless @tx.verify_input_signature(i, prev_tx)
+            raise "Signature error"  unless @tx.verify_input_signature(i, @prev_script)
           else
             @tx.in[i].script_sig_length = 0
             @tx.in[i].script_sig = ""
             @tx.in[i].sig_hash = @sig_hash
-            @tx.in[i].sig_address = Script.new(prev_tx.out[@tx.in[i].prev_out_index].pk_script).get_address
+            @tx.in[i].sig_address = Script.new(@prev_script).get_address  if @prev_script
           end
         end
         data = @tx.in.map {|i| [i.sig_hash, i.sig_address] }
@@ -198,27 +226,57 @@ module Bitcoin
       end
     end
 
-    # create a Bitcoin::Protocol::TxIn used by TxBuilder#input.
+    # Create a Bitcoin::Protocol::TxIn used by TxBuilder#input.
     #
-    # inputs need a #prev_out tx and #prev_out_index of the output they spend.
+    # Inputs need the transaction hash and the index of the output they spend.
+    # You can pass either the transaction, or just its hash (in hex form).
+    # To sign the input, builder also needs the pk_script of the previous output.
+    # If you specify a tx hash instead of the whole tx, you need to specify the
+    # output script separately.
+    #
+    #  t.input do |i|
+    #    i.prev_out prev_tx  # previous transaction
+    #    i.prev_out_index 0  # index of previous output
+    #    i.signature_key key # Bitcoin::Key used to sign the input
+    #  end
+    #
+    #  t.input {|i| i.prev_out prev_tx, 0 }
     class TxInBuilder
-      attr_reader :key, :coinbase_data
+      attr_reader :prev_tx, :prev_script, :key, :coinbase_data
 
       def initialize
         @txin = P::TxIn.new
+        @prev_out_hash = "\x00" * 32
+        @prev_out_index = 0
       end
 
-      # previous transaction that contains the output we want to use.
-      def prev_out tx
-        @prev_out = tx
+      # Previous transaction that contains the output we want to use.
+      # You can either pass the transaction, or just the tx hash.
+      # If you pass only the hash, you need to pass the previous outputs
+      # +script+ separately if you want the txin to be signed.
+      def prev_out tx, idx = nil, script = nil
+        if tx.is_a?(Bitcoin::P::Tx)
+          @prev_tx = tx
+          @prev_out_hash = tx.binary_hash
+          @prev_out_script = tx.out[idx].pk_script  if idx
+        else
+          @prev_out_hash = tx.htb.reverse
+        end
+        @prev_out_script = script  if script
+        @prev_out_index = idx  if idx
       end
 
-      # index of the output in the #prev_out transaction.
+      # Index of the output in the #prev_out transaction.
       def prev_out_index i
         @prev_out_index = i
+        @prev_out_script = @prev_tx.out[i].pk_script  if @prev_tx
       end
 
-      # specify sequence. this is usually not needed.
+      def prev_out_script script
+        @prev_out_script = script
+      end
+
+      # Specify sequence. This is usually not needed.
       def sequence s
         @sequence = s
       end
@@ -229,23 +287,24 @@ module Bitcoin
         @key = key
       end
 
-      # specify that this is a coinbase input. optionally set +data+.
+      # Specify that this is a coinbase input. Optionally set +data+.
+      # If this is set, no other options need to be given.
       def coinbase data = nil
         @coinbase_data = data || OpenSSL::Random.random_bytes(32)
-        @prev_out = nil
+        @prev_out_hash = "\x00" * 32
         @prev_out_index = 4294967295
       end
 
-      # create the txin according to values specified via DSL
+      # Create the txin according to specified values
       def txin
-        @txin.prev_out = (@prev_out ? @prev_out.binary_hash : "\x00"*32)
+        @txin.prev_out = @prev_out_hash
         @txin.prev_out_index = @prev_out_index
         @txin.sequence = @sequence || "\xff\xff\xff\xff"
         @txin
       end
     end
 
-    # create a Bitcoin::Script used by TxOutBuilder#script.
+    # Create a Bitcoin::Script used by TxOutBuilder#script.
     class ScriptBuilder
       attr_reader :script
 
@@ -254,19 +313,28 @@ module Bitcoin
         @script = nil
       end
 
-      # script type (:pubkey, :address/hash160, :multisig).
+      # Script type (:pubkey, :address/hash160, :multisig).
+      # Defaults to :address.
       def type type
         @type = type.to_sym
       end
 
-      # recipient(s) of the script.
-      # depending on the #type, either an address, hash160 pubkey, etc.
+      # Recipient(s) of the script.
+      # Depending on the #type, this should be an address, a hash160 pubkey,
+      # or an array of multisig pubkeys.
       def recipient *data
         @script = Script.send("to_#{@type}_script", *data)
       end
     end
 
-    # create a Bitcoin::Protocol::TxOut used by TxBuilder#output.
+    # Create a Bitcoin::Protocol::TxOut used by TxBuilder#output.
+    #
+    #  t.output {|o| o.value 12345; o.to address }
+    #
+    #  t.output do |o|
+    #    o.value 12345
+    #    o.script {|s| s.recipient address }
+    #  end
     class TxOutBuilder
       attr_reader :txout
 
@@ -274,12 +342,17 @@ module Bitcoin
         @txout = P::TxOut.new
       end
 
-      # set output value (in base units / "satoshis")
+      # Set output value (in base units / "satoshis")
       def value value
         @txout.value = value
       end
 
-      # add a script to the output (see ScriptBuilder).
+      # Set recipient address and script type (defaults to :address).
+      def to recipient, type = :address
+        @txout.pk_script = Bitcoin::Script.send("to_#{type}_script", recipient)
+      end
+
+      # Add a script to the output (see ScriptBuilder).
       def script &block
         c = ScriptBuilder.new
         yield c

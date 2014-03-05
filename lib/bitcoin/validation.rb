@@ -1,25 +1,7 @@
 # encoding: ascii-8bit
 
 module Bitcoin::Validation
-
-  # maximum size of a block (in bytes)
-  MAX_BLOCK_SIZE = 1_000_000
-
-  # maximum number of signature operations in a block
-  MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE / 50
-
-  # maximum integer value
-  INT_MAX = 0xffffffff
-
-  # number of confirmations required before coinbase tx can be spent
-  COINBASE_MATURITY = 100
-
-  # interval (in blocks) for difficulty retarget
-  RETARGET = 2016
-
-  # interval (in blocks) for mining reward reduction
-  REWARD_DROP = 210_000
-
+    
   class ValidationError < StandardError
   end
 
@@ -102,7 +84,7 @@ module Bitcoin::Validation
 
     # check that coinbase value is valid; no more than reward + fees
     def coinbase_value
-      reward = ((50.0 / (2 ** (store.get_depth / REWARD_DROP.to_f).floor)) * 1e8).to_i
+      reward = ((50.0 / (2 ** (store.get_depth / Bitcoin::REWARD_DROP.to_f).floor)) * 1e8).to_i
       fees = 0
       block.tx[1..-1].map.with_index do |t, idx|
         val = tx_validators[idx]
@@ -174,16 +156,17 @@ module Bitcoin::Validation
     end
 
     def next_bits_required
-      index = (prev_block.depth + 1) / RETARGET
+      retarget = (Bitcoin.network[:retarget_interval] || Bitcoin::RETARGET_INTERVAL)
+      index = (prev_block.depth + 1) / retarget  
       max_target = Bitcoin.decode_compact_bits(Bitcoin.network[:proof_of_work_limit]).to_i(16)
       return Bitcoin.network[:proof_of_work_limit]  if index == 0
-      return prev_block.bits  if (prev_block.depth + 1) % RETARGET != 0
+      return prev_block.bits  if (prev_block.depth + 1) % retarget != 0
       last = store.db[:blk][hash: prev_block.hash.htb.blob]
       first = store.db[:blk][hash: last[:prev_hash].blob]
-      (RETARGET-2).times { first = store.db[:blk][hash: first[:prev_hash].blob] }
+      (retarget - 2).times { first = store.db[:blk][hash: first[:prev_hash].blob] }
 
       nActualTimespan = last[:time] - first[:time]
-      nTargetTimespan = RETARGET * 600
+      nTargetTimespan = retarget * 600
 
       nActualTimespan = [nActualTimespan, nTargetTimespan/4].max
       nActualTimespan = [nActualTimespan, nTargetTimespan*4].min
@@ -255,7 +238,7 @@ module Bitcoin::Validation
 
     # check that tx size doesn't exceed MAX_BLOCK_SIZE.
     def max_size
-      tx.to_payload.bytesize <= MAX_BLOCK_SIZE || [tx.to_payload.bytesize, MAX_BLOCK_SIZE]
+      tx.to_payload.bytesize <= Bitcoin::MAX_BLOCK_SIZE || [tx.to_payload.bytesize, Bitcoin::MAX_BLOCK_SIZE]
     end
 
     # check that total output value doesn't exceed MAX_MONEY.
@@ -272,7 +255,7 @@ module Bitcoin::Validation
 
     # check that lock_time doesn't exceed INT_MAX
     def lock_time
-      tx.lock_time <= INT_MAX || [tx.lock_time, INT_MAX]
+      tx.lock_time <= Bitcoin::UINT32_MAX || [tx.lock_time, Bitcoin::UINT32_MAX]
     end
 
     # check that min_size is at least 86 bytes

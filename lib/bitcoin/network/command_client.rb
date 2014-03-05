@@ -19,6 +19,8 @@ class Bitcoin::Network::CommandClient < EM::Connection
     instance_eval &block  if block
     @buffer = BufferedTokenizer.new("\x00")
     @connection_attempts = 0
+    @requests = {}
+    @i = 0
   end
 
   def log;
@@ -32,7 +34,7 @@ class Bitcoin::Network::CommandClient < EM::Connection
   # call +connected+ callback
   def post_init
     log.debug { "Connected" }
-    callback :connected
+    request(:connected) { callback(:connected) }
   end
 
   # call +disconnected+ callback and try to reconnect
@@ -47,21 +49,27 @@ class Bitcoin::Network::CommandClient < EM::Connection
   end
 
   # request command +cmd+ with +args+ from the server
-  def request cmd, *args
+  def request cmd, *args, &block
+    id = @i += 1
+    @requests[id] = block  if block
     log.debug { "request: #{cmd} #{args.inspect}" }
     register_monitor_callbacks  if cmd.to_sym == :monitor
-    send_data([cmd, args].to_json + "\x00")
+    send_data({id: id, method: cmd, params: args}.to_json + "\x00")
   end
 
   # receive response from server
   def receive_data data
     @connection_attempts = 0
     @buffer.extract(data).each do |packet|
-      cmd, *data = *JSON.load(packet)
-      log.debug { d = data.inspect
-        "response: #{cmd} #{d[0...50]}#{d.size > 50 ? '...' : ''}" }
-      callback(:response, cmd, *data)
-      callback(cmd.to_sym, *data)
+      response = JSON.parse(packet)
+      log.debug { d = response['result'].inspect
+        "response: #{response['method']} #{d[0...50]}#{d.size > 50 ? '...' : ''}" }
+      if cb = @requests[response['id']]
+        cb.call(response['result'])
+      else
+        callback(:response, response['method'], response['result'])
+        callback(response['method'].to_sym, response['result'])
+      end
     end
   end
 
@@ -87,7 +95,7 @@ class Bitcoin::Network::CommandClient < EM::Connection
   def register_monitor_callbacks
     on_monitor do |type, data|
       type, *params = type.split("_")
-      callback(type, *((data || []) + (params || [])))
+      callback(type, data)
     end
   end
 

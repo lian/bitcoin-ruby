@@ -161,7 +161,7 @@ Bitcoin::network = :testnet
         it "should store tx" do
           @store.store_tx(@tx, false).should != false
         end
-        
+
         it "should not store tx if already stored and return existing id" do
           id = @store.store_tx(@tx, false)
           @store.store_tx(@tx, false).should == id
@@ -271,6 +271,15 @@ Bitcoin::network = :testnet
       it "should get txouts for address" do
         @store.get_txouts_for_address(@key2.addr, true)
           .should == [@block.tx[1].out[0]]
+      end
+
+      it "should get unspent txouts for address" do
+        @store.get_unspent_txouts_for_address(@key2.addr, true)
+          .should == [@block.tx[1].out[0]]
+        @block2 = create_block @block.hash, true, [->(t) {
+           create_tx(t, @block.tx[1], 0, [[20, @key2]], @key2) }], @key
+        @store.get_unspent_txouts_for_address(@key2.addr, true)
+          .should == [@block2.tx[1].out[0]]
       end
 
       it "should get balance for address" do

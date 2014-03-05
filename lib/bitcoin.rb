@@ -311,8 +311,6 @@ module Bitcoin
     end
 
 
-    RETARGET_INTERVAL = 2016
-
     # block count when the next retarget will take place.
     def block_next_retarget(block_height)
       (block_height + (RETARGET_INTERVAL-block_height.divmod(RETARGET_INTERVAL).last)) - 1
@@ -409,7 +407,8 @@ module Bitcoin
   @network = :bitcoin
 
   def self.network
-    NETWORKS[@network]
+    # Store the copy of network options so we can modify them in tests without breaking the defaults
+    @network_options ||= NETWORKS[@network].dup
   end
 
   def self.network_name
@@ -420,8 +419,9 @@ module Bitcoin
     @network_project
   end
 
-  def self.network= name
+  def self.network=(name)
     raise "Network descriptor '#{name}' not found."  unless NETWORKS[name.to_sym]
+    @network_options = nil # clear cached parameters
     @network = name.to_sym
     @network_project = network[:project] rescue nil
     Bitcoin::Namecoin.load  if namecoin?
@@ -433,13 +433,39 @@ module Bitcoin
   end
 
 
-  CENT =   1_000_000
-  COIN = 100_000_000
+  # maximum size of a block (in bytes)
   MAX_BLOCK_SIZE = 1_000_000
+  
+  # soft limit for new blocks
   MAX_BLOCK_SIZE_GEN = MAX_BLOCK_SIZE/2
-  MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE/50
+
+  # maximum number of signature operations in a block
+  MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE / 50
+
+  # maximum number of orphan transactions to be kept in memory
   MAX_ORPHAN_TRANSACTIONS = MAX_BLOCK_SIZE/100
 
+  # Threshold for lock_time: below this value it is interpreted as block number, otherwise as UNIX timestamp.
+  LOCKTIME_THRESHOLD = 500000000 # Tue Nov  5 00:53:20 1985 UTC
+
+  # maximum integer value
+  UINT32_MAX = 0xffffffff
+  INT_MAX = 0xffffffff # deprecated name, left here for compatibility with existing users.
+
+  # number of confirmations required before coinbase tx can be spent
+  COINBASE_MATURITY = 100
+
+  # interval (in blocks) for difficulty retarget
+  RETARGET_INTERVAL = 2016
+  RETARGET = 2016 # deprecated constant
+  
+  
+  # interval (in blocks) for mining reward reduction
+  REWARD_DROP = 210_000
+
+  CENT =   1_000_000
+  COIN = 100_000_000
+  
   MIN_FEE_MODE     = [ :block, :relay, :send ]
 
   NETWORKS = {
@@ -495,7 +521,7 @@ module Bitcoin
       :privkey_version => "ef",
       :default_port => 18333,
       :max_money => 21_000_000 * COIN,
-      :dns_seeds => [ "testseed.bitcoin.interesthings.de" ],
+      :dns_seeds => [ ],
       :genesis_hash => "00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008",
       :proof_of_work_limit => 0x1d07fff8,
       :alert_pubkeys => ["04302390343f91cc401d56d68b123028bf52e5fca1939df127f63c6467cdf9c8e2c14b61104cf817d0b780da337893ecc4aaff1309e536162dabbdb45200ca2b0a"],

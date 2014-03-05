@@ -487,6 +487,11 @@ describe "Bitcoin::Script OPCODES" do
     }
     @script.op_checksig(verify_callback).should == [1]
 
+    @script.stack = [signature + hash_type, intger_pubkey=1]
+    verify_callback = proc{|pub,sig,hash_type|
+      pub.is_a?(String)
+    }
+    @script.op_checksig(verify_callback).should == [1]
 
     @script.stack = [signature + hash_type, pubkey]
     verify_callback = proc{|pub,sig,hash_type|
@@ -523,8 +528,8 @@ describe "Bitcoin::Script OPCODES" do
   def run_script(string, hash)
     script = Bitcoin::Script.from_string(string)
     script.run do |pk, sig, hash_type|
-      k = Bitcoin::Key.new nil, pk.unpack("H*")[0]
-      k.verify(hash, sig) rescue false
+      k = Bitcoin::Key.new(nil, pk.unpack("H*")[0]) rescue false
+      k && k.verify(hash, sig) rescue false
     end == true
   end
 
@@ -593,6 +598,12 @@ describe "Bitcoin::Script OPCODES" do
     script = "0 #{sig1} f0f0f0f0 #{sig3} 3 #{k1.pub} #{k2.pub} #{k3.pub} 3 OP_CHECKMULTISIG"
     run_script(script, "foobar").should == false
 
+    script = "0 #{sig1} f0f0f0f0 #{sig3} 3 #{k1.pub} #{k2.pub} #{k3.pub} 3 OP_CHECKMULTISIG OP_NOT"
+    run_script(script, "foobar").should == true
+
+    script = "1 1 1 1 1 OP_CHECKMULTISIG OP_NOT"
+    run_script(script, "foobar").should == true
+
     # mainnet tx output: 514c46f0b61714092f15c8dfcb576c9f79b3f959989b98de3944b19d98832b58
     script = "0 #{sig1} 1 0 #{k1.pub} OP_SWAP OP_1ADD OP_CHECKMULTISIG"
     run_script(script, "foobar").should == true
@@ -632,6 +643,12 @@ describe "Bitcoin::Script OPCODES" do
     address = "3CkxTG25waxsmd13FFgRChPuGYba3ar36B"
     script = Bitcoin::Script.new(Bitcoin::Script.to_address_script(address))
     script.type.should == :p2sh
+
+    inner_script = Bitcoin::Script.from_string("0 OP_NOT").raw.unpack("H*")[0]
+    script_hash = Bitcoin.hash160(inner_script)
+    script = Bitcoin::Script.from_string("#{inner_script} OP_HASH160 #{script_hash} OP_EQUAL")
+    script.is_p2sh?.should == true
+    run_script(script.to_string, "foobar").should == true
   end
 
   it "should skip OP_EVAL" do
@@ -697,6 +714,12 @@ describe "Bitcoin::Script OPCODES" do
       s = Bitcoin::Script.from_string("1 OP_IF #{Bitcoin::Script::OPCODES[opcode]} 1 OP_ELSE 1 OP_ENDIF"); s.run.should == false; s.invalid?.should == true
       s = Bitcoin::Script.from_string("1 OP_IF 1 OP_ELSE #{Bitcoin::Script::OPCODES[opcode]} 1 OP_ENDIF"); s.run.should == false; s.invalid?.should == true
     }
+  end
+
+  it "check before casting and mark bad cases invalid" do
+    s = Bitcoin::Script.from_string("OP_NOT") # tries to pop off an element from the empty stack here.
+    s.run.should == false
+    s.invalid?.should == true
   end
 
 end

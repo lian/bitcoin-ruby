@@ -55,6 +55,8 @@ module Bitcoin::Network
       :command => ["127.0.0.1", 9999],
       :storage => "utxo::sqlite://~/.bitcoin-ruby/<network>/blocks.db",
       :mode => :full,
+      :cache_head => true,
+      :index_nhash => false,
       :dns => true,
       :epoll_limit => 10000,
       :epoll_user => nil,
@@ -102,8 +104,8 @@ module Bitcoin::Network
     def set_store
       backend, config = @config[:storage].split('::')
       @store = Bitcoin::Storage.send(backend, {
-          db: config, mode: @config[:mode], cache_head: true,
-          skip_validation: @config[:skip_validation],
+          db: config, mode: @config[:mode], cache_head: @config[:cache_head],
+          skip_validation: @config[:skip_validation], index_nhash: @config[:index_nhash],
           log_level: @config[:log][:storage]}, ->(locator) {
           peer = @connections.select(&:connected?).sample
           peer.send_getblocks(locator)
@@ -251,6 +253,30 @@ module Bitcoin::Network
           self.stop
         end
 
+        subscribe(:block) do |blk, depth|
+          @log.debug { "Relaying block #{blk.hash}" }
+          @connections.each do |conn|
+            next  unless conn.connected?
+            conn.send_inv(:block, blk.hash)
+          end
+        end
+
+        @store.subscribe(:block) do |blk, depth, chain|
+          if chain == 0 && blk.hash == @store.get_head.hash
+            @last_block_time = Time.now
+            push_notification(:block, [blk, depth])
+            blk.tx.each {|tx| @unconfirmed.delete(tx.hash) }
+          end
+          getblocks  if chain == 2 && @store.in_sync?
+        end
+
+        @store.subscribe(:reorg) do |new_main, new_side|
+          @log.warn { "Reorg of #{new_side.size} blocks." }
+          new_main.each {|b| @log.debug { "new main: #{b}" } }
+          new_side.each {|b| @log.debug { "new side: #{b}" } }
+          push_notification(:reorg, [new_main, new_side])
+        end
+
       end
     end
 
@@ -378,14 +404,7 @@ module Bitcoin::Network
       while obj = @queue.shift
         begin
           if obj[0].to_sym == :block
-            if res = @store.send("new_#{obj[0]}", obj[1])
-              if res[1] == 0  && obj[1].hash == @store.get_head.hash
-                @last_block_time = Time.now
-                push_notification(:block, [obj[1], res[0]])
-                obj[1].tx.each {|tx| @unconfirmed.delete(tx.hash) }
-              end
-              getblocks  if res[1] == 2 && @store.in_sync?
-            end
+            @store.new_block(obj[1])
           else
             drop = @unconfirmed.size - @config[:max][:unconfirmed] + 1
             drop.times { @unconfirmed.shift }  if drop > 0
@@ -394,15 +413,15 @@ module Bitcoin::Network
               push_notification(:tx, [obj[1], 0])
 
               if @notifiers[:output]
-                obj[1].out.each do |out|
+                obj[1].out.each.with_index do |out, idx|
                   address = Bitcoin::Script.new(out.pk_script).get_address
-                  push_notification(:output, [obj[1].hash, address, out.value, 0])
+                  push_notification(:output, { nhash: obj[1].nhash, hash: obj[1].hash, idx: idx, address: address, value: out.value, confirmations: 0 })
                 end
               end
             end
           end
         rescue Bitcoin::Validation::ValidationError
-          @log.warn { "ValiationError storing #{obj[0]} #{obj[1].hash}: #{$!.message}" }
+          @log.warn { "ValidationError storing #{obj[0]} #{obj[1].hash}: #{$!.message}" }
           # File.open("./validation_error_#{obj[0]}_#{obj[1].hash}.bin", "w") {|f|
           #   f.write(obj[1].to_payload) }
           # EM.stop

@@ -27,7 +27,8 @@ describe 'Bitcoin::Protocol::Parser (version)' do
       :to          => "127.0.0.1:57802",
       :nonce       => 12576309328653329813,
       :user_agent  => "/bitcoin-qt:0.6.0/",
-      :last_block  => 46722
+      :last_block  => 46722,
+      :relay       => true
     }
 
     pkt = [
@@ -47,7 +48,8 @@ describe 'Bitcoin::Protocol::Parser (version)' do
       :to          => "127.0.0.1:1234",
       :nonce       => 8210299263586646091,
       :user_agent  => '',
-      :last_block  => 250
+      :last_block  => 250,
+      :relay       => true
     }
   end
 
@@ -72,7 +74,36 @@ describe 'Bitcoin::Protocol::Parser (version)' do
       :from       => "127.0.0.1:1234",
       :nonce      => 123,
       :user_agent => "/bitcoin-ruby:#{Bitcoin::VERSION}/",
-      :last_block => 188617
+      :last_block => 188617,
+      :relay      => true
+    }
+  end
+
+  # check that we support sending and receiving of the BIP0037 fRelay flag
+  it 'creates spv enabled version packets' do
+    version = Bitcoin::Protocol::Version.new({
+      :time       => 1337,
+      :from       => "127.0.0.1:8333",
+      :to         => "127.0.0.1:1234",
+      :nonce      => 123,
+      :last_block => 188617,
+      :relay      => false
+    })
+
+    parser = Bitcoin::Protocol::Parser.new( handler = Version_Handler.new )
+    parser.parse( version.to_pkt )
+
+    pkt = handler.pkt
+    pkt.fields.should == {
+      :version    => Bitcoin.network[:protocol_version],
+      :services   => Bitcoin::Protocol::Version::NODE_NETWORK,
+      :time       => 1337,
+      :to         => "127.0.0.1:8333",
+      :from       => "127.0.0.1:1234",
+      :nonce      => 123,
+      :user_agent => "/bitcoin-ruby:#{Bitcoin::VERSION}/",
+      :last_block => 188617,
+      :relay      => false
     }
   end
 

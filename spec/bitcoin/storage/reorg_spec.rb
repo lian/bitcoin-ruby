@@ -5,9 +5,7 @@ require_relative '../spec_helper'
 include Bitcoin::Builder
 
 Bitcoin.network = :testnet
-
-Bitcoin::Validation::Block::RETARGET = 10
-
+    
 [
  [:utxo, :sqlite, index_all_addrs: true],
  [:sequel, :sqlite], # [:sequel, :postgres],
@@ -28,10 +26,15 @@ Bitcoin::Validation::Block::RETARGET = 10
     @store = storage
     @store.reset
     def @store.in_sync?; true; end
+    
+    Bitcoin.network = :testnet
+    Bitcoin.network[:retarget_interval] = 10
     Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("ff"*32)
+    
     @key = Bitcoin::Key.generate
     @block0 = create_block "00"*32, false, [], @key
     Bitcoin.network[:genesis_hash] = @block0.hash
+    
     @store.store_block(@block0)
     @store.get_head.should == @block0
   end
@@ -99,6 +102,39 @@ Bitcoin::Validation::Block::RETARGET = 10
     @store.get_head.hash.should == block_b.hash
   end
 
+  it "should validate duplicate tx in a side chain" do
+    block1 = create_block @block0.hash, true, [], @key
+
+    block_2_0 = create_block block1.hash, false, [ ->(t) {
+        t.input {|i| i.prev_out block1.tx[0], 0; i.signature_key @key }
+        t.output {|o| o.value 50e8; o.script {|s| s.recipient @key.addr } }
+      }], @key
+
+    @store.store_block(block_2_0).should == [2, 0]
+
+    block_3_0 = create_block block_2_0.hash, false, [->(t) {
+        t.input {|i| i.prev_out block_2_0.tx[1], 0; i.signature_key @key }
+        t.output {|o| o.value 50e8; o.script {|s| s.recipient @key.addr } }
+       }], @key
+    @store.store_block(block_3_0).should == [3, 0]
+
+    block_2_1 = create_block block1.hash, false
+    block_2_1.tx << block_2_0.tx[1]
+    block_2_1.recalc_mrkl_root
+    block_2_1.recalc_block_hash
+    @store.store_block(block_2_1).should == [2, 1]
+
+    block_3_1 = create_block block_2_1.hash, false
+    block_3_1.tx << block_3_0.tx[1]
+    block_3_1.recalc_mrkl_root
+    block_3_1.recalc_block_hash
+
+    @store.store_block(block_3_1).should == [3, 1]
+
+    block_4 = create_block block_3_1.hash, false
+    @store.store_block(block_4).should == [4, 0]
+  end
+
   it "should reorg a single side block" do
     @store.get_head.should == @block0
 
@@ -163,7 +199,6 @@ Bitcoin::Validation::Block::RETARGET = 10
   end
 
   it "should handle existing blocks" do
-    Bitcoin.network = :testnet
     blocks = [@block0]
     3.times { blocks << create_block(blocks.last.hash, false) }
     blocks[1..-1].each.with_index {|b, idx| @store.store_block(b).should == [idx+1, 0] }
@@ -173,6 +208,7 @@ Bitcoin::Validation::Block::RETARGET = 10
 
   # see https://bitcointalk.org/index.php?topic=46370.0
   it "should pass reorg unit tests" do
+    # Disable difficulty checks. Hackish, should be replaced with some sane API.**
     class Bitcoin::Validation::Block; def difficulty; true; end; end
     Bitcoin.network = :bitcoin
     @store.import "./spec/bitcoin/fixtures/reorg/blk_0_to_4.dat"
@@ -193,6 +229,7 @@ Bitcoin::Validation::Block::RETARGET = 10
     balance("1KXFNhNtrRMfgbdiQeuJqnfD7dR4PhniyJ").should == 0
     balance("1JyMKvPHkrCQd8jQrqTR1rBsAd1VpRhTiE").should == 14000000000
     Bitcoin.network = :testnet
+    # Re-enable difficulty checks. Hackish, should be replaced with some sane API.
     class Bitcoin::Validation::Block
       def difficulty
         return true  if Bitcoin.network_name == :testnet3

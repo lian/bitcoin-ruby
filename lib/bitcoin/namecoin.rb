@@ -32,6 +32,7 @@ module Bitcoin::Namecoin
         def get_hash160
           return @chunks[2..-3][0].unpack("H*")[0]  if is_hash160?
           return @chunks[-3].unpack("H*")[0]        if is_namecoin?
+          return @chunks[-2].unpack("H*")[0]        if is_p2sh?
           return Bitcoin.hash160(get_pubkey)        if is_pubkey?
         end
 
@@ -262,12 +263,12 @@ module Bitcoin::Namecoin
         end
 
         def expires_in
-          Namecoin::EXPIRATION_DEPTH - (@store.get_depth - get_block.depth) rescue nil
+          Bitcoin::Namecoin::EXPIRATION_DEPTH - (@store.get_depth - get_block.depth) rescue nil
         end
 
-        def to_json(opts = {})
-          JSON.pretty_generate({ name: @name, value: @value, txid: get_tx.hash,
-                                 address: get_address, expires_in: expires_in }, opts)
+        def as_json(opts = {})
+          { name: @name, value: @value, txid: get_tx.hash,
+                                 address: get_address, expires_in: expires_in }
         end
 
       end

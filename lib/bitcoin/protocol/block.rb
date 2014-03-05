@@ -138,6 +138,10 @@ module Bitcoin
         h
       end
 
+      def size
+        payload.bytesize
+      end
+
       def hextarget
         Bitcoin.decode_compact_bits(@bits)
       end
@@ -224,8 +228,9 @@ module Bitcoin
 
       # get the (statistical) amount of work that was needed to generate this block.
       def block_work
-        target = Bitcoin.decode_compact_bits(@bits)
-        (2**256) / (target.to_i(16) + 1)
+        target = Bitcoin.decode_compact_bits(@bits).to_i(16)
+        return 0 if target <= 0
+        (2**256) / (target + 1)
       end
 
     end

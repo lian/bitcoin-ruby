@@ -38,7 +38,7 @@ from the +all+ category (ie. +bitcoin_wallet+ loads +all+ and +wallet+).
 == Default Values
 
  all:
-   network: bitcoin                       # network identifier ("bitcoin" or "testnet")
+   network: bitcoin                       # network identifier ("bitcoin", "testnet3", "namecoin")
    command: "127.0.0.1:9999"              # IP:Port to listen for incomming command connections
    listen: "0.0.0.0:8332"                 # IP:Port to listen for incoming peer connections
    connect: ""                            # List of IP:Port,IP:Port of nodes to connect to

@@ -43,7 +43,7 @@ module Bitcoin::Storage
       ORPHAN = 2
 
       # possible script types
-      SCRIPT_TYPES = [:unknown, :pubkey, :hash160, :multisig, :p2sh]
+      SCRIPT_TYPES = [:unknown, :pubkey, :hash160, :multisig, :p2sh, :op_return]
       if Bitcoin.namecoin?
         [:name_new, :name_firstupdate, :name_update].each {|n| SCRIPT_TYPES << n }
       end
@@ -76,6 +76,7 @@ module Bitcoin::Storage
         @getblocks_callback = getblocks_callback
         @checkpoints = Bitcoin.network[:checkpoints] || {}
         @watched_addrs = []
+        @notifiers = {}
       end
 
       def init_sequel_store
@@ -101,7 +102,7 @@ module Bitcoin::Storage
         migrations_path = File.join(File.dirname(__FILE__), "#{backend_name}/migrations")
         Sequel.extension :migration
         unless Sequel::Migrator.is_current?(@db, migrations_path)
-          log = @log; @db.instance_eval { @log = log }
+          store = self; log = @log; @db.instance_eval { @log = log; @store = store }
           Sequel::Migrator.run(@db, migrations_path)
           unless (v = @db[:schema_info].first) && v[:magic] && v[:backend]
             @db[:schema_info].update(
@@ -181,7 +182,7 @@ module Bitcoin::Storage
           else
             depth = prev_block ? prev_block.depth + 1 : 0
             log.debug { "=> orphan (#{depth})" }
-            return [0, 2]  unless in_sync?
+            return [0, 2]  unless (in_sync? || Bitcoin.network_name =~ /testnet/)
             return persist_block(blk, ORPHAN, depth)
           end
         end
@@ -202,7 +203,9 @@ module Bitcoin::Storage
               end
               validator.validate(rules: [:context], raise_errors: true)
             end
-            return persist_block(blk, MAIN, depth, prev_block.work)
+            res = persist_block(blk, MAIN, depth, prev_block.work)
+            push_notification(:block, [blk, *res])
+            return res
           else
             log.debug { "=> side (#{depth})" }
             return persist_block(blk, SIDE, depth, prev_block.work)
@@ -211,7 +214,6 @@ module Bitcoin::Storage
           head = get_head
           if prev_block.work + blk.block_work  <= head.work
             log.debug { "=> side (#{depth})" }
-            validator.validate(rules: [:context], raise_errors: true)  unless @config[:skip_validation]
             return persist_block(blk, SIDE, depth, prev_block.work)
           else
             log.debug { "=> reorg" }
@@ -227,6 +229,9 @@ module Bitcoin::Storage
             end
             log.debug { "new main: #{new_main.inspect}" }
             log.debug { "new side: #{new_side.inspect}" }
+
+            push_notification(:reorg, [ new_main, new_side ])
+
             reorg(new_side.reverse, new_main.reverse)
             return persist_block(blk, MAIN, depth, prev_block.work)
           end
@@ -357,6 +362,16 @@ module Bitcoin::Storage
         get_txouts_for_hash160(hash160, unconfirmed)
       end
 
+      # collect all unspent txouts containing a
+      # standard tx to given +address+
+      def get_unspent_txouts_for_address(address, unconfirmed = false)
+        txouts = self.get_txouts_for_address(address, unconfirmed)
+        txouts.select! do |t|
+          not t.get_next_in
+        end
+        txouts
+      end
+
       # get balance for given +hash160+
       def get_balance(hash160, unconfirmed = false)
         txouts = get_txouts_for_hash160(hash160, unconfirmed)
@@ -376,13 +391,12 @@ module Bitcoin::Storage
       end
 
       # parse script and collect address/txout mappings to index
-      def parse_script txout, i
+      def parse_script txout, i, tx_hash = "", tx_idx
         addrs, names = [], []
-        # skip huge script in testnet3 block 54507 (998000 bytes)
-        return [SCRIPT_TYPES.index(:unknown), [], []]  if txout.pk_script.bytesize > 10_000
+
         script = Bitcoin::Script.new(txout.pk_script) rescue nil
         if script
-          if script.is_hash160? || script.is_pubkey?
+          if script.is_hash160? || script.is_pubkey? || script.is_p2sh?
             addrs << [i, script.get_hash160]
           elsif script.is_multisig?
             script.get_multisig_pubkeys.map do |pubkey|
@@ -392,11 +406,12 @@ module Bitcoin::Storage
             addrs << [i, script.get_hash160]
             names << [i, script]
           else
-            log.debug { "Unknown script type"}# #{tx.hash}:#{txout_idx}" }
+            log.info { "Unknown script type in #{tx_hash}:#{tx_idx}" }
+            log.debug { script.to_string }
           end
           script_type = SCRIPT_TYPES.index(script.type)
         else
-          log.error { "Error parsing script"}# #{tx.hash}:#{txout_idx}" }
+          log.error { "Error parsing script #{tx_hash}:#{tx_idx}" }
           script_type = SCRIPT_TYPES.index(:unknown)
         end
         [script_type, addrs, names]
@@ -419,7 +434,12 @@ module Bitcoin::Storage
           File.open(filename) do |file|
             until file.eof?
               magic = file.read(4)
-              raise "invalid network magic"  unless Bitcoin.network[:magic_head] == magic
+
+              # bitcoind pads the ends of the block files so that it doesn't
+              # have to reallocate space on every new block.
+              break if magic == "\0\0\0\0"
+              raise "invalid network magic" unless Bitcoin.network[:magic_head] == magic
+
               size = file.read(4).unpack("L")[0]
               blk = Bitcoin::P::Block.new(file.read(size))
               depth, chain = new_block(blk)
@@ -438,6 +458,15 @@ module Bitcoin::Storage
 
       def in_sync?
         (get_head && (Time.now - get_head.time).to_i < 3600) ? true : false
+      end
+
+      def push_notification channel, message
+        @notifiers[channel.to_sym].push(message)  if @notifiers[channel.to_sym]
+      end
+
+      def subscribe channel
+        @notifiers[channel.to_sym] ||= EM::Channel.new
+        @notifiers[channel.to_sym].subscribe {|*data| yield(*data) }
       end
 
     end

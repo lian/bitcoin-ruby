@@ -67,7 +67,7 @@ Bitcoin.network = :spec
   it "4. Block hash must satisfy claimed nBits proof of work" do
     @block.bits = Bitcoin.encode_compact_bits("0000#{"ff" * 30}")
     @block.recalc_block_hash
-    target = Bitcoin.decode_compact_bits(block.bits).to_i(16)
+    target = Bitcoin.decode_compact_bits(@block.bits).to_i(16)
     check_block(@block, [:bits, [@block.hash.to_i(16), target]])
   end
 
@@ -108,20 +108,27 @@ Bitcoin.network = :spec
     prev_block = @block1
     12.times do |i|
       prev_block = create_block(prev_block.hash, false, [])
-      prev_block.time = Time.now.to_i - (12-i)
+      prev_block.time = i
       prev_block.recalc_block_hash
       @store.store_block(prev_block).should == [i+2, 0]
     end
+
     block = create_block(prev_block.hash, false, [], @key)
 
-    fake_time = Time.now.to_i - 100
+    fake_time = @store.get_block_by_depth(8).time - 1
     times = @store.db[:blk].where("depth > 2").map{|b|b[:time]}.sort
     m, r = times.size.divmod(2)
     min_time = (r == 0 ? times[m-1, 2].inject(:+) / 2.0 : times[m])
+
+    # reject before median time
     check_block(block, [:min_timestamp, [fake_time, min_time]]) {|b| b.time = fake_time }
 
+    # reject at exactly median time
     fake_time = @store.get_block_by_depth(8).time
     check_block(block, [:min_timestamp, [fake_time, fake_time]]) {|b| b.time = fake_time }
+
+    # accept after median time
+    block.time = @store.get_block_by_depth(8).time + 1; block.recalc_block_hash
     @store.store_block(block).should == [14, 0]
   end
 
@@ -145,13 +152,13 @@ Bitcoin.network = :spec
     block3 = create_block(block2.hash, false, [], @key, 60e8)
     -> { @store.store_block(block3) }.should.raise(ValidationError)
 
-    Bitcoin::Validation::REWARD_DROP = 2
+    Bitcoin::REWARD_DROP = 2
     block4 = create_block(block2.hash, false, [], @key, 50e8)
     -> { @store.store_block(block4) }.should.raise(ValidationError)
 
     block5 = create_block(block2.hash, false, [], @key, 25e8)
     @store.store_block(block5).should == [3, 0]
-    Bitcoin::Validation::REWARD_DROP = 210_000
+    Bitcoin::REWARD_DROP = 210_000
   end
 
 end
@@ -207,10 +214,10 @@ describe "transaction rules (#{options[0]} - #{options[1]})" do
   end
 
   it "3. Size in bytes < MAX_BLOCK_SIZE" do
-    max = Bitcoin::Validation::MAX_BLOCK_SIZE; Bitcoin::Validation::MAX_BLOCK_SIZE = 1000
+    max = Bitcoin::MAX_BLOCK_SIZE; Bitcoin::MAX_BLOCK_SIZE = 1000
     check_tx(@tx, [:max_size, [@tx.payload.bytesize+978, 1000]]) {|tx|
       tx.out[0].pk_script = "\x00" * 1001 }
-    Bitcoin::Validation::MAX_BLOCK_SIZE = max
+    Bitcoin::MAX_BLOCK_SIZE = max
   end
 
   it "4. Each output value, as well as the total, must be in legal money range" do
@@ -225,8 +232,8 @@ describe "transaction rules (#{options[0]} - #{options[1]})" do
     end
   end
 
-  it "6. Check that nLockTime <= INT_MAX, size in bytes >= 100, and sig opcount <= 2" do
-    check_tx(@tx, [:lock_time, [INT_MAX + 1, INT_MAX]]) {|tx| tx.lock_time = INT_MAX + 1 }
+  it "6. Check that nLockTime <= UINT32_MAX, size in bytes >= 100, and sig opcount <= 2" do
+    check_tx(@tx, [:lock_time, [Bitcoin::UINT32_MAX + 1, Bitcoin::UINT32_MAX]]) {|tx| tx.lock_time = Bitcoin::UINT32_MAX + 1 }
     # TODO: validate sig opcount
   end
 
@@ -242,7 +249,7 @@ describe "transaction rules (#{options[0]} - #{options[1]})" do
   end
 
   it "13. Verify crypto signatures for each input; reject if any are bad" do
-    check_tx(@tx, [:signatures, [0]]) {|tx| @tx.in[0].script_sig[-1] = "\x00" }
+    check_tx(@tx, [:signatures, [0]]) {|tx| @tx.in[0].script_sig = "bad sig" }
   end
 
   it "14. For each input, if the referenced output has already been spent by a transaction in the main branch, reject this transaction" do

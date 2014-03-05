@@ -109,6 +109,13 @@ module Bitcoin
         # https://github.com/bitcoin/bitcoin/blob/c2e8c8acd8ae0c94c70b59f55169841ad195bb99/src/script.cpp#L1058
         # https://en.bitcoin.it/wiki/OP_CHECKSIG
 
+        # Note: BitcoinQT checks if input_idx >= @in.size and returns 1 with an error message.
+        # But this check is never actually useful because BitcoinQT would crash 
+        # right before VerifyScript if input index is out of bounds (inside CScriptCheck::operator()()).
+        # That's why we don't need to do such a check here.
+        #
+        # However, if you look at the case SIGHASH_TYPE[:single] below, we must 
+        # return 1 because it's possible to have more inputs than outputs and BitcoinQT returns 1 as well.
         return "\x01".ljust(32, "\x00") if input_idx >= @in.size # ERROR: SignatureHash() : input_idx=%d out of range
 
         hash_type ||= SIGHASH_TYPE[:all]
@@ -153,15 +160,19 @@ module Bitcoin
       # verify input signature +in_idx+ against the corresponding
       # output in +outpoint_tx+
       def verify_input_signature(in_idx, outpoint_tx, block_timestamp=Time.now.to_i)
+        outpoint_available = outpoint_tx.respond_to?(:out)
         outpoint_idx  = @in[in_idx].prev_out_index
         script_sig    = @in[in_idx].script_sig
-        script_pubkey = outpoint_tx.out[outpoint_idx].pk_script
+        script_pubkey = outpoint_available ? outpoint_tx.out[outpoint_idx].pk_script : outpoint_tx
         script        = script_sig + script_pubkey
 
         Bitcoin::Script.new(script).run(block_timestamp) do |pubkey,sig,hash_type,drop_sigs,script|
           # this IS the checksig callback, must return true/false
-          hash = signature_hash_for_input(in_idx, outpoint_tx, nil, hash_type, drop_sigs, script)
-          #hash = signature_hash_for_input(in_idx, nil, script_pubkey, hash_type, drop_sigs, script)
+          if outpoint_available
+            hash = signature_hash_for_input(in_idx, outpoint_tx, nil, hash_type, drop_sigs, script)
+          else
+            hash = signature_hash_for_input(in_idx, nil, script_pubkey, hash_type, drop_sigs, script)
+          end
           Bitcoin.verify_signature( hash, sig, pubkey.unpack("H*")[0] )
         end
       end
@@ -170,7 +181,7 @@ module Bitcoin
       def to_hash(options = {})
         @hash ||= hash_from_payload(to_payload)
         h = {
-          'hash' => @hash, 'ver' => @ver,
+          'hash' => @hash, 'ver' => @ver, # 'nid' => normalized_hash,
           'vin_sz' => @in.size, 'vout_sz' => @out.size,
           'lock_time' => @lock_time, 'size' => (@payload ||= to_payload).bytesize,
           'in'  =>  @in.map{|i| i.to_hash(options) },
@@ -219,6 +230,24 @@ module Bitcoin
         @validator ||= Bitcoin::Validation::Tx.new(self, store, block)
       end
 
+      def size
+        payload.bytesize
+      end
+      
+      def legacy_sigops_count
+        # Note: input scripts normally never have any opcodes since every input script 
+        # can be statically reduced to a pushdata-only script.
+        # However, anyone is allowed to create a non-standard transaction with any opcodes in the inputs.
+        count = 0
+        self.in.each do |txin|
+          count += Bitcoin::Script.new(txin.script_sig).sigops_count_accurate(false)
+        end
+        self.out.each do |txout|
+          count += Bitcoin::Script.new(txout.pk_script).sigops_count_accurate(false)
+        end
+        count
+      end
+
       DEFAULT_BLOCK_PRIORITY_SIZE = 27000
 
       def minimum_relay_fee; calculate_minimum_fee(allow_free=true, :relay); end
@@ -253,6 +282,11 @@ module Bitcoin
       def is_coinbase?
         inputs.size == 1 and inputs.first.coinbase?
       end
+
+      def normalized_hash
+        signature_hash_for_input(-1, nil, nil, SIGHASH_TYPE[:all]).unpack("H*")[0]
+      end
+      alias :nhash :normalized_hash
 
     end
   end

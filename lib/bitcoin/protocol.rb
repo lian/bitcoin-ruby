@@ -83,6 +83,15 @@ module Bitcoin
       [(0...size).map{ i, payload = unpack_var_int(payload); i }, payload]
     end
 
+    def self.unpack_boolean(payload)
+      bdata, payload = payload.unpack("Ca*")
+      [ (bdata == 0 ? false : true), payload ]
+    end
+
+    def self.pack_boolean(b)
+      (b == true) ? [0xFF].pack("C") : [0x00].pack("C")
+    end
+
     BINARY = Encoding.find('ASCII-8BIT')
 
     def self.pkt(command, payload)

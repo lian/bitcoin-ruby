@@ -30,7 +30,7 @@ include Bitcoin::Builder
 # create block for given +prev+ block
 # if +store+ is true, save it to @store
 # accepts an array of +tx+ callbacks
-def create_block prev, store = true, tx = [], key = Bitcoin::Key.new, coinbase_value = 50e8, opts = {}
+def create_block prev, store = true, tx = [], key = Bitcoin::Key.generate, coinbase_value = 50e8, opts = {}
   opts[:bits] ||= Bitcoin.network[:proof_of_work_limit]
   block = build_block(Bitcoin.decode_compact_bits(opts[:bits])) do |b|
     b.time opts[:time]  if opts[:time]
@@ -47,8 +47,8 @@ end
 
 # create transaction given builder +tx+
 # +outputs+ is an array of [value, key] pairs
-def create_tx(tx, prev_tx, prev_out_index, outputs)
-  tx.input {|i| i.prev_out prev_tx; i.prev_out_index prev_out_index; i.signature_key @key }
+def create_tx(tx, prev_tx, prev_out_index, outputs, key = @key)
+  tx.input {|i| i.prev_out prev_tx; i.prev_out_index prev_out_index; i.signature_key key }
   outputs.each do |value, key|
     tx.output {|o| o.value value; o.script {|s| s.recipient key.addr } }
   end
@@ -90,7 +90,9 @@ Bitcoin::NETWORKS[:spec] = {
   :proof_of_work_limit => 553713663,
   :alert_pubkeys => [],
   :known_nodes => [],
-  :checkpoints => {}
+  :checkpoints => {},
+  :min_tx_fee => 10_000,
+  :min_relay_tx_fee => 10_000,
 }
 
 begin

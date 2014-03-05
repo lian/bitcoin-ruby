@@ -12,7 +12,16 @@ module Bitcoin::Storage::Backends
     # sequel database connection
     attr_accessor :db
 
-    DEFAULT_CONFIG = { mode: :full, cache_head: false }
+    DEFAULT_CONFIG = {
+      # TODO
+      mode: :full,
+
+      # cache head block. only the instance that is updating the head should do this.
+      cache_head: false,
+
+      # store an index of tx.nhash values
+      index_nhash: false
+    }
 
     # create sequel store with given +config+
     def initialize config, *args
@@ -60,6 +69,7 @@ module Bitcoin::Storage::Backends
             existing = @db[:tx][hash: tx.hash.htb.blob]
             existing ? blk_tx[idx] = existing[:id] : new_tx << [tx, idx]
           end
+
           new_tx_ids = @db[:tx].insert_multiple(new_tx.map {|tx, _| tx_data(tx) })
           new_tx_ids.each.with_index {|tx_id, idx| blk_tx[new_tx[idx][1]] = tx_id }
 
@@ -77,7 +87,7 @@ module Bitcoin::Storage::Backends
           txout_ids = @db[:txout].insert_multiple(new_tx.map.with_index {|tx, tx_idx|
             tx, _ = *tx
             tx.out.map.with_index {|txout, txout_idx|
-              script_type, a, n = *parse_script(txout, txout_i)
+              script_type, a, n = *parse_script(txout, txout_i, tx.hash, txout_idx)
               addrs += a; names += n; txout_i += 1
               txout_data(new_tx_ids[tx_idx], txout, txout_idx, script_type) } }.flatten)
 
@@ -101,35 +111,13 @@ module Bitcoin::Storage::Backends
     def reorg new_side, new_main
       @db.transaction do
         @db[:blk].where(hash: new_side.map {|h| h.htb.blob }).update(chain: SIDE)
-        new_main.each {|b| get_block(b).validator(self).validate(raise_errors: true) }  unless @config[:skip_validation]
-        @db[:blk].where(hash: new_main.map {|h| h.htb.blob }).update(chain: MAIN)
-      end
-    end
-
-    # parse script and collect address/txout mappings to index
-    def parse_script txout, i
-      addrs, names = [], []
-
-      script = Bitcoin::Script.new(txout.pk_script) rescue nil
-      if script
-        if script.is_hash160? || script.is_pubkey?
-          addrs << [i, script.get_hash160]
-        elsif script.is_multisig?
-          script.get_multisig_pubkeys.map do |pubkey|
-            addrs << [i, Bitcoin.hash160(pubkey.unpack("H*")[0])]
+        new_main.each do |block_hash|
+          unless @config[:skip_validation]
+            get_block(block_hash).validator(self).validate(raise_errors: true)
           end
-        elsif Bitcoin.namecoin? && script.is_namecoin?
-          addrs << [i, script.get_hash160]
-          names << [i, script]
-        else
-          log.warn { "Unknown script type"}# #{tx.hash}:#{txout_idx}" }
+          @db[:blk].where(hash: block_hash.htb.blob).update(chain: MAIN)
         end
-        script_type = SCRIPT_TYPES.index(script.type)
-      else
-        log.error { "Error parsing script"}# #{tx.hash}:#{txout_idx}" }
-        script_type = SCRIPT_TYPES.index(:unknown)
       end
-      [script_type, addrs, names]
     end
 
     # bulk-store addresses and txout mappings
@@ -155,10 +143,13 @@ module Bitcoin::Storage::Backends
 
     # prepare transaction data for storage
     def tx_data tx
-      { hash: tx.hash.htb.blob,
+      data = {
+        hash: tx.hash.htb.blob,
         version: tx.ver, lock_time: tx.lock_time,
         coinbase: tx.in.size == 1 && tx.in[0].coinbase?,
         tx_size: tx.payload.bytesize }
+      data[:nhash] = tx.nhash.htb.blob  if @config[:index_nhash]
+      data
     end
 
     # store transaction +tx+
@@ -170,7 +161,7 @@ module Bitcoin::Storage::Backends
         return transaction[:id]  if transaction
         tx_id = @db[:tx].insert(tx_data(tx))
         tx.in.each_with_index {|i, idx| store_txin(tx_id, i, idx)}
-        tx.out.each_with_index {|o, idx| store_txout(tx_id, o, idx)}
+        tx.out.each_with_index {|o, idx| store_txout(tx_id, o, idx, tx.hash)}
         tx_id
       end
     end
@@ -197,8 +188,8 @@ module Bitcoin::Storage::Backends
     end
 
     # store output +txout+
-    def store_txout(tx_id, txout, idx)
-      script_type, addrs, names = *parse_script(txout, idx)
+    def store_txout(tx_id, txout, idx, tx_hash = "")
+      script_type, addrs, names = *parse_script(txout, idx, tx_hash, idx)
       txout_id = @db[:txout].insert(txout_data(tx_id, txout, idx, script_type))
       persist_addrs addrs.map {|i, h| [txout_id, h] }
       names.each {|i, script| store_name(script, txout_id) }
@@ -345,7 +336,7 @@ module Bitcoin::Storage::Backends
     def wrap_block(block)
       return nil  unless block
 
-      data = {:id => block[:id], :depth => block[:depth], :chain => block[:chain], :work => block[:work].to_i, :hash => block[:hash].hth}
+      data = {:id => block[:id], :depth => block[:depth], :chain => block[:chain], :work => block[:work].to_i, :hash => block[:hash].hth, :size => block[:blk_size]}
       blk = Bitcoin::Storage::Models::Block.new(self, data)
 
       blk.ver = block[:version]
@@ -357,27 +348,32 @@ module Bitcoin::Storage::Backends
 
       blk.aux_pow = Bitcoin::P::AuxPow.new(block[:aux_pow])  if block[:aux_pow]
 
-      db[:blk_tx].filter(blk_id: block[:id]).join(:tx, id: :tx_id)
-        .order(:idx).each {|tx| blk.tx << wrap_tx(tx, block[:id]) }
+      blk_tx = db[:blk_tx].filter(blk_id: block[:id]).join(:tx, id: :tx_id).order(:idx)
+
+      # fetch inputs and outputs for all transactions in the block to avoid additional queries for each transaction
+      inputs = db[:txin].filter(:tx_id => blk_tx.map{ |tx| tx[:id] }).order(:tx_idx).map.group_by{ |txin| txin[:tx_id] }
+      outputs = db[:txout].filter(:tx_id => blk_tx.map{ |tx| tx[:id] }).order(:tx_idx).map.group_by{ |txout| txout[:tx_id] }
+
+      blk.tx = blk_tx.map { |tx| wrap_tx(tx, block[:id], inputs: inputs[tx[:id]], outputs: outputs[tx[:id]]) }
 
       blk.recalc_block_hash
       blk
     end
 
     # wrap given +transaction+ into Models::Transaction
-    def wrap_tx(transaction, block_id = nil)
+    def wrap_tx(transaction, block_id = nil, prefetched = {})
       return nil  unless transaction
 
       block_id ||= @db[:blk_tx].join(:blk, id: :blk_id)
         .where(tx_id: transaction[:id], chain: 0).first[:blk_id] rescue nil
 
-      data = {id: transaction[:id], blk_id: block_id}
+      data = {id: transaction[:id], blk_id: block_id, size: transaction[:tx_size], idx: transaction[:idx]}
       tx = Bitcoin::Storage::Models::Tx.new(self, data)
 
-      inputs = db[:txin].filter(:tx_id => transaction[:id]).order(:tx_idx)
+      inputs = prefetched[:inputs] || db[:txin].filter(:tx_id => transaction[:id]).order(:tx_idx)
       inputs.each { |i| tx.add_in(wrap_txin(i)) }
 
-      outputs = db[:txout].filter(:tx_id => transaction[:id]).order(:tx_idx)
+      outputs = prefetched[:outputs] || db[:txout].filter(:tx_id => transaction[:id]).order(:tx_idx)
       outputs.each { |o| tx.add_out(wrap_txout(o)) }
       tx.ver = transaction[:version]
       tx.lock_time = transaction[:lock_time]
@@ -429,6 +425,22 @@ module Bitcoin::Storage::Backends
         prev_blk = blk
       end
       log.info { "Last #{count} blocks are consistent." }
+    end
+
+    # get total received of +address+ address
+    def get_received(address)
+      return 0 unless Bitcoin.valid_address?(address)
+
+      txouts = get_txouts_for_address(address)
+      return 0 unless txouts.any?
+
+      txouts.inject(0){ |m, out| m + out.value }
+
+      # total = 0
+      # txouts.each do |txout|
+      #   tx = txout.get_tx
+      #   total += txout.value
+      # end
     end
 
   end

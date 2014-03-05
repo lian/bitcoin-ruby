@@ -102,7 +102,8 @@ module Bitcoin::Storage::Backends
 
     def wrap_block(block)
       return nil  unless block
-      data = {:id => @blk.index(block), :depth => @blk.index(block), :work => @blk.index(block), :chain => 0}
+      data = { id: @blk.index(block), depth: @blk.index(block),
+        work: @blk.index(block), chain: MAIN, size: block.size }
       blk = Bitcoin::Storage::Models::Block.new(self, data)
       [:ver, :prev_block, :mrkl_root, :time, :bits, :nonce].each do |attr|
         blk.send("#{attr}=", block.send(attr))
@@ -117,7 +118,8 @@ module Bitcoin::Storage::Backends
     def wrap_tx(transaction)
       return nil  unless transaction
       blk = @blk.find{|b| b.tx.include?(transaction)}
-      data = {:id => transaction.hash, :blk_id => @blk.index(blk)}
+      data = { id: transaction.hash, blk_id: @blk.index(blk),
+        size: transaction.size }
       tx = Bitcoin::Storage::Models::Tx.new(self, data)
       tx.ver = transaction.ver
       tx.lock_time = transaction.lock_time
@@ -130,7 +132,7 @@ module Bitcoin::Storage::Backends
     def wrap_txin(input)
       return nil  unless input
       tx = @tx.values.find{|t| t.in.include?(input)}
-      data = {:tx_id => tx.hash, :tx_idx => tx.in.index(input)}
+      data = { tx_id: tx.hash, tx_idx: tx.in.index(input)}
       txin = Bitcoin::Storage::Models::TxIn.new(self, data)
       [:prev_out, :prev_out_index, :script_sig_length, :script_sig, :sequence].each do |attr|
         txin.send("#{attr}=", input.send(attr))
@@ -141,8 +143,8 @@ module Bitcoin::Storage::Backends
     def wrap_txout(output)
       return nil  unless output
       tx = @tx.values.find{|t| t.out.include?(output)}
-      data = {:tx_id => tx.hash, :tx_idx => tx.out.index(output),
-        :hash160 => Bitcoin::Script.new(output.pk_script).get_hash160 }
+      data = {tx_id: tx.hash, tx_idx: tx.out.index(output),
+        hash160: Bitcoin::Script.new(output.pk_script).get_hash160 }
       txout = Bitcoin::Storage::Models::TxOut.new(self, data)
       [:value, :pk_script_length, :pk_script].each do |attr|
         txout.send("#{attr}=", output.send(attr))

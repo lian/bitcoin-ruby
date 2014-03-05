@@ -49,6 +49,23 @@ describe 'Tx' do
     tx.binary_hash.should == "\xB4\x02-\x9F\xE5(\xFB\x90pP\x01\x16K\f\xC3\xA8\xF5\xA1\x9C\xB8\xED\x02\xBF\xD4\xFC,\xB6%f\xD1\x9Dn"
   end
 
+  it '#normalized_hash' do
+    tx = Tx.new( @payload[0] )
+    tx.normalized_hash.size.should == 64
+    tx.normalized_hash.should == "402e30100b6937cc13828ca096377c93afc0ff227ad2f249245e5b1db9123a39"
+
+    new_tx = JSON.parse(tx.to_json)
+    script =  Bitcoin::Script.from_string(new_tx['in'][0]['scriptSig'])
+    script.chunks[0].bitcoin_pushdata = Bitcoin::Script::OP_PUSHDATA2
+    script.chunks[0].bitcoin_pushdata_length = script.chunks[0].bytesize
+    new_tx['in'][0]['scriptSig'] = script.to_string
+    new_tx = Bitcoin::P::Tx.from_hash(new_tx)
+
+    new_tx.hash.should != tx.hash
+    new_tx.normalized_hash.size.should == 64
+    new_tx.normalized_hash.should == "402e30100b6937cc13828ca096377c93afc0ff227ad2f249245e5b1db9123a39"
+  end
+
   it '#to_payload' do
     tx = Tx.new( @payload[0] )
     tx.to_payload.size.should == @payload[0].size
@@ -244,6 +261,23 @@ describe 'Tx' do
     prev_tx.hash.should == "52250a162c7d03d2e1fbc5ebd1801a88612463314b55102171c5b5d817d2d7b2"
     #File.open("rawtx-#{prev_tx.hash}.json",'wb'){|f| f.print prev_tx.to_json }
   end
+  
+  it "#legacy_sigops_count" do
+    Tx.new(@payload[0]).legacy_sigops_count.should == 2
+    Tx.new(@payload[1]).legacy_sigops_count.should == 2
+    Tx.new(@payload[2]).legacy_sigops_count.should == 2
+    
+    # Test sig ops count in inputs too.
+    tx = Tx.new
+    txin = TxIn.new
+    txin.script_sig = Bitcoin::Script.from_string("10 OP_CHECKMULTISIGVERIFY OP_CHECKSIGVERIFY").to_binary
+    tx.add_in(txin)
+    txout = TxOut.new
+    txout.pk_script = Bitcoin::Script.from_string("5 OP_CHECKMULTISIG OP_CHECKSIG").to_binary
+    tx.add_out(txout)
+    tx.legacy_sigops_count.should == (20 + 1 + 20 + 1)
+    
+  end
 
   it '#calculate_minimum_fee' do
     tx = Tx.new( fixtures_file('rawtx-b5d4e8883533f99e5903ea2cf001a133a322fa6b1370b18a16c57c946a40823d.bin') )
@@ -252,6 +286,14 @@ describe 'Tx' do
     tx = Tx.from_json(fixtures_file('bc179baab547b7d7c1d5d8d6f8b0cc6318eaa4b0dd0a093ad6ac7f5a1cb6b3ba.json'))
     tx.minimum_relay_fee.should == 0
     tx.minimum_block_fee.should == 10_000
+  end
+
+  it "should compare transactions" do
+    tx1 = Tx.new( @payload[0] )
+    tx2 = Tx.new( @payload[1] )
+    (tx1 == Bitcoin::P::Tx.from_json(tx1.to_json)).should == true
+    (tx1 == tx2).should == false
+    (tx1 == nil).should == false
   end
 
   describe "Tx - BIP Scripts" do

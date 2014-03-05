@@ -4,10 +4,15 @@ module Bitcoin
   module Protocol
 
     class Parser
+      attr_reader :stats
 
       def initialize(handler=nil)
         @h = handler || Handler.new
         @buf = ""
+        @stats = {
+          'total_packets' => 0,
+          'total_bytes' => 0
+        }
       end
 
       def log
@@ -69,6 +74,9 @@ module Bitcoin
       end
 
       def process_pkt(command, payload)
+        @stats['total_packets'] += 1
+        @stats['total_bytes'] += payload.bytesize
+        @stats[command] ? (@stats[command] += 1) : @stats[command] = 1
         case command
         when 'tx';       @h.on_tx( Tx.new(payload) )
         when 'block';    @h.on_block( Block.new(payload) )
@@ -103,8 +111,8 @@ module Bitcoin
 
       # https://en.bitcoin.it/wiki/BIP_0035
       def handle_mempool_request(payload)
-        return unless @version[:version] >= 60002           # Protocol version >= 60002
-        return unless (@version[:services] & Bitcoin::Protocol::Version::NODE_NETWORK) == 1 # NODE_NETWORK bit set in Services
+        return unless @version.fields[:version] >= 60002           # Protocol version >= 60002
+        return unless (@version.fields[:services] & Bitcoin::Protocol::Version::NODE_NETWORK) == 1 # NODE_NETWORK bit set in Services
         @h.on_mempool if @h.respond_to?(:on_mempool)
       end
 

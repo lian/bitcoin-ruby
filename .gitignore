@@ -12,3 +12,5 @@ coverage/
 *.conf
 *.db
 .rbx/
+/vendor
+.ruby-version
