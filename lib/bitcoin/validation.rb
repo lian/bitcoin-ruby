@@ -325,15 +325,8 @@ module Bitcoin::Validation
     def prev_txs
       @prev_txs ||= tx.in.map {|i|
         prev_tx = store.get_tx(i.prev_out.reverse_hth)
-        next prev_tx  if store.class.name =~ /UtxoStore/ && prev_tx
-        next nil  if !prev_tx && !@block
-        if store.class.name =~ /SequelStore/
-          next prev_tx  if prev_tx && prev_tx.blk_id
-        else
-          next prev_tx  if prev_tx && prev_tx.get_block && prev_tx.get_block.chain == 0
-        end
-        next  nil if !@block
-        @block.tx.find {|t| t.binary_hash == i.prev_out }
+        next prev_tx if prev_tx && prev_tx.blk_id # blk_id is set only if it's in the main chain
+        @block.tx.find {|t| t.binary_hash == i.prev_out } if @block
       }.compact
     end
 
