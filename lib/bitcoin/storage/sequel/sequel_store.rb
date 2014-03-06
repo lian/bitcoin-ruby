@@ -65,9 +65,10 @@ module Bitcoin::Storage::Backends
           blk_tx, new_tx, addrs, names = [], [], [], []
 
           # store tx
+          existing_tx = Hash[*@db[:tx].filter(hash: blk.tx.map {|tx| tx.hash.htb.blob }).map { |tx| [tx[:hash].hth, tx[:id]] }.flatten]
           blk.tx.each.with_index do |tx, idx|
-            existing = @db[:tx][hash: tx.hash.htb.blob]
-            existing ? blk_tx[idx] = existing[:id] : new_tx << [tx, idx]
+            existing = existing_tx[tx.hash]
+            existing ? blk_tx[idx] = existing : new_tx << [tx, idx]
           end
 
           new_tx_ids = @db[:tx].insert_multiple(new_tx.map {|tx, _| tx_data(tx) })
