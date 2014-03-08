@@ -71,44 +71,25 @@ module Bitcoin::Storage::Backends
             existing ? blk_tx[idx] = existing : new_tx << [tx, idx]
           end
 
-          if @db.adapter_scheme == :postgres
-            new_tx_ids = []
-            db.transaction do
-              first_id = db.fetch("SELECT nextval('tx_id_seq') AS id").first[:id]
-              csv = new_tx.map {|tx, _| tx_data(tx) }.map.with_index {|tx,i| [i+first_id, "\\x#{tx[:hash].hth}", tx[:version], tx[:lock_time], tx[:coinbase], tx[:tx_size], (tx[:nhash] ? "\\x#{tx[:nhash].hth}" : '')].join(',') }.join("\n")
-              db.copy_into(:tx, columns: [:id, :hash, :version, :lock_time, :coinbase, :tx_size, :nhash], format: :csv, data: csv)
-              last_id = first_id + new_tx.size - 1
-              db.execute("SELECT setval('tx_id_seq', #{last_id}, true)")
-              new_tx_ids = (first_id..last_id).to_a
-            end
-          else
-            new_tx_ids = @db[:tx].insert_multiple(new_tx.map {|tx, _| tx_data(tx) })
-          end
-
+          new_tx_ids = fast_insert(:tx, new_tx.map {|tx, _| tx_data(tx) }, return_ids: true)
           new_tx_ids.each.with_index {|tx_id, idx| blk_tx[new_tx[idx][1]] = tx_id }
 
-          if @db.adapter_scheme == :postgres
-            csv_data = blk_tx.map.with_index {|id, idx| [block_id, id, idx].join(',')}.join("\n")
-            @db.copy_into(:blk_tx, format: :csv, columns: [:blk_id, :tx_id, :idx], data: csv_data)
-          else
-            @db[:blk_tx].insert_multiple(blk_tx.map.with_index {|id, idx|
-               { blk_id: block_id, tx_id: id, idx: idx } })
-          end
+          fast_insert(:blk_tx, blk_tx.map.with_index {|id, idx| { blk_id: block_id, tx_id: id, idx: idx } })
 
           # store txins
-          txin_ids = @db[:txin].insert_multiple(new_tx.map.with_index {|tx, tx_idx|
+          fast_insert(:txin, new_tx.map.with_index {|tx, tx_idx|
             tx, _ = *tx
             tx.in.map.with_index {|txin, txin_idx|
               txin_data(new_tx_ids[tx_idx], txin, txin_idx) } }.flatten)
 
           # store txouts
           txout_i = 0
-          txout_ids = @db[:txout].insert_multiple(new_tx.map.with_index {|tx, tx_idx|
+          txout_ids = fast_insert(:txout, new_tx.map.with_index {|tx, tx_idx|
             tx, _ = *tx
             tx.out.map.with_index {|txout, txout_idx|
               script_type, a, n = *parse_script(txout, txout_i, tx.hash, txout_idx)
               addrs += a; names += n; txout_i += 1
-              txout_data(new_tx_ids[tx_idx], txout, txout_idx, script_type) } }.flatten)
+              txout_data(new_tx_ids[tx_idx], txout, txout_idx, script_type) } }.flatten, return_ids: true)
 
           # store addrs
           persist_addrs addrs.map {|i, h| [txout_ids[i], h]}
@@ -150,34 +131,15 @@ module Bitcoin::Storage::Backends
           new_addrs << [hash160, txouts.map {|id, _| id }]
         end
       end
-      new_addr_ids = []
-      if @db.adapter_scheme == :postgres
-        db.transaction do
-          first_id = db.fetch("SELECT nextval('addr_id_seq') AS id").first[:id]
-          csv = new_addrs.map(&:first).map.with_index {|hash160, i| [hash160, i+first_id].join(',')}.join("\n")
-          db.copy_into(:addr, columns: [:hash160, :id], format: :csv, data: csv)
-          last_id = first_id + new_addrs.size - 1
-          db.execute("SELECT setval('addr_id_seq', #{last_id}, true)")
-          new_addr_ids = (first_id..last_id).to_a
-        end
-      else
-        new_addr_ids = @db[:addr].insert_multiple(new_addrs.map {|hash160, txout_id|
-          { hash160: hash160 } })
-      end
 
+      new_addr_ids = fast_insert(:addr, new_addrs.map {|hash160, txout_id| {hash160: hash160}}, return_ids: true)
       new_addr_ids.each.with_index do |addr_id, idx|
         new_addrs[idx][1].each do |txout_id|
           addr_txouts << [addr_id, txout_id]
         end
       end
 
-      if @db.adapter_scheme == :postgres
-        csv = addr_txouts.map{|x| x.join(',')}.join("\n")
-        @db.copy_into(:addr_txout, format: :csv, columns: [:addr_id, :txout_id], data: csv)
-      else
-        @db[:addr_txout].insert_multiple(addr_txouts.map {|addr_id, txout_id|
-          { addr_id: addr_id, txout_id: txout_id }})
-      end
+      fast_insert(:addr_txout, addr_txouts.map {|addr_id, txout_id| { addr_id: addr_id, txout_id: txout_id }})
     end
 
     # prepare transaction data for storage
@@ -480,6 +442,50 @@ module Bitcoin::Storage::Backends
       #   tx = txout.get_tx
       #   total += txout.value
       # end
+    end
+
+    protected
+
+    # Abstraction for doing many quick inserts.
+    #
+    # * +table+ - db table name
+    # * +data+ - a table of hashes with the same keys
+    # * +opts+
+    # ** return_ids - if true table of inserted rows ids will be returned
+    def fast_insert(table, data, opts={})
+      return [] if data.empty?
+      # For postgres we are using COPY which is much faster than separate INSERTs
+      if @db.adapter_scheme == :postgres
+
+        columns = data.first.keys
+        if opts[:return_ids]
+          ids = db.transaction do
+            # COPY does not return ids, so we set ids manually based on current sequence value
+            # We lock the table to avoid inserts that could happen in the middle of COPY
+            db.execute("LOCK TABLE #{table} IN SHARE UPDATE EXCLUSIVE MODE")
+            first_id = db.fetch("SELECT nextval('#{table}_id_seq') AS id").first[:id]
+
+            # Blobs need to be represented in the hex form (yes, we do hth on them earlier, could be improved
+            # \\x is the format of bytea as hex encoding in postgres
+            csv = data.map.with_index{|x,i| [first_id + i, columns.map{|c| x[c].kind_of?(Sequel::SQL::Blob) ? "\\x#{x[c].hth}" : x[c]}].join(',')}.join("\n")
+            db.copy_into(table, columns: [:id] + columns, format: :csv, data: csv)
+            last_id = first_id + data.size - 1
+
+            # Set sequence value to max id, last arg true means it will be incremented before next value
+            db.execute("SELECT setval('#{table}_id_seq', #{last_id}, true)")
+            (first_id..last_id).to_a # returned ids
+          end
+        else
+          csv = data.map{|x| columns.map{|c| x[c].kind_of?(Sequel::SQL::Blob) ? "\\x#{x[c].hth}" : x[c]}.join(',')}.join("\n")
+          @db.copy_into(table, format: :csv, columns: columns, data: csv)
+        end
+
+      else
+
+        # Life is simple when your are not optimizing ;)
+        @db[table].insert_multiple(data)
+
+      end
     end
 
   end
