@@ -74,8 +74,13 @@ module Bitcoin::Storage::Backends
           new_tx_ids = @db[:tx].insert_multiple(new_tx.map {|tx, _| tx_data(tx) })
           new_tx_ids.each.with_index {|tx_id, idx| blk_tx[new_tx[idx][1]] = tx_id }
 
-          @db[:blk_tx].insert_multiple(blk_tx.map.with_index {|id, idx|
-            { blk_id: block_id, tx_id: id, idx: idx } })
+          if @db.adapter_scheme == :postgres
+            csv_data = blk_tx.map.with_index {|id, idx| [block_id, id, idx].join(',')}.join("\n")
+            @db.copy_into(:blk_tx, format: :csv, columns: [:blk_id, :tx_id, :idx], data: csv_data)
+          else
+            @db[:blk_tx].insert_multiple(blk_tx.map.with_index {|id, idx|
+               { blk_id: block_id, tx_id: id, idx: idx } })
+          end
 
           # store txins
           txin_ids = @db[:txin].insert_multiple(new_tx.map.with_index {|tx, tx_idx|
@@ -134,13 +139,20 @@ module Bitcoin::Storage::Backends
       end
       new_addr_ids = @db[:addr].insert_multiple(new_addrs.map {|hash160, txout_id|
         { hash160: hash160 } })
+
       new_addr_ids.each.with_index do |addr_id, idx|
         new_addrs[idx][1].each do |txout_id|
           addr_txouts << [addr_id, txout_id]
         end
       end
-      @db[:addr_txout].insert_multiple(addr_txouts.map {|addr_id, txout_id|
-        { addr_id: addr_id, txout_id: txout_id }})
+
+      if @db.adapter_scheme == :postgres
+        csv = addr_txouts.map{|x| x.join(',')}.join("\n")
+        @db.copy_into(:addr_txout, format: :csv, columns: [:addr_id, :txout_id], data: csv)
+      else
+        @db[:addr_txout].insert_multiple(addr_txouts.map {|addr_id, txout_id|
+          { addr_id: addr_id, txout_id: txout_id }})
+      end
     end
 
     # prepare transaction data for storage
