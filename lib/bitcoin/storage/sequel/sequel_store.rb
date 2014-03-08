@@ -124,9 +124,10 @@ module Bitcoin::Storage::Backends
     # bulk-store addresses and txout mappings
     def persist_addrs addrs
       addr_txouts, new_addrs = [], []
+      existing_addr = Hash[*@db[:addr].filter(hash160: addrs.map(&:last).uniq).map {|addr| [addr[:hash160], addr[:id]] }.flatten]
       addrs.group_by {|_, a| a }.each do |hash160, txouts|
-        if existing = @db[:addr][:hash160 => hash160]
-          txouts.each {|id, _| addr_txouts << [existing[:id], id] }
+        if existing_id = existing_addr[hash160]
+          txouts.each {|id, _| addr_txouts << [existing_id, id] }
         else
           new_addrs << [hash160, txouts.map {|id, _| id }]
         end
