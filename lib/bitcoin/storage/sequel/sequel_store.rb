@@ -71,7 +71,20 @@ module Bitcoin::Storage::Backends
             existing ? blk_tx[idx] = existing : new_tx << [tx, idx]
           end
 
-          new_tx_ids = @db[:tx].insert_multiple(new_tx.map {|tx, _| tx_data(tx) })
+          if @db.adapter_scheme == :postgres
+            new_tx_ids = []
+            db.transaction do
+              first_id = db.fetch("SELECT nextval('tx_id_seq') AS id").first[:id]
+              csv = new_tx.map {|tx, _| tx_data(tx) }.map.with_index {|tx,i| [i+first_id, "\\x#{tx[:hash].hth}", tx[:version], tx[:lock_time], tx[:coinbase], tx[:tx_size], (tx[:nhash] ? "\\x#{tx[:nhash].hth}" : '')].join(',') }.join("\n")
+              db.copy_into(:tx, columns: [:id, :hash, :version, :lock_time, :coinbase, :tx_size, :nhash], format: :csv, data: csv)
+              last_id = first_id + new_tx.size - 1
+              db.execute("SELECT setval('tx_id_seq', #{last_id}, true)")
+              new_tx_ids = (first_id..last_id).to_a
+            end
+          else
+            new_tx_ids = @db[:tx].insert_multiple(new_tx.map {|tx, _| tx_data(tx) })
+          end
+
           new_tx_ids.each.with_index {|tx_id, idx| blk_tx[new_tx[idx][1]] = tx_id }
 
           if @db.adapter_scheme == :postgres
@@ -137,8 +150,20 @@ module Bitcoin::Storage::Backends
           new_addrs << [hash160, txouts.map {|id, _| id }]
         end
       end
-      new_addr_ids = @db[:addr].insert_multiple(new_addrs.map {|hash160, txout_id|
-        { hash160: hash160 } })
+      new_addr_ids = []
+      if @db.adapter_scheme == :postgres
+        db.transaction do
+          first_id = db.fetch("SELECT nextval('addr_id_seq') AS id").first[:id]
+          csv = new_addrs.map(&:first).map.with_index {|hash160, i| [hash160, i+first_id].join(',')}.join("\n")
+          db.copy_into(:addr, columns: [:hash160, :id], format: :csv, data: csv)
+          last_id = first_id + new_addrs.size - 1
+          db.execute("SELECT setval('addr_id_seq', #{last_id}, true)")
+          new_addr_ids = (first_id..last_id).to_a
+        end
+      else
+        new_addr_ids = @db[:addr].insert_multiple(new_addrs.map {|hash160, txout_id|
+          { hash160: hash160 } })
+      end
 
       new_addr_ids.each.with_index do |addr_id, idx|
         new_addrs[idx][1].each do |txout_id|
