@@ -273,6 +273,20 @@ module Bitcoin::Storage::Backends
       wrap_tx(@db[:tx][:hash => tx_hash.htb.blob])
     end
 
+    # get array of txes with given +tx_hashes+
+    def get_many_tx(tx_hashes)
+      txs = db[:tx].filter(hash: tx_hashes.map{|h| h.htb.blob})
+      txs_ids = txs.map {|tx| tx[:id]}
+      return [] if txs_ids.empty?
+
+      # we fetch all needed block ids, inputs and outputs to avoid doing number of queries propertional to number of transactions
+      block_ids = Hash[*db[:blk_tx].join(:blk, id: :blk_id).filter(tx_id: txs_ids, chain: 0).map {|b| [b[:tx_id], b[:blk_id]] }.flatten]
+      inputs = db[:txin].filter(:tx_id => txs_ids).order(:tx_idx).map.group_by{ |txin| txin[:tx_id] }
+      outputs = db[:txout].filter(:tx_id => txs_ids).order(:tx_idx).map.group_by{ |txout| txout[:tx_id] }
+
+      txs.map {|tx| wrap_tx(tx, block_ids[tx[:id]], inputs: inputs[tx[:id]], outputs: outputs[tx[:id]]) }
+    end
+
     # get transaction by given +tx_id+
     def get_tx_by_id(tx_id)
       wrap_tx(@db[:tx][:id => tx_id])

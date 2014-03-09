@@ -224,8 +224,8 @@ module Bitcoin
       # read json block from a file
       def self.from_json_file(path); from_json( Bitcoin::Protocol.read_binary_file(path) ); end
 
-      def validator(store, block = nil)
-        @validator ||= Bitcoin::Validation::Tx.new(self, store, block)
+      def validator(store, block = nil, opts = {})
+        @validator ||= Bitcoin::Validation::Tx.new(self, store, block, opts)
       end
 
       def size
