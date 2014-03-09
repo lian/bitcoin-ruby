@@ -339,6 +339,12 @@ module Bitcoin::Storage
         raise "Not implemented"
       end
 
+      # get more than one tx by +tx_hashes+, returns an array
+      # can be reimplemented by specific storage for optimization
+      def get_many_tx(tx_hashes)
+        tx_hashes.map {|h| get_tx(h)}.compact
+      end
+
       # get tx with given +tx_id+
       def get_tx_by_id(tx_id)
         raise "Not implemented"

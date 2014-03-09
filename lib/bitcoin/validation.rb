@@ -152,7 +152,17 @@ module Bitcoin::Validation
     end
 
     def tx_validators
-      @tx_validators ||= block.tx[1..-1].map {|tx| tx.validator(store, block) }
+      @tx_validators ||= block.tx[1..-1].map {|tx| tx.validator(store, block, tx_cache: prev_txs_hash)}
+    end
+
+    # Fetch all prev_txs that will be needed for validation
+    # Used for optimization in tx validators
+    def prev_txs_hash
+      @prev_tx_hash ||= (
+        inputs = block.tx.map {|tx| tx.in }.flatten
+        txs = store.get_many_tx(inputs.map{|i| i.prev_out.reverse_hth })
+        Hash[*txs.map {|tx| [tx.hash, tx] }.flatten]
+      )
     end
 
     def next_bits_required
@@ -221,8 +231,10 @@ module Bitcoin::Validation
 
     # setup new validator for given +tx+, validating context with +store+.
     # also needs the +block+ to find prev_outs for chains of tx inside one block.
-    def initialize tx, store, block = nil
+    # opts+ may include :tx_cache which should be hash with transactiotns including prev_txs
+    def initialize(tx, store, block = nil, opts = {})
       @tx, @store, @block, @errors = tx, store, block, []
+      @tx_cache = opts[:tx_cache]
     end
 
     # check that tx hash matches data
@@ -324,7 +336,7 @@ module Bitcoin::Validation
     # only returns tx that are in a block in the main chain or the current block.
     def prev_txs
       @prev_txs ||= tx.in.map {|i|
-        prev_tx = store.get_tx(i.prev_out.reverse_hth)
+        prev_tx = @tx_cache ? @tx_cache[i.prev_out.reverse_hth] : store.get_tx(i.prev_out.reverse_hth)
         next prev_tx if prev_tx && prev_tx.blk_id # blk_id is set only if it's in the main chain
         @block.tx.find {|t| t.binary_hash == i.prev_out } if @block
       }.compact
