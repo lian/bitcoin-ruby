@@ -313,7 +313,7 @@ module Bitcoin::Validation
       return true if next_ins.empty?
 
       # there were some txouts spending these txins, verify that they are not on the main chain
-      next_ins.select! {|tx_out| txout.get_tx.blk_id } # blk_id is only set for tx in the main chain
+      next_ins.select! {|i| i.get_tx.blk_id } # blk_id is only set for tx in the main chain
       return true if next_ins.empty?
 
       # now we know some txouts are already spent, return tx_idxs for debugging purposes
