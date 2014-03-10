@@ -274,7 +274,7 @@ module Bitcoin::Storage::Backends
     end
 
     # get array of txes with given +tx_hashes+
-    def get_many_tx(tx_hashes)
+    def get_txs(tx_hashes)
       txs = db[:tx].filter(hash: tx_hashes.map{|h| h.htb.blob})
       txs_ids = txs.map {|tx| tx[:id]}
       return [] if txs_ids.empty?
@@ -297,6 +297,11 @@ module Bitcoin::Storage::Backends
     def get_txin_for_txout(tx_hash, txout_idx)
       tx_hash = tx_hash.htb_reverse.blob
       wrap_txin(@db[:txin][:prev_out => tx_hash, :prev_out_index => txout_idx])
+    end
+
+    # optimized version of Storage#get_txins_for_txouts
+    def get_txins_for_txouts(txouts)
+      @db[:txin].filter([:prev_out, :prev_out_index] => txouts.map{|tx_hash, tx_idx| [tx_hash.htb_reverse.blob, tx_idx]}).map{|i| wrap_txin(i)}
     end
 
     def get_txout_by_id(txout_id)
