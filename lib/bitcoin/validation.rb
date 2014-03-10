@@ -160,7 +160,7 @@ module Bitcoin::Validation
     def prev_txs_hash
       @prev_tx_hash ||= (
         inputs = block.tx.map {|tx| tx.in }.flatten
-        txs = store.get_many_tx(inputs.map{|i| i.prev_out.reverse_hth })
+        txs = store.get_txs(inputs.map{|i| i.prev_out.reverse_hth })
         Hash[*txs.map {|tx| [tx.hash, tx] }.flatten]
       )
     end

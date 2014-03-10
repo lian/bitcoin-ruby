@@ -274,7 +274,7 @@ module Bitcoin::Storage::Backends
     end
 
     # get array of txes with given +tx_hashes+
-    def get_many_tx(tx_hashes)
+    def get_txs(tx_hashes)
       txs = db[:tx].filter(hash: tx_hashes.map{|h| h.htb.blob})
       txs_ids = txs.map {|tx| tx[:id]}
       return [] if txs_ids.empty?
