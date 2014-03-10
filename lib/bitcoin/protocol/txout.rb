@@ -44,7 +44,7 @@ module Bitcoin
       alias :parse_payload :parse_data
 
       def get_script
-        @script_cache || Bitcoin::Script.new(@pk_script)
+        @script_cache ||= Bitcoin::Script.new(@pk_script)
       end
 
       def to_payload
@@ -68,6 +68,7 @@ module Bitcoin
         script = Script.binary_from_string(output['scriptPubKey'])
         new(amount, script)
       end
+
       # set pk_script and pk_script_length
       def pk_script=(script)
         @pk_script_length, @pk_script = script.bytesize, script
