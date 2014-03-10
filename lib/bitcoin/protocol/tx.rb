@@ -122,7 +122,7 @@ module Bitcoin
 
         pin  = @in.map.with_index{|input,idx|
           if idx == input_idx
-            subscript = subscript.out[ input.prev_out_index ].script if subscript.respond_to?(:out) # legacy api (outpoint_tx)
+            subscript = subscript.out[ input.prev_out_index ].pk_script if subscript.respond_to?(:out) # legacy api (outpoint_tx)
             input.to_payload(subscript)
           else
             case (hash_type & 0x1f)

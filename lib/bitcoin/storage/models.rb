@@ -165,10 +165,6 @@ module Bitcoin::Storage::Models
       script.type
     end
 
-    def script
-      @_script = Bitcoin::Script.new(@pk_script)
-    end
-
   end
 
 end
