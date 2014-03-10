@@ -376,7 +376,7 @@ module Bitcoin::Storage::Backends
 
       blk.tx = blk_tx.map { |tx| wrap_tx(tx, block[:id], inputs: inputs[tx[:id]], outputs: outputs[tx[:id]]) }
 
-      blk.recalc_block_hash
+      blk.hash = block[:hash].hth
       blk
     end
 
@@ -397,7 +397,7 @@ module Bitcoin::Storage::Backends
       outputs.each { |o| tx.add_out(wrap_txout(o)) }
       tx.ver = transaction[:version]
       tx.lock_time = transaction[:lock_time]
-      tx.hash = tx.hash_from_payload(tx.to_payload)
+      tx.hash = transaction[:hash].hth
       tx
     end
 
