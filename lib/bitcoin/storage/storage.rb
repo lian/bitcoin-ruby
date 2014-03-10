@@ -334,6 +334,13 @@ module Bitcoin::Storage
         raise "Not implemented"
       end
 
+      # get an array of corresponding txins for provided +txouts+
+      # txouts = [tx_hash, tx_idx]
+      # can be overwritten by specific storage for opimization
+      def get_txins_for_txouts(txouts)
+        txouts.map{|tx_hash, tx_idx| get_txin_for_txout(tx_hash, tx_idx) }.compact
+      end
+
       # get tx with given +tx_hash+
       def get_tx(tx_hash)
         raise "Not implemented"

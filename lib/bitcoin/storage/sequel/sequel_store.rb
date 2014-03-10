@@ -299,6 +299,11 @@ module Bitcoin::Storage::Backends
       wrap_txin(@db[:txin][:prev_out => tx_hash, :prev_out_index => txout_idx])
     end
 
+    # optimized version of Storage#get_txins_for_txouts
+    def get_txins_for_txouts(txouts)
+      @db[:txin].filter([:prev_out, :prev_out_index] => txouts.map{|tx_hash, tx_idx| [tx_hash.htb_reverse.blob, tx_idx]}).map{|i| wrap_txin(i)}
+    end
+
     def get_txout_by_id(txout_id)
       wrap_txout(@db[:txout][:id => txout_id])
     end
