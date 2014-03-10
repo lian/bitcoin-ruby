@@ -35,7 +35,7 @@ module Bitcoin
 
       # return the tx hash in binary format
       def binary_hash
-        [@hash].pack("H*").reverse
+        @binary_hash ||= [@hash].pack("H*").reverse
       end
 
       # create tx from raw binary +data+
