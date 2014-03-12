@@ -46,14 +46,12 @@ describe Bitcoin::Wallet::Wallet do
     @storage = Mock.new
     @key = Key.from_base58('5J2hn1E8KEXmQn5gqykzKotyCcHbKrVbe8fjegsfVXRdv6wwon8')
     @addr = '1M89ZeWtmZmATzE3b6PHTBi8c7tGsg5xpo'
-    @key2 = Key.from_base58('5KK9Lw8gtNd4kcaXQJmkwcmNy8Y5rLGm49RqhcYAb7qRhWxaWMJ')
-    @addr2 = '134A4Bi8jN5V2KjkwmXUHjokDqdyqZ778J'
-    @key3 = Key.from_base58('5JFcJByQvwYnWjQ2RHTTu6LLGiBj9oPQYsHqKWuKLDVAvv4cQ7E')
-    @addr3 = '1EnrPVaRiRgrs1D7pujYZNN1N6iD9unZV6'
+    #@key2 = Key.from_base58('5KK9Lw8gtNd4kcaXQJmkwcmNy8Y5rLGm49RqhcYAb7qRhWxaWMJ')
+    #@addr2 = '134A4Bi8jN5V2KjkwmXUHjokDqdyqZ778J'
+    #@key3 = Key.from_base58('5JFcJByQvwYnWjQ2RHTTu6LLGiBj9oPQYsHqKWuKLDVAvv4cQ7E')
+    #@addr3 = '1EnrPVaRiRgrs1D7pujYZNN1N6iD9unZV6'
 
     @storage.expect(:add_watched_address, [], [@addr])
-    @storage.expect(:add_watched_address, [], [@addr2])
-    @storage.expect(:add_watched_address, [], [@addr3])
 
     keystore_data = [{:addr => @key.addr, :priv => @key.priv, :pub => @key.pub}]
     file_stub = StringIO.new
@@ -103,7 +101,7 @@ describe Bitcoin::Wallet::Wallet do
   it "should create new addr" do
     @wallet.addrs.size.should == 1
 
-    key = Key.generate
+    @storage.expect(:add_watched_address, [], [String])
     a = @wallet.get_new_addr
     @wallet.addrs.size.should == 2
     @wallet.addrs[1].should == a
