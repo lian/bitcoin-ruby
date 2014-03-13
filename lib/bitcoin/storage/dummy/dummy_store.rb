@@ -72,6 +72,12 @@ module Bitcoin::Storage::Backends
       wrap_block(@blk.find {|blk| blk.tx.map(&:hash).include?(tx_hash) })
     end
 
+    def get_idx_from_tx_hash(tx_hash)
+      return nil unless tx = get_tx(tx_hash)
+      return nil unless blk = tx.get_block
+      blk.tx.index tx
+    end
+
     def get_tx(tx_hash)
       transaction = @tx[tx_hash]
       return nil  unless transaction
@@ -96,7 +102,11 @@ module Bitcoin::Storage::Backends
     def get_txouts_for_hash160(hash160, unconfirmed = false)
       @tx.values.map(&:out).flatten.map {|o|
         o = wrap_txout(o)
-        o.hash160 == hash160 ? o : nil
+        if o.script.is_multisig?
+          o.script.get_multisig_pubkeys.map{|pk| Bitcoin.hash160(pk.unpack("H*")[0])}.include?(hash160) ? o : nil
+        else
+          o.hash160 == hash160 ? o : nil
+        end
       }.compact
     end
 
@@ -143,8 +153,7 @@ module Bitcoin::Storage::Backends
     def wrap_txout(output)
       return nil  unless output
       tx = @tx.values.find{|t| t.out.include?(output)}
-      data = {tx_id: tx.hash, tx_idx: tx.out.index(output),
-        hash160: Bitcoin::Script.new(output.pk_script).get_hash160 }
+      data = {tx_id: tx.hash, tx_idx: tx.out.index(output), hash160: output.script.get_hash160}
       txout = Bitcoin::Storage::Models::TxOut.new(self, data)
       [:value, :pk_script_length, :pk_script].each do |attr|
         txout.send("#{attr}=", output.send(attr))

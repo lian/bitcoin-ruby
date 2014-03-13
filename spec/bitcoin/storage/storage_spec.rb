@@ -154,8 +154,7 @@ Bitcoin::network = :testnet
       @store.get_block_by_tx(@blk.tx[0].hash).should == @blk
     end
 
-    # TODO calling .is_a? on @store breaks it (?!?)
-    if @store.class.name =~ /SequelStore/
+    unless @store.backend_name == 'utxo'
       describe :transactions do
 
         it "should store tx" do
@@ -221,10 +220,11 @@ Bitcoin::network = :testnet
         end
 
         it "should store multisig tx and index hash160's" do
-          *keys = Bitcoin::Key.generate, Bitcoin::Key.generate
+          keys = Array.new(2) { Bitcoin::Key.generate }
           pk_script = Bitcoin::Script.to_multisig_script(1, keys[0].pub, keys[1].pub)
           txout = P::TxOut.new(1000, pk_script)
-          @store.store_txout(0, txout, 0)
+          @tx.out[0] = txout
+          @store.store_tx(@tx, false)
           keys.each do |key|
             hash160 = Bitcoin.hash160(key.pub)
             txouts = @store.get_txouts_for_hash160(hash160, true)
