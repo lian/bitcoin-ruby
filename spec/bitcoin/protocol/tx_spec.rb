@@ -308,6 +308,11 @@ describe 'Tx' do
       tx      = Tx.from_json( fixtures_file('rawtx-ba1ff5cd66713133c062a871a8adab92416f1e38d17786b2bf56ac5f6ffdfdf5.json') )
       prev_tx = Tx.from_json( fixtures_file("rawtx-de35d060663750b3975b7997bde7fb76307cec5b270d12fcd9c4ad98b279c28c.json") )
       tx.verify_input_signature(0, prev_tx).should == true
+
+      # checkmultisig for testnet3 tx: 2c63aa814701cef5dbd4bbaddab3fea9117028f2434dddcdab8339141e9b14d1 input index 1
+      tx      = Tx.from_json( fixtures_file('tx-2c63aa814701cef5dbd4bbaddab3fea9117028f2434dddcdab8339141e9b14d1.json') )
+      prev_tx = Tx.from_json( fixtures_file("tx-19aa42fee0fa57c45d3b16488198b27caaacc4ff5794510d0c17f173f05587ff.json") )
+      tx.verify_input_signature(1, prev_tx).should == true
     end
 
     it "should do P2SH with inner OP_CHECKMULTISIG (BIP 0016)" do

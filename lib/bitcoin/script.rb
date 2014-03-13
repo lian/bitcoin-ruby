@@ -1128,7 +1128,8 @@ class Bitcoin::Script
     n_sigs = pop_int
     return invalid if n_sigs < 0 || n_sigs > n_pubkeys
     return invalid if @stack.size < n_sigs
-    sigs = drop_sigs = pop_string(n_sigs)
+    sigs = pop_string(n_sigs)
+    drop_sigs = sigs.dup
 
     @stack.pop if @stack[-1] && cast_to_bignum(@stack[-1]) == 0 # remove OP_0 from stack
 
@@ -1136,7 +1137,7 @@ class Bitcoin::Script
       script_code = @inner_script_code || to_binary_without_signatures(drop_sigs)
       drop_sigs = nil
     else
-      script_code, drop_sigs = nil, nil
+      script_code = nil
     end
 
     success = true
