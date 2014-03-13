@@ -273,6 +273,12 @@ Bitcoin::network = :testnet
           .should == [@block.tx[1].out[0]]
       end
 
+      it "should get txouts for txin" do
+        prev_tx = @block.tx[0]
+        tx = build_tx { |t| create_tx(t, prev_tx, 0, [[prev_tx.out[0].value, Bitcoin::Key.generate]], @key) }
+        @store.get_txout_for_txin(tx.in[0]).should == prev_tx.out[0]
+      end
+
       it "should get unspent txouts for address" do
         @store.get_unspent_txouts_for_address(@key2.addr, true)
           .should == [@block.tx[1].out[0]]

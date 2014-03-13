@@ -94,6 +94,11 @@ module Bitcoin::Storage::Backends
       wrap_txin(txin)
     end
 
+    def get_txout_for_txin(txin)
+      return nil unless tx = @tx[txin.prev_out.reverse_hth]
+      wrap_tx(tx).out[txin.prev_out_index]
+    end
+
     def get_txouts_for_pk_script(script)
       txouts = @tx.values.map(&:out).flatten.select {|o| o.pk_script == script}
       txouts.map {|o| wrap_txout(o) }
