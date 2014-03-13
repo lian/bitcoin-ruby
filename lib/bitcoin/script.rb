@@ -262,7 +262,8 @@ class Bitcoin::Script
 
 
   def to_binary_without_signatures(drop_signatures, chunks=nil)
-    to_binary( (chunks || @chunks).select{|i| drop_signatures.none?{|e| e == i } } )
+    drop = drop_signatures + [OP_CODESEPARATOR]
+    to_binary( (chunks || @chunks).select{|i| drop.none?{|e| e == i } } )
   end
 
 
@@ -1087,7 +1088,7 @@ class Bitcoin::Script
       script_code = @inner_script_code || to_binary_without_signatures(drop_sigs)
       drop_sigs = nil
     else
-      script_code, drop_sigs = nil, nil
+      script_code = nil
     end
 
     if check_callback == nil # for tests
