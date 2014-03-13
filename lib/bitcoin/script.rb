@@ -262,8 +262,15 @@ class Bitcoin::Script
 
 
   def to_binary_without_signatures(drop_signatures, chunks=nil)
-    drop = drop_signatures + [OP_CODESEPARATOR]
-    to_binary( (chunks || @chunks).select{|i| drop.none?{|e| e == i } } )
+    buf = []
+    (chunks || @chunks).each{|chunk|
+      if chunk == OP_CODESEPARATOR
+        buf.clear
+      elsif drop_signatures.none?{|e| e == chunk }
+        buf << chunk
+      end
+    }
+    to_binary(buf)
   end
 
 
