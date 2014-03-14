@@ -480,7 +480,8 @@ module Bitcoin
       :protocol_version => 70001,
       :coinbase_maturity => 100,
       :retarget_interval => 2016,
-      :retarget_time => 1209600, # 2 weeks
+      :retarget_time     => 1209600, # 2 weeks
+      :target_spacing    => 600, # block interval
       :max_money => 21_000_000 * COIN,
       :min_tx_fee => 10_000,
       :min_relay_tx_fee => 10_000,
@@ -530,6 +531,7 @@ module Bitcoin
       :coinbase_maturity => 100,
       :retarget_interval => 2016,
       :retarget_time => 1209600, # 2 weeks
+      :target_spacing    => 600, # block interval
       :max_money => 21_000_000 * COIN,
       :min_tx_fee => 10_000,
       :min_relay_tx_fee => 10_000,
@@ -546,6 +548,7 @@ module Bitcoin
       :coinbase_maturity => 100,
       :retarget_interval => 2016,
       :retarget_time => 1209600, # 2 weeks
+      :target_spacing    => 600, # block interval
       :max_money => 21_000_000 * COIN,
       :min_tx_fee => 10_000,
       :min_relay_tx_fee => 10_000,
