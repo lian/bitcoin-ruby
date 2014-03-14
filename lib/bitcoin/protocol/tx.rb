@@ -224,6 +224,22 @@ module Bitcoin
         payload.bytesize
       end
       
+      # Checks if transaction is final taking into account height and time 
+      # of a block in which it is located (or about to be included if it's unconfirmed tx).
+      def is_final?(block_height, block_time)
+        # No time lock - tx is final.
+        return true if lock_time == 0
+
+        # Time based nLockTime implemented in 0.1.6
+        # If lock_time is below the magic threshold treat it as a block height.
+        # If lock_time is above the threshold, it's a unix timestamp.
+        return true if lock_time < (lock_time < Bitcoin::LOCKTIME_THRESHOLD ? block_height : block_time)
+
+        inputs.each{|input| return false if !input.is_final? }
+
+        return true
+      end
+      
       def legacy_sigops_count
         # Note: input scripts normally never have any opcodes since every input script 
         # can be statically reduced to a pushdata-only script.
