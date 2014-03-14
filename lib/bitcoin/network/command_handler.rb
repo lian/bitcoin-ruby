@@ -47,7 +47,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
             respond(request, { error: "unknown command: #{request['method']}. send 'help' for help." })
           end
         end
-      rescue ArgumentError
+      rescue
         respond(request, { error: $!.message })
       end
     end
