@@ -202,7 +202,7 @@ module Bitcoin
             @prev_script = inc.instance_variable_get(:@prev_out_script)
           end
 
-          @sig_hash = @tx.signature_hash_for_input(i, nil, @prev_script)  if @prev_script
+          @sig_hash = @tx.signature_hash_for_input(i, @prev_script)  if @prev_script
 
 
           if @sig_hash && inc.key && inc.key.priv

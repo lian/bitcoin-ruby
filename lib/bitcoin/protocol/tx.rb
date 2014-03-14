@@ -102,7 +102,7 @@ module Bitcoin
 
       # generate a signature hash for input +input_idx+.
       # either pass the +outpoint_tx+ or the +script_pubkey+ directly.
-      def signature_hash_for_input(input_idx, outpoint_tx, script_pubkey=nil, hash_type=nil, drop_sigs=nil, script=nil)
+      def signature_hash_for_input(input_idx, subscript, hash_type=nil)
         # https://github.com/bitcoin/bitcoin/blob/e071a3f6c06f41068ad17134189a4ac3073ef76b/script.cpp#L834
         # http://code.google.com/p/bitcoinj/source/browse/trunk/src/com/google/bitcoin/core/Script.java#318
         # https://en.bitcoin.it/wiki/OP_CHECKSIG#How_it_works
@@ -122,11 +122,8 @@ module Bitcoin
 
         pin  = @in.map.with_index{|input,idx|
           if idx == input_idx
-            script_pubkey ||= outpoint_tx.out[ input.prev_out_index ].pk_script
-            script_pubkey = script                                                                     if script    # force binary aa script
-            script_pubkey = Bitcoin::Script.new(script_pubkey).to_binary_without_signatures(drop_sigs) if drop_sigs # array of signature to drop (slow)
-            #p Bitcoin::Script.new(script_pubkey).to_string
-            input.to_payload(script_pubkey)
+            subscript = subscript.out[ input.prev_out_index ].script if subscript.respond_to?(:out) # legacy api (outpoint_tx)
+            input.to_payload(subscript)
           else
             case (hash_type & 0x1f)
             when SIGHASH_TYPE[:none];   input.to_payload("", "\x00\x00\x00\x00")
@@ -160,19 +157,12 @@ module Bitcoin
       # verify input signature +in_idx+ against the corresponding
       # output in +outpoint_tx+
       def verify_input_signature(in_idx, outpoint_tx, block_timestamp=Time.now.to_i)
-        outpoint_available = outpoint_tx.respond_to?(:out)
         outpoint_idx  = @in[in_idx].prev_out_index
         script_sig    = @in[in_idx].script_sig
-        script_pubkey = outpoint_available ? outpoint_tx.out[outpoint_idx].pk_script : outpoint_tx
-        script        = script_sig + script_pubkey
+        script_pubkey = outpoint_tx.respond_to?(:out) ? outpoint_tx.out[outpoint_idx].pk_script : outpoint_tx
 
-        Bitcoin::Script.new(script).run(block_timestamp) do |pubkey,sig,hash_type,drop_sigs,script|
-          # this IS the checksig callback, must return true/false
-          if outpoint_available
-            hash = signature_hash_for_input(in_idx, outpoint_tx, nil, hash_type, drop_sigs, script)
-          else
-            hash = signature_hash_for_input(in_idx, nil, script_pubkey, hash_type, drop_sigs, script)
-          end
+        Bitcoin::Script.new(script_sig, script_pubkey).run(block_timestamp) do |pubkey,sig,hash_type,subscript|
+          hash = signature_hash_for_input(in_idx, subscript, hash_type)
           Bitcoin.verify_signature( hash, sig, pubkey.unpack("H*")[0] )
         end
       end
@@ -284,7 +274,7 @@ module Bitcoin
       end
 
       def normalized_hash
-        signature_hash_for_input(-1, nil, nil, SIGHASH_TYPE[:all]).unpack("H*")[0]
+        signature_hash_for_input(-1, nil, SIGHASH_TYPE[:all]).unpack("H*")[0]
       end
       alias :nhash :normalized_hash
 

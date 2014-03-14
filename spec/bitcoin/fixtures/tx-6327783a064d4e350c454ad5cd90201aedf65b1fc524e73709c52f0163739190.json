@@ -1,0 +1,23 @@
+{
+  "hash":"6327783a064d4e350c454ad5cd90201aedf65b1fc524e73709c52f0163739190",
+  "ver":1,
+  "vin_sz":1,
+  "vout_sz":1,
+  "lock_time":0,
+  "size":207,
+  "in":[
+    {
+      "prev_out":{
+        "hash":"a955032f4d6b0c9bfe8cad8f00a8933790b9c1dc28c82e0f48e75b35da0e4944",
+        "n":0
+      },
+      "scriptSig":"30450221009c0a27f886a1d8cb87f6f595fbc3163d28f7a81ec3c4b252ee7f3ac77fd13ffa02203caa8dfa09713c8c4d7ef575c75ed97812072405d932bd11e6a1593a98b6793701 304502201e3861ef39a526406bad1e20ecad06be7375ad40ddb582c9be42d26c3a0d7b240221009d0a3985e96522e59635d19cc4448547477396ce0ef17a58e7d74c3ef464292301"
+    }
+  ],
+  "out":[
+    {
+      "value":"0.00000000",
+      "scriptPubKey":"OP_RETURN"
+    }
+  ]
+}

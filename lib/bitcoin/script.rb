@@ -153,10 +153,15 @@ class Bitcoin::Script
   attr_reader :raw, :chunks, :debug
 
   # create a new script. +bytes+ is typically input_script + output_script
-  def initialize(bytes, offset=0)
-    @raw = bytes
+  def initialize(input_script, previous_output_script=nil)
+    @raw = if previous_output_script
+             input_script + [ Bitcoin::Script::OP_CODESEPARATOR ].pack("C") + previous_output_script
+           else
+             input_script
+           end
     @stack, @stack_alt, @exec_stack = [], [], []
-    @chunks = parse(bytes, offset)
+    @chunks = parse(@raw)
+    @last_codeseparator_index = 0
     @do_exec = true
   end
 
@@ -260,19 +265,19 @@ class Bitcoin::Script
   end
   alias :to_payload :to_binary
 
-
   def to_binary_without_signatures(drop_signatures, chunks=nil)
     buf = []
-    (chunks || @chunks).each{|chunk|
-      if chunk == OP_CODESEPARATOR
+    (chunks || @chunks).each.with_index{|chunk,idx|
+      if chunk == OP_CODESEPARATOR and idx <= @last_codeseparator_index
         buf.clear
+      elsif chunk == OP_CODESEPARATOR
+        # skip
       elsif drop_signatures.none?{|e| e == chunk }
         buf << chunk
       end
     }
     to_binary(buf)
   end
-
 
   def self.pack_pushdata(data)
     size = data.bytesize
@@ -358,14 +363,16 @@ class Bitcoin::Script
 
     #p [to_string, block_timestamp, is_p2sh?]
     @script_invalid = true if @raw.bytesize > 10_000
+    @last_codeseparator_index = 0
 
     if block_timestamp >= 1333238400 # Pay to Script Hash (BIP 0016)
       return pay_to_script_hash(check_callback)  if is_p2sh?
     end
 
     @debug = []
-    @chunks.each{|chunk|
+    @chunks.each.with_index{|chunk,idx|
       break if invalid?
+      @chunk_last_index = idx
 
       @debug << @stack.map{|i| i.unpack("H*") rescue i}
       @do_exec = @exec_stack.count(false) == 0 ? true : false
@@ -429,6 +436,7 @@ class Bitcoin::Script
   def pay_to_script_hash(check_callback)
     return false if @chunks.size < 4
     *rest, script, _, script_hash, _ = @chunks
+    script = rest.pop if script == OP_CODESEPARATOR
     script, script_hash = cast_to_string(script), cast_to_string(script_hash)
 
     return false unless Bitcoin.hash160(script.unpack("H*")[0]) == script_hash.unpack("H*")[0]
@@ -1066,6 +1074,7 @@ class Bitcoin::Script
   # to the data after the most recently-executed OP_CODESEPARATOR.
   def op_codeseparator
     @codehash_start = @chunks.size - @chunks.reverse.index(OP_CODESEPARATOR)
+    @last_codeseparator_index = @chunk_last_index
   end
 
   def codehash_script(opcode)
@@ -1091,18 +1100,21 @@ class Bitcoin::Script
 
     sig, hash_type = parse_sig(signature)
 
-    if inner_p2sh?
-      script_code = @inner_script_code || to_binary_without_signatures(drop_sigs)
-      drop_sigs = nil
-    else
-      script_code = nil
-    end
+    subscript = sighash_subscript(drop_sigs)
 
     if check_callback == nil # for tests
       @stack << 1
     else # real signature check callback
       @stack <<
-        ((check_callback.call(pubkey, sig, hash_type, drop_sigs, script_code) == true) ? 1 : 0)
+        ((check_callback.call(pubkey, sig, hash_type, subscript) == true) ? 1 : 0)
+    end
+  end
+
+  def sighash_subscript(drop_sigs)
+    if inner_p2sh? && @inner_script_code
+      Bitcoin::Script.new(@inner_script_code).to_binary_without_signatures(drop_sigs)
+    else
+      to_binary_without_signatures(drop_sigs)
     end
   end
 
@@ -1141,18 +1153,13 @@ class Bitcoin::Script
 
     @stack.pop if @stack[-1] && cast_to_bignum(@stack[-1]) == 0 # remove OP_0 from stack
 
-    if inner_p2sh?
-      script_code = @inner_script_code || to_binary_without_signatures(drop_sigs)
-      drop_sigs = nil
-    else
-      script_code = nil
-    end
+    subscript = sighash_subscript(drop_sigs)
 
     success = true
     while success && n_sigs > 0
       sig, pub = sigs.pop, pubkeys.pop
       signature, hash_type = parse_sig(sig)
-      if check_callback.call(pub, signature, hash_type, drop_sigs, script_code)
+      if check_callback.call(pub, signature, hash_type, subscript)
         n_sigs -= 1
       else
         sigs << sig
