@@ -309,6 +309,78 @@ describe 'Tx' do
     tx.legacy_sigops_count.should == (20 + 1 + 20 + 1)
     
   end
+  
+  describe "Tx - is_final?" do
+    it "should be final if lock_time == 0" do
+      tx = Tx.new
+      tx.lock_time = 0
+      tx.is_final?(0,0).should == true
+      
+      # even if has non-final input:
+      txin = TxIn.new
+      txin.sequence = "\x01\x00\x00\x00"
+      tx.add_in(txin)
+      tx.is_final?(0,0).should == true
+    end
+    
+    it "should be final if lock_time is below block_height" do
+      tx = Tx.new
+      txin = TxIn.new
+      txin.sequence = "\x01\x00\x00\x00"
+      tx.add_in(txin)
+      tx.lock_time = 6543
+      tx.is_final?(6000,0).should == false
+      tx.is_final?(6543,0).should == false # when equal to block height, still not final
+      tx.is_final?(6544,0).should == true
+      tx.is_final?(9999,0).should == true
+    end
+    
+    it "should be final if lock_time is below timestamp" do
+      tx = Tx.new
+      txin = TxIn.new
+      txin.sequence = "\xff\xff\xff\xff"
+      tx.add_in(txin)
+      txin = TxIn.new
+      txin.sequence = "\x01\x00\x00\x00"
+      tx.add_in(txin)
+      tx.lock_time = Bitcoin::LOCKTIME_THRESHOLD # when equal, interpreted as threshold
+      tx.is_final?(0,Bitcoin::LOCKTIME_THRESHOLD - 1).should == false
+      tx.is_final?(0,Bitcoin::LOCKTIME_THRESHOLD).should == false # when equal to timestamp, still not final
+      tx.is_final?(0,Bitcoin::LOCKTIME_THRESHOLD + 1).should == true
+      
+      tx.lock_time = Bitcoin::LOCKTIME_THRESHOLD + 666
+      tx.is_final?(0,Bitcoin::LOCKTIME_THRESHOLD + 1).should == false
+      tx.is_final?(0,Bitcoin::LOCKTIME_THRESHOLD + 666).should == false # when equal to timestamp, still not final
+      tx.is_final?(0,Bitcoin::LOCKTIME_THRESHOLD + 667).should == true
+    end
+    
+    it "should be final if all inputs are finalized regardless of lock_time" do
+      tx = Tx.new
+      txin = TxIn.new
+      txin.sequence = "\xff\xff\xff\xff"
+      tx.add_in(txin)
+      txin = TxIn.new
+      txin.sequence = "\xff\xff\xff\xff"
+      tx.add_in(txin)
+      
+      tx.lock_time = 6543
+      tx.is_final?(6000,0).should == true
+      tx.is_final?(6543,0).should == true
+      tx.is_final?(6544,0).should == true
+      tx.is_final?(9999,0).should == true
+      
+      tx.lock_time = Bitcoin::LOCKTIME_THRESHOLD
+      tx.is_final?(0,Bitcoin::LOCKTIME_THRESHOLD - 1).should == true
+      tx.is_final?(0,Bitcoin::LOCKTIME_THRESHOLD).should == true
+      tx.is_final?(0,Bitcoin::LOCKTIME_THRESHOLD + 1).should == true
+      
+      tx.lock_time = Bitcoin::LOCKTIME_THRESHOLD + 666
+      tx.is_final?(0,Bitcoin::LOCKTIME_THRESHOLD + 1).should == true
+      tx.is_final?(0,Bitcoin::LOCKTIME_THRESHOLD + 666).should == true
+      tx.is_final?(0,Bitcoin::LOCKTIME_THRESHOLD + 667).should == true
+    end
+    
+  end
 
   it '#calculate_minimum_fee' do
     tx = Tx.new( fixtures_file('rawtx-b5d4e8883533f99e5903ea2cf001a133a322fa6b1370b18a16c57c946a40823d.bin') )

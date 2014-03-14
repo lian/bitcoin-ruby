@@ -24,6 +24,22 @@ describe 'TxIn' do
     (i1 == i2).should == false
     (i1 == nil).should == false
   end
+  
+  it "should be final only when sequence == 0xffffffff" do
+    txin = TxIn.new
+    txin.is_final?.should == true
+    txin.sequence.should == TxIn::DEFAULT_SEQUENCE
+    
+    txin.sequence = "\x01\x00\x00\x00"
+    txin.is_final?.should == false
+    
+    txin.sequence = "\x00\x00\x00\x00"
+    txin.is_final?.should == false
+
+    txin.sequence = "\xff\xff\xff\xff"
+    txin.is_final?.should == true
+  end
+  
 
 end
 
