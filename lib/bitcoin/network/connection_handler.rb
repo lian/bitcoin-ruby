@@ -58,6 +58,7 @@ module Bitcoin::Network
 
     # only called for outgoing connection
     def connection_completed
+      @connection_completed = true
       begin_handshake
     rescue Exception
       log.fatal { "Error in #connection_completed" }
@@ -75,7 +76,7 @@ module Bitcoin::Network
 
     # connection closed; notify listeners and cleanup connection from node
     def unbind
-      log.info { "Disconnected" }
+      log.info { (outgoing? && !@connection_completed) ? "Connection failed" : "Disconnected" }
       @node.push_notification(:connection, [:disconnected, [@host, @port]])
       @state = :disconnected
       @node.connections.delete(self)
