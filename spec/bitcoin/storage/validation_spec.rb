@@ -272,6 +272,16 @@ describe "transaction rules (#{options[0]} - #{options[1]})" do
     check_tx(tx, [:output_sum, [100e8, 50e8]])
   end
 
+
+  it "should not allow double spend within a block" do
+    prev_tx = @block1.tx[0]
+    block = create_block @block1.hash, false, [
+     ->(t) { create_tx(t, prev_tx, 0, [[prev_tx.out[0].value, Bitcoin::Key.generate]], @key) },
+     ->(t) { create_tx(t, prev_tx, 0, [[prev_tx.out[0].value, Bitcoin::Key.generate]], @key) }
+    ]
+    -> { @store.store_block(block) }.should.raise(Bitcoin::Validation::ValidationError)
+  end
+
 end
 
 end

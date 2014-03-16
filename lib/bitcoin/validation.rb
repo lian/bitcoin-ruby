@@ -130,6 +130,9 @@ module Bitcoin::Validation
 
     # check transactions
     def transactions_syntax
+      # check if there are no double spends within this block
+      return false if block.tx.map(&:in).flatten.map {|i| [i.prev_out, i.prev_out_index] }.uniq! != nil
+
       tx_validators.all?{|v|
         begin
           v.validate(rules: [:syntax], raise_errors: true)
@@ -199,7 +202,7 @@ module Bitcoin::Validation
 
     RULES = {
       syntax: [:hash, :lists, :max_size, :output_values, :inputs, :lock_time, :standard],
-      context: [:prev_out, :signatures, :spent, :input_values, :output_sum]
+      context: [:prev_out, :signatures, :not_spent, :input_values, :output_sum]
     }
 
     # validate tx rules. +opts+ are:
@@ -303,8 +306,8 @@ module Bitcoin::Validation
       sigs.all? || sigs.map.with_index {|s, i| s ? nil : i }.compact
     end
 
-    # check that none of the prev_outs are already spent in the main chain
-    def spent
+    # check that none of the prev_outs are already spent in the main chain or in the current block
+    def not_spent
       # find all spent txouts
       # OPTIMIZE: these could be fetched in one query for all transactions and cached
       next_ins = store.get_txins_for_txouts(tx.in.map.with_index {|txin, idx| [prev_txs[idx].hash, txin.prev_out_index] })
