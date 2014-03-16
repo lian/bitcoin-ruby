@@ -223,8 +223,7 @@ module Bitcoin::Network
 
       return  unless depth && depth <= @node.store.get_depth
       range = (depth+1..depth+500)
-      blocks = @node.store.db[:blk].where(chain: 0, depth: range).select(:hash).all +
-        [@node.store.db[:blk].select(:hash)[chain: 0, depth: depth+502]]
+      blocks = @node.store.db[:blk].where(chain: 0, depth: range).order(:depth).select(:hash).all
       send_inv(:block, *blocks.map {|b| b[:hash].hth })
     end
 
