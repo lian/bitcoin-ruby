@@ -258,7 +258,7 @@ describe "transaction rules (#{options[0]} - #{options[1]})" do
     if @store.class.name =~ /Utxo/
       check_tx(@tx, [:prev_out, [[@tx.in[0].prev_out.reverse_hth, 0]]])
     else
-      check_tx(@tx, [:spent, [0]])
+      check_tx(@tx, [:not_spent, [0]])
     end
   end
   
