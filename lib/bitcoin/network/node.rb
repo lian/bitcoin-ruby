@@ -490,7 +490,7 @@ module Bitcoin::Network
 
     # should the node accept new incoming connections?
     def accept_connections?
-      connections.select(&:incoming?).size >= config[:max][:connections_in]
+      connections.select(&:incoming?).size < config[:max][:connections_in]
     end
 
   end

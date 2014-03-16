@@ -91,8 +91,7 @@ module Bitcoin::Network
       log.info { "Established #{@direction} connection" }
       @node.connections << self
       @state = :handshake
-      # incoming connections wait to receive a version
-      send_version if outgoing?
+      send_version
     rescue Exception
       log.fatal { "Error in #begin_handshake" }
       p $!; puts *$@
