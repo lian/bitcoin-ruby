@@ -107,8 +107,8 @@ module Bitcoin::Storage::Backends
     def get_txouts_for_hash160(hash160, unconfirmed = false)
       @tx.values.map(&:out).flatten.map {|o|
         o = wrap_txout(o)
-        if o.script.is_multisig?
-          o.script.get_multisig_pubkeys.map{|pk| Bitcoin.hash160(pk.unpack("H*")[0])}.include?(hash160) ? o : nil
+        if o.parsed_script.is_multisig?
+          o.parsed_script.get_multisig_pubkeys.map{|pk| Bitcoin.hash160(pk.unpack("H*")[0])}.include?(hash160) ? o : nil
         else
           o.hash160 == hash160 ? o : nil
         end
@@ -158,7 +158,7 @@ module Bitcoin::Storage::Backends
     def wrap_txout(output)
       return nil  unless output
       tx = @tx.values.find{|t| t.out.include?(output)}
-      data = {tx_id: tx.hash, tx_idx: tx.out.index(output), hash160: output.script.get_hash160}
+      data = {tx_id: tx.hash, tx_idx: tx.out.index(output), hash160: output.parsed_script.get_hash160}
       txout = Bitcoin::Storage::Models::TxOut.new(self, data)
       [:value, :pk_script_length, :pk_script].each do |attr|
         txout.send("#{attr}=", output.send(attr))
