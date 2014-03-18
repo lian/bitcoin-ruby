@@ -69,7 +69,7 @@ optparse.parse!
 
 cmd = ARGV.shift; cmdopts = ARGV
 unless cmd
-  exit puts optparse
+  puts optparse; exit
 end
 
 Bitcoin.network = options[:network]
@@ -143,7 +143,7 @@ def send_transaction(storage, options, tx, ask = true)
     end
   end
   EM.run do
-    Bitcoin::Network::CommandClient.connect(*options[:command].split(":")) do
+    Bitcoin::Network::CommandClient.connect(*options[:command]) do
       on_connected do
         request(:relay_tx, tx.to_payload.hth)
       end
@@ -385,7 +385,7 @@ when "relay"
   end
 
   EM.run do
-    EM.connect(*options[:command].split(":")) do |conn|
+    EM.connect(*options[:command]) do |conn|
       conn.send_data(["relay_tx", tx.to_payload.unpack("H*")[0]].to_json)
       def conn.receive_data(data)
         (@buf ||= BufferedTokenizer.new("\x00")).extract(data).each do |packet|
@@ -398,5 +398,5 @@ when "relay"
   end
 
 else
-  puts "Unknown command."
+  puts "Unknown command. See --help for available commands."
 end
