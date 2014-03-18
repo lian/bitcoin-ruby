@@ -156,10 +156,18 @@ module Bitcoin
 
       # verify input signature +in_idx+ against the corresponding
       # output in +outpoint_tx+
-      def verify_input_signature(in_idx, outpoint_tx, block_timestamp=Time.now.to_i)
+      # outpoint
+      def verify_input_signature(in_idx, outpoint_tx_or_script, block_timestamp=Time.now.to_i)
         outpoint_idx  = @in[in_idx].prev_out_index
         script_sig    = @in[in_idx].script_sig
-        script_pubkey = outpoint_tx.respond_to?(:out) ? outpoint_tx.out[outpoint_idx].pk_script : outpoint_tx
+        
+        # If given an entire previous transaction, take the script from it
+        script_pubkey = if outpoint_tx_or_script.respond_to?(:out) 
+          outpoint_tx_or_script.out[outpoint_idx].pk_script
+        else
+          # Otherwise, it's already a script.
+          outpoint_tx_or_script
+        end
 
         Bitcoin::Script.new(script_sig, script_pubkey).run(block_timestamp) do |pubkey,sig,hash_type,subscript|
           hash = signature_hash_for_input(in_idx, subscript, hash_type)
