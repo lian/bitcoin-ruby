@@ -684,6 +684,7 @@ class Bitcoin::Script
   # Bitcoind has somewhat special way to return count for invalid input scripts:
   # it returns 0 when the opcode can't be parsed or when it's over OP_16.
   # Also, if the OP_{N} is used anywhere it's treated as 0-length data.
+  # See CScript::GetSigOpCount(const CScript& scriptSig) in bitcoind.
   def sigops_count_for_p2sh
     # This is a pay-to-script-hash scriptPubKey;
     # get the last item that the scriptSig
