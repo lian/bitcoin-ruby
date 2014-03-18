@@ -315,7 +315,7 @@ when "name_update"
 when "send"
   to = cmdopts[0].split(',').map do |opts|
     o = opts.split(":")
-    type, *addrs, value = *(s.size == 2 ? [:address, *s] : s)
+    type, *addrs, value = *(o.size == 2 ? [:address, *o] : o)
     value = val_str(value)
     [type.to_sym, *addrs, value]
   end
