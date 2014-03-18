@@ -278,7 +278,28 @@ class Bitcoin::Script
     }
     to_binary(buf)
   end
+  
+  # Adds opcode (OP_0, OP_1, ... OP_CHECKSIG etc.)
+  # Returns self.
+  def append_opcode(opcode)
+    raise "Opcode should be a Fixnum" if !opcode.is_a?(Fixnum)
+    if opcode >= OP_0 && opcode <= 0xff
+      @chunks << opcode
+    else
+      raise "Opcode should be within [0x00, 0xff]"
+    end
+    self
+  end
 
+  # Adds binary string as pushdata. Pushdata will be encoded in the most compact form
+  # (unless the string contains internal info about serialization that's added by Script class)
+  # Returns self.
+  def append_pushdata(pushdata_string)
+    raise "Pushdata should be a string" if !pushdata_string.is_a?(String)
+    @chunks << pushdata_string
+    self
+  end
+  
   def self.pack_pushdata(data)
     size = data.bytesize
 
@@ -657,6 +678,32 @@ class Bitcoin::Script
       last_opcode = chunk
     end
     count
+  end
+  
+  # This method applies to script_sig that is an input for p2sh output.
+  # Bitcoind has somewhat special way to return count for invalid input scripts:
+  # it returns 0 when the opcode can't be parsed or when it's over OP_16.
+  # Also, if the OP_{N} is used anywhere it's treated as 0-length data.
+  def sigops_count_for_p2sh
+    # This is a pay-to-script-hash scriptPubKey;
+    # get the last item that the scriptSig
+    # pushes onto the stack:
+    
+    return 0 if @chunks.size == 0
+    
+    data = nil
+    @chunks.each do |chunk|
+      case chunk
+      when Fixnum
+        data = ""
+        return 0 if chunk > OP_16
+      when String
+        data = chunk
+      end
+    end
+    return 0 if data == ""
+    
+    Script.new(data).sigops_count_accurate(true)
   end
   
   # Converts OP_{0,1,2,...,16} into 0, 1, 2, ..., 16.

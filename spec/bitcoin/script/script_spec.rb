@@ -431,6 +431,45 @@ describe 'Bitcoin::Script' do
       Script.from_string("#{Script::OP_PUSHDATA1}:1:11 OP_CHECKMULTISIG").sigops_count_accurate(true).should == 20
     end
     
+    it "should extract signature count from P2SH scriptSig" do
+      
+      # Given a P2SH input script (the one with the signatures and a serialized script inside)
+      # This should count as 12 sigops (1 + 4 + 7)
+      script = Script.from_string("OP_CHECKSIG 4 OP_CHECKMULTISIG 7 OP_CHECKMULTISIGVERIFY")
+      
+      # Serialize the script to be used as a plain pushdata (which will be decoded as a script).
+      serialized_script = Script.new("").append_pushdata(script.to_binary)
+      
+      # If empty should return 0.
+      Script.from_string("").sigops_count_for_p2sh.should == 0
+      
+      # If ends with OP_N
+      Script.from_string("0").sigops_count_for_p2sh.should == 0
+      Script.from_string("1").sigops_count_for_p2sh.should == 0
+      Script.from_string("5").sigops_count_for_p2sh.should == 0
+      Script.from_string("16").sigops_count_for_p2sh.should == 0
+      
+      # If ends with opcode
+      Script.from_string("OP_NOP").sigops_count_for_p2sh.should == 0
+      Script.from_string("OP_HASH160").sigops_count_for_p2sh.should == 0
+      Script.from_string("OP_CHECKSIG").sigops_count_for_p2sh.should == 0
+      Script.from_string("DEADBEEF OP_NOP").sigops_count_for_p2sh.should == 0
+      Script.from_string("DEADBEEF OP_HASH160").sigops_count_for_p2sh.should == 0
+      Script.from_string("DEADBEEF OP_CHECKSIG").sigops_count_for_p2sh.should == 0
+      
+      # If only has the script, should parse it well
+      serialized_script.sigops_count_for_p2sh.should == 12
+      
+      # If ends with the script, should also parse well.
+      Script.new(Script.from_string("DEADBEEF CAFEBABE").to_binary + serialized_script.to_binary).sigops_count_for_p2sh.should == 12
+      Script.new(Script.from_string("DEADBEEF 1").to_binary + serialized_script.to_binary).sigops_count_for_p2sh.should == 12
+      
+      # If has the script, but ends with non-script, should return 0
+      # DEADBEEF is a script with OP_CHECKSIGVERIFY in it, so we wrap it in a serialized script with plain pushdata to have 0 count.
+      Script.new(serialized_script.to_binary + Script.new("").append_pushdata(Script.from_string("DEADBEEF").to_binary).to_binary).sigops_count_for_p2sh.should == 0
+      Script.new(serialized_script.to_binary + Script.from_string("1").to_binary).sigops_count_for_p2sh.should == 0
+    end
+    
   end
 
   it '#run' do
