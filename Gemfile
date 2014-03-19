@@ -10,10 +10,10 @@ group :development do
   gem 'sequel'
   gem 'scrypt'
 
-  gem 'sqlite3', :platforms => :ruby, :require => false
-  gem 'pg', :platforms => :ruby, :require => false
+  gem 'sqlite3', platforms: :ruby, require: false
+  gem 'pg', platforms: :ruby, require: false
 
   gem "rake", ">= 0.8.0"
   gem 'bacon', '>= 1.2.0'
-  gem 'simplecov', :require => false
+  gem 'simplecov', require: false
 end
