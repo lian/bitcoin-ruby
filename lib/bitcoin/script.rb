@@ -670,7 +670,7 @@ class Bitcoin::Script
         # Accurate mode counts exact number of pubkeys required (not signatures, but pubkeys!). Only used in P2SH scripts.
         # Inaccurate mode counts every multisig as 20 signatures.
         if is_accurate && last_opcode && last_opcode.is_a?(Fixnum) && last_opcode >= OP_1 && last_opcode <= OP_16
-          count += Script.decode_OP_N(last_opcode)
+          count += ::Bitcoin::Script.decode_OP_N(last_opcode)
         else     
           count += 20
         end
@@ -704,7 +704,7 @@ class Bitcoin::Script
     end
     return 0 if data == ""
     
-    Script.new(data).sigops_count_accurate(true)
+    ::Bitcoin::Script.new(data).sigops_count_accurate(true)
   end
   
   # Converts OP_{0,1,2,...,16} into 0, 1, 2, ..., 16.
@@ -1160,7 +1160,7 @@ class Bitcoin::Script
 
   def sighash_subscript(drop_sigs)
     if inner_p2sh? && @inner_script_code
-      Bitcoin::Script.new(@inner_script_code).to_binary_without_signatures(drop_sigs)
+      ::Bitcoin::Script.new(@inner_script_code).to_binary_without_signatures(drop_sigs)
     else
       to_binary_without_signatures(drop_sigs)
     end
