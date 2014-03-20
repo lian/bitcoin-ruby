@@ -558,7 +558,7 @@ module Bitcoin
         "testnet-seed.bluematt.me",
       ],
       :genesis_hash => "000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943",
-      :proof_of_work_limit => 0x1d07fff8,
+      :proof_of_work_limit => 0x1d00ffff,
       :alert_pubkeys => ["04302390343f91cc401d56d68b123028bf52e5fca1939df127f63c6467cdf9c8e2c14b61104cf817d0b780da337893ecc4aaff1309e536162dabbdb45200ca2b0a"],
       :known_nodes => [],
       :checkpoints => {
