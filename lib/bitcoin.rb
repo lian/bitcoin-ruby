@@ -698,6 +698,64 @@ module Bitcoin
 
       }
     },
+
+    Bitcoin::NETWORKS.update  :dogecoin => {
+      :project => :dogecoin,
+      :magic_head => "\xfc\xc1\xb7\xdc",
+      :address_version => '1E',
+      :p2sh_version => "22",
+      :privkey_version => "9e",
+      :default_port => 22556,
+      :protocol_version => 60003,
+      :max_money => 500_000_000 * Bitcoin::COIN,
+      :min_tx_fee => 10_000,
+      :min_relay_tx_fee => 10_000,
+      :coinbase_maturity => 30,
+      :retarget_interval => (4 * 60),
+      :retarget_time => (4 * 60 * 60), # 4 hours
+      :dns_seeds => [
+      ],
+      :genesis_hash => "1a91e3dace36e2be3bf030a65679fe821aa1d6ef92e7c9902eb318182c355691",
+      :proof_of_work_limit => 0,
+      :alert_pubkeys => [],
+      :known_nodes => [
+        "95.85.29.144",
+        "162.243.113.110",
+        "146.185.181.114"
+      ],
+      :checkpoints => {
+      }
+    }
+  
+
+  Bitcoin::NETWORKS.update  :dogecoin_testnet => {
+      :project => :dogecoin,
+      :magic_head => "\xfc\xc1\xb7\xdc",
+      :address_version => "113",
+      :p2sh_version => "c4",
+      :privkey_version => "f1",
+      :default_port => 44556,
+      :protocol_version => 60003,
+      :max_money => 500_000_000 * Bitcoin::COIN,
+      :min_tx_fee => 10_000,
+      :min_relay_tx_fee => 10_000,
+      :coinbase_maturity => 30,
+      :retarget_interval => (4 * 60),
+      :retarget_time => (4 * 60 * 60), # 4 hours
+      :dns_seeds => [
+      ],
+      :genesis_hash => "1a91e3dace36e2be3bf030a65679fe821aa1d6ef92e7c9902eb318182c355691",
+      :proof_of_work_limit => 0,
+      :alert_pubkeys => [],
+      :known_nodes => [
+        "95.85.29.144",
+        "162.243.113.110",
+        "146.185.181.114"
+      ],
+      :checkpoints => {
+      }
+    }
+
   }
 
 end
