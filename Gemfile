@@ -19,7 +19,7 @@ group :development do
   gem 'sequel'
 
   gem 'sqlite3', platforms: :ruby, require: false
-  gem 'pg', platforms: :ruby, :require: false
+  gem 'pg', platforms: :ruby, require: false
 
   gem "rake", ">= 0.8.0"
 end
