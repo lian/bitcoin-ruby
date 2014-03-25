@@ -291,6 +291,12 @@ module Bitcoin::Storage::Backends
       wrap_txout(@db[:utxo][tx_hash: txin.prev_out.reverse.hth.blob, tx_idx: txin.prev_out_index])
     end
 
+    # get the next input that references given output
+    # we only store unspent outputs, so it's always nil
+    def get_txin_for_txout(tx_hash, tx_idx)
+      nil
+    end
+
     # get all Models::TxOut matching given +script+
     def get_txouts_for_pk_script(script)
       utxos = @db[:utxo].filter(pk_script: script.blob).order(:blk_id)
