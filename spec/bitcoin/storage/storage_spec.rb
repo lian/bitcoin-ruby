@@ -24,7 +24,7 @@ Bitcoin::network = :testnet
   describe "Storage::Backends::#{options[0].to_s.capitalize}Store (#{options[1]})" do
 
     before do
-      class Bitcoin::Validation::Block; def difficulty; true; end; end
+      Bitcoin.network[:no_difficulty] = true
       Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("ff"*32)
 
       @store = storage
@@ -46,12 +46,7 @@ Bitcoin::network = :testnet
     end
 
     after do
-      class Bitcoin::Validation::Block
-        def difficulty
-          return true  if Bitcoin.network_name == :testnet3
-          block.bits == next_bits_required || [block.bits, next_bits_required]
-        end
-      end
+      Bitcoin.network.delete :no_difficulty
     end
 
     it "should get backend name" do

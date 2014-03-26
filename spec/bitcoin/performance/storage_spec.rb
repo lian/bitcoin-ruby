@@ -16,8 +16,6 @@ require 'benchmark'
       @store = storage
       @store.reset
       @store.log.level = :error
-      class Bitcoin::Validation::Block; def difficulty; true; end; end
-
       FakeBlockchain.prepare
     end
 

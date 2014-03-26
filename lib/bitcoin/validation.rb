@@ -121,7 +121,7 @@ module Bitcoin::Validation
 
     # check that bits satisfy required difficulty
     def difficulty
-      return true  if Bitcoin.network_name == :testnet3
+      return true  if Bitcoin.network[:no_difficulty] == true
       block.bits == next_bits_required || [block.bits, next_bits_required]
     end
 

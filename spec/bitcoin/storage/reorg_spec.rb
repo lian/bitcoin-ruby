@@ -208,9 +208,9 @@ Bitcoin.network = :testnet
 
   # see https://bitcointalk.org/index.php?topic=46370.0
   it "should pass reorg unit tests" do
-    # Disable difficulty checks. Hackish, should be replaced with some sane API.**
-    class Bitcoin::Validation::Block; def difficulty; true; end; end
     Bitcoin.network = :bitcoin
+    # Disable difficulty check
+    Bitcoin.network[:no_difficulty] = true
     @store.import "./spec/bitcoin/fixtures/reorg/blk_0_to_4.dat"
     @store.get_depth.should == 4
     @store.get_head.hash.should =~ /000000002f264d65040/
@@ -228,14 +228,8 @@ Bitcoin.network = :testnet
     balance("1NiEGXeURREqqMjCvjCeZn6SwEBZ9AdVet").should == 1000000000
     balance("1KXFNhNtrRMfgbdiQeuJqnfD7dR4PhniyJ").should == 0
     balance("1JyMKvPHkrCQd8jQrqTR1rBsAd1VpRhTiE").should == 14000000000
+    Bitcoin.network.delete :no_difficulty
     Bitcoin.network = :testnet
-    # Re-enable difficulty checks. Hackish, should be replaced with some sane API.
-    class Bitcoin::Validation::Block
-      def difficulty
-        return true  if Bitcoin.network_name == :testnet3
-        block.bits == next_bits_required || [block.bits, next_bits_required]
-      end
-    end
   end
 
 end

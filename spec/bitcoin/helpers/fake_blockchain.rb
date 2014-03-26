@@ -3,6 +3,7 @@ require 'fileutils'
 
 Bitcoin::NETWORKS[:fake] = {
   :project => :bitcoin,
+  :no_difficulty => true,
   :magic_head => "fake",
   :address_version => "00",
   :p2sh_version => "05",
@@ -21,7 +22,6 @@ Bitcoin::NETWORKS[:fake] = {
   :min_relay_tx_fee => 10_000,
 }
 
-class Bitcoin::Validation::Block; def difficulty; true; end; end
 
 
 # Small utility to generate fake blocks mostly to be able to test performance

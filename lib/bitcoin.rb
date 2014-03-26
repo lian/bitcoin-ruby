@@ -576,6 +576,7 @@ module Bitcoin
       :target_spacing    => 600, # block interval
       :max_money => 21_000_000 * COIN,
       :min_tx_fee => 10_000,
+      :no_difficulty => true,
       :min_relay_tx_fee => 10_000,
       :free_tx_bytes => 1_000,
       :dust => CENT,
