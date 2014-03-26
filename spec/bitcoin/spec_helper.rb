@@ -20,10 +20,14 @@ end
 
 require 'bitcoin'
 
-def fixtures_file(relative_path)
-  basedir = File.join(File.dirname(__FILE__), 'fixtures')
-  Bitcoin::Protocol.read_binary_file( File.join(basedir, relative_path) )
+def fixtures_path(relative_path)
+  File.join(File.dirname(__FILE__), 'fixtures', relative_path)
 end
+
+def fixtures_file(relative_path)
+  Bitcoin::Protocol.read_binary_file( fixtures_path(relative_path) )
+end
+
 
 include Bitcoin::Builder
 
