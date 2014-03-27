@@ -11,23 +11,20 @@ Sequel.migration do
       end
     end
 
-    if $stdin.tty?
-      print "Do you want to build an index for normalized tx hashes? (~1GB) (y/N) "
-      if $0 =~ /spec/ || $stdin.gets.chomp == "y"
-        puts "Building normalized hash index..."
+    if @store.config[:index_nhash]
+      puts "Building normalized hash index..."
 
-        add_column :tx, :nhash, :bytea
+      add_column :tx, :nhash, :bytea
 
-        if blk = @store.get_block_by_depth(0)
+      if blk = @store.get_block_by_depth(0)
+        process_block(blk)
+        while blk = blk.get_next_block
           process_block(blk)
-          while blk = blk.get_next_block
-            process_block(blk)
-          end
         end
-
-        add_index :tx, :nhash
-
       end
+
+      add_index :tx, :nhash
+
     end
   end
 
