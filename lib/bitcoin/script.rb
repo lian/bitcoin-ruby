@@ -486,7 +486,7 @@ class Bitcoin::Script
   # is this a pubkey script
   def is_pubkey?
     return false if @chunks.size != 2
-    (@chunks[1] == OP_CHECKSIG) && @chunks[0].is_a?(String) && @chunks[0].size > 1
+    (@chunks[1] == OP_CHECKSIG) && @chunks[0] && @chunks[0] != OP_RETURN
   end
   alias :is_send_to_ip? :is_pubkey?
 
@@ -506,7 +506,7 @@ class Bitcoin::Script
 
   # is this an op_return script
   def is_op_return?
-    @chunks[0] == OP_RETURN && (!@chunks[1] || @chunks[1].is_a?(String)) &&@chunks.size <= 2
+    @chunks[0] == OP_RETURN && @chunks.size <= 2
   end
 
   # get type of this tx
@@ -565,7 +565,7 @@ class Bitcoin::Script
   # get the data possibly included in an OP_RETURN script
   def get_op_return_data
     return nil  unless is_op_return?
-    @chunks[1].unpack("H*")[0]  if @chunks[1]
+    cast_to_string(@chunks[1]).unpack("H*")[0]  if @chunks[1]
   end
 
   # get all addresses this script corresponds to (if possible)

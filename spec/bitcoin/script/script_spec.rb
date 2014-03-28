@@ -206,7 +206,8 @@ describe 'Bitcoin::Script' do
       Script.new(SCRIPT[1]).get_op_return_data.should == nil
       Script.from_string("OP_RETURN").get_op_return_data.should == nil
       Script.from_string("OP_RETURN dead beef").get_op_return_data.should == nil
-      Script.from_string("OP_RETURN OP_CHECKSIG").get_op_return_data.should == nil
+      Script.from_string("OP_RETURN deadbeef").get_op_return_data.should == "deadbeef"
+      Script.from_string("OP_RETURN OP_CHECKSIG").get_op_return_data.should == "00ac"
     end
 
   end
@@ -273,7 +274,8 @@ describe 'Bitcoin::Script' do
       Script.new(SCRIPT[5]).is_op_return?.should == false
       Script.new(SCRIPT[6]).is_op_return?.should == true
       Script.from_string("OP_RETURN dead beef").is_op_return?.should == false
-      Script.from_string("OP_RETURN OP_CHECKSIG").is_op_return?.should == false
+      Script.from_string("OP_RETURN deadbeef").is_op_return?.should == true
+      Script.from_string("OP_RETURN OP_CHECKSIG").is_op_return?.should == true
     end
 
     it "#type" do
@@ -284,7 +286,8 @@ describe 'Bitcoin::Script' do
       Script.new(SCRIPT[4]).type.should == :multisig
       Script.new(SCRIPT[5]).type.should == :p2sh
       Script.new(SCRIPT[6]).type.should == :op_return
-      Script.from_string("OP_RETURN OP_CHECKSIG").type.should == :unknown
+      Script.from_string("OP_RETURN OP_CHECKSIG").type.should == :op_return
+      Script.from_string("OP_RETURN dead beef").type.should == :unknown
     end
 
   end
