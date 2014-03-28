@@ -29,11 +29,30 @@ Bitcoin::NETWORKS[:fake] = {
 # how performance looks when storing or validating 1K transactions
 class FakeBlockchain
 
+  # Initialize fake blockchain and generate +num_blocks+ starting blocks with given
+  # +opts+ (see #generate).
+  def initialize num = 50, opts = {}
+    Bitcoin.network = :fake
+    if File.exist? block_path(0)
+      genesis = Bitcoin::P::Block.new File.read block_path 0
+      Bitcoin.network[:genesis_hash] = genesis.hash
+    else
+      STDERR.puts "\nFake blockchain not present, generating (go take a nap)..."
+      depth = 0
+      FileUtils.mkdir_p fixtures_path "fake_chain"
+      generate(num, opts) do |blk|
+        File.open(block_path(depth),'w') {|f| f.write blk.to_payload }
+        depth += 1
+      end
+      # return new instance because this one apparently has half the data cached now
+      self.class.new
+    end
+  end
+
   # Generate fake blockchain with +num+ number of blocks
   # Blocks are provided as an argument to the block given to the method
-  # E.g.
-  #   FakeBlockChain.generate(5) {|b| save_block(b) }
-  def self.generate(num = 50, opts = {})
+  #   fake_chain.generate(5) {|b| save_block(b) }
+  def generate(num = 50, opts = {})
     Bitcoin.network = :fake
     srand 1337
 
@@ -155,27 +174,11 @@ class FakeBlockchain
     true
   end
 
-  def self.prepare
-    Bitcoin.network = :fake
-    if File.exist? block_path(0)
-      genesis = Bitcoin::P::Block.new File.read block_path 0
-      Bitcoin.network[:genesis_hash] = genesis.hash
-    else
-      STDERR.puts "\nFake blockchain not present, generating (go take a nap)..."
-      depth = 0
-      FileUtils.mkdir_p fixtures_path "fake_chain"
-      generate(50) do |blk|
-        File.open(block_path(depth),'w') {|f| f.write blk.to_payload }
-        depth += 1
-      end
-    end
-  end
-
-  def self.block(depth)
+  def block(depth)
     Bitcoin::Protocol::Block.new File.read block_path depth
   end
 
-  def self.block_path(depth)
+  def block_path(depth)
     fixtures_path "fake_chain/#{depth}.blk"
   end
 

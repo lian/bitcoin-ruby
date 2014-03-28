@@ -16,7 +16,7 @@ require 'benchmark'
       @store = storage
       @store.reset
       @store.log.level = :error
-      FakeBlockchain.prepare
+      @fake_chain = FakeBlockchain.new 10
     end
 
     it "block storage" do
@@ -24,7 +24,7 @@ require 'benchmark'
       bm = Benchmark.measure do
         bm = Benchmark.bm do |b|
           10.times do |i|
-            b.report("storing fake block ##{i}") { @store.new_block FakeBlockchain.block(i) }
+            b.report("storing fake block ##{i}") { @store.new_block @fake_chain.block(i) }
           end
         end
       end
