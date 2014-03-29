@@ -254,8 +254,8 @@ module Bitcoin::Network
         end
 
         subscribe(:block) do |blk, depth|
-          @log.debug { "Relaying block #{blk.hash}" }
           next  unless @store.in_sync?
+          @log.debug { "Relaying block #{blk.hash}" }
           @connections.each do |conn|
             next  unless conn.connected?
             conn.send_inv(:block, blk.hash)
