@@ -20,18 +20,20 @@ require 'benchmark'
     end
 
     it "block storage" do
+      blocks = (0..10).to_a.map{|i|  @fake_chain.block(i) }
 
       bm = Benchmark.measure do
         bm = Benchmark.bm do |b|
-          10.times do |i|
-            b.report("storing fake block ##{i}") { @store.new_block @fake_chain.block(i) }
+          blocks.each.with_index do |blk,i|
+            b.report("storing fake block ##{i}") do
+              depth, chain = @store.new_block blk
+              chain.should == 0
+            end
           end
         end
       end
       puts '-'*80
       puts "TOTAL #{bm.format}"
-
-      should.satisfy { "human" }
     end
 
 

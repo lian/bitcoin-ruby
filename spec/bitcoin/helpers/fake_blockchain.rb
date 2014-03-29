@@ -31,7 +31,7 @@ class FakeBlockchain
 
   # Initialize fake blockchain and generate +num_blocks+ starting blocks with given
   # +opts+ (see #generate).
-  def initialize num = 50, opts = {}
+  def initialize(num = 50, opts = {})
     Bitcoin.network = :fake
     if File.exist? block_path(0)
       genesis = Bitcoin::P::Block.new File.read block_path 0
@@ -44,8 +44,6 @@ class FakeBlockchain
         File.open(block_path(depth),'w') {|f| f.write blk.to_payload }
         depth += 1
       end
-      # return new instance because this one apparently has half the data cached now
-      self.class.new
     end
   end
 
@@ -53,7 +51,6 @@ class FakeBlockchain
   # Blocks are provided as an argument to the block given to the method
   #   fake_chain.generate(5) {|b| save_block(b) }
   def generate(num = 50, opts = {})
-    Bitcoin.network = :fake
     srand 1337
 
     default_opts = {
@@ -66,19 +63,20 @@ class FakeBlockchain
     opts = default_opts.merge(opts)
 
     to_spend = [] # table of outputs that we can spend
-    lost_count = 0 # keeping track of lost coins 
+    lost_count = 0 # keeping track of lost coins
     keys = Array.new(opts[:num_keys]) { Bitcoin::Key.generate }
     timestamp = opts[:genesis_timestamp]
 
     genesis = Bitcoin::Builder.build_block do |blk|
        blk.time timestamp
-       blk.prev_block "00"*32 
+       blk.prev_block "00"*32
        blk.tx do |t|
          t.input {|i| i.coinbase }
          t.output {|o| o.value 50*Bitcoin::COIN; o.script {|s| s.recipient keys[0].addr } }
        end
     end
     Bitcoin.network[:genesis_hash] = genesis.hash
+    yield(genesis)
 
     to_spend << {tx: genesis.tx[0], tx_idx: 0, key: keys[0], value: 50e8}
 
@@ -167,7 +165,7 @@ class FakeBlockchain
         # coinbase
         to_spend << {tx: tx0, tx_idx: 0, key: key0, value: 50e8}
       end
-      puts "depth #{blk_i}/#{num} \t txcount: #{block.tx.size} \t size: #{block.to_payload.size} \t utxo count: #{to_spend.size + lost_count} (#{to_spend.size}) \t ttg: #{'%.2f' % (Time.now - t0)}s" if opts[:verbose]
+      puts "depth #{blk_i+1}/#{num} \t txcount: #{block.tx.size} \t size: #{block.to_payload.size} \t utxo count: #{to_spend.size + lost_count} (#{to_spend.size}) \t ttg: #{'%.2f' % (Time.now - t0)}s" if opts[:verbose]
       yield(block)
       prev_block = block
     end
