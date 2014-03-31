@@ -183,8 +183,9 @@ module Bitcoin
           output_value = @tx.out.map(&:value).inject(:+)
           change_value = opts[:input_value] - output_value
           if opts[:leave_fee]
-            if change_value >= @tx.minimum_block_fee
-              change_value -= @tx.minimum_block_fee
+            fee = @tx.minimum_block_fee + (opts[:extra_fee] || 0)
+            if change_value >= fee
+              change_value -= fee
             else
               change_value = 0
             end
