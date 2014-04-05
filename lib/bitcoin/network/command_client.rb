@@ -49,12 +49,14 @@ class Bitcoin::Network::CommandClient < EM::Connection
   end
 
   # request command +cmd+ with +args+ from the server
-  def request cmd, *args, &block
+  def request cmd, params = nil, &block
     id = @i += 1
     @requests[id] = block  if block
     log.debug { "request: #{cmd} #{args.inspect}" }
     register_monitor_callbacks  if cmd.to_sym == :monitor
-    send_data({id: id, method: cmd, params: args}.to_json + "\x00")
+    request = { id: id, method: cmd }
+    request[:params] = params  if params
+    send_data(request.to_json + "\x00")
   end
 
   # receive response from server
