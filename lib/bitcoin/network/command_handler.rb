@@ -108,19 +108,27 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   # after client is subscribed to :block channel
   # TODO: give +last+ block as hash, not depth, since it could have been reorged
   def handle_monitor_block request, params
-    @node.subscribe(:block) do |blk, depth|
-      respond(request, { channel: params, hash: blk.hash, hex: blk.to_payload.hth, depth: depth })
-    end
+    @node.subscribe(:block) {|blk, depth| respond_monitor_block(request, params, blk, depth) }
 
-    head = @node.store.get_head rescue nil
     if params[:last]
-      ((params[:last].to_i+1)..@node.store.get_depth).each do |i|
-        blk = @node.store.get_block_by_depth(i)
-        respond(request, { channel: params, hash: blk.hash, hex: blk.to_payload.hth, depth: blk.depth })
-      end
+      respond_missed_blocks(request, params)
     else
-      respond(request, { channel: params, hash: head.hash, hex: head.to_payload.hth, depth: head.depth })  if head
+      head = @node.store.get_head rescue nil
+      respond_monitor_block(request, params, head)  if head
     end
+  end
+
+  def respond_missed_blocks request, params
+    ((params[:last].to_i+1)..@node.store.get_depth).each do |i|
+      blk = @node.store.get_block_by_depth(i)
+      respond_monitor_block(request, params, blk)
+    end
+  end
+
+  def respond_monitor_block request, params, block, depth = nil
+    depth ||= block.depth
+    respond(request, { channel: params,
+        hash: block.hash, hex: block.to_payload.hth, depth: depth })
   end
 
   # TODO: params (min reorg depth)
@@ -135,28 +143,33 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   # transactions. Instead, subscribe to the :block channel, and whenever a new
   # block comes in, send all transactions that now have +conf+ confirmations.
   def handle_monitor_tx request, params
-    @node.subscribe(:tx) do |tx, conf|
-      respond(request, { channel: params, hash: tx.hash, hex: tx.to_payload.hth, conf: conf })
-    end
+    @node.subscribe(:tx) {|tx, conf| respond_monitor_tx(request, params, tx, conf) }
 
-    if params[:last] && last_tx = @node.store.get_tx(params[:last])
-      notify = false; depth = @node.store.get_depth
-      (last_tx.get_block.depth..depth).each do |i|
-        blk = @node.store.get_block_by_depth(i)
-        blk.tx.each do |tx|
-          respond(request, { channel: params, hash: tx.hash, hex: tx.to_payload.hth, conf: (depth - blk.depth + 1)})  if notify
-          notify = true  if tx.hash == last_tx.hash
-        end
-      end
-    end
+    respond_missed_txs(request, params)  if params[:last]
+
     conf = params[:conf].to_i
     @node.subscribe(:block) do |block, depth|
-      block = @node.store.get_block_by_depth(depth - conf + 1)
-      next  unless block
-      block.tx.each do |tx|
-        respond(request, { channel: params, hash: tx.hash, hex: tx.to_payload.hth, conf: conf })
+      next  unless block = @node.store.get_block_by_depth(depth - conf + 1)
+      block.tx.each {|tx| respond_monitor_tx(request, params, tx, conf) }
+    end
+  end
+
+  def respond_missed_txs request, params
+    return  unless last_tx = @node.store.get_tx(params[:last])
+    notify = false; depth = @node.store.get_depth
+    (last_tx.get_block.depth..depth).each do |i|
+      blk = @node.store.get_block_by_depth(i)
+      blk.tx.each do |tx|
+        respond_monitor_tx(request, params, tx, (depth - blk.depth + 1))  if notify
+        notify = true  if tx.hash == last_tx.hash
       end
     end
+  end
+
+  def respond_monitor_tx request, params, tx, conf = nil
+    conf ||= tx.confirmations
+    respond(request, { channel: params,
+      hash: tx.hash, hex: tx.to_payload.hth, conf: conf })
   end
 
   # Handle +monitor output+ command.
@@ -165,29 +178,13 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   # tx format and running scripts.
   # See #handle_monitor_tx for confirmation behavior.
   def handle_monitor_output request, params
-    @node.subscribe(:output) do |data|
-      respond(request, {channel: params}.merge(data))
-    end
-
-    if params[:last]
-      last_hash, last_idx = *params[:last].split(":"); last_idx = last_idx.to_i
-      if (last_tx = @node.store.get_tx(last_hash)) && last_out = last_tx.out[last_idx]
-        notify = false
-        depth = @node.store.get_depth
-        (last_tx.get_block.depth..depth).each do |i|
-          blk = @node.store.get_block_by_depth(i)
-          blk.tx.each do |tx|
-            tx.out.each.with_index do |out, idx|
-              addr = Bitcoin::Script.new(out.pk_script).get_address
-              res = { nhash: tx.nhash, hash: tx.hash, idx: idx, address: addr,
-                value: out.value, conf: (depth - blk.depth + 1) }
-              respond(request, {channel: params}.merge(res))  if notify
-              notify = true  if tx.hash == last_hash && idx == last_idx
-            end
-          end
-        end
+    @node.subscribe(:tx) do |tx, conf|
+      tx.out.each.with_index do |out, idx|
+        respond_monitor_output(request, params, tx, out, idx, conf)
       end
     end
+
+    respond_missed_outputs(request, params)  if params[:last]
 
     return  unless (conf = params[:conf].to_i) > 0
     @node.subscribe(:block) do |block, depth|
@@ -195,13 +192,37 @@ class Bitcoin::Network::CommandHandler < EM::Connection
       next  unless block
       block.tx.each do |tx|
         tx.out.each.with_index do |out, idx|
-          addr = Bitcoin::Script.new(out.pk_script).get_address
-          res = { nhash: tx.nhash, hash: tx.hash, idx: idx, address: addr,
-            value: out.value, conf: conf }
-          respond(request, {channel: params}.merge(res))
+          respond_monitor_output(request, params, tx, out, idx, conf)
         end
       end
     end
+  end
+
+  def respond_missed_outputs request, params
+    last_hash, last_idx = *params[:last].split(":"); last_idx = last_idx.to_i
+    return  unless last_tx = @node.store.get_tx(last_hash)
+    return  unless last_out = last_tx.out[last_idx]
+    notify = false
+    depth = @node.store.get_depth
+    (last_tx.get_block.depth..depth).each do |i|
+      blk = @node.store.get_block_by_depth(i)
+      blk.tx.each do |tx|
+        tx.out.each.with_index do |out, idx|
+          if notify
+            respond_monitor_output(request, params, tx, out, idx, (depth - blk.depth + 1))
+          else
+            notify = true  if tx.hash == last_hash && idx == last_idx
+          end
+        end
+      end
+    end
+  end
+
+  def respond_monitor_output request, params, tx, out, idx, conf
+    addr = out.parsed_script.get_address
+    respond(request, { channel: params,
+      nhash: tx.nhash, hash: tx.hash, idx: idx, address: addr,
+      value: out.value, conf: conf })
   end
 
   # Handle +monitor connection+ command; send current connections

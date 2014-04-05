@@ -416,13 +416,6 @@ module Bitcoin::Network
             unless @unconfirmed[obj[1].hash]
               @unconfirmed[obj[1].hash] = obj[1]
               push_notification(:tx, [obj[1], 0])
-
-              if @notifiers[:output]
-                obj[1].out.each.with_index do |out, idx|
-                  address = Bitcoin::Script.new(out.pk_script).get_address
-                  push_notification(:output, { nhash: obj[1].nhash, hash: obj[1].hash, idx: idx, address: address, value: out.value, conf: 0 })
-                end
-              end
             end
           end
         rescue Bitcoin::Validation::ValidationError
