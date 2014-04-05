@@ -169,7 +169,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   def respond_monitor_tx request, params, tx, conf = nil
     conf ||= tx.confirmations
     respond(request, { channel: params,
-      hash: tx.hash, hex: tx.to_payload.hth, conf: conf })
+      hash: tx.hash, nhash: tx.nhash, hex: tx.to_payload.hth, conf: conf })
   end
 
   # Handle +monitor output+ command.

@@ -321,7 +321,7 @@ describe 'Node Command API' do
       end
 
       def should_receive_tx request, channel, tx, conf, client = @client
-        expected = { hash: tx.hash, hex: tx.to_payload.hth, conf: conf }
+        expected = { hash: tx.hash, nhash: tx.nhash, hex: tx.to_payload.hth, conf: conf }
         should_receive(request, { channel: channel }.merge(expected), client)
       end
 
