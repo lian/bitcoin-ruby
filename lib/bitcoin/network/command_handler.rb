@@ -96,11 +96,8 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   # didn't previously receive as unconfirmed. To make sure you receive all
   # transactions, also subscribe to the tx_1 channel.
   def handle_monitor request, params = {}
-    params[:channels].each do |channel|
-      # @node.subscribe(channel) {|*data| respond(request, [channel, *data]) }
-      send("handle_monitor_#{channel[:name]}", request, channel)
-      log.info { "Client subscribed to channel #{channel.inspect}" }
-    end
+    send("handle_monitor_#{params[:channel]}", request, params)
+    log.info { "Client subscribed to channel #{channel.inspect}" }
     nil
   end
 
@@ -127,14 +124,13 @@ class Bitcoin::Network::CommandHandler < EM::Connection
 
   def respond_monitor_block request, params, block, depth = nil
     depth ||= block.depth
-    respond(request, { channel: params,
-        hash: block.hash, hex: block.to_payload.hth, depth: depth })
+    respond(request, { hash: block.hash, hex: block.to_payload.hth, depth: depth })
   end
 
   # TODO: params (min reorg depth)
   def handle_monitor_reorg request, params
     @node.subscribe(:reorg) do |new_main, new_side|
-      respond(request, { channel: params, new_main: new_main, new_side: new_side })
+      respond(request, { new_main: new_main, new_side: new_side })
     end
   end
 
@@ -175,8 +171,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
       return  unless (params[:addresses] & addrs).any?
     end
 
-    respond(request, { channel: params,
-      hash: tx.hash, nhash: tx.nhash, hex: tx.to_payload.hth, conf: conf })
+    respond(request, { hash: tx.hash, nhash: tx.nhash, hex: tx.to_payload.hth, conf: conf })
   end
 
   # Handle +monitor output+ command.
@@ -231,9 +226,8 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     # filter by addresses
     return  if params[:addresses] && !params[:addresses].include?(addr)
 
-    respond(request, { channel: params,
-      nhash: tx.nhash, hash: tx.hash, idx: idx, address: addr,
-      value: out.value, conf: conf })
+    respond(request, { nhash: tx.nhash, hash: tx.hash, idx: idx,
+        address: addr, value: out.value, conf: conf })
   end
 
   # Handle +monitor connection+ command; send current connections
