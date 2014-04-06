@@ -331,10 +331,6 @@ describe 'Node Command API' do
         should_receive(request, { channel: channel }.merge(expected), client)
       end
 
-      # def should_receive_push request, channel, expected, client = @client
-      #   should_receive(request, { channel: channel }.merge(expected), client)
-      # end
-
       def store_block block
         request = send("store_block", hex: block.to_payload.hth)
         should_receive(request, {"queued" => block.hash })
@@ -522,6 +518,20 @@ describe 'Node Command API' do
         should_receive_tx(r, c, blocks[3].tx[0], 1)
       end
 
+
+      it "should filter txs for given addresses" do
+        @key2 = Bitcoin::Key.generate
+        block = create_block(@block.hash, false, [->(t) {
+              create_tx(t, @block.tx[0], 0, [[50e8, @key2]]) }], @key)
+        @addr = @block.tx[0].out[0].parsed_script.get_address
+        c = { name: "tx", conf: 1, addresses: [ @key2.addr ] }
+        r = send "monitor", channels: [ c ]
+        store_block @block
+        store_block block
+        should_receive_tx(r, c, block.tx[1], 1)
+      end
+
+
     end
 
     describe :output do
@@ -576,6 +586,18 @@ describe 'Node Command API' do
         should_receive_output(r, channel, blocks[1].tx[0], 0, 3)
         should_receive_output(r, channel, blocks[2].tx[0], 0, 2)
         should_receive_output(r, channel, blocks[3].tx[0], 0, 1)
+      end
+
+      it "should filter outputs for given addresses" do
+        @key2 = Bitcoin::Key.generate
+        block = create_block(@block.hash, false, [->(t) {
+              create_tx(t, @block.tx[0], 0, [[50e8, @key2]]) }], @key)
+        @addr = @block.tx[0].out[0].parsed_script.get_address
+        c = { name: "output", conf: 1, addresses: [ @key2.addr ] }
+        r = send "monitor", channels: [ c ]
+        store_block @block
+        store_block block
+        should_receive_output(r, c, block.tx[1], 0, 1)
       end
 
     end
