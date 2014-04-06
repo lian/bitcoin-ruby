@@ -168,6 +168,13 @@ class Bitcoin::Network::CommandHandler < EM::Connection
 
   def respond_monitor_tx request, params, tx, conf = nil
     conf ||= tx.confirmations
+
+    # filter by addresses
+    if params[:addresses]
+      addrs = tx.out.map(&:parsed_script).map(&:get_address)
+      return  unless (params[:addresses] & addrs).any?
+    end
+
     respond(request, { channel: params,
       hash: tx.hash, nhash: tx.nhash, hex: tx.to_payload.hth, conf: conf })
   end
@@ -220,6 +227,10 @@ class Bitcoin::Network::CommandHandler < EM::Connection
 
   def respond_monitor_output request, params, tx, out, idx, conf
     addr = out.parsed_script.get_address
+
+    # filter by addresses
+    return  if params[:addresses] && !params[:addresses].include?(addr)
+
     respond(request, { channel: params,
       nhash: tx.nhash, hash: tx.hash, idx: idx, address: addr,
       value: out.value, conf: conf })
