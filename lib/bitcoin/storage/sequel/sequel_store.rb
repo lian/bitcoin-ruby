@@ -241,9 +241,9 @@ module Bitcoin::Storage::Backends
       end
     end
 
-    # check if block +blk_hash+ exists
+    # check if block +blk_hash+ exists in the main chain
     def has_block(blk_hash)
-      !!@db[:blk].where(:hash => blk_hash.htb.blob).get(1)
+      !!@db[:blk].where(:hash => blk_hash.htb.blob, :chain => 0).get(1)
     end
 
     # check if transaction +tx_hash+ exists
