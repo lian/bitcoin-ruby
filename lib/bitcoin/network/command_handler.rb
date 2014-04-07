@@ -13,6 +13,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     @node.command_connections << self
     @buf = BufferedTokenizer.new("\x00")
     @lock = Monitor.new
+    @monitors = []
   end
 
   # wrap logger and append prefix
@@ -95,24 +96,25 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   # NOTE: When a new block is found, it might include transactions that we
   # didn't previously receive as unconfirmed. To make sure you receive all
   # transactions, also subscribe to the tx_1 channel.
-  def handle_monitor request, params = {}
-    send("handle_monitor_#{params[:channel]}", request, params)
+  def handle_monitor request, params
     log.info { "Client subscribed to channel #{channel.inspect}" }
-    nil
+    { id: send("handle_monitor_#{params[:channel]}", request, params) }
   end
 
-  # Handle +monitor block+ command; send the current chain head
-  # after client is subscribed to :block channel
+  def handle_unmonitor request
+    id = request[:id]
+    raise "Monitor #{id} not found."  unless @monitors[id]
+    @monitors[id][:channels].each {|name, id| @node.unsubscribe(name, id) }
+    { id: id }
+  end
+
+  # Handle +monitor block+ command;
+  # TODO send the current chain head after client is subscribed to :block channel ??
   # TODO: give +last+ block as hash, not depth, since it could have been reorged
   def handle_monitor_block request, params
-    @node.subscribe(:block) {|blk, depth| respond_monitor_block(request, params, blk, depth) }
-
-    if params[:last]
-      respond_missed_blocks(request, params)
-    else
-      head = @node.store.get_head rescue nil
-      respond_monitor_block(request, params, head)  if head
-    end
+    id = @node.subscribe(:block) {|blk, depth| respond_monitor_block(request, params, blk, depth) }
+    respond_missed_blocks(request, params)  if params[:last]
+    add_monitor(params, [[:block, id]])
   end
 
   def respond_missed_blocks request, params
@@ -129,9 +131,11 @@ class Bitcoin::Network::CommandHandler < EM::Connection
 
   # TODO: params (min reorg depth)
   def handle_monitor_reorg request, params
-    @node.subscribe(:reorg) do |new_main, new_side|
+    id = @node.subscribe(:reorg) do |new_main, new_side|
       respond(request, { new_main: new_main, new_side: new_side })
     end
+
+    add_monitor(params, [[:reorg, id]])
   end
 
   # Handle +monitor tx+ command.
@@ -139,15 +143,17 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   # transactions. Instead, subscribe to the :block channel, and whenever a new
   # block comes in, send all transactions that now have +conf+ confirmations.
   def handle_monitor_tx request, params
-    @node.subscribe(:tx) {|tx, conf| respond_monitor_tx(request, params, tx, conf) }
+    tx_id = @node.subscribe(:tx) {|tx, conf| respond_monitor_tx(request, params, tx, conf) }
 
     respond_missed_txs(request, params)  if params[:last]
 
     conf = params[:conf].to_i
-    @node.subscribe(:block) do |block, depth|
+    block_id = @node.subscribe(:block) do |block, depth|
       next  unless block = @node.store.get_block_by_depth(depth - conf + 1)
       block.tx.each {|tx| respond_monitor_tx(request, params, tx, conf) }
     end
+
+    add_monitor(params, [[:tx, tx_id], [:block, block_id]])
   end
 
   def respond_missed_txs request, params
@@ -180,7 +186,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   # tx format and running scripts.
   # See #handle_monitor_tx for confirmation behavior.
   def handle_monitor_output request, params
-    @node.subscribe(:tx) do |tx, conf|
+    tx_id = @node.subscribe(:tx) do |tx, conf|
       tx.out.each.with_index do |out, idx|
         respond_monitor_output(request, params, tx, out, idx, conf)
       end
@@ -188,16 +194,19 @@ class Bitcoin::Network::CommandHandler < EM::Connection
 
     respond_missed_outputs(request, params)  if params[:last]
 
-    return  unless (conf = params[:conf].to_i) > 0
-    @node.subscribe(:block) do |block, depth|
-      block = @node.store.get_block_by_depth(depth - conf + 1)
-      next  unless block
-      block.tx.each do |tx|
-        tx.out.each.with_index do |out, idx|
-          respond_monitor_output(request, params, tx, out, idx, conf)
+    if (conf = params[:conf].to_i) > 0
+      block_id = @node.subscribe(:block) do |block, depth|
+        block = @node.store.get_block_by_depth(depth - conf + 1)
+        next  unless block
+        block.tx.each do |tx|
+          tx.out.each.with_index do |out, idx|
+            respond_monitor_output(request, params, tx, out, idx, conf)
+          end
         end
       end
     end
+
+    add_monitor(params, [[:tx, tx_id], [:block, block_id]])
   end
 
   def respond_missed_outputs request, params
@@ -270,6 +279,12 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     }
     Bitcoin.namecoin? ? {names: @node.store.db[:names].count}.merge(info) : info
   end
+
+  def add_monitor params, channels
+    @monitors << { params: params, channels: channels }
+    @monitors.size - 1
+  end
+
 
   # Get the currently active configuration.
   #  bitcoin_node config
