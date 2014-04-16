@@ -63,7 +63,7 @@ module Bitcoin::Storage
 
       SEQUEL_ADAPTERS = { :sqlite => "sqlite3", :postgres => "pg", :mysql => "mysql" }
 
-      attr_reader :log, :config
+      attr_reader :log
 
       attr_accessor :config
 
