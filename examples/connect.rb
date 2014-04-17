@@ -7,7 +7,7 @@
 # see Bitcoin::Connection and Bitcoin::Protocol.
 
 $:.unshift( File.expand_path("../../lib", __FILE__) )
-require 'bitcoin/connection'
+require 'bitcoin'
 
 Bitcoin::network = ARGV[0] || :bitcoin
 
