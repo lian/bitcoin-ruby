@@ -5,8 +5,7 @@ module Bitcoin::Storage::Backends
 
   # Storage backend using Sequel to connect to arbitrary SQL databases.
   # Inherits from StoreBase and implements its interface.
-  class UtxoStore < StoreBase
-
+  class UtxoStore < SequelStoreBase
 
     # possible script types
     SCRIPT_TYPES = [:unknown, :pubkey, :hash160, :multisig, :p2sh]

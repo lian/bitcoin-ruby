@@ -7,7 +7,7 @@ module Bitcoin::Storage::Backends
 
   # Storage backend using Sequel to connect to arbitrary SQL databases.
   # Inherits from StoreBase and implements its interface.
-  class SequelStore < StoreBase
+  class SequelStore < SequelStoreBase
 
     # sequel database connection
     attr_accessor :db
