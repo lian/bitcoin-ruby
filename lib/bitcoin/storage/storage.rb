@@ -13,7 +13,7 @@ module Bitcoin::Storage
   @log = Bitcoin::Logger.create(:storage)
   def self.log; @log; end
 
-  BACKENDS = [:dummy, :sequel, :utxo, :mongo]
+  BACKENDS = [:dummy, :sequel, :utxo]
   BACKENDS.each do |name|
     module_eval <<-EOS
       def self.#{name} config, *args
