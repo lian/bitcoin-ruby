@@ -170,5 +170,10 @@ module Bitcoin::Storage::Backends
       "DummyStore"
     end
 
+    def check_consistency(*args)
+      log.warn { "Dummy store doesn't support consistency check" }
+    end
+
+
   end
 end
