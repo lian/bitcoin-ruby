@@ -13,7 +13,7 @@ module Bitcoin::Storage
   @log = Bitcoin::Logger.create(:storage)
   def self.log; @log; end
 
-  BACKENDS = [:dummy, :sequel, :utxo]
+  BACKENDS = [:dummy, :sequel, :utxo, :mongo]
   BACKENDS.each do |name|
     module_eval <<-EOS
       def self.#{name} config, *args
@@ -55,9 +55,10 @@ module Bitcoin::Storage
       attr_accessor :config
 
       def initialize(config = {}, getblocks_callback = nil)
-        # merge all the configuration defaults, keeping the most specific ones.
+        # merge all the configuration defaults, keeping always the most specific ones.
         store_ancestors = self.class.ancestors.select {|a| a.name =~ /StoreBase$/ }.reverse
-        base = store_ancestors.reduce(store_ancestors[0]::DEFAULT_CONFIG) do |config, ancestor|
+        first_config = store_ancestors.first::DEFAULT_CONFIG
+        base = store_ancestors.drop(1).reduce(first_config) do |config, ancestor|
           config.merge(ancestor::DEFAULT_CONFIG)
         end
         @config = base.merge(self.class::DEFAULT_CONFIG).merge(config)
@@ -502,8 +503,8 @@ module Bitcoin::Storage
         end
       end
     end
-
   end
+
 end
 
 
