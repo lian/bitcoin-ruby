@@ -232,6 +232,7 @@ describe 'Bitcoin::Script' do
       Script.new(SCRIPT[4]).is_send_to_ip?.should == false
       Script.new(SCRIPT[5]).is_pubkey?.should == false
       Script.new(SCRIPT[6]).is_pubkey?.should == false
+      Script.from_string("0 OP_CHECKSIG").is_pubkey?.should == false # testnet aba0441c4c9933dcd7db789c39053739ec435ab742ed2c23c05f22f1488c0bfd
     end
 
     it "#is_hash160?" do
