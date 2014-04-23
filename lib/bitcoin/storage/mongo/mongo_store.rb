@@ -1,7 +1,9 @@
 # encoding: ascii-8bit
 
+Bitcoin.require_dependency :mongo
+
 module Bitcoin::Storage::Backends
-  class DummyStore < StoreBase
+  class MongoStore < StoreBase
 
     attr_accessor :blk, :tx
 
@@ -166,14 +168,13 @@ module Bitcoin::Storage::Backends
       txout
     end
 
+    def check_consistency(*args)
+      log.warn { "MongoDB store doesn't support consistency check" }
+    end
+
     def to_s
       "DummyStore"
     end
-
-    def check_consistency(*args)
-      log.warn { "Dummy store doesn't support consistency check" }
-    end
-
 
   end
 end
