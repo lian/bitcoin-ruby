@@ -205,18 +205,30 @@ module Bitcoin
 
           @sig_hash = @tx.signature_hash_for_input(i, @prev_script)  if @prev_script
 
+          if @sig_hash && inc.key
+            if opts[:p2sh_multisig]
+              sigs = inc.key.map do |k|
+                k.sign(@sig_hash)
+              end
 
-          if @sig_hash && inc.key && inc.key.priv
-            sig = inc.key.sign(@sig_hash)
-            script_sig = Script.to_signature_pubkey_script(sig, [inc.key.pub].pack("H*"))
+              script_sig = Script.to_p2sh_multisig_script_sig(@prev_script, sigs)
+            else
+              sig = inc.key.sign(@sig_hash)
+              script_sig = Script.to_signature_pubkey_script(sig, [inc.key.pub].pack("H*"))
+            end
+
             @tx.in[i].script_sig_length = script_sig.bytesize
             @tx.in[i].script_sig = script_sig
-            raise "Signature error"  unless @tx.verify_input_signature(i, @prev_script)
+
+            if !opts[:p2sh_multisig]
+              raise "Signature error"  if !@tx.verify_input_signature(i, @prev_script)
+            end
+
           else
-            @tx.in[i].script_sig_length = 0
-            @tx.in[i].script_sig = ""
-            @tx.in[i].sig_hash = @sig_hash
-            @tx.in[i].sig_address = Script.new(@prev_script).get_address  if @prev_script
+            @tx.in[i].script_sig_length ||= 0
+            @tx.in[i].script_sig ||= ""
+            @tx.in[i].sig_hash ||= @sig_hash
+            @tx.in[i].sig_address ||= Script.new(@prev_script).get_address  if @prev_script
           end
         end
         data = @tx.in.map {|i| [i.sig_hash, i.sig_address] }

@@ -23,7 +23,7 @@ class Bitcoin::Script
   OP_14          = 0x5e
   OP_15          = 0x5f
   OP_16          = 0x60
-  
+
   OP_PUSHDATA0   = 0
   OP_PUSHDATA1   = 76
   OP_PUSHDATA2   = 77
@@ -278,7 +278,7 @@ class Bitcoin::Script
     }
     to_binary(buf)
   end
-  
+
   # Adds opcode (OP_0, OP_1, ... OP_CHECKSIG etc.)
   # Returns self.
   def append_opcode(opcode)
@@ -299,7 +299,7 @@ class Bitcoin::Script
     @chunks << pushdata_string
     self
   end
-  
+
   def self.pack_pushdata(data)
     size = data.bytesize
 
@@ -666,13 +666,30 @@ class Bitcoin::Script
     from_string("0 #{sigs.map{|s|s.unpack('H*')[0]}.join(' ')}").raw
   end
 
+  def self.to_p2sh_multisig_script_sig(connected_script, *sigs)
+    all_sigs = ""
+
+    sigs[0].each do |sig|
+      full_sig = sig + "\x01"
+      sig_len = [full_sig.bytesize].pack("C*")
+
+      all_sigs += (sig_len + full_sig)
+    end
+
+    push = [OP_PUSHDATA1].pack("C*")
+    script_len = [connected_script.bytesize].pack("C*")
+    full_script = "\x00" + all_sigs + push + script_len + connected_script
+
+    return full_script
+  end
+
   def get_signatures_required
     return false unless is_multisig?
     @chunks[0] - 80
   end
-  
+
   # This matches CScript::GetSigOpCount(bool fAccurate)
-  # Note: this does not cover P2SH script which is to be unserialized 
+  # Note: this does not cover P2SH script which is to be unserialized
   #       and checked explicitly when validating blocks.
   def sigops_count_accurate(is_accurate)
     count = 0
@@ -685,7 +702,7 @@ class Bitcoin::Script
         # Inaccurate mode counts every multisig as 20 signatures.
         if is_accurate && last_opcode && last_opcode.is_a?(Fixnum) && last_opcode >= OP_1 && last_opcode <= OP_16
           count += ::Bitcoin::Script.decode_OP_N(last_opcode)
-        else     
+        else
           count += 20
         end
       end
@@ -693,7 +710,7 @@ class Bitcoin::Script
     end
     count
   end
-  
+
   # This method applies to script_sig that is an input for p2sh output.
   # Bitcoind has somewhat special way to return count for invalid input scripts:
   # it returns 0 when the opcode can't be parsed or when it's over OP_16.
@@ -703,9 +720,9 @@ class Bitcoin::Script
     # This is a pay-to-script-hash scriptPubKey;
     # get the last item that the scriptSig
     # pushes onto the stack:
-    
+
     return 0 if @chunks.size == 0
-    
+
     data = nil
     @chunks.each do |chunk|
       case chunk
@@ -717,10 +734,10 @@ class Bitcoin::Script
       end
     end
     return 0 if data == ""
-    
+
     ::Bitcoin::Script.new(data).sigops_count_accurate(true)
   end
-  
+
   # Converts OP_{0,1,2,...,16} into 0, 1, 2, ..., 16.
   # Returns nil for other opcodes.
   def self.decode_OP_N(opcode)
@@ -733,9 +750,9 @@ class Bitcoin::Script
       nil
     end
   end
-  
-  
-  
+
+
+
 
   ## OPCODES
 
