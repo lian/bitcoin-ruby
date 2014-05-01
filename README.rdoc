@@ -194,7 +194,7 @@ as well as the private key for the address required to sign for it.
 The Bitcoin::Network::Node can connect to peers and download the blockchain into a
 Bitcoin::Storage backend. For now it works completely self-contained:
 
- node = Bitcoin::Network::Node.new(options) # options = {:network => :bitcoin, ...}
+ node = Bitcoin::Network::Node.new(options) # options = {network: :bitcoin, ...}
  node.run
 
 In the future you will be able to register callbacks to the node and control many aspects

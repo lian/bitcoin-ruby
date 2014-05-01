@@ -4,10 +4,10 @@ source "http://rubygems.org"
 gemspec
 
 group :test do 
-  gem 'sqlite3', :platforms => :ruby
+  gem 'sqlite3', platforms: :ruby
 
   gem 'bacon', '>= 1.2.0'
-  gem 'simplecov', :require => false
+  gem 'simplecov', require: false
 
   gem 'rake', '>= 0.8.0'
 end
@@ -18,8 +18,8 @@ group :development do
   gem 'log4r'
   gem 'sequel'
 
-  gem 'sqlite3', :platforms => :ruby, :require => false
-  gem 'pg', :platforms => :ruby, :require => false
+  gem 'sqlite3', platforms: :ruby, require: false
+  gem 'pg', platforms: :ruby, require: false
 
   gem "rake", ">= 0.8.0"
 end
