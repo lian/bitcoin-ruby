@@ -1219,6 +1219,11 @@ class Bitcoin::Script
     @stack << (success ? 1 : 0)
   end
 
+  def op_checkmultisigverify(check_callback)
+    op_checkmultisig(check_callback)
+    op_verify
+  end
+
   # op_eval: https://en.bitcoin.it/wiki/BIP_0012
   #   the BIP was never accepted and must be handled as old OP_NOP1
   def op_nop1
