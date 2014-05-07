@@ -1206,6 +1206,10 @@ class Bitcoin::Script
     success = true
     while success && n_sigs > 0
       sig, pub = sigs.pop, pubkeys.pop
+      unless sig && sig.size > 0
+        success = false
+        break
+      end
       signature, hash_type = parse_sig(sig)
       if check_callback.call(pub, signature, hash_type, subscript)
         n_sigs -= 1
