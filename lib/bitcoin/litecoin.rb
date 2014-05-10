@@ -4,7 +4,7 @@ module Litecoin
   module Scrypt
 
     def scrypt_1024_1_1_256(input)
-      input = [input].pack("H*") if input.bytesize == 160
+      input = [input].pack("H*").reverse if input.bytesize == 160
       #scrypt_1024_1_1_256_sp(input, scratchpad = Array.new(131072 + 63){ 0 })
       scrypt_1024_1_1_256_sp(input)
     end

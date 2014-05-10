@@ -50,7 +50,7 @@ module Bitcoin::Network
 
     DEFAULT_CONFIG = {
       :network => :bitcoin,
-      :listen => ["0.0.0.0", Bitcoin.network[:default_port]],
+      :listen => ["0.0.0.0", nil],
       :connect => [],
       :command => ["127.0.0.1", 9999],
       :storage => "utxo::sqlite://~/.bitcoin-ruby/<network>/blocks.db",

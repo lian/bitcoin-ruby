@@ -21,6 +21,7 @@ module Bitcoin
   autoload :Validation, 'bitcoin/validation'
 
   autoload :Namecoin,   'bitcoin/namecoin'
+  autoload :Litecoin,   'bitcoin/litecoin'
 
   module Network
     autoload :ConnectionHandler,  'bitcoin/network/connection_handler'
@@ -226,6 +227,12 @@ module Bitcoin
       h = "%08x%08x%08x%064s%064s%08x" %
             [nonce, bits, time, mrkl_root, prev_block, ver]
       bitcoin_hash(h)
+    end
+
+    def block_scrypt_hash(prev_block, mrkl_root, time, bits, nonce, ver)
+      h = "%08x%08x%08x%064s%064s%08x" %
+            [nonce, bits, time, mrkl_root, prev_block, ver]
+      Litecoin::Scrypt.scrypt_1024_1_1_256(h)
     end
 
     # get merkle tree for given +tx+ list.
