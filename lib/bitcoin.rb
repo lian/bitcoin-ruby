@@ -576,13 +576,13 @@ module Bitcoin
       :p2sh_version => "05",
       :privkey_version => "b0",
       :default_port => 9333,
-      :protocol_version => 60002,
+      :protocol_version => 70002,
       :max_money => 84_000_000 * COIN,
-      :min_tx_fee => 2_000_000,
+      :min_tx_fee => 100_000, # 0.001 LTC
+      :min_relay_tx_fee => 100_000, # 0.001 LTC
       :coinbase_maturity => 100,
       :retarget_interval => 2016,
       :retarget_time => 302400, # 3.5 days
-      :min_relay_tx_fee => 1_000_000,
       :dns_seeds => [
         "dnsseed.litecointools.com",
         "dnsseed.litecoinpool.org",
@@ -609,6 +609,9 @@ module Bitcoin
         179620 => "2ad9c65c990ac00426d18e446e0fd7be2ffa69e9a7dcb28358a50b2b78b9f709",
         240000 => "7140d1c4b4c2157ca217ee7636f24c9c73db39c4590c4e6eab2e3ea1555088aa",
         383640 => "2b6809f094a9215bafc65eb3f110a35127a34be94b7d0590a096c3f126c6f364",
+        409004 => "487518d663d9f1fa08611d9395ad74d982b667fbdc0e77e9cf39b4f1355908a3",
+        456000 => "bf34f71cc6366cd487930d06be22f897e34ca6a40501ac7d401be32456372004",
+        541794 => "1cbccbe6920e7c258bbce1f26211084efb19764aa3224bec3f4320d77d6a2fd2",
       }
     },
 
@@ -619,22 +622,25 @@ module Bitcoin
       :p2sh_version => "c4",
       :privkey_version => "ef",
       :default_port => 19333,
-      :protocol_version => 60002,
-      :min_tx_fee => 2_000_000,
-      :min_relay_tx_fee => 1_000_000,
+      :protocol_version => 70002,
+      :min_tx_fee => 100_000, # 0.001 LTC
+      :min_relay_tx_fee => 100_000, # 0.001 LTC
       :coinbase_maturity => 100,
       :retarget_interval => 2016,
       :retarget_time => 302400, # 3.5 days
       :max_money => 84_000_000 * COIN,
       :dns_seeds => [
         "testnet-seed.litecointools.com",
+        "testnet-seed.ltc.xurious.com",
         "testnet-seed.weminemnc.com",
       ],
       :genesis_hash => "f5ae71e26c74beacc88382716aced69cddf3dffff24f384e1808905e0188f68f",
       :proof_of_work_limit => 0,
       :alert_pubkeys => [],
       :known_nodes => [],
-      :checkpoints => {}
+      :checkpoints => {
+        546 => "a0fea99a6897f531600c8ae53367b126824fd6a847b2b2b73817a95b8e27e602",
+      }
     },
 
 
