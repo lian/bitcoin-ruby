@@ -453,6 +453,14 @@ describe 'Tx' do
       tx.verify_input_signature(0, prev_tx).should == true
     end
 
-  end
+    it "should do OP_CHECKMULTISIG with OP_0 used as a pubkey" do
+      tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-6606c366a487bff9e412d0b6c09c14916319932db5954bf5d8719f43f828a3ba.json'))
+      tx.hash.should == "6606c366a487bff9e412d0b6c09c14916319932db5954bf5d8719f43f828a3ba"
+      prev_tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-4142ee4877eb116abf955a7ec6ef2dc38133b793df762b76d75e3d7d4d8badc9.json'))
+      prev_tx.hash.should == "4142ee4877eb116abf955a7ec6ef2dc38133b793df762b76d75e3d7d4d8badc9"
+      tx.verify_input_signature(0, prev_tx).should == true
+    end
 
+  end
+  
 end

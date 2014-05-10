@@ -1191,6 +1191,10 @@ class Bitcoin::Script
     #return invalid  if (nOpCount += n_pubkeys) > 201
     return invalid if @stack.size < n_pubkeys
     pubkeys = pop_string(n_pubkeys)
+    
+    # 6606c366a487bff9e412d0b6c09c14916319932db5954bf5d8719f43f828a3ba
+    # spends an input that has an OP_0 as a pubkey
+    pubkeys.map! { |pubkey| "" == pubkey ? "0" : pubkey }
 
     return invalid if @stack.size < 1
     n_sigs = pop_int
