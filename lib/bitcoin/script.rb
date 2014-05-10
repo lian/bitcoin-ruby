@@ -1192,10 +1192,6 @@ class Bitcoin::Script
     return invalid if @stack.size < n_pubkeys
     pubkeys = pop_string(n_pubkeys)
     
-    # 6606c366a487bff9e412d0b6c09c14916319932db5954bf5d8719f43f828a3ba
-    # spends an input that has an OP_0 as a pubkey
-    pubkeys.map! { |pubkey| "" == pubkey ? "0" : pubkey }
-
     return invalid if @stack.size < 1
     n_sigs = pop_int
     return invalid if n_sigs < 0 || n_sigs > n_pubkeys
@@ -1216,7 +1212,7 @@ class Bitcoin::Script
         break
       end
       signature, hash_type = parse_sig(sig)
-      if check_callback.call(pub, signature, hash_type, subscript)
+      if pub.size > 0 && check_callback.call(pub, signature, hash_type, subscript)
         n_sigs -= 1
       else
         sigs << sig
