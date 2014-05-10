@@ -196,9 +196,8 @@ module Bitcoin::Validation
     def spent_outs_txins
       @spent_outs_txins ||= (
         next_ins = store.get_txins_for_txouts(block.tx[1..-1].map(&:in).flatten.map.with_index {|txin, idx| [txin.prev_out.reverse_hth, txin.prev_out_index] })
-        # OPTIMIZE normally next_ins is empty, but in case of some reorgs this could be pain, becouse get_tx is heavy
-        # and all we need is a few joins (but some general abstraction is needed for that in storage)
-        next_ins.select {|i| i.get_tx.blk_id }
+        # Only returns next_ins that are in blocks in the main chain
+        next_ins.select {|i| store.get_block_id_for_tx_id(i.tx_id) }
       )
     end
 

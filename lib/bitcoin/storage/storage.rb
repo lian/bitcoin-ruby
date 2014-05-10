@@ -270,6 +270,11 @@ module Bitcoin::Storage
         raise "Not implemented"
       end
 
+      # get block id in main chain by given +tx_id+
+      def get_block_id_for_tx_id(tx_id)
+        raise "Not implemented"
+      end
+
       # get corresponding txin for the txout in
       # transaction +tx_hash+ with index +txout_idx+
       def get_txin_for_txout(tx_hash, txout_idx)
