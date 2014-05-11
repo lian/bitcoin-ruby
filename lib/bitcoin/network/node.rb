@@ -53,7 +53,7 @@ module Bitcoin::Network
       :listen => ["0.0.0.0", nil],
       :connect => [],
       :command => ["127.0.0.1", 9999],
-      :storage => "utxo::sqlite://~/.bitcoin-ruby/<network>/blocks.db",
+      :storage => "sequel::sqlite://~/.bitcoin-ruby/<network>/blocks.db",
       :mode => :full,
       :cache_head => true,
       :index_nhash => false,
