@@ -492,6 +492,9 @@ module Bitcoin
       :max_money => 21_000_000 * COIN,
       :min_tx_fee => 10_000,
       :min_relay_tx_fee => 10_000,
+      :free_tx_bytes => 1_000,
+      :dust => CENT,
+      :per_dust_fee => false,
       :dns_seeds => [
         "seed.bitcoin.sipa.be",
         "dnsseed.bluematt.me",
@@ -543,6 +546,9 @@ module Bitcoin
       :max_money => 21_000_000 * COIN,
       :min_tx_fee => 10_000,
       :min_relay_tx_fee => 10_000,
+      :free_tx_bytes => 1_000,
+      :dust => CENT,
+      :per_dust_fee => false,
     },
 
     :testnet3 => {
@@ -560,6 +566,9 @@ module Bitcoin
       :max_money => 21_000_000 * COIN,
       :min_tx_fee => 10_000,
       :min_relay_tx_fee => 10_000,
+      :free_tx_bytes => 1_000,
+      :dust => CENT,
+      :per_dust_fee => false,
       :dns_seeds => [
         "testnet-seed.bitcoin.petertodd.org",
         "testnet-seed.bluematt.me",
@@ -587,6 +596,9 @@ module Bitcoin
       :max_money => 84_000_000 * COIN,
       :min_tx_fee => 100_000, # 0.001 LTC
       :min_relay_tx_fee => 100_000, # 0.001 LTC
+      :free_tx_bytes => 5_000,
+      :dust => CENT / 10,
+      :per_dust_fee => true,
       :coinbase_maturity => 100,
       :retarget_interval => 2016,
       :retarget_time => 302400, # 3.5 days
@@ -632,6 +644,9 @@ module Bitcoin
       :protocol_version => 70002,
       :min_tx_fee => 100_000, # 0.001 LTC
       :min_relay_tx_fee => 100_000, # 0.001 LTC
+      :dust => CENT / 10,
+      :per_dust_fee => true,
+      :free_tx_bytes => 5_000,
       :coinbase_maturity => 100,
       :retarget_interval => 2016,
       :retarget_time => 302400, # 3.5 days
@@ -662,6 +677,9 @@ module Bitcoin
       :max_money => 21_000_000 * COIN,
       :min_tx_fee => 50_000,
       :min_relay_tx_fee => 10_000,
+      :free_tx_bytes => 1_000,
+      :dust => CENT,
+      :per_dust_fee => false,
       :dns_seeds => [ "seed.freico.in", "fledge.freico.in" ],
       :genesis_hash => "000000005b1e3d23ecfd2dd4a6e1a35238aa0392c0a8528c40df52376d7efe2c",
       :proof_of_work_limit => 0,
@@ -682,6 +700,9 @@ module Bitcoin
       :max_money => 21_000_000 * COIN,
       :min_tx_fee => 50_000,
       :min_relay_tx_fee => 10_000,
+      :free_tx_bytes => 1_000,
+      :dust => CENT,
+      :per_dust_fee => true,
       :dns_seeds => [],
       :genesis_hash => "000000000062b72c5e2ceb45fbc8587e807c155b0da735e6483dfba2f0a9c770",
       :proof_of_work_limit => 0x1d00ffff,
@@ -704,6 +725,9 @@ module Bitcoin
       :protocol_version => 35000,
       :min_tx_fee => 50_000,
       :min_relay_tx_fee => 10_000,
+      :free_tx_bytes => 1_000,
+      :dust => CENT,
+      :per_dust_fee => true,
       :max_money => 21_000_000 * COIN,
       :dns_seeds => [],
       :genesis_hash => "00000001f8ab0d14bceaeb50d163b0bef15aecf62b87bd5f5c864d37f201db97",
