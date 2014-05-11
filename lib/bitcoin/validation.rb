@@ -20,6 +20,11 @@ module Bitcoin::Validation
       RULES[:context] -= [:difficulty, :coinbase_value]
     end
 
+    if Bitcoin.litecoin?
+      RULES[:syntax] -= [:bits]
+      RULES[:syntax] += [:scrypt_bits]
+    end
+
     # validate block rules. +opts+ are:
     # rules:: which rulesets to validate (default: [:syntax, :context])
     # raise_errors:: whether to raise ValidationError on failure (default: false)
@@ -60,6 +65,13 @@ module Bitcoin::Validation
     # check that block hash matches claimed bits
     def bits
       actual = block.hash.to_i(16)
+      expected = Bitcoin.decode_compact_bits(block.bits).to_i(16)
+      actual <= expected || [actual, expected]
+    end
+
+    # check that block hash matches claimed bits using Scrypt hash
+    def scrypt_bits
+      actual = block.recalc_block_scrypt_hash.to_i(16)
       expected = Bitcoin.decode_compact_bits(block.bits).to_i(16)
       actual <= expected || [actual, expected]
     end

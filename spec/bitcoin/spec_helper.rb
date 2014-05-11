@@ -93,6 +93,9 @@ Bitcoin::NETWORKS[:spec] = {
   :checkpoints => {},
   :min_tx_fee => 10_000,
   :min_relay_tx_fee => 10_000,
+  :free_tx_bytes => 1_000,
+  :dust => 1_000_000,
+  :per_dust_fee => false,
 }
 
 begin
