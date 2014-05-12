@@ -278,8 +278,8 @@ module Bitcoin::Storage::Backends
 
     # get block id in the main chain by given +tx_id+
     def get_block_id_for_tx_id(tx_id)
-      block_id ||= @db[:blk_tx].join(:blk, id: :blk_id)
-        .where(tx_id: tx_id, chain: 0).first[:blk_id] rescue nil
+      @db[:blk_tx].join(:blk, id: :blk_id)
+        .where(tx_id: tx_id, chain: MAIN).first[:blk_id] rescue nil
     end
 
     # get transaction for given +tx_hash+

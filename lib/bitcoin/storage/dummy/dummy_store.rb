@@ -72,6 +72,7 @@ module Bitcoin::Storage::Backends
     def get_block_id_for_tx_id(tx_id)
       return nil unless tx = get_tx_by_id(tx_id)
       return nil unless blk = tx.get_block
+      return nil unless blk.chain == MAIN
       blk.id
     end
 

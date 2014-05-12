@@ -271,12 +271,6 @@ module Bitcoin::Storage::Backends
       wrap_block(@db[:blk][:id => block_id])
     end
 
-    # get block id in the main chain by given +tx_id+
-    def get_block_id_for_tx_id(tx_id)
-      block_id ||= @db[:blk_tx].join(:blk, id: :blk_id)
-        .where(tx_id: tx_id, chain: chain).first[:blk_id] rescue nil
-    end
-
     # get transaction for given +tx_hash+
     def get_tx(tx_hash)
       @tx_cache[tx_hash] ||= wrap_tx(tx_hash)
