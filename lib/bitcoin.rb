@@ -232,7 +232,7 @@ module Bitcoin
     def litecoin_hash(hex)
       bytes = [hex].pack("H*").reverse
       begin
-        require "scrypt"
+        require "scrypt" unless defined?(::SCrypt)
         hash = SCrypt::Engine.__sc_crypt(bytes, bytes, 1024, 1, 1, 32)
       rescue LoadError
         hash = Litecoin::Scrypt.scrypt_1024_1_1_256_sp(bytes)
