@@ -391,6 +391,15 @@ describe 'Tx' do
     tx.minimum_block_fee.should == 10_000
   end
 
+  it '#calculate_minimum_fee for litecoin' do
+    tx = Tx.from_json(fixtures_file('litecoin-tx-f5aa30f574e3b6f1a3d99c07a6356ba812aabb9661e1d5f71edff828cbd5c996.json'))
+    tx.minimum_relay_fee.should == 0
+    tx.minimum_block_fee.should == 30_000
+    Bitcoin.network = :litecoin # change to litecoin
+    tx.minimum_relay_fee.should == 0
+    tx.minimum_block_fee.should == 5_900_000
+  end
+
   it "should compare transactions" do
     tx1 = Tx.new( @payload[0] )
     tx2 = Tx.new( @payload[1] )

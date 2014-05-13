@@ -280,13 +280,24 @@ module Bitcoin
           #   multiple transactions instead of one big transaction to avoid fees.
           # * If we are creating a transaction we allow transactions up to 1,000 bytes
           #   to be considered safe and assume they can likely make it into this section.
-          min_fee = 0 if tx_size < (mode == :block ? 1_000 : DEFAULT_BLOCK_PRIORITY_SIZE - 1_000)
+          min_fee = 0 if tx_size < (mode == :block ? Bitcoin.network[:free_tx_bytes] : DEFAULT_BLOCK_PRIORITY_SIZE - 1_000)
         end
 
         # This code can be removed after enough miners have upgraded to version 0.9.
         # Until then, be safe when sending and require a fee if any output is less than CENT
         if min_fee < base_fee && mode == :block
-          outputs.each{|output| (min_fee = base_fee; break) if output.value < Bitcoin::CENT }
+          outputs.each do |output|
+            if output.value < Bitcoin.network[:dust]
+              # If per dust fee, then we add min fee for each output less than dust.
+              # Otherwise, we set to min fee if there is any output less than dust.
+              if Bitcoin.network[:per_dust_fee]
+                min_fee += base_fee
+              else
+                min_fee = base_fee
+                break
+              end
+            end
+          end
         end
 
         min_fee = Bitcoin::network[:max_money] unless min_fee.between?(0, Bitcoin::network[:max_money])
