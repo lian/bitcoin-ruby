@@ -17,6 +17,7 @@ group :development do
   gem 'ffi'
   gem 'log4r'
   gem 'sequel'
+  gem 'scrypt'
 
   gem 'sqlite3', :platforms => :ruby, :require => false
   gem 'pg', :platforms => :ruby, :require => false

@@ -229,10 +229,21 @@ module Bitcoin
       bitcoin_hash(h)
     end
 
+    def litecoin_hash(hex)
+      bytes = [hex].pack("H*").reverse
+      begin
+        require "scrypt"
+        hash = SCrypt::Engine.__sc_crypt(bytes, bytes, 1024, 1, 1, 32)
+      rescue LoadError
+        hash = Litecoin::Scrypt.scrypt_1024_1_1_256_sp(bytes)
+      end
+      hash.reverse.unpack("H*")[0]
+    end
+
     def block_scrypt_hash(prev_block, mrkl_root, time, bits, nonce, ver)
       h = "%08x%08x%08x%064s%064s%08x" %
             [nonce, bits, time, mrkl_root, prev_block, ver]
-      Litecoin::Scrypt.scrypt_1024_1_1_256(h)
+      litecoin_hash(h)
     end
 
     # get merkle tree for given +tx+ list.
