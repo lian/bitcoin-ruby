@@ -99,6 +99,10 @@ module Bitcoin
         @hash = Bitcoin.block_hash(@prev_block.reverse_hth, @mrkl_root.reverse_hth, @time, @bits, @nonce, @ver)
       end
 
+      def recalc_block_scrypt_hash
+        @scrypt_hash = Bitcoin.block_scrypt_hash(@prev_block.reverse_hth, @mrkl_root.reverse_hth, @time, @bits, @nonce, @ver)
+      end
+
       def recalc_mrkl_root
         @mrkl_root = Bitcoin.hash_mrkl_tree( @tx.map(&:hash) ).last.htb_reverse
       end

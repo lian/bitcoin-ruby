@@ -391,6 +391,15 @@ describe 'Tx' do
     tx.minimum_block_fee.should == 10_000
   end
 
+  it '#calculate_minimum_fee for litecoin' do
+    tx = Tx.from_json(fixtures_file('litecoin-tx-f5aa30f574e3b6f1a3d99c07a6356ba812aabb9661e1d5f71edff828cbd5c996.json'))
+    tx.minimum_relay_fee.should == 0
+    tx.minimum_block_fee.should == 30_000
+    Bitcoin.network = :litecoin # change to litecoin
+    tx.minimum_relay_fee.should == 0
+    tx.minimum_block_fee.should == 5_900_000
+  end
+
   it "should compare transactions" do
     tx1 = Tx.new( @payload[0] )
     tx2 = Tx.new( @payload[1] )
@@ -444,6 +453,14 @@ describe 'Tx' do
       tx.verify_input_signature(0, prev_tx).should == true
     end
 
-  end
+    it "should do OP_CHECKMULTISIG with OP_0 used as a pubkey" do
+      tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-6606c366a487bff9e412d0b6c09c14916319932db5954bf5d8719f43f828a3ba.json'))
+      tx.hash.should == "6606c366a487bff9e412d0b6c09c14916319932db5954bf5d8719f43f828a3ba"
+      prev_tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-4142ee4877eb116abf955a7ec6ef2dc38133b793df762b76d75e3d7d4d8badc9.json'))
+      prev_tx.hash.should == "4142ee4877eb116abf955a7ec6ef2dc38133b793df762b76d75e3d7d4d8badc9"
+      tx.verify_input_signature(0, prev_tx).should == true
+    end
 
+  end
+  
 end

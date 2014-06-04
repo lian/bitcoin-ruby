@@ -21,6 +21,7 @@ module Bitcoin
   autoload :Validation, 'bitcoin/validation'
 
   autoload :Namecoin,   'bitcoin/namecoin'
+  autoload :Litecoin,   'bitcoin/litecoin'
 
   module Network
     autoload :ConnectionHandler,  'bitcoin/network/connection_handler'
@@ -226,6 +227,23 @@ module Bitcoin
       h = "%08x%08x%08x%064s%064s%08x" %
             [nonce, bits, time, mrkl_root, prev_block, ver]
       bitcoin_hash(h)
+    end
+
+    def litecoin_hash(hex)
+      bytes = [hex].pack("H*").reverse
+      begin
+        require "scrypt" unless defined?(::SCrypt)
+        hash = SCrypt::Engine.__sc_crypt(bytes, bytes, 1024, 1, 1, 32)
+      rescue LoadError
+        hash = Litecoin::Scrypt.scrypt_1024_1_1_256_sp(bytes)
+      end
+      hash.reverse.unpack("H*")[0]
+    end
+
+    def block_scrypt_hash(prev_block, mrkl_root, time, bits, nonce, ver)
+      h = "%08x%08x%08x%064s%064s%08x" %
+            [nonce, bits, time, mrkl_root, prev_block, ver]
+      litecoin_hash(h)
     end
 
     # get merkle tree for given +tx+ list.
@@ -485,6 +503,9 @@ module Bitcoin
       :max_money => 21_000_000 * COIN,
       :min_tx_fee => 10_000,
       :min_relay_tx_fee => 10_000,
+      :free_tx_bytes => 1_000,
+      :dust => CENT,
+      :per_dust_fee => false,
       :dns_seeds => [
         "seed.bitcoin.sipa.be",
         "dnsseed.bluematt.me",
@@ -536,6 +557,9 @@ module Bitcoin
       :max_money => 21_000_000 * COIN,
       :min_tx_fee => 10_000,
       :min_relay_tx_fee => 10_000,
+      :free_tx_bytes => 1_000,
+      :dust => CENT,
+      :per_dust_fee => false,
     },
 
     :testnet3 => {
@@ -552,7 +576,11 @@ module Bitcoin
       :target_spacing    => 600, # block interval
       :max_money => 21_000_000 * COIN,
       :min_tx_fee => 10_000,
+      :no_difficulty => true, # no good. add right testnet3 difficulty calculation instead
       :min_relay_tx_fee => 10_000,
+      :free_tx_bytes => 1_000,
+      :dust => CENT,
+      :per_dust_fee => false,
       :dns_seeds => [
         "testnet-seed.bitcoin.petertodd.org",
         "testnet-seed.bluematt.me",
@@ -576,13 +604,16 @@ module Bitcoin
       :p2sh_version => "05",
       :privkey_version => "b0",
       :default_port => 9333,
-      :protocol_version => 60002,
+      :protocol_version => 70002,
       :max_money => 84_000_000 * COIN,
-      :min_tx_fee => 2_000_000,
+      :min_tx_fee => 100_000, # 0.001 LTC
+      :min_relay_tx_fee => 100_000, # 0.001 LTC
+      :free_tx_bytes => 5_000,
+      :dust => CENT / 10,
+      :per_dust_fee => true,
       :coinbase_maturity => 100,
       :retarget_interval => 2016,
       :retarget_time => 302400, # 3.5 days
-      :min_relay_tx_fee => 1_000_000,
       :dns_seeds => [
         "dnsseed.litecointools.com",
         "dnsseed.litecoinpool.org",
@@ -592,7 +623,7 @@ module Bitcoin
       ],
       :genesis_hash => "12a765e31ffd4059bada1e25190f6e98c99d9714d334efa41a195a7e7e04bfe2",
       :proof_of_work_limit => 0,
-      :alert_pubkeys => [],
+      :alert_pubkeys => ["040184710fa689ad5023690c80f3a49c8f13f8d45b8c857fbcbc8bc4a8e4d3eb4b10f4d4604fa08dce601aaf0f470216fe1b51850b4acf21b179c45070ac7b03a9"],
       :known_nodes => [],
       :checkpoints => {
              1 => "80ca095ed10b02e53d769eb6eaf92cd04e9e0759e5be4a8477b42911ba49c78f",
@@ -609,6 +640,9 @@ module Bitcoin
         179620 => "2ad9c65c990ac00426d18e446e0fd7be2ffa69e9a7dcb28358a50b2b78b9f709",
         240000 => "7140d1c4b4c2157ca217ee7636f24c9c73db39c4590c4e6eab2e3ea1555088aa",
         383640 => "2b6809f094a9215bafc65eb3f110a35127a34be94b7d0590a096c3f126c6f364",
+        409004 => "487518d663d9f1fa08611d9395ad74d982b667fbdc0e77e9cf39b4f1355908a3",
+        456000 => "bf34f71cc6366cd487930d06be22f897e34ca6a40501ac7d401be32456372004",
+        541794 => "1cbccbe6920e7c258bbce1f26211084efb19764aa3224bec3f4320d77d6a2fd2",
       }
     },
 
@@ -619,22 +653,28 @@ module Bitcoin
       :p2sh_version => "c4",
       :privkey_version => "ef",
       :default_port => 19333,
-      :protocol_version => 60002,
-      :min_tx_fee => 2_000_000,
-      :min_relay_tx_fee => 1_000_000,
+      :protocol_version => 70002,
+      :min_tx_fee => 100_000, # 0.001 LTC
+      :min_relay_tx_fee => 100_000, # 0.001 LTC
+      :dust => CENT / 10,
+      :per_dust_fee => true,
+      :free_tx_bytes => 5_000,
       :coinbase_maturity => 100,
       :retarget_interval => 2016,
       :retarget_time => 302400, # 3.5 days
       :max_money => 84_000_000 * COIN,
       :dns_seeds => [
         "testnet-seed.litecointools.com",
+        "testnet-seed.ltc.xurious.com",
         "testnet-seed.weminemnc.com",
       ],
       :genesis_hash => "f5ae71e26c74beacc88382716aced69cddf3dffff24f384e1808905e0188f68f",
       :proof_of_work_limit => 0,
-      :alert_pubkeys => [],
+      :alert_pubkeys => ["04302390343f91cc401d56d68b123028bf52e5fca1939df127f63c6467cdf9c8e2c14b61104cf817d0b780da337893ecc4aaff1309e536162dabbdb45200ca2b0a"],
       :known_nodes => [],
-      :checkpoints => {}
+      :checkpoints => {
+        546 => "a0fea99a6897f531600c8ae53367b126824fd6a847b2b2b73817a95b8e27e602",
+      }
     },
 
 
@@ -649,6 +689,9 @@ module Bitcoin
       :max_money => 21_000_000 * COIN,
       :min_tx_fee => 50_000,
       :min_relay_tx_fee => 10_000,
+      :free_tx_bytes => 1_000,
+      :dust => CENT,
+      :per_dust_fee => false,
       :dns_seeds => [ "seed.freico.in", "fledge.freico.in" ],
       :genesis_hash => "000000005b1e3d23ecfd2dd4a6e1a35238aa0392c0a8528c40df52376d7efe2c",
       :proof_of_work_limit => 0,
@@ -669,6 +712,9 @@ module Bitcoin
       :max_money => 21_000_000 * COIN,
       :min_tx_fee => 50_000,
       :min_relay_tx_fee => 10_000,
+      :free_tx_bytes => 1_000,
+      :dust => CENT,
+      :per_dust_fee => true,
       :dns_seeds => [],
       :genesis_hash => "000000000062b72c5e2ceb45fbc8587e807c155b0da735e6483dfba2f0a9c770",
       :proof_of_work_limit => 0x1d00ffff,
@@ -691,6 +737,9 @@ module Bitcoin
       :protocol_version => 35000,
       :min_tx_fee => 50_000,
       :min_relay_tx_fee => 10_000,
+      :free_tx_bytes => 1_000,
+      :dust => CENT,
+      :per_dust_fee => true,
       :max_money => 21_000_000 * COIN,
       :dns_seeds => [],
       :genesis_hash => "00000001f8ab0d14bceaeb50d163b0bef15aecf62b87bd5f5c864d37f201db97",

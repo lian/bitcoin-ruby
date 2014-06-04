@@ -3,12 +3,6 @@ require 'openssl'
 module Litecoin
   module Scrypt
 
-    def scrypt_1024_1_1_256(input)
-      input = [input].pack("H*") if input.bytesize == 160
-      #scrypt_1024_1_1_256_sp(input, scratchpad = Array.new(131072 + 63){ 0 })
-      scrypt_1024_1_1_256_sp(input)
-    end
-
     def scrypt_1024_1_1_256_sp(input, scratchpad=[])
       b = pbkdf2_sha256(input, input, 1, 128)
       x = b.unpack("V*")
@@ -27,7 +21,7 @@ module Litecoin
         xor_salsa8(x, x, 16, 0)
       }
 
-      pbkdf2_sha256(input, x.pack("V*"), 1, 32).reverse.unpack("H*")[0]
+      pbkdf2_sha256(input, x.pack("V*"), 1, 32)
     end
 
     def pbkdf2_sha256(pass, salt, c=1, dk_len=128)
@@ -70,12 +64,20 @@ end
 
 if $0 == __FILE__
   secret_hex = "020000004c1271c211717198227392b029a64a7971931d351b387bb80db027f270411e398a07046f7d4a08dd815412a8712f874a7ebf0507e3878bd24e20a3b73fd750a667d2f451eac7471b00de6659"
-  p Litecoin::Scrypt.scrypt_1024_1_1_256(secret_hex) == "00000000002bef4107f882f6115e0b01f348d21195dacd3582aa2dabd7985806"
+  secret_bytes = [secret_hex].pack("H*")
+ 
+  begin
+    require "scrypt"
+    hash = SCrypt::Engine.__sc_crypt(secret_bytes, secret_bytes, 1024, 1, 1, 32)
+    p hash.reverse.unpack("H*")[0] == "00000000002bef4107f882f6115e0b01f348d21195dacd3582aa2dabd7985806"
+  rescue LoadError
+    puts "scrypt gem not found, using native scrypt"
+    p Litecoin::Scrypt.scrypt_1024_1_1_256_sp(secret_bytes).reverse.unpack("H*")[0] == "00000000002bef4107f882f6115e0b01f348d21195dacd3582aa2dabd7985806"
+  end
 
   require 'benchmark'
-  secret_bytes = [secret_hex].pack("H*")
   Benchmark.bmbm{|x|
-    #x.report("v1"){ p Litecoin::Scrypt.scrypt_1024_1_1_256_sp_old(secret_bytes) == "00000000002bef4107f882f6115e0b01f348d21195dacd3582aa2dabd7985806" }
-    x.report("v2"){ p Litecoin::Scrypt.scrypt_1024_1_1_256_sp(secret_bytes) == "00000000002bef4107f882f6115e0b01f348d21195dacd3582aa2dabd7985806" }
+    x.report("v1"){ SCrypt::Engine.__sc_crypt(secret_bytes, secret_bytes, 1024, 1, 1, 32).reverse.unpack("H*") rescue nil }
+    x.report("v2"){ Litecoin::Scrypt.scrypt_1024_1_1_256_sp(secret_bytes).reverse.unpack("H*")[0] }
   }
 end

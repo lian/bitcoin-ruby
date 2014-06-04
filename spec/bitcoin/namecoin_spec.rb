@@ -89,7 +89,7 @@ describe 'Bitcoin::Namecoin' do
 
       before do
         Bitcoin.network = :namecoin
-        class Bitcoin::Validation::Block; def difficulty; true; end; end
+        Bitcoin.network[:no_difficulty] = true
         class Bitcoin::Validation::Block; def min_timestamp; true; end; end
         Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("ff"*32)
         [:name_new, :name_firstupdate, :name_update].each {|type|

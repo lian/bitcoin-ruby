@@ -15,6 +15,7 @@ Some of the main features are:
 * Bitcoin::Builder provides a high-level API for creating transactions (and blocks)
 * Bitcoin::Wallet is a draft implementation of a simple wallet
 * Bitcoin::Namecoin implements all the namecoin-specific differences (see NAMECOIN)
+* Bitcoin::Litecoin implements all the litecoin-sepcific differences
 
 == Compatible with...
 
@@ -44,6 +45,7 @@ intentionally kept to a minimum, so nobody has to install unneeded dependencies.
 * +em-dns+ or +nslookup+ to get peer addrs from DNS seeds
 * +gir_ffi+ for the gui
 * +bacon+ to run the specs
+* +scrypt+ to use a much faster scrypt hash implementation for Litecoin
 
 If you would like to install using Bundler, put it in your Gemfile and run bundle install
  gem 'bitcoin-ruby', git: 'https://github.com/lian/bitcoin-ruby', branch: 'master', require: 'bitcoin'
@@ -194,7 +196,7 @@ as well as the private key for the address required to sign for it.
 The Bitcoin::Network::Node can connect to peers and download the blockchain into a
 Bitcoin::Storage backend. For now it works completely self-contained:
 
- node = Bitcoin::Network::Node.new(options) # options = {:network => :bitcoin, ...}
+ node = Bitcoin::Network::Node.new(options) # options = {network: :bitcoin, ...}
  node.run
 
 In the future you will be able to register callbacks to the node and control many aspects

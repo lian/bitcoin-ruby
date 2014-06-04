@@ -71,6 +71,7 @@ module Bitcoin
       def tx tx = nil
         tx ||= ( c = TxBuilder.new; yield c; c.tx )
         @block.tx << tx
+        tx
       end
 
       # create the block according to values specified via DSL.

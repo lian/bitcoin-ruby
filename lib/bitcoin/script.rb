@@ -1191,7 +1191,7 @@ class Bitcoin::Script
     #return invalid  if (nOpCount += n_pubkeys) > 201
     return invalid if @stack.size < n_pubkeys
     pubkeys = pop_string(n_pubkeys)
-
+    
     return invalid if @stack.size < 1
     n_sigs = pop_int
     return invalid if n_sigs < 0 || n_sigs > n_pubkeys
@@ -1199,15 +1199,20 @@ class Bitcoin::Script
     sigs = pop_string(n_sigs)
     drop_sigs = sigs.dup
 
-    @stack.pop if @stack[-1] && cast_to_bignum(@stack[-1]) == 0 # remove OP_0 from stack
+    # Bitcoin-core removes an extra item from the stack
+    @stack.pop
 
     subscript = sighash_subscript(drop_sigs)
 
     success = true
     while success && n_sigs > 0
       sig, pub = sigs.pop, pubkeys.pop
+      unless sig && sig.size > 0
+        success = false
+        break
+      end
       signature, hash_type = parse_sig(sig)
-      if check_callback.call(pub, signature, hash_type, subscript)
+      if pub.size > 0 && check_callback.call(pub, signature, hash_type, subscript)
         n_sigs -= 1
       else
         sigs << sig
@@ -1217,6 +1222,11 @@ class Bitcoin::Script
     end
 
     @stack << (success ? 1 : 0)
+  end
+
+  def op_checkmultisigverify(check_callback)
+    op_checkmultisig(check_callback)
+    op_verify
   end
 
   # op_eval: https://en.bitcoin.it/wiki/BIP_0012
