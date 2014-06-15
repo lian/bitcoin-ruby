@@ -418,8 +418,10 @@ module Bitcoin::Storage
           elsif Bitcoin.namecoin? && script.is_namecoin?
             addrs << [i, script.get_hash160]
             names << [i, script]
+          elsif script.is_op_return?
+            log.info { "Ignoring OP_RETURN script: #{script.get_op_return_data}" }
           else
-            log.info { "Unknown script type in #{tx_hash}:#{tx_idx}" }
+            log.info { "Unknown script type in txout #{tx_hash}:#{tx_idx}" }
             log.debug { script.to_string }
           end
           script_type = SCRIPT_TYPES.index(script.type)
