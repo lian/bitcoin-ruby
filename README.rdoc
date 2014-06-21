@@ -31,7 +31,7 @@ We assume you already have a ruby 1.9 or 2.0 compatible interpreter and rubygems
 
 if you want to have it available system-wide, just build the gem and install it:
 
- gem build bitcoin-ruby.gemspec && gem install bitcoin-ruby-0.0.2.gem
+ gem build bitcoin-ruby.gemspec && gem install bitcoin-ruby-0.0.5.gem
 
 now you can just call +bitcoin_node+ from anywhere.
 
