@@ -80,7 +80,11 @@ module Bitcoin::Storage::Backends
           fast_insert(:txin, new_tx.map.with_index {|tx, tx_idx|
             tx, _ = *tx
             tx.in.map.with_index {|txin, txin_idx|
-              txin_data(new_tx_ids[tx_idx], txin, txin_idx) } }.flatten)
+              p2sh_type = nil
+              if @config[:index_p2sh_type] && !txin.coinbase? && (script = tx.scripts[txin_idx]) && script.is_p2sh?
+                p2sh_type = Bitcoin::Script.new(script.inner_p2sh_script).type
+              end
+              txin_data(new_tx_ids[tx_idx], txin, txin_idx, p2sh_type) } }.flatten)
 
           # store txouts
           txout_i = 0
@@ -168,17 +172,21 @@ module Bitcoin::Storage::Backends
     end
 
     # prepare txin data for storage
-    def txin_data tx_id, txin, idx
-      { tx_id: tx_id, tx_idx: idx,
+    def txin_data tx_id, txin, idx, p2sh_type = nil
+      data = {
+        tx_id: tx_id, tx_idx: idx,
         script_sig: txin.script_sig.blob,
         prev_out: txin.prev_out.blob,
         prev_out_index: txin.prev_out_index,
-        sequence: txin.sequence.unpack("V")[0] }
+        sequence: txin.sequence.unpack("V")[0],
+      }
+      data[:p2sh_type] = SCRIPT_TYPES.index(p2sh_type)  if @config[:index_p2sh_type]
+      data
     end
 
     # store input +txin+
-    def store_txin(tx_id, txin, idx)
-      @db[:txin].insert(txin_data(tx_id, txin, idx))
+    def store_txin(tx_id, txin, idx, p2sh_type = nil)
+      @db[:txin].insert(txin_data(tx_id, txin, idx, p2sh_type))
     end
 
     # prepare txout data for storage
@@ -404,7 +412,8 @@ module Bitcoin::Storage::Backends
     # wrap given +input+ into Models::TxIn
     def wrap_txin(input)
       return nil  unless input
-      data = {:id => input[:id], :tx_id => input[:tx_id], :tx_idx => input[:tx_idx]}
+      data = { :id => input[:id], :tx_id => input[:tx_id], :tx_idx => input[:tx_idx],
+        :p2sh_type => input[:p2sh_type] ? SCRIPT_TYPES[input[:p2sh_type]] : nil }
       txin = Bitcoin::Storage::Models::TxIn.new(self, data)
       txin.prev_out = input[:prev_out]
       txin.prev_out_index = input[:prev_out_index]

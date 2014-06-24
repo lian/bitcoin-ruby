@@ -25,6 +25,9 @@ module Bitcoin
       # lock time
       attr_accessor :lock_time
 
+      # parsed / evaluated input scripts cached for later use
+      attr_reader :scripts
+
       alias :inputs  :in
       alias :outputs :out
 
@@ -40,7 +43,7 @@ module Bitcoin
 
       # create tx from raw binary +data+
       def initialize(data=nil)
-        @ver, @lock_time, @in, @out = 1, 0, [], []
+        @ver, @lock_time, @in, @out, @scripts = 1, 0, [], [], []
         parse_data_from_io(data) if data
       end
 
@@ -169,7 +172,8 @@ module Bitcoin
           outpoint_tx_or_script
         end
 
-        Bitcoin::Script.new(script_sig, script_pubkey).run(block_timestamp) do |pubkey,sig,hash_type,subscript|
+        @scripts[in_idx] = Bitcoin::Script.new(script_sig, script_pubkey)
+        @scripts[in_idx].run(block_timestamp) do |pubkey,sig,hash_type,subscript|
           hash = signature_hash_for_input(in_idx, subscript, hash_type)
           Bitcoin.verify_signature( hash, sig, pubkey.unpack("H*")[0] )
         end

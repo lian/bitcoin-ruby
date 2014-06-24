@@ -471,6 +471,17 @@ class Bitcoin::Script
   def inner_p2sh!(script=nil); @inner_p2sh = true; @inner_script_code = script; self; end
   def inner_p2sh?; @inner_p2sh; end
 
+  # get the inner p2sh script
+  def inner_p2sh_script
+    return nil if @chunks.size < 4
+    *rest, script, _, script_hash, _ = @chunks
+    script = rest.pop if script == OP_CODESEPARATOR
+    script, script_hash = cast_to_string(script), cast_to_string(script_hash)
+
+    return nil unless Bitcoin.hash160(script.unpack("H*")[0]) == script_hash.unpack("H*")[0]
+    script
+  end
+
   def is_pay_to_script_hash?
     return false  unless @chunks[-2].is_a?(String)
     @chunks.size >= 3 && @chunks[-3] == OP_HASH160 &&

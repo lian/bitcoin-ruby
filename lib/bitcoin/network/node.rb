@@ -57,6 +57,7 @@ module Bitcoin::Network
       :mode => :full,
       :cache_head => true,
       :index_nhash => false,
+      :index_p2sh_type => false,
       :dns => true,
       :epoll_limit => 10000,
       :epoll_user => nil,
@@ -106,6 +107,7 @@ module Bitcoin::Network
       @store = Bitcoin::Storage.send(backend, {
           db: config, mode: @config[:mode], cache_head: @config[:cache_head],
           skip_validation: @config[:skip_validation], index_nhash: @config[:index_nhash],
+          index_p2sh_type: @config[:index_p2sh_type],
           log_level: @config[:log][:storage]}, ->(locator) {
           peer = @connections.select(&:connected?).sample
           peer.send_getblocks(locator)
