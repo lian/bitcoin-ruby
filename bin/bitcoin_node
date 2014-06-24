@@ -43,6 +43,16 @@ optparse = OptionParser.new do |opts|
     end
   end
 
+  opts.on("-a", "--announce",
+    "Announce our own address to the network, so we will get incoming connections.") do
+    options[:announce] = true
+  end
+
+  opts.on("--external-port PORT",
+    "Specify external port that can be used to reach this node (uses local port otherwise).") do |port|
+    options[:external_port] = port.to_i
+  end
+
   opts.on("-s", "--storage [BACKEND::CONFIG]",
     "Use storage backend (default: #{options[:storage]})") do |storage|
     options[:storage] = storage

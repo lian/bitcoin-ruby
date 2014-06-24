@@ -106,6 +106,7 @@ module Bitcoin::Network
         @node.push_notification(:connection, [:connected, info])
         @node.addrs << addr
       end
+      send_data P::Addr.pkt(@node.addr)  if @node.config[:announce]
     end
 
     # received +inv_tx+ message for given +hash+.
@@ -230,7 +231,8 @@ module Bitcoin::Network
     # received +getaddr+ message.
     # send +addr+ message with peer addresses back.
     def on_getaddr
-      addrs = @node.addrs.select{|a| a.time > Time.now.to_i - 10800 }.shuffle[0..250]
+      addrs = @node.config[:announce] ? [@node.addr] : []
+      addrs += @node.addrs.select{|a| a.time > Time.now.to_i - 10800 }.shuffle[0..250]
       log.debug { "<< addr (#{addrs.size})" }
       send_data P::Addr.pkt(*addrs)
     end
