@@ -19,6 +19,7 @@ describe 'Bitcoin::Protocol::Block' do
       '131025' => fixtures_file('rawblock-131025.bin'),
       # block 26478:  000000000214a3f06ee99a033a7f2252762d6a18d27c3cd8c8fe2278190da9f3
       'testnet-26478' => fixtures_file('rawblock-testnet-26478.bin'),
+      'testnet-265322' => fixtures_file('rawblock-testnet-265322.bin'),
     }
   end
 
@@ -191,6 +192,11 @@ describe 'Bitcoin::Protocol::Block' do
     block = Block.from_json(fixtures_file('000000000000056b1a3d84a1e2b33cde8915a4b61c0cae14fca6d3e1490b4f98.json'))
     block.ver.should == 2
     block.bip34_block_height.should == 197657
+  end
+
+  it 'should work with huge block version' do
+    Bitcoin::P::Block.new(@blocks['testnet-265322']).hash.should ==
+      "0000000000014b351588a177be099e39afd4962cd3d58e9ab5cbe45a9cf83c8a"
   end
 
 end
