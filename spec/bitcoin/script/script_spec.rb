@@ -20,6 +20,7 @@ describe 'Bitcoin::Script' do
     "0423b8161514560bc8638054b6637ab78f400b24e5694ec8061db635d1f28a17902b14dbf4f80780da659ab24f11ded3095c780452a4004c30ab58dffac33d839a",
     "04f43e76afac66bf3927638b6c4f7e324513ce56d2d658ac9d24c420d09993a4464eea6141a68a4748c092ad0e8f4ac29c4a2f661ef4d22b21f20110f42fcd6f6d",
   ]
+
   describe "serialization" do
     it '#to_string' do
       Script.new(SCRIPT[0]).to_string.should ==
@@ -514,6 +515,109 @@ describe 'Bitcoin::Script' do
     # mainnet tx: 136becd0892fa38c5aca8104db8b90b3a0e6b40912b7d1462aed583c067054cd
     tx2 = Bitcoin::P::Tx.new("01000000019cc2a6fbf645a81cc42317673ca33d500059f34080d64f333bf72379420687b70000000008000051005102ae91ffffffff0150c300000000000002ae9100000000".htb)
     tx2.verify_input_signature(0, tx1).should == true
+  end
+
+  it "should debug script branches (OP_IF/NOTIF/ELSE/ENDIF) correctly" do
+
+    script = Bitcoin::Script.from_string("1 OP_NOTIF OP_RETURN OP_ENDIF")
+    script.run {}
+    script.debug.should == [
+      [], "OP_1",
+      [1], "OP_NOTIF",
+      [], "OP_ENDIF",
+      [], "RESULT"
+    ]
+
+    script = Bitcoin::Script.from_string("1 OP_IF OP_RETURN OP_ENDIF")
+    script.run {}
+    script.debug.should == [
+      [], "OP_1",
+      [1], "OP_IF",
+      [], "OP_RETURN",
+      [], "INVALID TRANSACTION", "RESULT"
+    ]
+
+    script = Bitcoin::Script.from_string("1 OP_IF OP_2 OP_ELSE OP_3 OP_ENDIF OP_2 OP_EQUAL")
+    script.run {}
+    script.debug.should == [
+      [], "OP_1",
+      [1], "OP_IF",
+      [], "OP_2",
+      [2], "OP_ELSE",
+      [2], "OP_ENDIF",
+      [2], "OP_2",
+      [2, 2], "OP_EQUAL",
+      [1], "RESULT"]
+
+    script = Bitcoin::Script.from_string("0 OP_IF OP_2 OP_ELSE OP_3 OP_ENDIF OP_2 OP_EQUAL")
+    script.run {}
+    script.debug.should == [
+      [], "OP_0",
+      [[""]], "OP_IF",
+      [], "OP_ELSE",
+      [], "OP_3",
+      [3], "OP_ENDIF",
+      [3], "OP_2",
+      [3, 2], "OP_EQUAL",
+      [0], "RESULT"]
+
+    script = Bitcoin::Script.from_string("0 OP_IF deadbeef OP_ELSE OP_3 OP_ENDIF OP_2 OP_EQUAL")
+    script.run {}
+    script.debug.should == [
+      [], "OP_0",
+      [[""]], "OP_IF",
+      [], "OP_ELSE",
+      [], "OP_3",
+      [3], "OP_ENDIF",
+      [3], "OP_2",
+      [3, 2], "OP_EQUAL",
+      [0], "RESULT"]
+
+    script = Bitcoin::Script.from_string("1 OP_IF 2 OP_ELSE 3 OP_ENDIF 2 OP_EQUAL")
+    script.run {}
+    script.debug.should ==  [[], "OP_1", [1], "OP_IF", [], "OP_2", [2], "OP_ELSE", [2], "OP_ENDIF", [2], "OP_2", [2, 2], "OP_EQUAL", [1], "RESULT"]
+
+    script = Bitcoin::Script.from_string("
+0
+3045022041ccefcad804c28fcd843afeb10df3bd09d93e56542cda4ae9bcac18ed69f6c7022100f24d891b69695099a66b81a4ef382ff0ef388ad211505cd32e2ad3adebe5f74501
+304502201124a34c8bcc6a41c9bda088bc28e4274af02872866fa926205b0799e0f3b28a022100d0bbe8382a4e6ff46968bb8c2990bb63ef7f413f5b7c3912b4948b3eb0e72fc301
+1
+635221022d73c0041da9794fcaa7286fcce35e126f84f8b53563be6abb3b213f964bfbfc2102ab2445a289939e49e326dd29ca068cb38d1c9ef7618b7272d14c79c1abdea5cd52ae675221025182b1ca9a1ea9358f61cb363ac80c80b145204d9c4d875c35873d3d578853
+OP_IF
+2
+022d73c0041da9794fcaa7286fcce35e126f84f8b53563be6abb3b213f964bfbfc
+02ab2445a289939e49e326dd29ca068cb38d1c9ef7618b7272d14c79c1abdea5cd
+2
+OP_CHECKMULTISIG
+OP_ELSE
+2
+025182b1ca9a1ea9358f61cb363ac80c80b145204d9c4d875c35873d3d57885348
+02b18808b3e6857e396167890a52f898cbd5215354f027b89fed895058e49a158b
+2
+OP_CHECKMULTISIG
+OP_ENDIF")
+    script.run {}
+    script.debug.should == [
+      [], "OP_0",
+      [[""]], "PUSH DATA 3045022041ccefcad804c28fcd843afeb10df3bd09d93e56542cda4ae9bcac18ed69f6c7022100f24d891b69695099a66b81a4ef382ff0ef388ad211505cd32e2ad3adebe5f74501",
+      [[""], ["3045022041ccefcad804c28fcd843afeb10df3bd09d93e56542cda4ae9bcac18ed69f6c7022100f24d891b69695099a66b81a4ef382ff0ef388ad211505cd32e2ad3adebe5f74501"]], "PUSH DATA 304502201124a34c8bcc6a41c9bda088bc28e4274af02872866fa926205b0799e0f3b28a022100d0bbe8382a4e6ff46968bb8c2990bb63ef7f413f5b7c3912b4948b3eb0e72fc301",
+      [[""], ["3045022041ccefcad804c28fcd843afeb10df3bd09d93e56542cda4ae9bcac18ed69f6c7022100f24d891b69695099a66b81a4ef382ff0ef388ad211505cd32e2ad3adebe5f74501"], ["304502201124a34c8bcc6a41c9bda088bc28e4274af02872866fa926205b0799e0f3b28a022100d0bbe8382a4e6ff46968bb8c2990bb63ef7f413f5b7c3912b4948b3eb0e72fc301"]], "OP_1",
+      [[""], ["3045022041ccefcad804c28fcd843afeb10df3bd09d93e56542cda4ae9bcac18ed69f6c7022100f24d891b69695099a66b81a4ef382ff0ef388ad211505cd32e2ad3adebe5f74501"], ["304502201124a34c8bcc6a41c9bda088bc28e4274af02872866fa926205b0799e0f3b28a022100d0bbe8382a4e6ff46968bb8c2990bb63ef7f413f5b7c3912b4948b3eb0e72fc301"], 1], "PUSH DATA 635221022d73c0041da9794fcaa7286fcce35e126f84f8b53563be6abb3b213f964bfbfc2102ab2445a289939e49e326dd29ca068cb38d1c9ef7618b7272d14c79c1abdea5cd52ae675221025182b1ca9a1ea9358f61cb363ac80c80b145204d9c4d875c35873d3d578853",
+      [[""], ["3045022041ccefcad804c28fcd843afeb10df3bd09d93e56542cda4ae9bcac18ed69f6c7022100f24d891b69695099a66b81a4ef382ff0ef388ad211505cd32e2ad3adebe5f74501"], ["304502201124a34c8bcc6a41c9bda088bc28e4274af02872866fa926205b0799e0f3b28a022100d0bbe8382a4e6ff46968bb8c2990bb63ef7f413f5b7c3912b4948b3eb0e72fc301"], 1, ["635221022d73c0041da9794fcaa7286fcce35e126f84f8b53563be6abb3b213f964bfbfc2102ab2445a289939e49e326dd29ca068cb38d1c9ef7618b7272d14c79c1abdea5cd52ae675221025182b1ca9a1ea9358f61cb363ac80c80b145204d9c4d875c35873d3d578853"]], "OP_IF",
+
+      # don't include the branch that wasn't executed
+      # [[""], ["3045022041ccefcad804c28fcd843afeb10df3bd09d93e56542cda4ae9bcac18ed69f6c7022100f24d891b69695099a66b81a4ef382ff0ef388ad211505cd32e2ad3adebe5f74501"], ["304502201124a34c8bcc6a41c9bda088bc28e4274af02872866fa926205b0799e0f3b28a022100d0bbe8382a4e6ff46968bb8c2990bb63ef7f413f5b7c3912b4948b3eb0e72fc301"], 1],
+      # [[""], ["3045022041ccefcad804c28fcd843afeb10df3bd09d93e56542cda4ae9bcac18ed69f6c7022100f24d891b69695099a66b81a4ef382ff0ef388ad211505cd32e2ad3adebe5f74501"], ["304502201124a34c8bcc6a41c9bda088bc28e4274af02872866fa926205b0799e0f3b28a022100d0bbe8382a4e6ff46968bb8c2990bb63ef7f413f5b7c3912b4948b3eb0e72fc301"], 1],
+      # [[""], ["3045022041ccefcad804c28fcd843afeb10df3bd09d93e56542cda4ae9bcac18ed69f6c7022100f24d891b69695099a66b81a4ef382ff0ef388ad211505cd32e2ad3adebe5f74501"], ["304502201124a34c8bcc6a41c9bda088bc28e4274af02872866fa926205b0799e0f3b28a022100d0bbe8382a4e6ff46968bb8c2990bb63ef7f413f5b7c3912b4948b3eb0e72fc301"], 1], "OP_CHECKMULTISIG",
+
+      [[""], ["3045022041ccefcad804c28fcd843afeb10df3bd09d93e56542cda4ae9bcac18ed69f6c7022100f24d891b69695099a66b81a4ef382ff0ef388ad211505cd32e2ad3adebe5f74501"], ["304502201124a34c8bcc6a41c9bda088bc28e4274af02872866fa926205b0799e0f3b28a022100d0bbe8382a4e6ff46968bb8c2990bb63ef7f413f5b7c3912b4948b3eb0e72fc301"], 1], "OP_ELSE",
+      [[""], ["3045022041ccefcad804c28fcd843afeb10df3bd09d93e56542cda4ae9bcac18ed69f6c7022100f24d891b69695099a66b81a4ef382ff0ef388ad211505cd32e2ad3adebe5f74501"], ["304502201124a34c8bcc6a41c9bda088bc28e4274af02872866fa926205b0799e0f3b28a022100d0bbe8382a4e6ff46968bb8c2990bb63ef7f413f5b7c3912b4948b3eb0e72fc301"], 1], "OP_2",
+      [[""], ["3045022041ccefcad804c28fcd843afeb10df3bd09d93e56542cda4ae9bcac18ed69f6c7022100f24d891b69695099a66b81a4ef382ff0ef388ad211505cd32e2ad3adebe5f74501"], ["304502201124a34c8bcc6a41c9bda088bc28e4274af02872866fa926205b0799e0f3b28a022100d0bbe8382a4e6ff46968bb8c2990bb63ef7f413f5b7c3912b4948b3eb0e72fc301"], 1, 2], "PUSH DATA 025182b1ca9a1ea9358f61cb363ac80c80b145204d9c4d875c35873d3d57885348",
+      [[""], ["3045022041ccefcad804c28fcd843afeb10df3bd09d93e56542cda4ae9bcac18ed69f6c7022100f24d891b69695099a66b81a4ef382ff0ef388ad211505cd32e2ad3adebe5f74501"], ["304502201124a34c8bcc6a41c9bda088bc28e4274af02872866fa926205b0799e0f3b28a022100d0bbe8382a4e6ff46968bb8c2990bb63ef7f413f5b7c3912b4948b3eb0e72fc301"], 1, 2, ["025182b1ca9a1ea9358f61cb363ac80c80b145204d9c4d875c35873d3d57885348"]], "PUSH DATA 02b18808b3e6857e396167890a52f898cbd5215354f027b89fed895058e49a158b",
+      [[""], ["3045022041ccefcad804c28fcd843afeb10df3bd09d93e56542cda4ae9bcac18ed69f6c7022100f24d891b69695099a66b81a4ef382ff0ef388ad211505cd32e2ad3adebe5f74501"], ["304502201124a34c8bcc6a41c9bda088bc28e4274af02872866fa926205b0799e0f3b28a022100d0bbe8382a4e6ff46968bb8c2990bb63ef7f413f5b7c3912b4948b3eb0e72fc301"], 1, 2, ["025182b1ca9a1ea9358f61cb363ac80c80b145204d9c4d875c35873d3d57885348"], ["02b18808b3e6857e396167890a52f898cbd5215354f027b89fed895058e49a158b"]], "OP_2",
+      [[""], ["3045022041ccefcad804c28fcd843afeb10df3bd09d93e56542cda4ae9bcac18ed69f6c7022100f24d891b69695099a66b81a4ef382ff0ef388ad211505cd32e2ad3adebe5f74501"], ["304502201124a34c8bcc6a41c9bda088bc28e4274af02872866fa926205b0799e0f3b28a022100d0bbe8382a4e6ff46968bb8c2990bb63ef7f413f5b7c3912b4948b3eb0e72fc301"], 1, 2, ["025182b1ca9a1ea9358f61cb363ac80c80b145204d9c4d875c35873d3d57885348"], ["02b18808b3e6857e396167890a52f898cbd5215354f027b89fed895058e49a158b"], 2], "OP_CHECKMULTISIG",
+      [[""], 0], "OP_ENDIF",
+      [[""], 0], "RESULT"]
   end
 
 end

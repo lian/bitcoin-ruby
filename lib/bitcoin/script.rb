@@ -407,7 +407,7 @@ class Bitcoin::Script
           break
         end
 
-        next unless (@do_exec || (OP_IF <= chunk && chunk <= OP_ENDIF))
+        next @debug.pop  unless (@do_exec || (OP_IF <= chunk && chunk <= OP_ENDIF))
 
         case chunk
         when *OPCODES_METHOD.keys
@@ -426,6 +426,8 @@ class Bitcoin::Script
         if @do_exec
           @debug << "PUSH DATA #{chunk.unpack("H*")[0]}"
           @stack << chunk
+        else
+          @debug.pop
         end
       end
     }
