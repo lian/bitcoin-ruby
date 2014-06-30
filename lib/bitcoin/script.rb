@@ -889,6 +889,7 @@ class Bitcoin::Script
     @stack << (a + 1)
   end
 
+  # 1 is subtracted from the input.
   def op_1sub
     a = pop_int
     @stack << (a - 1)
@@ -1179,6 +1180,7 @@ class Bitcoin::Script
     end
   end
 
+  # Same as OP_CHECKSIG, but OP_VERIFY is executed afterward.
   def op_checksigverify(check_callback)
     op_checksig(check_callback)
     op_verify
@@ -1237,6 +1239,7 @@ class Bitcoin::Script
     @stack << (success ? 1 : 0)
   end
 
+  # Same as OP_CHECKMULTISIG, but OP_VERIFY is executed afterward.
   def op_checkmultisigverify(check_callback)
     op_checkmultisig(check_callback)
     op_verify
