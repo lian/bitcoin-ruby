@@ -485,6 +485,7 @@ class Bitcoin::Script
   end
 
   def is_pay_to_script_hash?
+    return false  if @inner_p2sh
     return false  unless @chunks[-2].is_a?(String)
     @chunks.size >= 3 && @chunks[-3] == OP_HASH160 &&
       @chunks[-2].bytesize == 20 && @chunks[-1] == OP_EQUAL

@@ -620,4 +620,12 @@ OP_ENDIF")
       [[""], 0], "RESULT"]
   end
 
+  it "should not execute p2sh recursively" do
+    # this script_sig includes a pattern that matches the p2sh template
+    script_sig = "0 a914b472a266d0bd89c13706a4132ccfb16f7c3b9fcb87"
+    pk_script = "OP_HASH160 92a04bc86e23f169691bd6926d11853cc61e1852 OP_EQUAL"
+    script = Bitcoin::Script.from_string(script_sig + " " + pk_script)
+    script.run.should == true
+  end
+
 end
