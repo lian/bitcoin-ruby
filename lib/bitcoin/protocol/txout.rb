@@ -11,6 +11,9 @@ module Bitcoin
       # pk_script output Script
       attr_accessor :pk_script, :pk_script_length
 
+      # p2sh redeem script (optional, not included in the serialized binary format)
+      attr_accessor :redeem_script
+
       def initialize *args
         if args.size == 2
           @value, @pk_script_length, @pk_script = args[0], args[1].bytesize, args[1]

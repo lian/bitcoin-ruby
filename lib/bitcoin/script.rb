@@ -597,25 +597,31 @@ class Bitcoin::Script
     addrs.is_a?(Array) ? addrs[0] : addrs
   end
 
-  # generate pubkey tx script for given +pubkey+
+  # generate pubkey tx script for given +pubkey+. returns a raw binary script of the form:
+  #  <pubkey> OP_CHECKSIG
   def self.to_pubkey_script(pubkey)
     pk = [pubkey].pack("H*")
     [[pk.bytesize].pack("C"), pk, "\xAC"].join
   end
 
-  # generate hash160 tx for given +address+
+  # generate hash160 tx for given +address+. returns a raw binary script of the form:
+  #  OP_DUP OP_HASH160 <hash160> OP_EQUALVERIFY OP_CHECKSIG
   def self.to_hash160_script(hash160)
     return nil  unless hash160
     #  DUP   HASH160  length  hash160    EQUALVERIFY  CHECKSIG
     [ ["76", "a9",    "14",   hash160,   "88",        "ac"].join ].pack("H*")
   end
 
+  # generate p2sh output script for given +p2sh+ hash160. returns a raw binary script of the form:
+  #  OP_HASH160 <p2sh> OP_EQUAL
   def self.to_p2sh_script(p2sh)
     return nil  unless p2sh
     # HASH160  length  hash  EQUAL
     [ ["a9",   "14",   p2sh, "87"].join ].pack("H*")
   end
 
+  # generate hash160 or p2sh output script, depending on the type of the given +address+.
+  # see #to_hash160_script and #to_p2sh_script.
   def self.to_address_script(address)
     hash160 = Bitcoin.hash160_from_address(address)
     case Bitcoin.address_type(address)
@@ -624,20 +630,25 @@ class Bitcoin::Script
     end
   end
 
-  # generate multisig tx for given +pubkeys+, expecting +m+ signatures
+  # generate multisig output script for given +pubkeys+, expecting +m+ signatures.
+  # returns a raw binary script of the form:
+  #  <m> <pubkey> [<pubkey> ...] <n_pubkeys> OP_CHECKMULTISIG
   def self.to_multisig_script(m, *pubkeys)
     pubs = pubkeys.map{|pk|p=[pk].pack("H*"); [p.bytesize].pack("C") + p}
     [ [80 + m.to_i].pack("C"), *pubs, [80 + pubs.size].pack("C"), "\xAE"].join
   end
 
-  # generate OP_RETURN script with given data
+  # generate OP_RETURN output script with given data. returns a raw binary script of the form:
+  #  OP_RETURN <data>
   def self.to_op_return_script(data = nil)
     return "\x6A"  unless data
     data = [data].pack("H*")
     ["\x6A", [data.bytesize].pack("C"), data].join
   end
 
-  # generate pubkey script sig for given +signature+ and +pubkey+
+  # generate input script sig spending a pubkey output with given +signature+ and +pubkey+.
+  # returns a raw binary script sig of the form:
+  #  <signature> [<pubkey>]
   def self.to_pubkey_script_sig(signature, pubkey)
     hash_type = "\x01"
     #pubkey = [pubkey].pack("H*") if pubkey.bytesize != 65
@@ -657,16 +668,32 @@ class Bitcoin::Script
     [ [signature.bytesize+1].pack("C"), signature, hash_type, [pubkey.bytesize].pack("C"), pubkey ].join
   end
 
+  # generate p2sh multisig output script for given +args+.
+  # returns the p2sh output script, and the redeem script needed to spend it.
+  # see #to_multisig_script for the redeem script, and #to_p2sh_script for the p2sh script.
+  def self.to_p2sh_multisig_script(*args)
+    redeem_script = to_multisig_script(*args)
+    p2sh_script = to_p2sh_script(Bitcoin.hash160(redeem_script.hth))
+    return p2sh_script, redeem_script
+  end
+
   # alias for #to_pubkey_script_sig
   def self.to_signature_pubkey_script(*a)
     to_pubkey_script_sig(*a)
   end
 
+  # generate input script sig spending a multisig output script.
+  # returns a raw binary script sig of the form:
+  #  OP_0 <sig> [<sig> ...]
   def self.to_multisig_script_sig(*sigs)
+    sigs.map!{|s| s + "\x01" }
     from_string("0 #{sigs.map{|s|s.unpack('H*')[0]}.join(' ')}").raw
   end
 
-  def self.to_p2sh_multisig_script_sig(connected_script, *sigs)
+  # generate input script sig spending a p2sh-multisig output script.
+  # returns a raw binary script sig of the form:
+  #  OP_0 <sig> [<sig> ...] <redeem_script>
+  def self.to_p2sh_multisig_script_sig(redeem_script, *sigs)
     all_sigs = ""
 
     sigs[0].each do |sig|
@@ -677,8 +704,8 @@ class Bitcoin::Script
     end
 
     push = [OP_PUSHDATA1].pack("C*")
-    script_len = [connected_script.bytesize].pack("C*")
-    full_script = "\x00" + all_sigs + push + script_len + connected_script
+    script_len = [redeem_script.bytesize].pack("C*")
+    full_script = "\x00" + all_sigs + push + script_len + redeem_script
 
     return full_script
   end

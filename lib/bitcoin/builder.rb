@@ -162,10 +162,16 @@ module Bitcoin
         @outs << c
       end
 
-      # create the transaction according to values specified via DSL.
-      # sign each input that has a signature key specified. if there is
+      # Create the transaction according to values specified via DSL.
+      # Sign each input that has a signature key specified. If there is
       # no key, store the sig_hash in the input, so it can easily be
       # signed later.
+      #
+      # When :change_address and :input_value options are given, it will
+      # automatically create a change output sending the remaining funds
+      # to the given address. The :leave_fee option can be used in this
+      # case to specify a tx fee that should be left unclaimed by the
+      # change output.
       def tx opts = {}
         if opts[:change_address] && !opts[:input_value]
           raise "Must give 'input_value' when auto-generating change output!"
@@ -190,53 +196,73 @@ module Bitcoin
         end
 
         @ins.each_with_index do |inc, i|
-          if @tx.in[i].coinbase?
-            script_sig = [inc.coinbase_data].pack("H*")
-            @tx.in[i].script_sig_length = script_sig.bytesize
-            @tx.in[i].script_sig = script_sig
-            next
-          end
+          sign_input(i, inc)
+        end
 
-          if prev_tx = inc.prev_tx
-            @prev_script = prev_tx.out[@tx.in[i].prev_out_index].pk_script
-          else
-            @prev_script = inc.instance_variable_get(:@prev_out_script)
-          end
+        # run our tx through an encode/decode cycle to make sure that the binary format is sane
+        raise "Payload Error"  unless P::Tx.new(@tx.to_payload).to_payload == @tx.to_payload
+        @tx.instance_eval do
+          @payload = to_payload
+          @hash = hash_from_payload(@payload)
+        end
 
-          @sig_hash = @tx.signature_hash_for_input(i, @prev_script)  if @prev_script
+        @tx
+      end
 
-          if @sig_hash && inc.key
-            if opts[:p2sh_multisig]
-              sigs = inc.key.map do |k|
-                k.sign(@sig_hash)
+      # Sign input number +i+ with data from given +inc+ object (a TxInBuilder).
+      def sign_input i, inc
+        if @tx.in[i].coinbase?
+          # coinbase inputs don't need to be signed, they only include the given +coinbase_data+
+          script_sig = [inc.coinbase_data].pack("H*")
+          @tx.in[i].script_sig_length = script_sig.bytesize
+          @tx.in[i].script_sig = script_sig
+        else
+          @prev_script = inc.instance_variable_get(:@prev_out_script)
+
+          # get the signature script; use +redeem_script+ if given
+          # (indicates spending a p2sh output), otherwise use the prev_script
+          sig_script = inc.instance_eval { @redeem_script }
+          sig_script ||= @prev_script
+
+          # when a sig_script was found, generate the sig_hash to be signed
+          @sig_hash = @tx.signature_hash_for_input(i, sig_script)  if sig_script
+
+          # when there is a sig_hash and one or more signature_keys were specified
+          if @sig_hash && inc.key && (inc.key.is_a?(Array) ? inc.key.all?(&:priv) : inc.key.priv)
+            if inc.key.is_a?(Array)
+              # multiple keys given, generate signature for each one
+              sigs = inc.key.map {|k| k.sign(@sig_hash) }
+              if redeem_script = inc.instance_eval { @redeem_script }
+                # when a redeem_script was specified, assume we spend a p2sh multisig script
+                script_sig = Script.to_p2sh_multisig_script_sig(redeem_script, sigs)
+              else
+                # when no redeem_script is given, do a regular multisig spend
+                script_sig = Script.to_multisig_script_sig(*sigs)
               end
-
-              script_sig = Script.to_p2sh_multisig_script_sig(@prev_script, sigs)
             else
+              # only one key given, generate signature and script_sig
               sig = inc.key.sign(@sig_hash)
               script_sig = Script.to_signature_pubkey_script(sig, [inc.key.pub].pack("H*"))
             end
 
+            # add the script_sig to the txin
             @tx.in[i].script_sig_length = script_sig.bytesize
             @tx.in[i].script_sig = script_sig
 
-            if !opts[:p2sh_multisig]
-              raise "Signature error"  if !@tx.verify_input_signature(i, @prev_script)
-            end
-
+            # double-check that the script_sig is valid to spend the given prev_script
+            raise "Signature error"  if @prev_script && !@tx.verify_input_signature(i, @prev_script)
           else
+            # no sig_hash, add an empty script_sig.
             @tx.in[i].script_sig_length ||= 0
             @tx.in[i].script_sig ||= ""
+            # add the sig_hash that needs to be signed, so it can be passed on to a signing device
             @tx.in[i].sig_hash ||= @sig_hash
+            # add the address the sig_hash needs to be signed with as a convenience for the signing device
             @tx.in[i].sig_address ||= Script.new(@prev_script).get_address  if @prev_script
           end
         end
-        data = @tx.in.map {|i| [i.sig_hash, i.sig_address] }
-        tx = P::Tx.new(@tx.to_payload)
-        data.each.with_index {|d, i| i = tx.in[i]; i.sig_hash = d[0]; i.sig_address = d[1] }
-        raise "Payload Error"  unless tx.to_payload == @tx.to_payload
-        tx
       end
+
     end
 
     # Create a Bitcoin::Protocol::TxIn used by TxBuilder#input.
@@ -254,8 +280,17 @@ module Bitcoin
     #  end
     #
     #  t.input {|i| i.prev_out prev_tx, 0 }
+    #
+    # If you want to spend a p2sh output, you also need to specify the +redeem_script+.
+    #
+    #  t.input do |i|
+    #    i.prev_out prev_tx, 0
+    #    i.redeem_script prev_out.redeem_script
+    #  end
+    #
+    # If you want to spend a multisig output, just provide an array of keys to #signature_key.
     class TxInBuilder
-      attr_reader :prev_tx, :prev_script, :key, :coinbase_data
+      attr_reader :prev_tx, :prev_script, :redeem_script, :key, :coinbase_data
 
       def initialize
         @txin = P::TxIn.new
@@ -285,8 +320,15 @@ module Bitcoin
         @prev_out_script = @prev_tx.out[i].pk_script  if @prev_tx
       end
 
+      # Previous output's +pk_script+. Needed when only the tx hash is specified as #prev_out.
       def prev_out_script script
         @prev_out_script = script
+      end
+
+      # Redeem script for P2SH output. To spend from a P2SH output, you need to provide
+      # the script with a hash matching the P2SH address.
+      def redeem_script script
+        @redeem_script = script
       end
 
       # Specify sequence. This is usually not needed.
@@ -319,7 +361,7 @@ module Bitcoin
 
     # Create a Bitcoin::Script used by TxOutBuilder#script.
     class ScriptBuilder
-      attr_reader :script
+      attr_reader :script, :redeem_script
 
       def initialize
         @type = :address
@@ -336,7 +378,7 @@ module Bitcoin
       # Depending on the #type, this should be an address, a hash160 pubkey,
       # or an array of multisig pubkeys.
       def recipient *data
-        @script = Script.send("to_#{@type}_script", *data)
+        @script, @redeem_script = *Script.send("to_#{@type}_script", *data)
       end
     end
 
@@ -362,14 +404,14 @@ module Bitcoin
 
       # Set recipient address and script type (defaults to :address).
       def to recipient, type = :address
-        @txout.pk_script = Bitcoin::Script.send("to_#{type}_script", recipient)
+        @txout.pk_script, @txout.redeem_script = *Bitcoin::Script.send("to_#{type}_script", *recipient)
       end
 
       # Add a script to the output (see ScriptBuilder).
       def script &block
         c = ScriptBuilder.new
         yield c
-        @txout.pk_script = c.script
+        @txout.pk_script, @txout.redeem_script = c.script, c.redeem_script
       end
 
     end
