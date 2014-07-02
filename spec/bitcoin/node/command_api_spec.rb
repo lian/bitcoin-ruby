@@ -22,6 +22,8 @@ end
 
 describe 'Node Command API' do
 
+  TSLB_TIMEOUT = 3
+
   def test_command command, params = nil, response = nil, &block
     $responses = {}
     EM.run do
@@ -96,11 +98,7 @@ describe 'Node Command API' do
   # end
 
   it "should query tslb" do
-    test_command("tslb") do |res|
-      res.keys.include?("tslb").should == true
-      res["tslb"].should >= 0
-      res["tslb"].should <= 1
-    end
+    test_command("tslb") {|r| (0..TSLB_TIMEOUT).include?(r['tslb']).should == true }
   end
 
   it "should query info" do
@@ -414,7 +412,8 @@ describe 'Node Command API' do
         @request = send "unmonitor", id: 0
         should_receive @request, id: 0
         store_block create_block(@block.hash, false)
-        should_receive send("tslb"), tslb: 0
+
+        test_command("tslb") {|r| (0..TSLB_TIMEOUT).include?(r['tslb']).should == true }
       end
 
       it "should not monitor side or orphan blocks" do
@@ -473,7 +472,8 @@ describe 'Node Command API' do
         store_block @block1
         @block2 = create_block @block1.hash, false
         store_block @block2
-        should_receive send("tslb"), tslb: 0
+
+        test_command("tslb") {|r| (0..TSLB_TIMEOUT).include?(r['tslb']).should == true }
       end
 
     end
@@ -502,7 +502,7 @@ describe 'Node Command API' do
         r3 = send "store_tx", hex: tx.to_payload.hth
         should_receive r3, { "queued" => tx.hash }
 
-        should_receive send("tslb"), tslb: 0
+        test_command("tslb") {|r| (0..TSLB_TIMEOUT).include?(r['tslb']).should == true }
       end
 
       it "should monitor confirmed tx" do
@@ -586,7 +586,7 @@ describe 'Node Command API' do
         r2 = send "store_tx", hex: tx.to_payload.hth
         should_receive r2, { "queued" => tx.hash }
 
-        should_receive send("tslb"), tslb: 0
+        test_command("tslb") {|r| (0..TSLB_TIMEOUT).include?(r['tslb']).should == true }
       end
 
       it "should monitor confirmed output" do
