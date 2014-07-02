@@ -53,7 +53,7 @@ class Bitcoin::Network::CommandClient < EM::Connection
     id = @i += 1
     @requests[id] = block  if block
     log.debug { "request: #{cmd} #{args.inspect}" }
-    register_monitor_callbacks  if cmd.to_sym == :monitor
+    register_monitor_callbacks(params)  if cmd.to_sym == :monitor
     request = { id: id, method: cmd }
     request[:params] = params  if params
     send_data(request.to_json + "\x00")
@@ -94,10 +94,10 @@ class Bitcoin::Network::CommandClient < EM::Connection
   end
 
   # register callbacks for monitor
-  def register_monitor_callbacks
-    on_monitor do |type, data|
-      type, *params = type.split("_")
-      callback(type, data)
+  def register_monitor_callbacks params
+    on_monitor do |data|
+      next  if data.is_a?(Hash) && data.keys == ["id"]
+      callback(params["channel"], data)
     end
   end
 

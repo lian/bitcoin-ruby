@@ -77,7 +77,7 @@ module Bitcoin::Network
     # connection closed; notify listeners and cleanup connection from node
     def unbind
       log.info { (outgoing? && !@connection_completed) ? "Connection failed" : "Disconnected" }
-      @node.push_notification(:connection, [:disconnected, [@host, @port]])
+      @node.push_notification(:connection, {type: :disconnected, host: @host, port: @port})
       @state = :disconnected
       @node.connections.delete(self)
     end
@@ -103,7 +103,7 @@ module Bitcoin::Network
         log.debug { 'Handshake completed' }
         @state = :connected
         @started = Time.now
-        @node.push_notification(:connection, [:connected, info])
+        @node.push_notification(:connection, info.merge(type: :connected))
         @node.addrs << addr
       end
       send_data P::Addr.pkt(@node.addr)  if @node.config[:announce]

@@ -44,7 +44,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
           respond(request, handle_monitor(request, request[:params]))
         else
           if respond_to?("handle_#{request[:method]}")
-            if request[:params]
+            if request[:params] && request[:params].any?
               respond(request, send("handle_#{request[:method]}", request[:params]))
             else
               respond(request, send("handle_#{request[:method]}"))
@@ -98,7 +98,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   # didn't previously receive as unconfirmed. To make sure you receive all
   # transactions, also subscribe to the tx_1 channel.
   def handle_monitor request, params
-    log.info { "Client subscribed to channel #{channel.inspect}" }
+    log.info { "Client subscribed to channel #{params[:channel].inspect}" }
     { id: send("handle_monitor_#{params[:channel]}", request, params) }
   end
 
@@ -255,19 +255,21 @@ class Bitcoin::Network::CommandHandler < EM::Connection
         address: addr, value: out.value, conf: conf })
   end
 
-  # Handle +monitor connection+ command; send current connections
-  # after client is subscribed to :connection channel.
-  def handle_monitor_connection request
-    @node.connections.select {|c| c.connected?}.each do |conn|
-      respond(request, [:connection, [:connected, conn.info]])
-    end
-  end
-
   # Handle +filter monitor output+ command; add given +address+ to the list of
   # filtered addresses in the params of the given monitor.
   def handle_filter_monitor_output request
     @monitors[request[:id]][:params][:addresses] << request[:address]
     { id: request[:id] }
+  end
+
+  # Handle +monitor connection+ command; send current connections
+  # after client is subscribed to :connection channel.
+  def handle_monitor_connection request, params
+    id = @node.subscribe(:connection) {|data| respond(request, data) }
+      @node.connections.select {|c| c.connected?}.each do |conn|
+      respond(request, conn.info.merge(type: :connected))
+    end
+    add_monitor(params, [[:connection, id]])
   end
 
   # Get various statistics.
@@ -377,7 +379,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   # Get known peer addresses (used by bin/bitcoin_dns_seed).
   #  { method: "getaddr", params: { count: 32 } }
   def handle_addrs params = { count: 32 }
-    @node.addrs.weighted_sample(count.to_i) do |addr|
+    @node.addrs.weighted_sample(params[:count].to_i) do |addr|
       Time.now.tv_sec + 7200 - addr.time
     end.map do |addr|
       [addr.ip, addr.port, Time.now.tv_sec - addr.time] rescue nil
@@ -387,7 +389,13 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   # Trigger a rescan operation when used with a UtxoStore.
   #  { method: "rescan" }
   def handle_rescan
-    EM.defer { @node.store.rescan }
+    EM.defer {
+      begin
+        @node.store.rescan
+      rescue
+        puts "rescan: #{$!}"
+      end
+      }
     { state: :rescanning }
   end
 
