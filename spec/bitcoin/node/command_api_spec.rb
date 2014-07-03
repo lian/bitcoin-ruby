@@ -307,6 +307,7 @@ describe 'Node Command API' do
             end
             resp = JSON.load(buf)
             expected = request.merge(result: expected).stringify_keys
+            expected.delete("params")
             raise "ERROR: #{resp} != #{expected}"  unless resp.should == expected
           end
         rescue Timeout::Error
@@ -638,6 +639,22 @@ describe 'Node Command API' do
         store_block @block
         store_block block
         should_receive_output(r, block.tx[1], 0, 1)
+      end
+
+      it "should add filter address to output monitor params" do
+        @key2 = Bitcoin::Key.generate
+        block = create_block(@block.hash, false, [->(t) {
+              create_tx(t, @block.tx[0], 0, [[50e8, @key2]]) }], @key)
+
+        r1 = send "monitor", channel: "output", conf: 1, addresses: [  ]
+        should_receive r1, id: 0
+
+        r2 = send "filter_monitor_output", id: 0, address: @key2.addr
+        should_receive r2, id: 0
+
+        store_block @block
+        store_block block
+        should_receive_output(r1, block.tx[1], 0, 1)
       end
 
     end
