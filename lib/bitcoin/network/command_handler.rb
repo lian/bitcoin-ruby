@@ -25,6 +25,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   def respond(request, data)
     return  unless data
     request[:result] = data
+    request.delete(:params)
     @lock.synchronize do
       send_data(request.to_json + "\x00")
     end
@@ -112,19 +113,22 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   # TODO send the current chain head after client is subscribed to :block channel ??
   # TODO: give +last+ block as hash, not depth, since it could have been reorged
   def handle_monitor_block request, params
-    id = @node.subscribe(:block) {|blk, depth| respond_monitor_block(request, params, blk, depth) }
-    respond_missed_blocks(request, params)  if params[:last]
+    monitor_id = @monitors.size
+    id = @node.subscribe(:block) {|blk, depth| respond_monitor_block(request, blk, depth) }
     add_monitor(params, [[:block, id]])
+    respond_missed_blocks(request, monitor_id)  if params[:last]
+    monitor_id
   end
 
-  def respond_missed_blocks request, params
+  def respond_missed_blocks request, monitor_id
+    params = @monitors[monitor_id][:params]
     ((params[:last].to_i+1)..@node.store.get_depth).each do |i|
       blk = @node.store.get_block_by_depth(i)
-      respond_monitor_block(request, params, blk)
+      respond_monitor_block(request, blk)
     end
   end
 
-  def respond_monitor_block request, params, block, depth = nil
+  def respond_monitor_block request, block, depth = nil
     depth ||= block.depth
     respond(request, { hash: block.hash, hex: block.to_payload.hth, depth: depth })
   end
@@ -143,33 +147,38 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   # transactions. Instead, subscribe to the :block channel, and whenever a new
   # block comes in, send all transactions that now have +conf+ confirmations.
   def handle_monitor_tx request, params
-    tx_id = @node.subscribe(:tx) {|tx, conf| respond_monitor_tx(request, params, tx, conf) }
-
-    respond_missed_txs(request, params)  if params[:last]
+    monitor_id = @monitors.size
+    tx_id = @node.subscribe(:tx) {|tx, conf| respond_monitor_tx(request, monitor_id, tx, conf) }
 
     conf = params[:conf].to_i
     block_id = @node.subscribe(:block) do |block, depth|
       next  unless block = @node.store.get_block_by_depth(depth - conf + 1)
-      block.tx.each {|tx| respond_monitor_tx(request, params, tx, conf) }
+      block.tx.each {|tx| respond_monitor_tx(request, monitor_id, tx, conf) }
     end
 
     add_monitor(params, [[:tx, tx_id], [:block, block_id]])
+
+    respond_missed_txs(request, params, monitor_id)  if params[:last]
+
+    monitor_id
   end
 
-  def respond_missed_txs request, params
+  def respond_missed_txs request, params, monitor_id
     return  unless last_tx = @node.store.get_tx(params[:last])
     notify = false; depth = @node.store.get_depth
     (last_tx.get_block.depth..depth).each do |i|
       blk = @node.store.get_block_by_depth(i)
       blk.tx.each do |tx|
-        respond_monitor_tx(request, params, tx, (depth - blk.depth + 1))  if notify
+        respond_monitor_tx(request, monitor_id, tx, (depth - blk.depth + 1))  if notify
         notify = true  if tx.hash == last_tx.hash
       end
     end
   end
 
-  def respond_monitor_tx request, params, tx, conf = nil
+  def respond_monitor_tx request, monitor_id, tx, conf = nil
     conf ||= tx.confirmations
+
+    params = @monitors[monitor_id][:params]
 
     # filter by addresses
     if params[:addresses]
@@ -186,13 +195,13 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   # tx format and running scripts.
   # See #handle_monitor_tx for confirmation behavior.
   def handle_monitor_output request, params
+    monitor_id = @monitors.size
+
     tx_id = @node.subscribe(:tx) do |tx, conf|
       tx.out.each.with_index do |out, idx|
-        respond_monitor_output(request, params, tx, out, idx, conf)
+        respond_monitor_output(request, monitor_id, tx, out, idx, conf)
       end
     end
-
-    respond_missed_outputs(request, params)  if params[:last]
 
     if (conf = params[:conf].to_i) > 0
       block_id = @node.subscribe(:block) do |block, depth|
@@ -200,16 +209,21 @@ class Bitcoin::Network::CommandHandler < EM::Connection
         next  unless block
         block.tx.each do |tx|
           tx.out.each.with_index do |out, idx|
-            respond_monitor_output(request, params, tx, out, idx, conf)
+            respond_monitor_output(request, monitor_id, tx, out, idx, conf)
           end
         end
       end
     end
 
     add_monitor(params, [[:tx, tx_id], [:block, block_id]])
+
+    respond_missed_outputs(request, monitor_id)  if params[:last]
+
+    monitor_id
   end
 
-  def respond_missed_outputs request, params
+  def respond_missed_outputs request, monitor_id
+    params = @monitors[monitor_id][:params]
     last_hash, last_idx = *params[:last].split(":"); last_idx = last_idx.to_i
     return  unless last_tx = @node.store.get_tx(last_hash)
     return  unless last_out = last_tx.out[last_idx]
@@ -220,7 +234,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
       blk.tx.each do |tx|
         tx.out.each.with_index do |out, idx|
           if notify
-            respond_monitor_output(request, params, tx, out, idx, (depth - blk.depth + 1))
+            respond_monitor_output(request, monitor_id, tx, out, idx, (depth - blk.depth + 1))
           else
             notify = true  if tx.hash == last_hash && idx == last_idx
           end
@@ -229,8 +243,10 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     end
   end
 
-  def respond_monitor_output request, params, tx, out, idx, conf
+  def respond_monitor_output request, monitor_id, tx, out, idx, conf
     addr = out.parsed_script.get_address
+
+    params = @monitors[monitor_id][:params]
 
     # filter by addresses
     return  if params[:addresses] && !params[:addresses].include?(addr)
@@ -245,6 +261,13 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     @node.connections.select {|c| c.connected?}.each do |conn|
       respond(request, [:connection, [:connected, conn.info]])
     end
+  end
+
+  # Handle +filter monitor output+ command; add given +address+ to the list of
+  # filtered addresses in the params of the given monitor.
+  def handle_filter_monitor_output request
+    @monitors[request[:id]][:params][:addresses] << request[:address]
+    { id: request[:id] }
   end
 
   # Get various statistics.
