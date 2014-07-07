@@ -162,6 +162,67 @@ module Bitcoin
       Bitcoin.int_to_base58( hex.to_i(16) )
     end
 
+
+    # Export private key to bip38 (non-ec-multiply) format as described in
+    # https://github.com/bitcoin/bips/blob/master/bip-0038.mediawiki
+    # See also Key.from_bip38
+    def to_bip38(passphrase)
+      flagbyte = compressed ? "\xe0" : "\xc0"
+      addresshash = Digest::SHA256.digest( Digest::SHA256.digest( self.addr ) )[0...4]
+
+      require 'scrypt' unless defined?(::SCrypt::Engine)
+      buf = SCrypt::Engine.__sc_crypt(passphrase, addresshash, 16384, 8, 8, 64)
+      derivedhalf1, derivedhalf2 = buf[0...32], buf[32..-1]
+
+      aes = proc{|k,a,b|
+        cipher = OpenSSL::Cipher::AES.new(256, :ECB); cipher.encrypt; cipher.padding = 0; cipher.key = k
+        cipher.update [ (a.to_i(16) ^ b.unpack("H*")[0].to_i(16)).to_s(16).rjust(32, '0') ].pack("H*")
+      }
+
+      encryptedhalf1 = aes.call(derivedhalf2, self.priv[0...32], derivedhalf1[0...16])
+      encryptedhalf2 = aes.call(derivedhalf2, self.priv[32..-1], derivedhalf1[16..-1])
+
+      encrypted_privkey = "\x01\x42" + flagbyte + addresshash + encryptedhalf1 + encryptedhalf2
+      encrypted_privkey += Digest::SHA256.digest( Digest::SHA256.digest( encrypted_privkey ) )[0...4]
+
+      encrypted_privkey = Bitcoin.encode_base58( encrypted_privkey.unpack("H*")[0] )
+    end
+
+    # Import private key from bip38 (non-ec-multiply) fromat as described in
+    # https://github.com/bitcoin/bips/blob/master/bip-0038.mediawiki
+    # See also #to_bip38
+    def self.from_bip38(encrypted_privkey, passphrase)
+      version, flagbyte, addresshash, encryptedhalf1, encryptedhalf2, checksum =
+        [ Bitcoin.decode_base58(encrypted_privkey) ].pack("H*").unpack("a2aa4a16a16a4")
+      compressed = (flagbyte == "\xe0") ? true : false
+
+      raise "Invalid version"   unless version == "\x01\x42"
+      raise "Invalid checksum"  unless Digest::SHA256.digest(Digest::SHA256.digest(version + flagbyte + addresshash + encryptedhalf1 + encryptedhalf2))[0...4] == checksum
+
+      require 'scrypt' unless defined?(::SCrypt::Engine)
+      buf = SCrypt::Engine.__sc_crypt(passphrase, addresshash, 16384, 8, 8, 64)
+      derivedhalf1, derivedhalf2 = buf[0...32], buf[32..-1]
+
+      aes = proc{|k,a|
+        cipher = OpenSSL::Cipher::AES.new(256, :ECB); cipher.decrypt; cipher.padding = 0; cipher.key = k
+        cipher.update(a)
+      }
+
+      decryptedhalf2 = aes.call(derivedhalf2, encryptedhalf2)
+      decryptedhalf1 = aes.call(derivedhalf2, encryptedhalf1)
+
+      priv = decryptedhalf1 + decryptedhalf2
+      priv = (priv.unpack("H*")[0].to_i(16) ^ derivedhalf1.unpack("H*")[0].to_i(16)).to_s(16).rjust(64, '0')
+      key = Bitcoin::Key.new(priv, nil, compressed)
+
+      if Digest::SHA256.digest( Digest::SHA256.digest( key.addr ) )[0...4] != addresshash
+        raise "Invalid addresshash! Password is likely incorrect."
+      end
+
+      key
+    end
+
+
     protected
 
     # Regenerate public key from the private key.
