@@ -340,7 +340,7 @@ module Bitcoin::Storage::Backends
     def wrap_tx(tx_hash)
       utxos = @db[:utxo].where(tx_hash: tx_hash.blob)
       return nil  unless utxos.any?
-      data = { blk_id: utxos.first[:blk_id] }
+      data = { blk_id: utxos.first[:blk_id], id: tx_hash }
       tx = Bitcoin::Storage::Models::Tx.new(self, data)
       tx.hash = tx_hash # utxos.first[:tx_hash].hth
       utxos.each {|u| tx.out[u[:tx_idx]] = wrap_txout(u) }

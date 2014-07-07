@@ -149,6 +149,12 @@ Bitcoin::network = :testnet
       @store.get_block_by_tx(@blk.tx[0].hash).should == @blk
     end
 
+    it "should get block id for tx id" do
+      @store.store_block(@blk)
+      tx = @store.get_tx(@blk.tx[0].hash)
+      @store.get_block_id_for_tx_id(tx.id).should == @store.get_block(@blk.hash).id
+    end
+
     unless @store.backend_name == 'utxo'
       describe :transactions do
 
