@@ -272,7 +272,7 @@ module Bitcoin::Storage
 
       # get block id in main chain by given +tx_id+
       def get_block_id_for_tx_id(tx_id)
-        raise "Not implemented"
+        get_tx_by_id(tx_id).blk_id rescue nil # tx.blk_id is always in main chain
       end
 
       # get corresponding txin for the txout in

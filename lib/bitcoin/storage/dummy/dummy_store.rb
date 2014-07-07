@@ -68,14 +68,6 @@ module Bitcoin::Storage::Backends
       wrap_block(@blk[blk_id])
     end
 
-    # get block id in the main chain by given +tx_id+
-    def get_block_id_for_tx_id(tx_id)
-      return nil unless tx = get_tx_by_id(tx_id)
-      return nil unless blk = tx.get_block
-      return nil unless blk.chain == MAIN
-      blk.id
-    end
-
     def get_block_by_tx(tx_hash)
       wrap_block(@blk.find {|blk| blk.tx.map(&:hash).include?(tx_hash) })
     end
