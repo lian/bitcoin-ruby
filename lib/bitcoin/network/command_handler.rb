@@ -102,6 +102,8 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     { id: send("handle_monitor_#{params[:channel]}", request, params) }
   end
 
+  # Handle +unmonitor+ command; cancel given subscription.
+  # Parameter +id+ must be the subscription ID that was returned when calling +monitor+.
   def handle_unmonitor request
     id = request[:id]
     raise "Monitor #{id} not found."  unless @monitors[id]
@@ -445,8 +447,8 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     p $!; puts *$@
   end
 
-  # Assemble an unsigned transaction from the +tx_hex+ and +sig_pubkeys+.
-  # The +tx_hex+ is the regular transaction structure, with empty input scripts
+  # Assemble an unsigned transaction from the +tx+ and +sig_pubkeys+ params.
+  # The +tx+ is the regular transaction structure, with empty input scripts
   # (as returned by #create_tx when called without privkeys).
   # +sig_pubkeys+ is an array of [signature, pubkey] pairs used to build the
   # input scripts.
