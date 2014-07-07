@@ -110,8 +110,6 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   end
 
   # Handle +monitor block+ command;
-  # TODO send the current chain head after client is subscribed to :block channel ??
-  # TODO: give +last+ block as hash, not depth, since it could have been reorged
   def handle_monitor_block request, params
     monitor_id = @monitors.size
     id = @node.subscribe(:block) {|blk, depth| respond_monitor_block(request, blk, depth) }
@@ -122,8 +120,9 @@ class Bitcoin::Network::CommandHandler < EM::Connection
 
   def respond_missed_blocks request, monitor_id
     params = @monitors[monitor_id][:params]
-    ((params[:last].to_i+1)..@node.store.get_depth).each do |i|
-      blk = @node.store.get_block_by_depth(i)
+    blk = @node.store.get_block(params[:last])
+    respond_monitor_block(request, blk)
+    while blk = blk.get_next_block
       respond_monitor_block(request, blk)
     end
   end

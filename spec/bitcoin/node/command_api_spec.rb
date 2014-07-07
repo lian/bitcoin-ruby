@@ -430,8 +430,7 @@ describe 'Node Command API' do
         should_receive_block(@request, @block, 2)
       end
 
-
-      it "should received missed blocks when last height is given" do
+      it "should received missed blocks when last block hash is given" do
         @client = TCPSocket.new(*@config[:command])
         blocks = [@block]
         3.times do
@@ -440,7 +439,7 @@ describe 'Node Command API' do
         end
         sleep 0.1
 
-        r = send "monitor", channel: "block", last: 1
+        r = send "monitor", channel: "block", last: blocks[1].hash
 
         should_receive_block(r, blocks[1], 2)
         should_receive_block(r, blocks[2], 3)
