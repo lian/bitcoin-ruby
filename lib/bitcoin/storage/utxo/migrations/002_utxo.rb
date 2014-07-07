@@ -9,7 +9,7 @@ Sequel.migration do
       column :tx_hash, String, null: false, index: true
       column :tx_idx, :int, null: false, index: true
       column :blk_id, :int, null: false, index: true
-        column :pk_script, (@db.adapter_scheme == :postgres ? :bytea : :blob), null: false
+      column :pk_script, (@db.adapter_scheme == :postgres ? :bytea : :blob), null: false
       column :value, :bigint, null: false, index: true
     end
 

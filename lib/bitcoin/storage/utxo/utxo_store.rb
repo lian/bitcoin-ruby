@@ -190,6 +190,18 @@ module Bitcoin::Storage::Backends
       end
     end
 
+    # store hash160 and type of +addr+
+    def store_addr(txout_id, addr)
+      hash160 = Bitcoin.hash160_from_address(addr)
+      type = ADDRESS_TYPES.index(Bitcoin.address_type(addr))
+
+      addr = @db[:addr][hash160: hash160, type: type]
+      addr_id = addr[:id]  if addr
+      addr_id ||= @db[:addr].insert(hash160: hash160, type: type)
+
+      @db[:addr_txout].insert(addr_id: addr_id, txout_id: txout_id)
+    end
+
     def add_watched_address address
       hash160 = Bitcoin.hash160_from_address(address)
       @db[:addr].insert(hash160: hash160)  unless @db[:addr][hash160: hash160]
@@ -303,14 +315,10 @@ module Bitcoin::Storage::Backends
     end
 
     # get all Models::TxOut matching given +hash160+
-    def get_txouts_for_hash160(hash160, unconfirmed = false)
-      addr = @db[:addr][hash160: hash160]
+    def get_txouts_for_hash160(hash160, type = :hash160, unconfirmed = false)
+      addr = @db[:addr][hash160: hash160, type: ADDRESS_TYPES.index(type)]
       return []  unless addr
       @db[:addr_txout].where(addr_id: addr[:id]).map {|ao| wrap_txout(@db[:utxo][id: ao[:txout_id]]) }.compact
-    end
-
-    def get_balance hash160
-      get_txouts_for_hash160(hash160).map(&:value).inject(:+) || 0
     end
 
     # wrap given +block+ into Models::Block

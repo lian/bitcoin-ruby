@@ -104,13 +104,13 @@ module Bitcoin::Storage::Backends
       txouts.map {|o| wrap_txout(o) }
     end
 
-    def get_txouts_for_hash160(hash160, unconfirmed = false)
+    def get_txouts_for_hash160(hash160, type = :hash160, unconfirmed = false)
       @tx.values.map(&:out).flatten.map {|o|
         o = wrap_txout(o)
         if o.parsed_script.is_multisig?
           o.parsed_script.get_multisig_pubkeys.map{|pk| Bitcoin.hash160(pk.unpack("H*")[0])}.include?(hash160) ? o : nil
         else
-          o.hash160 == hash160 ? o : nil
+          o.hash160 == hash160 && o.type == type ? o : nil
         end
       }.compact
     end

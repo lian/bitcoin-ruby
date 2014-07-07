@@ -48,6 +48,9 @@ module Bitcoin::Storage
         [:name_new, :name_firstupdate, :name_update].each {|n| SCRIPT_TYPES << n }
       end
 
+      # possible address types
+      ADDRESS_TYPES = [:hash160, :p2sh]
+
       DEFAULT_CONFIG = {}
 
       attr_reader :log
@@ -319,7 +322,8 @@ module Bitcoin::Storage
       # standard tx to given +address+
       def get_txouts_for_address(address, unconfirmed = false)
         hash160 = Bitcoin.hash160_from_address(address)
-        get_txouts_for_hash160(hash160, unconfirmed)
+        type = Bitcoin.address_type(address)
+        get_txouts_for_hash160(hash160, type, unconfirmed)
       end
 
       # collect all unspent txouts containing a
@@ -333,21 +337,16 @@ module Bitcoin::Storage
       end
 
       # get balance for given +hash160+
-      def get_balance(hash160, unconfirmed = false)
-        txouts = get_txouts_for_hash160(hash160, unconfirmed)
+      def get_balance(hash160_or_addr, unconfirmed = false)
+        if Bitcoin.valid_address?(hash160_or_addr)
+          txouts = get_txouts_for_address(hash160_or_addr)
+        else
+          txouts = get_txouts_for_hash160(hash160_or_addr, :hash160, unconfirmed)
+        end
         unspent = txouts.select {|o| o.get_next_in.nil?}
         unspent.map(&:value).inject {|a,b| a+=b; a} || 0
       rescue
         nil
-      end
-
-
-      # store address +hash160+
-      def store_addr(txout_id, hash160)
-        addr = @db[:addr][:hash160 => hash160]
-        addr_id = addr[:id]  if addr
-        addr_id ||= @db[:addr].insert({:hash160 => hash160})
-        @db[:addr_txout].insert({:addr_id => addr_id, :txout_id => txout_id})
       end
 
       # parse script and collect address/txout mappings to index
@@ -357,13 +356,13 @@ module Bitcoin::Storage
         script = Bitcoin::Script.new(txout.pk_script) rescue nil
         if script
           if script.is_hash160? || script.is_pubkey? || script.is_p2sh?
-            addrs << [i, script.get_hash160]
+            addrs << [i, script.get_address]
           elsif script.is_multisig?
-            script.get_multisig_pubkeys.map do |pubkey|
-              addrs << [i, Bitcoin.hash160(pubkey.unpack("H*")[0])]
+            script.get_multisig_addresses.map do |address|
+              addrs << [i, address]
             end
           elsif Bitcoin.namecoin? && script.is_namecoin?
-            addrs << [i, script.get_hash160]
+            addrs << [i, script.get_address]
             names << [i, script]
           elsif script.is_op_return?
             log.info { "Ignoring OP_RETURN script: #{script.get_op_return_data}" }

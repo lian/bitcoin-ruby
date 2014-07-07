@@ -228,7 +228,7 @@ Bitcoin::network = :testnet
           @store.store_tx(@tx, false)
           keys.each do |key|
             hash160 = Bitcoin.hash160(key.pub)
-            txouts = @store.get_txouts_for_hash160(hash160, true)
+            txouts = @store.get_txouts_for_hash160(hash160, :hash160, true)
             txouts.size.should == 1
             txouts[0].pk_script.should == txout.pk_script
           end
@@ -265,7 +265,7 @@ Bitcoin::network = :testnet
       end
 
       it "should get txouts for hash160" do
-        @store.get_txouts_for_hash160(@key2.hash160, true)
+        @store.get_txouts_for_hash160(@key2.hash160, :hash160, true)
           .should == [@block.tx[1].out[0]]
       end
 
@@ -290,8 +290,35 @@ Bitcoin::network = :testnet
       end
 
       it "should get balance for address" do
-        @store.get_balance(@key.addr).should == 0
+        @store.get_balance(@key2.addr).should == 50
         @store.get_balance(@key2.hash160).should == 50
+      end
+
+      it "should get txouts for p2sh address (and not confuse regular and p2sh-type hash160" do
+        block = create_block(@block.hash, false, [], @key)
+
+        tx = build_tx do |t|
+          t.input {|i| i.prev_out(@block.tx[1], 0); i.signature_key(@key2) }
+          t.output do |o|
+            o.value 10
+            o.to @key2.hash160, :p2sh
+          end
+          t.output do |o|
+            o.value 10
+            o.to @key2.addr
+          end
+        end
+        block.tx << tx; block.recalc_mrkl_root; block.recalc_block_hash
+
+        @store.store_block(block)
+
+        p2sh_address = Bitcoin.hash160_to_p2sh_address(@key2.hash160)
+        o1 = @store.get_unspent_txouts_for_address(@key2.addr)
+        o2 = @store.get_unspent_txouts_for_address(p2sh_address)
+
+        o1.size.should == 1
+        o2.size.should == 1
+        o1.should != o2
       end
 
     end
