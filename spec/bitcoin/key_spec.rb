@@ -207,6 +207,19 @@ describe "Bitcoin::Key" do
     k.to_base58.should == "KwYgW8gcxj1JWJXhPSu4Fqwzfhp5Yfi42mdYmMa4XqK7NJxXUSK7"
   end
 
+  it "should generate private key from warp format" do
+    k = Bitcoin::Key.from_warp("ER8FT+HFjk0", "7DpniYifN6c")
+    k.addr.should == "1J32CmwScqhwnNQ77cKv9q41JGwoZe2JYQ"
+    k.to_base58.should == "5JfEekYcaAexqcigtFAy4h2ZAY95vjKCvS1khAkSG8ATo1veQAD"
+
+    k = Bitcoin::Key.from_warp("YqIDBApDYME", "G34HqIgjrIc")
+    k.addr.should == "19aKBeXe2mi4NbQRpYUrCLZtRDHDUs9J7J"
+    k.to_base58.should == "5KUJA5iZ2zS7AXkU2S8BiBVY3xj6F8GspLfWWqL9V7CajXumBQV"
+
+    k = Bitcoin::Key.from_warp("FPdAxCygMJg", "X+qaSwhUYXw")
+    k.addr.should == "14Pqeo9XNRxjtKFFYd6TvRrJuZxVpciS81"
+    k.to_base58.should == "5JBAonQ4iGKFJxENExZghDtAS6YB8BsCw5mwpHSvZvP3Q2UxmT1"
+  end
 
 end
 

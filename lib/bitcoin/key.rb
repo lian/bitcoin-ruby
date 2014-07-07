@@ -222,6 +222,20 @@ module Bitcoin
       key
     end
 
+    # Import private key from warp fromat as described in
+    # https://github.com/keybase/warpwallet
+    # https://keybase.io/warp/
+    def self.from_warp(passphrase, salt="", compressed=false)
+      require 'scrypt' unless defined?(::SCrypt::Engine)
+      s1 = SCrypt::Engine.scrypt(passphrase+"\x01", salt+"\x01", 2**18, 8, 1, 32)
+      s2 = OpenSSL::PKCS5.pbkdf2_hmac(passphrase+"\x02", salt+"\x02", 2**16, 32, OpenSSL::Digest::SHA256.new)
+      s3 = s1.bytes.zip(s2.bytes).map{|a,b| a ^ b }.pack("C*")
+
+      key = Bitcoin::Key.new(s3.unpack("H*")[0], nil, compressed)
+      # [key.addr, key.to_base58, [s1,s2,s3].map{|i| i.unpack("H*")[0] }, compressed]
+      key
+    end
+
 
     protected
 
