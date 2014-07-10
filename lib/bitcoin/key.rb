@@ -108,6 +108,7 @@ module Bitcoin
     #  key2 = Bitcoin::Key.new(nil, key1.pub)
     #  key2.verify("some data", sig)
     def verify(data, sig)
+      regenerate_pubkey unless @key.public_key
       @key.dsa_verify_asn1(data, sig)
     end
 
