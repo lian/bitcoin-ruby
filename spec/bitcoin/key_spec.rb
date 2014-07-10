@@ -63,9 +63,15 @@ describe "Bitcoin::Key" do
     @key.sign("foobar").size.should >= 69
   end
 
-  it "should verify signature" do
+  it "should verify signature using public key" do
     sig = @key.sign("foobar")
     key = Bitcoin::Key.new(nil, @key.pub)
+    key.verify("foobar", sig).should == true
+  end
+
+  it "should verify signature using private key" do
+    sig = @key.sign("foobar")
+    key = Bitcoin::Key.new(@key.priv)
     key.verify("foobar", sig).should == true
   end
 
