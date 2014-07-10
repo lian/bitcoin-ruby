@@ -79,8 +79,8 @@ module Bitcoin::Network
         :unconfirmed => 100,
       },
       :intervals => {
-        :queue => 1,
-        :inv_queue => 1,
+        :queue => 0.1,
+        :inv_queue => 0.1,
         :addrs => 5,
         :connect => 5,
         :relay => 0,
@@ -393,8 +393,7 @@ module Bitcoin::Network
 
     # check for new items in the queue and process them
     def work_queue
-      @log.debug { "queue worker running" }
-      return getblocks  if @queue.size == 0
+      return  if @queue.size == 0
 
       # switch off utxo cache once there aren't tons of new blocks coming in
       if @store.in_sync?
@@ -413,7 +412,8 @@ module Bitcoin::Network
       while obj = @queue.shift
         begin
           if obj[0].to_sym == :block
-            @store.new_block(obj[1])
+            # store block and schedule new #getblocks when it was an orphan
+            EM.next_tick { getblocks }  unless @store.new_block(obj[1])[1] == 0
           else
             drop = @unconfirmed.size - @config[:max][:unconfirmed] + 1
             drop.times { @unconfirmed.shift }  if drop > 0
@@ -437,7 +437,6 @@ module Bitcoin::Network
     # check for new items in the inv queue and process them,
     # unless the queue is already full
     def work_inv_queue
-      @log.debug { "inv queue worker running" }
       return  if @inv_queue.size == 0
       return  if @queue.size >= @config[:max][:queue]
       while inv = @inv_queue.shift
