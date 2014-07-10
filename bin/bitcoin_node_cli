@@ -71,6 +71,9 @@ EM.run do
         params["recipients"] = JSON.parse(params["recipients"])
       when "assemble_tx"
         params["sig_pubs"] = JSON.parse(params["sig_pubs"])
+      when "monitor"
+        params["addresses"] = JSON.parse(params["addresses"])  if params["addresses"]
+        $stdout.sync = true
       end
       request(cmd, params)
     end
