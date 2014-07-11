@@ -139,7 +139,7 @@ module Bitcoin
       def parse_buffer
         head_magic = Bitcoin::network[:magic_head]
         head_size  = 24
-        return false if @buf.size <= head_size
+        return false if @buf.size < head_size
 
         magic, cmd, length, checksum = @buf.unpack("a4A12Va4")
         payload = @buf[head_size...head_size+length]

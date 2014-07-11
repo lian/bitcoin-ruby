@@ -67,6 +67,13 @@ module Bitcoin
         buf.eof? ? true : buf.read
       end
 
+      def block_header
+        data = ''
+        data << [@ver, @prev_block, @mrkl_root, @time, @bits, @nonce].pack("Va32a32VVV")
+        # tx_count always 0
+        data << Protocol.pack_var_int(0)
+      end
+
       # parse raw binary data
       def parse_data_from_io(buf, header_only=false)
         buf = buf.is_a?(String) ? StringIO.new(buf) : buf
