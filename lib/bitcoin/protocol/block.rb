@@ -220,6 +220,11 @@ module Bitcoin
         JSON.pretty_generate( h, options )
       end
 
+      # block header binary output
+      def block_header
+        [@ver, @prev_block, @mrkl_root, @time, @bits, @nonce, Protocol.pack_var_int(0)].pack("Va32a32VVVa*")
+      end
+
       # read binary block from a file
       def self.from_file(path); new( Bitcoin::Protocol.read_binary_file(path) ); end
 

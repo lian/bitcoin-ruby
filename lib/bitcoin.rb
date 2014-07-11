@@ -453,7 +453,7 @@ module Bitcoin
 
   # maximum size of a block (in bytes)
   MAX_BLOCK_SIZE = 1_000_000
-  
+
   # soft limit for new blocks
   MAX_BLOCK_SIZE_GEN = MAX_BLOCK_SIZE/2
 
@@ -476,14 +476,14 @@ module Bitcoin
   # interval (in blocks) for difficulty retarget
   RETARGET_INTERVAL = 2016
   RETARGET = 2016 # deprecated constant
-  
-  
+
+
   # interval (in blocks) for mining reward reduction
   REWARD_DROP = 210_000
 
   CENT =   1_000_000
   COIN = 100_000_000
-  
+
   MIN_FEE_MODE     = [ :block, :relay, :send ]
 
   NETWORKS = {
@@ -536,6 +536,32 @@ module Bitcoin
         300000 => "000000000000000082ccf8f1557c5d40b21edabb18d2d691cfbf87118bac7254",
         305000 => "0000000000000000142bb90561e1a907d500bf534a6727a63a92af5b6abc6160",
       }
+    },
+
+    :regtest => {
+      :project => :bitcoin,
+      :magic_head => "\xFA\xBF\xB5\xDA",
+      :address_version => "6f",
+      :p2sh_version => "c4",
+      :privkey_version => "ef",
+      :default_port => 18444,
+      :max_money => 21_000_000 * COIN,
+      :dns_seeds => [ ],
+      :genesis_hash => "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206",
+      :proof_of_work_limit => (1<<255) - 1,
+      :alert_pubkeys => ["04302390343f91cc401d56d68b123028bf52e5fca1939df127f63c6467cdf9c8e2c14b61104cf817d0b780da337893ecc4aaff1309e536162dabbdb45200ca2b0a"],
+      :known_nodes => [],
+      :checkpoints => {},
+      :coinbase_maturity => 100,
+      :retarget_interval => 2016,
+      :retarget_time => 1209600, # 2 weeks
+      :target_spacing    => 600, # block interval
+      :max_money => 21_000_000 * COIN,
+      :min_tx_fee => 10_000,
+      :min_relay_tx_fee => 10_000,
+      :free_tx_bytes => 1_000,
+      :dust => CENT,
+      :per_dust_fee => false,
     },
 
     :testnet => {

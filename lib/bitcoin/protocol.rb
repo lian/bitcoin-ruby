@@ -12,7 +12,7 @@ module Bitcoin
 
     # BIP 0031, pong message, is enabled for all versions AFTER this one
     BIP0031_VERSION = 60000
-    
+
     autoload :TxIn,    'bitcoin/protocol/txin'
     autoload :TxOut,   'bitcoin/protocol/txout'
     autoload :Tx,      'bitcoin/protocol/tx'
@@ -159,6 +159,10 @@ module Bitcoin
 
     def self.getheaders_pkt(version, locator_hashes, stop_hash=DEFAULT_STOP_HASH)
       pkt "getheaders", locator_payload(version, locator_hashes, stop_hash)
+    end
+
+    def self.headers_pkt(version, blocks)
+      pkt "headers", [pack_var_int(blocks.size), blocks.map{|block| block.block_header}.join].join
     end
 
     def self.read_binary_file(path)
