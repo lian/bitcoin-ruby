@@ -19,6 +19,7 @@ module Bitcoin
   autoload :Config,     'bitcoin/config'
   autoload :Builder,    'bitcoin/builder'
   autoload :Validation, 'bitcoin/validation'
+  autoload :BloomFilter,'bitcoin/bloom_filter'
 
   autoload :Namecoin,   'bitcoin/namecoin'
   autoload :Litecoin,   'bitcoin/litecoin'
