@@ -187,7 +187,7 @@ as well as the private key for the address required to sign for it.
  
  end
  
- # examine your transaction. you can relay it through http://webbtc.com/relay_tx
+ # examine your transaction. you can relay it through http://test.webbtc.com/relay_tx
  # that will also give you a hint on the error if something goes wrong
  puts new_tx.to_json
 
