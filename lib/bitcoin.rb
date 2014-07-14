@@ -129,6 +129,11 @@ module Bitcoin
       hash160_to_address( hash160(pubkey) )
     end
 
+    def pubkeys_to_p2sh_multisig_address(m, *pubkeys)
+      redeem_script = Bitcoin::Script.to_p2sh_multisig_script(m, *pubkeys).last
+      Bitcoin.hash160_to_p2sh_address(Bitcoin.hash160(redeem_script.hth))
+    end
+
     def int_to_base58(int_val, leading_zero_bytes=0)
       alpha = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
       base58_val, base = '', alpha.size
