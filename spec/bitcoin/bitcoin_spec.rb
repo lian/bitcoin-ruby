@@ -40,25 +40,37 @@ describe 'Bitcoin Address/Hash160/PubKey' do
 
   it 'bitcoin p2sh multisig address from pubkeys' do
     Bitcoin::network = :testnet
-    Bitcoin.pubkeys_to_p2sh_multisig_address(2, "029e31ccb7308c2525d542024b8119a3ab3767933e82aedd1471f9c714d998d1b4",
-                                                "0299acf23a65c31fe02052d7474769529c21612b1afa56cc149747fe63867592ec")
-      .should == "2NGaiH7MNYWhsWPQKudZEvy8KnoWPfuGPg1"
+    address, redeem_script = Bitcoin.pubkeys_to_p2sh_multisig_address(2, "029e31ccb7308c2525d542024b8119a3ab3767933e82aedd1471f9c714d998d1b4",
+                                                                         "0299acf23a65c31fe02052d7474769529c21612b1afa56cc149747fe63867592ec")
+    address.should == "2NGaiH7MNYWhsWPQKudZEvy8KnoWPfuGPg1"
+    redeem_script.hth.should == "52" + # OP_2
+                                "21" + "029e31ccb7308c2525d542024b8119a3ab3767933e82aedd1471f9c714d998d1b4" + # pubkey.bytesize + pubkey
+                                "21" + "0299acf23a65c31fe02052d7474769529c21612b1afa56cc149747fe63867592ec" + # pubkey.bytesize + pubkey
+                                "52" +  # OP_2
+                                "ae"    # OP_CHECKMULTISIG
 
     Bitcoin::network = :bitcoin
-    Bitcoin.pubkeys_to_p2sh_multisig_address(2, "029e31ccb7308c2525d542024b8119a3ab3767933e82aedd1471f9c714d998d1b4",
-                                                "0299acf23a65c31fe02052d7474769529c21612b1afa56cc149747fe63867592ec",
-                                                "020b16a7227f873ac68cf3140f1101d2eda5acb28bf3e7d546409139caf25142e4")
-    .should == "38eiL6Jac27TVAu83wj81Miso9rXiVqgcP"
+    address, redeem_script = Bitcoin.pubkeys_to_p2sh_multisig_address(2, "029e31ccb7308c2525d542024b8119a3ab3767933e82aedd1471f9c714d998d1b4",
+                                                                         "0299acf23a65c31fe02052d7474769529c21612b1afa56cc149747fe63867592ec",
+                                                                         "020b16a7227f873ac68cf3140f1101d2eda5acb28bf3e7d546409139caf25142e4")
+    address.should == "38eiL6Jac27TVAu83wj81Miso9rXiVqgcP"
+    redeem_script.hth.should == "52" + # OP_2
+                                "21" + "029e31ccb7308c2525d542024b8119a3ab3767933e82aedd1471f9c714d998d1b4" + # pubkey.bytesize + pubkey
+                                "21" + "0299acf23a65c31fe02052d7474769529c21612b1afa56cc149747fe63867592ec" + # pubkey.bytesize + pubkey
+                                "21" + "020b16a7227f873ac68cf3140f1101d2eda5acb28bf3e7d546409139caf25142e4" + # pubkey.bytesize + pubkey
+                                "53" +  # OP_3
+                                "ae"    # OP_CHECKMULTISIG
+
   end
 
   it 'bitcoin p2sh address from bitcoin-hash160' do
     Bitcoin::network = :testnet
-    Bitcoin.hash160_to_p2sh_address("d11e2f2f385efeecd30f867f1d55c0bc8a27f29e")
-      .should == "2NCJwNct2SVE5VwdrPXmnek59kCfdgCpxeF"
+    address, redeem_script = Bitcoin.hash160_to_p2sh_address("d11e2f2f385efeecd30f867f1d55c0bc8a27f29e")
+    address.should == "2NCJwNct2SVE5VwdrPXmnek59kCfdgCpxeF"
 
     Bitcoin::network = :bitcoin
-    Bitcoin.hash160_to_p2sh_address("d11e2f2f385efeecd30f867f1d55c0bc8a27f29e")
-      .should == "3LkjJswzq2ijJA1JiQ9v2o5tXrTTvPtAMe"
+    address, redeem_script = Bitcoin.hash160_to_p2sh_address("d11e2f2f385efeecd30f867f1d55c0bc8a27f29e")
+    address.should == "3LkjJswzq2ijJA1JiQ9v2o5tXrTTvPtAMe"
   end
 
   it 'bitcoin-hash160 from bitcoin-address' do

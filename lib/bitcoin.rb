@@ -131,7 +131,7 @@ module Bitcoin
 
     def pubkeys_to_p2sh_multisig_address(m, *pubkeys)
       redeem_script = Bitcoin::Script.to_p2sh_multisig_script(m, *pubkeys).last
-      Bitcoin.hash160_to_p2sh_address(Bitcoin.hash160(redeem_script.hth))
+      return Bitcoin.hash160_to_p2sh_address(Bitcoin.hash160(redeem_script.hth)), redeem_script
     end
 
     def int_to_base58(int_val, leading_zero_bytes=0)
