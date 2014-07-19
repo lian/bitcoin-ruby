@@ -283,10 +283,10 @@ describe 'Bitcoin::Script' do
     it "#type" do
       Script.new(SCRIPT[0]).type.should == :pubkey
       Script.new(SCRIPT[1]).type.should == :unknown
-      Script.new(SCRIPT[2]).type.should == :hash160
+      Script.new(SCRIPT[2]).type.should == :pubkey_hash
       Script.new(SCRIPT[3]).type.should == :multisig
       Script.new(SCRIPT[4]).type.should == :multisig
-      Script.new(SCRIPT[5]).type.should == :p2sh
+      Script.new(SCRIPT[5]).type.should == :script_hash
       Script.new(SCRIPT[6]).type.should == :op_return
       Script.from_string("OP_RETURN OP_CHECKSIG").type.should == :op_return
       Script.from_string("OP_RETURN dead beef").type.should == :unknown

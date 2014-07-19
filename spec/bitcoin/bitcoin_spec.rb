@@ -172,12 +172,12 @@ describe 'Bitcoin Address/Hash160/PubKey' do
 
   it '#address_type' do
     Bitcoin.network = :testnet
-    Bitcoin.address_type("2MyLngQnhzjzatKsB7XfHYoP9e2XUXSiBMM").should == :p2sh
-    Bitcoin.address_type("mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt").should == :hash160
+    Bitcoin.address_type("2MyLngQnhzjzatKsB7XfHYoP9e2XUXSiBMM").should == :script_hash
+    Bitcoin.address_type("mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt").should == :pubkey_hash
     Bitcoin.address_type("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW").should == nil
     Bitcoin.network = :bitcoin
-    Bitcoin.address_type("3CkxTG25waxsmd13FFgRChPuGYba3ar36B").should == :p2sh
-    Bitcoin.address_type("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW").should == :hash160
+    Bitcoin.address_type("3CkxTG25waxsmd13FFgRChPuGYba3ar36B").should == :script_hash
+    Bitcoin.address_type("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW").should == :pubkey_hash
     Bitcoin.address_type("mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt").should == nil
   end
 

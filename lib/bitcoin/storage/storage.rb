@@ -43,13 +43,13 @@ module Bitcoin::Storage
       ORPHAN = 2
 
       # possible script types
-      SCRIPT_TYPES = [:unknown, :pubkey, :hash160, :multisig, :p2sh, :op_return]
+      SCRIPT_TYPES = [:unknown, :pubkey, :pubkey_hash, :multisig, :script_hash, :op_return]
       if Bitcoin.namecoin?
         [:name_new, :name_firstupdate, :name_update].each {|n| SCRIPT_TYPES << n }
       end
 
       # possible address types
-      ADDRESS_TYPES = [:hash160, :p2sh]
+      ADDRESS_TYPES = [:pubkey_hash, :script_hash]
 
       DEFAULT_CONFIG = {}
 
@@ -341,7 +341,7 @@ module Bitcoin::Storage
         if Bitcoin.valid_address?(hash160_or_addr)
           txouts = get_txouts_for_address(hash160_or_addr)
         else
-          txouts = get_txouts_for_hash160(hash160_or_addr, :hash160, unconfirmed)
+          txouts = get_txouts_for_hash160(hash160_or_addr, :pubkey_hash, unconfirmed)
         end
         unspent = txouts.select {|o| o.get_next_in.nil?}
         unspent.map(&:value).inject {|a,b| a+=b; a} || 0

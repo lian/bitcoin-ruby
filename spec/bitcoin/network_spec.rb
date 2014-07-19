@@ -8,7 +8,7 @@ describe 'Bitcoin::network' do
     Bitcoin.network = :bitcoin
     net = Bitcoin::network
     net[:magic_head].should == "\xF9\xBE\xB4\xD9"
-    net[:address_version].should == "00"
+    net[:address_versions][:pubkey_hash].should == "00"
     net[:genesis_hash].should == "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"
   end
 

@@ -61,9 +61,6 @@ module Bitcoin
 
   module Util
 
-    def address_version; Bitcoin.network[:address_version]; end
-    def p2sh_version; Bitcoin.network[:p2sh_version]; end
-
     # hash160 is a 20 bytes (160bits) rmd610-sha256 hexdigest.
     def hash160(hex)
       bytes = [hex].pack("H*")
@@ -89,49 +86,58 @@ module Bitcoin
     def valid_address?(address)
       hex = decode_base58(address) rescue nil
       return false unless hex && hex.bytesize == 50
-      return false unless [address_version, p2sh_version].include?(hex[0...2])
+      return false unless network[:address_versions].find{|t, b| b == hex[0...2] }
       address_checksum?(address)
     end
 
-    # get hash160 for given +address+. returns nil if address is invalid.
-    def hash160_from_address(address)
-      return nil  unless valid_address?(address)
-      decode_base58(address)[2...42]
-    end
-
-    # get type of given +address+.
-    def address_type(address)
-      return nil unless valid_address?(address)
-      case decode_base58(address)[0...2]
-      when address_version; :hash160
-      when p2sh_version;    :p2sh
-      end
-    end
-
-    def sha256(hex)
-      Digest::SHA256.hexdigest([hex].pack("H*"))
-    end
-
-    def hash160_to_address(hex)
-      encode_address hex, address_version
-    end
-
-    def hash160_to_p2sh_address(hex)
-      encode_address hex, p2sh_version
-    end
-
-    def encode_address(hex, version)
-      hex = version + hex
+    # Encode given +hex+ into bitcoin address of given +type+.
+    def encode_address(hex, type = :pubkey_hash)
+      hex = network[:address_versions][type] + hex
       encode_base58(hex + checksum(hex))
     end
 
-    def pubkey_to_address(pubkey)
-      hash160_to_address( hash160(pubkey) )
+    # Decode hash160 and type from given +address+. Returns nil when the checksum
+    # or type are invalid.
+    def decode_address(address)
+      return nil  unless valid_address?(address)
+      data = decode_base58(address)
+      return data[2...42], network[:address_versions].find{|t, b| data[0...2] == b}[0]
+    rescue
+      nil
     end
 
+    # Get hash160 of the given +address+. Note that in order to recreate the address from
+    # the hash160, you also need the type. See #decode_address.
+    def hash160_from_address(address)
+      decode_address(address)[0]  rescue nil
+    end
+
+    # Get type of the given +address+. See #decode_address.
+    def address_type(address)
+      decode_address(address)[1] rescue nil
+    end
+
+    # Encode hash160 given as +hex+ into bitcoin address of given +type+ (defaults to :hash160).
+    def hash160_to_address(hex, type = :pubkey_hash)
+      encode_address hex, type
+    end
+
+    # Encode hash160 given as +hex+ into bitcoin address of :p2sh type.
+    def hash160_to_p2sh_address(hex)
+      encode_address hex, :script_hash
+    end
+
+    # Encode hash160 of given +pubkey+ (or any +data+) into bitcoin address of given +type+.
+    def pubkey_to_address(pubkey, type = :pubkey_hash)
+      encode_address( hash160(pubkey), type )
+    end
+    alias :data_to_address :pubkey_to_address
+
+    # Create a p2sh script for given multisig parameters and return the p2sh address
+    # as well as the raw script.
     def pubkeys_to_p2sh_multisig_address(m, *pubkeys)
-      redeem_script = Bitcoin::Script.to_p2sh_multisig_script(m, *pubkeys).last
-      return Bitcoin.hash160_to_p2sh_address(Bitcoin.hash160(redeem_script.hth)), redeem_script
+      redeem_script = Script.to_p2sh_multisig_script(m, *pubkeys).last
+      return data_to_address(redeem_script.hth, :script_hash), redeem_script
     end
 
     def int_to_base58(int_val, leading_zero_bytes=0)
@@ -506,8 +512,7 @@ module Bitcoin
     bitcoin: {
       project: :bitcoin,
       magic_head: "\xF9\xBE\xB4\xD9",
-      address_version: "00",
-      p2sh_version: "05",
+      address_versions: { pubkey_hash: "00", script_hash: "05" },
       privkey_version: "80",
       default_port: 8333,
       protocol_version: 70001,
@@ -558,8 +563,7 @@ module Bitcoin
 
   NETWORKS[:testnet] = NETWORKS[:bitcoin].merge({
       magic_head: "\xFA\xBF\xB5\xDA",
-      address_version: "6f",
-      p2sh_version: "c4",
+      address_versions: { pubkey_hash: "6f", script_hash: "c4" },
       privkey_version: "ef",
       default_port: 18333,
       dns_seeds: [ ],
@@ -599,8 +603,7 @@ module Bitcoin
   NETWORKS[:litecoin] = NETWORKS[:bitcoin].merge({
       project: :litecoin,
       magic_head: "\xfb\xc0\xb6\xdb",
-      address_version: "30",
-      p2sh_version: "05",
+      address_versions: { pubkey_hash: "30", script_hash: "05" },
       privkey_version: "b0",
       default_port: 9333,
       protocol_version: 70002,
@@ -647,8 +650,7 @@ module Bitcoin
 
   NETWORKS[:litecoin_testnet] = NETWORKS[:litecoin].merge({
       magic_head: "\xfc\xc1\xb7\xdc",
-      address_version: "6f",
-      p2sh_version: "c4",
+      address_versions: { pubkey_hash: "6f", script_hash: "c4" },
       privkey_version: "ef",
       default_port: 19333,
       dns_seeds: [
@@ -667,8 +669,7 @@ module Bitcoin
   NETWORKS[:dogecoin] = NETWORKS[:litecoin].merge({
       project: :dogecoin,
       magic_head: "\xc0\xc0\xc0\xc0",
-      address_version: "1e",
-      p2sh_version: "16",
+      address_versions: { pubkey_hash: "1e", script_hash: "16" },
       privkey_version: "9e",
       default_port: 22556,
       protocol_version: 70003,
@@ -724,8 +725,7 @@ module Bitcoin
   NETWORKS[:dogecoin_testnet] = NETWORKS[:dogecoin].merge({
       project: :dogecoin,
       magic_head: "\xfc\xc1\xb7\xdc",
-      address_version: "71",
-      p2sh_version: "c4",
+      address_versions: { pubkey_hash: "71", script_hash: "c4" },
       privkey_version: "f1",
       default_port: 44556,
       protocol_version: 70003,
@@ -767,7 +767,7 @@ module Bitcoin
   NETWORKS[:namecoin] = NETWORKS[:bitcoin].merge({
       project: :namecoin,
       magic_head: "\xF9\xBE\xB4\xFE",
-      address_version: "34",
+      address_versions: { pubkey_hash: "34" },
       default_port: 8334,
       protocol_version: 35000,
       min_tx_fee: 50_000,

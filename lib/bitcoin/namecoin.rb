@@ -48,10 +48,10 @@ module Bitcoin::Namecoin
           if is_name_new?;            :name_new
           elsif is_name_firstupdate?; :name_firstupdate
           elsif is_name_update?;      :name_update
-          elsif is_hash160?;          :hash160
+          elsif is_pubkey_hash?;      :pubkey_hash
           elsif is_pubkey?;           :pubkey
           elsif is_multisig?;         :multisig
-          elsif is_p2sh?;             :p2sh
+          elsif is_script_hash?;      :script_hash
           else;                       :unknown
           end
         end
