@@ -80,27 +80,13 @@ end
 
 Bitcoin::network = :bitcoin
 
-Bitcoin::NETWORKS[:spec] = {
-  :project => :bitcoin,
-  :magic_head => "spec",
-  :address_version => "6f",
-  :p2sh_version => "c4",
-  :privkey_version => "ef",
-  :default_port => 48333,
-  :protocol_version => 70001,
-  :max_money => 21_000_000 * 100_000_000,
-  :dns_seeds => [],
-  :genesis_hash => "000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943",
-  :proof_of_work_limit => 553713663,
-  :alert_pubkeys => [],
-  :known_nodes => [],
-  :checkpoints => {},
-  :min_tx_fee => 10_000,
-  :min_relay_tx_fee => 10_000,
-  :free_tx_bytes => 1_000,
-  :dust => 1_000_000,
-  :per_dust_fee => false,
-}
+Bitcoin::NETWORKS[:spec] = Bitcoin::NETWORKS[:regtest].merge({
+  magic_head: "spec",
+  default_port: 48333,
+  proof_of_work_limit: 553713663,
+  genesis_hash: "000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943",
+  alert_pubkeys: [],
+})
 
 begin
   require 'bacon'
