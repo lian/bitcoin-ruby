@@ -125,6 +125,49 @@ describe "Bitcoin::Builder" do
     tx.in[0].sig_hash.should != nil
   end
 
+  it "should build unsigned multisig transactions and add the signature hash" do
+    tx1 = build_tx do |t|
+      t.input {|i| i.prev_out(@block.tx[0], 0); i.signature_key(@keys[0]) }
+      t.output do |o|
+        o.value 123
+        o.to [2, *@keys[0..2].map(&:pub)], :multisig
+      end
+    end
+
+    tx2 = build_tx do |t|
+      t.input do |i|
+        i.prev_out tx1, 0
+        i.signature_key @keys[0]
+      end
+      t.output {|o| o.value 123; o.to @keys[0].addr }
+    end
+
+    tx2.is_a?(Bitcoin::P::Tx).should == true
+    tx2.in[0].sig_hash.should != nil
+  end
+
+  it "should build unsigned p2sh multisig transactions and add the signature hash" do
+    tx1 = build_tx do |t|
+      t.input {|i| i.prev_out(@block.tx[0], 0); i.signature_key(@keys[0]) }
+      t.output do |o|
+        o.value 123
+        o.to [2, *@keys[0..2].map(&:pub)], :p2sh_multisig
+      end
+    end
+
+    tx2 = build_tx do |t|
+      t.input do |i|
+        i.prev_out tx1, 0
+        i.signature_key @keys[0]
+        i.redeem_script tx1.out[0].redeem_script
+      end
+      t.output {|o| o.value 123; o.to @keys[0].addr }
+    end
+
+    tx2.is_a?(Bitcoin::P::Tx).should == true
+    tx2.in[0].sig_hash.should != nil
+  end
+
   it "should add change output" do
     change_address = Bitcoin::Key.generate.addr
     tx = build_tx(input_value: @block.tx[0].out.map(&:value).inject(:+),

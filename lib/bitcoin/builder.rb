@@ -209,13 +209,55 @@ module Bitcoin
         @tx
       end
 
+      # coinbase inputs don't need to be signed, they only include the given +coinbase_data+
+      def include_coinbase_data i, inc
+        script_sig = [inc.coinbase_data].pack("H*")
+        @tx.in[i].script_sig_length = script_sig.bytesize
+        @tx.in[i].script_sig = script_sig
+      end
+
+      def sig_hash_and_all_keys_exist?(inc, sig_script)
+        return false unless @sig_hash && inc.has_keys?
+        script = Bitcoin::Script.new(sig_script)
+        return true if script.is_hash160? || script.is_pubkey?
+        if script.is_multisig?
+          return inc.has_multiple_keys? && inc.key.size >= script.get_signatures_required
+        end
+        raise "Script type must be hash160, pubkey or multisig"
+      end
+
+      def add_empty_script_sig_to_input(i)
+        @tx.in[i].script_sig_length = 0
+        @tx.in[i].script_sig = ""
+        # add the sig_hash that needs to be signed, so it can be passed on to a signing device
+        @tx.in[i].sig_hash = @sig_hash
+        # add the address the sig_hash needs to be signed with as a convenience for the signing device
+        @tx.in[i].sig_address = Script.new(@prev_script).get_address  if @prev_script
+      end
+
+      def get_script_sig(inc)
+        if inc.has_multiple_keys?
+          # multiple keys given, generate signature for each one
+          sigs = inc.sign(@sig_hash)
+          if redeem_script = inc.instance_eval { @redeem_script }
+            # when a redeem_script was specified, assume we spend a p2sh multisig script
+            script_sig = Script.to_p2sh_multisig_script_sig(redeem_script, sigs)
+          else
+            # when no redeem_script is given, do a regular multisig spend
+            script_sig = Script.to_multisig_script_sig(*sigs)
+          end
+        else
+          # only one key given, generate signature and script_sig
+          sig = inc.sign(@sig_hash)
+          script_sig = Script.to_signature_pubkey_script(sig, [inc.key.pub].pack("H*"))
+        end
+        return script_sig
+      end
+
       # Sign input number +i+ with data from given +inc+ object (a TxInBuilder).
       def sign_input i, inc
         if @tx.in[i].coinbase?
-          # coinbase inputs don't need to be signed, they only include the given +coinbase_data+
-          script_sig = [inc.coinbase_data].pack("H*")
-          @tx.in[i].script_sig_length = script_sig.bytesize
-          @tx.in[i].script_sig = script_sig
+          include_coinbase_data(i, inc)
         else
           @prev_script = inc.instance_variable_get(:@prev_out_script)
 
@@ -228,41 +270,18 @@ module Bitcoin
           @sig_hash = @tx.signature_hash_for_input(i, sig_script)  if sig_script
 
           # when there is a sig_hash and one or more signature_keys were specified
-          if @sig_hash && inc.key && (inc.key.is_a?(Array) ? inc.key.all?(&:priv) : inc.key.priv)
-            if inc.key.is_a?(Array)
-              # multiple keys given, generate signature for each one
-              sigs = inc.key.map {|k| k.sign(@sig_hash) }
-              if redeem_script = inc.instance_eval { @redeem_script }
-                # when a redeem_script was specified, assume we spend a p2sh multisig script
-                script_sig = Script.to_p2sh_multisig_script_sig(redeem_script, sigs)
-              else
-                # when no redeem_script is given, do a regular multisig spend
-                script_sig = Script.to_multisig_script_sig(*sigs)
-              end
-            else
-              # only one key given, generate signature and script_sig
-              sig = inc.key.sign(@sig_hash)
-              script_sig = Script.to_signature_pubkey_script(sig, [inc.key.pub].pack("H*"))
-            end
-
+          if sig_hash_and_all_keys_exist?(inc, sig_script)
             # add the script_sig to the txin
-            @tx.in[i].script_sig_length = script_sig.bytesize
-            @tx.in[i].script_sig = script_sig
+            @tx.in[i].script_sig = get_script_sig(inc)
 
             # double-check that the script_sig is valid to spend the given prev_script
             raise "Signature error"  if @prev_script && !@tx.verify_input_signature(i, @prev_script)
           else
             # no sig_hash, add an empty script_sig.
-            @tx.in[i].script_sig_length ||= 0
-            @tx.in[i].script_sig ||= ""
-            # add the sig_hash that needs to be signed, so it can be passed on to a signing device
-            @tx.in[i].sig_hash ||= @sig_hash
-            # add the address the sig_hash needs to be signed with as a convenience for the signing device
-            @tx.in[i].sig_address ||= Script.new(@prev_script).get_address  if @prev_script
+            add_empty_script_sig_to_input(i)
           end
         end
       end
-
     end
 
     # Create a Bitcoin::Protocol::TxIn used by TxBuilder#input.
@@ -356,6 +375,22 @@ module Bitcoin
         @txin.prev_out_index = @prev_out_index
         @txin.sequence = @sequence || "\xff\xff\xff\xff"
         @txin
+      end
+
+      def has_multiple_keys?
+        @key.is_a?(Array)
+      end
+
+      def has_keys?
+        @key && (has_multiple_keys? ? @key.all?(&:priv) : @key.priv)
+      end
+
+      def sign(sig_hash)
+        if has_multiple_keys?
+          @key.map {|k| k.sign(sig_hash) }
+        else
+          @key.sign(sig_hash)
+        end
       end
     end
 
