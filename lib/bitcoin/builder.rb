@@ -221,9 +221,9 @@ module Bitcoin
         script = Bitcoin::Script.new(sig_script)
         return true if script.is_hash160? || script.is_pubkey?
         if script.is_multisig?
-          num_sigs_needed = Bitcoin::Script.decode_OP_N(sig_script[0].unpack("C")[0])
-          return inc.has_multiple_keys? && inc.key.size >= num_sigs_needed
+          return inc.has_multiple_keys? && inc.key.size >= script.get_signatures_required
         end
+        raise "Script type must be hash160, pubkey or multisig"
       end
 
       def add_empty_script_sig_to_input(i)
@@ -386,8 +386,11 @@ module Bitcoin
       end
 
       def sign(sig_hash)
-        return @key.map {|k| k.sign(sig_hash) } if has_multiple_keys?
-        @key.sign(sig_hash)
+        if has_multiple_keys?
+          @key.map {|k| k.sign(sig_hash) }
+        else
+          @key.sign(sig_hash)
+        end
       end
     end
 
