@@ -149,6 +149,7 @@ class Bitcoin::Script
   2.upto(16).each{|i|      OPCODES_PARSE_STRING["#{i}"   ] = OP_2_16[i-2] }
   [1,2,4].each{|i|         OPCODES_PARSE_STRING.delete("OP_PUSHDATA#{i}") }
 
+  SIGHASH_TYPE = { all: 1, none: 2, single: 3, anyonecanpay: 128 }
 
   attr_reader :raw, :chunks, :debug
 
@@ -690,24 +691,25 @@ class Bitcoin::Script
     from_string("0 #{sigs.map{|s|s.unpack('H*')[0]}.join(' ')}").raw
   end
 
+  # take a multisig script sig (or p2sh multisig script sig) and add
+  # another signature to it after the OP_0. Used to sign a tx by
+  # multiple parties. Signatures must be in the same order as the
+  # pubkeys in the output script being redeemed.
+  def self.add_sig_to_multisig_script_sig(sig, script_sig)
+    sig += [SIGHASH_TYPE[:all]].pack("C*")
+    sig_len = [sig.bytesize].pack("C*")
+    script_sig.insert(1, sig_len + sig)
+  end
+
   # generate input script sig spending a p2sh-multisig output script.
   # returns a raw binary script sig of the form:
   #  OP_0 <sig> [<sig> ...] <redeem_script>
   def self.to_p2sh_multisig_script_sig(redeem_script, *sigs)
-    all_sigs = ""
-
-    sigs[0].each do |sig|
-      full_sig = sig + "\x01"
-      sig_len = [full_sig.bytesize].pack("C*")
-
-      all_sigs += (sig_len + full_sig)
-    end
-
+    partial_script = [OP_0].pack("C*")
+    sigs[0].reverse_each { |sig| partial_script = add_sig_to_multisig_script_sig(sig, partial_script) }
     push = [OP_PUSHDATA1].pack("C*")
     script_len = [redeem_script.bytesize].pack("C*")
-    full_script = "\x00" + all_sigs + push + script_len + redeem_script
-
-    return full_script
+    full_script_sig = partial_script + push + script_len + redeem_script
   end
 
   def get_signatures_required
@@ -1315,7 +1317,6 @@ class Bitcoin::Script
   end
 
 
-  SIGHASH_TYPE = { all: 1, none: 2, single: 3, anyonecanpay: 128 }
 
   def self.is_canonical_signature?(sig)
     return false if sig.bytesize < 9 # Non-canonical signature: too short
