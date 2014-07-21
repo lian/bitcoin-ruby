@@ -276,6 +276,8 @@ module Bitcoin
 
             # double-check that the script_sig is valid to spend the given prev_script
             raise "Signature error"  if @prev_script && !@tx.verify_input_signature(i, @prev_script)
+          elsif inc.has_multiple_keys?
+            raise "Keys missing for multisig signing"
           else
             # no sig_hash, add an empty script_sig.
             add_empty_script_sig_to_input(i)
