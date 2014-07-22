@@ -132,3 +132,22 @@ def setup_db backend, db = nil, conf = {}
   end
   Bitcoin::Storage.send(backend, conf.merge(db: uri, log_level: :warn))
 end
+
+
+class Time
+  class << self
+    alias_method :real_new, :new
+    alias_method :new, :now
+    def now; @time || real_new; end
+    def freeze(time = nil)
+      begin
+        prev = @time
+        @time = time || now
+        yield
+      ensure
+        @time = prev
+      end
+    end
+    def frozen?; !@time.nil?; end
+  end
+end
