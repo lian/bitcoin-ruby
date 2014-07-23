@@ -604,7 +604,7 @@ module Bitcoin
   NETWORKS[:regtest] = NETWORKS[:testnet].merge({
       default_port: 18444,
       genesis_hash: "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206",
-      proof_of_work_limit: (1 << 255) - 1,
+      proof_of_work_limit: 0x207fffff,
     })
 
   NETWORKS[:testnet3] = NETWORKS[:testnet].merge({
