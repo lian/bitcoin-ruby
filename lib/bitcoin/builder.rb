@@ -95,7 +95,7 @@ module Bitcoin
         @block.bits = Bitcoin.encode_compact_bits(target)
         t = Time.now
         @block.recalc_block_hash
-        until @block.hash < target
+        until @block.hash.to_i(16) < target.to_i(16)
           @block.nonce += 1
           @block.recalc_block_hash
           if @block.nonce == 100000
