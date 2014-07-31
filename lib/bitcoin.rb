@@ -4,7 +4,7 @@
 require 'digest/sha2'
 require 'digest/rmd160'
 require 'openssl'
-
+require 'securerandom'
 
 module Bitcoin
 

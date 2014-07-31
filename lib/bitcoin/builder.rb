@@ -284,6 +284,11 @@ module Bitcoin
           end
         end
       end
+
+      # Randomize the outputs using SecureRandom
+      def randomize_outputs
+        @outs.sort_by!{ SecureRandom.random_bytes(4).unpack("I")[0] }
+      end
     end
 
     # Create a Bitcoin::Protocol::TxIn used by TxBuilder#input.
