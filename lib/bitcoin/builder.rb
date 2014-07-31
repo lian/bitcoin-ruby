@@ -284,6 +284,14 @@ module Bitcoin
           end
         end
       end
+
+      # Randomize the outputs using SecureRandom
+      def randomize_outputs
+        outs_copy = @outs.dup
+        @outs = [*1..@outs.size].reverse_each.with_object([]){ |i, res|
+          res << outs_copy.delete_at(SecureRandom.random_number(i))
+        }
+      end
     end
 
     # Create a Bitcoin::Protocol::TxIn used by TxBuilder#input.
