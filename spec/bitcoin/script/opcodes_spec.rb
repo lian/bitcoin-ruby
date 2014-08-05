@@ -388,6 +388,14 @@ describe "Bitcoin::Script OPCODES" do
     }
   end
 
+  it "should do op_2rot" do
+    op(:"2rot", [-1,0,1,2,3,4,5,6]).should == [-1, 0, 3, 4, 5, 6, 1, 2]
+    @script.invalid?.should == false
+
+    op(:"2rot", [2,3,4,5,6]).should == [2, 3, 4, 5, 6]
+    @script.invalid?.should == true
+  end
+
   it "should do op_rot" do
     op(:rot, [22, 21, 20]).should == [21, 20, 22]
     op(:rot, [21, 20]).should == [21, 20]

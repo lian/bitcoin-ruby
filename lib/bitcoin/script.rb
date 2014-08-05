@@ -66,6 +66,7 @@ class Bitcoin::Script
   OP_MIN          = 163
   OP_MAX          = 164
   OP_2OVER        = 112
+  OP_2ROT         = 113
   OP_2SWAP        = 114
   OP_IFDUP        = 115
   OP_DEPTH        = 116
@@ -1094,6 +1095,12 @@ class Bitcoin::Script
     return invalid if (pos < 0) || (pos >= @stack.size)
     item = @stack[-(pos+1)]
     @stack << item if item
+  end
+
+  # The fifth and sixth items back are moved to the top of the stack.
+  def op_2rot
+    return invalid if @stack.size < 6
+    @stack[-6..-1] = [ *@stack[-4..-1], *@stack[-6..-5] ]
   end
 
   # The item n back in the stack is moved to the top.
