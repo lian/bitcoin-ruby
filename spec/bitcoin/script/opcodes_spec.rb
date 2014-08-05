@@ -358,6 +358,15 @@ describe "Bitcoin::Script OPCODES" do
       [[1, 0],  [1,1]],
     ].each{|stack, expected|
       op(:pick, stack).should == expected
+      @script.invalid?.should == false
+    }
+
+    [
+      [[0],  [0]],
+      [[-1],  [-1]],
+    ].each{|stack, expected|
+      op(:pick, stack).should == expected
+      @script.invalid?.should == true
     }
   end
 
@@ -367,6 +376,15 @@ describe "Bitcoin::Script OPCODES" do
       [[1, 0],  [1]],
     ].each{|stack, expected|
       op(:roll, stack).should == expected
+      @script.invalid?.should == false
+    }
+
+    [
+      [[0],  [0]],
+      [[-1],  [-1]],
+    ].each{|stack, expected|
+      op(:roll, stack).should == expected
+      @script.invalid?.should == true
     }
   end
 

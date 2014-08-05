@@ -1089,14 +1089,18 @@ class Bitcoin::Script
 
   # The item n back in the stack is copied to the top.
   def op_pick
+    return invalid if @stack.size < 2
     pos = pop_int
+    return invalid if (pos < 0) || (pos >= @stack.size)
     item = @stack[-(pos+1)]
     @stack << item if item
   end
 
   # The item n back in the stack is moved to the top.
   def op_roll
+    return invalid if @stack.size < 2
     pos = pop_int
+    return invalid if (pos < 0) || (pos >= @stack.size)
     idx = -(pos+1)
     item = @stack[idx]
     if item
