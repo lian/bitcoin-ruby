@@ -1060,7 +1060,7 @@ class Bitcoin::Script
     value = false
     if @do_exec
       return if @stack.size < 1
-      value = pop_int == 1 ? true : false
+      value = pop_int == 0 ? false : true
     end
     @exec_stack << value
   end
@@ -1070,7 +1070,7 @@ class Bitcoin::Script
     value = false
     if @do_exec
       return if @stack.size < 1
-      value = pop_int == 1 ? false : true
+      value = pop_int == 0 ? true : false
     end
     @exec_stack << value
   end

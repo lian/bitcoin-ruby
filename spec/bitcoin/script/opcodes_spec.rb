@@ -443,6 +443,9 @@ describe "Bitcoin::Script OPCODES" do
       "1 OP_DUP OP_IF OP_ELSE OP_ENDIF",
       "1 OP_IF 1 OP_ELSE OP_ENDIF",
       "0 OP_IF OP_ELSE 1 OP_ENDIF",
+      "beef OP_IF 1 OP_ELSE 0 OP_ENDIF",
+      "0 OP_NOTIF 1 OP_ELSE 0 OP_ENDIF",
+      "beef OP_NOTIF 0 OP_ELSE 1 OP_ENDIF",
     ].each{|script|
       Bitcoin::Script.from_string(script).run.should == true
     }
