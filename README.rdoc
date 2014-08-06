@@ -256,3 +256,6 @@ Even if you are completely lost, just pointing out what is unclear helps a lot!
 
 If you are curious or like to participate in development, drop by \#bitcoin-ruby on irc.freenode.net!
 
+== License
+
+Available here: [link:COPYING]
