@@ -359,7 +359,7 @@ module Bitcoin::Storage
             addrs << [i, script.get_address]
           elsif script.is_multisig?
             script.get_multisig_addresses.map do |address|
-              addrs << [i, address]
+              addrs << [i, address]  if address
             end
           elsif Bitcoin.namecoin? && script.is_namecoin?
             addrs << [i, script.get_address]
