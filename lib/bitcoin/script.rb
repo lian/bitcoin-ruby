@@ -736,6 +736,11 @@ class Bitcoin::Script
     @chunks[0] - 80
   end
 
+  def get_keys_provided
+    return false  unless is_multisig?
+    @chunks[-2] - 80
+  end
+
   # This matches CScript::GetSigOpCount(bool fAccurate)
   # Note: this does not cover P2SH script which is to be unserialized
   #       and checked explicitly when validating blocks.
