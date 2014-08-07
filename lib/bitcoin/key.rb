@@ -54,6 +54,7 @@ module Bitcoin
     # Set the private key to +priv+ (in hex).
     def priv= priv
       set_priv(priv)
+      regenerate_pubkey
     end
 
     # Get the public key (in hex).
