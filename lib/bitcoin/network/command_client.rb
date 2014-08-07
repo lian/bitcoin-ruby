@@ -97,7 +97,8 @@ class Bitcoin::Network::CommandClient < EM::Connection
   def register_monitor_callbacks params
     on_monitor do |data|
       next  if data.is_a?(Hash) && data.keys == ["id"]
-      callback(params["channel"], data)
+      channel = params[:channel] || params["channel"]
+      callback(channel, data)
     end
   end
 
