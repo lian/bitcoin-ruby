@@ -663,7 +663,7 @@ class Bitcoin::Script
         Bitcoin::Key.new(nil, pub.unpack("H*")[0]).addr
       rescue OpenSSL::PKey::ECError, OpenSSL::PKey::EC::Point::Error
       end
-    }.compact
+    }
   end
 
   def get_p2sh_address
