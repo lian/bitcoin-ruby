@@ -184,7 +184,7 @@ class Bitcoin::Script
         chunks << program.shift(len).pack("C*")
 
         # 0x16 = 22 due to OP_2_16 from_string parsing
-        if len == 1 && tmp <= 22
+        if len == 1 && tmp && tmp <= 22
           chunks.last.bitcoin_pushdata = OP_PUSHDATA0
           chunks.last.bitcoin_pushdata_length = len
         else
@@ -227,11 +227,12 @@ class Bitcoin::Script
     chunks
   rescue Exception => ex
     # bail out! #run returns false but serialization roundtrips still create the right payload.
+    chunks.pop if ex.message.include?("invalid OP_PUSHDATA")
     @parse_invalid = true
     c = bytes.unpack("C*").pack("C*")
     c.bitcoin_pushdata = OP_PUSHDATA_INVALID
     c.bitcoin_pushdata_length = c.bytesize
-    chunks = [ c ]
+    chunks << c
   end
 
   # string representation of the script
@@ -1264,7 +1265,7 @@ class Bitcoin::Script
     #return invalid  if (nOpCount += n_pubkeys) > 201
     return invalid if @stack.size < n_pubkeys
     pubkeys = pop_string(n_pubkeys)
-    
+
     return invalid if @stack.size < 1
     n_sigs = pop_int
     return invalid if n_sigs < 0 || n_sigs > n_pubkeys

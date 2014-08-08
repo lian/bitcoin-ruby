@@ -373,12 +373,12 @@ describe 'Bitcoin::Script' do
       }.should.raise
     end
   end
-  
-  
+
+
   describe "signatures_count" do
-    
+
     it "should be zero in data-only scripts" do
-      [false, true].each do |accurate|        
+      [false, true].each do |accurate|
         Script.from_string("").sigops_count_accurate(accurate).should == 0
         Script.from_string("DEADBEEF").sigops_count_accurate(accurate).should == 0
         Script.from_string("DEAD BEEF").sigops_count_accurate(accurate).should == 0
@@ -391,7 +391,7 @@ describe 'Bitcoin::Script' do
     end
 
     it "should count sigops" do
-      [false, true].each do |accurate|        
+      [false, true].each do |accurate|
         Script.from_string("OP_CHECKSIG").sigops_count_accurate(accurate).should == 1
         Script.from_string("OP_CHECKSIGVERIFY").sigops_count_accurate(accurate).should == 1
         Script.from_string("OP_CHECKSIG OP_CHECKSIGVERIFY").sigops_count_accurate(accurate).should == 2
@@ -399,7 +399,7 @@ describe 'Bitcoin::Script' do
         Script.from_string("1 OP_CHECKSIG 2 OP_CHECKSIG DEADBEEF OP_CHECKSIG 3 OP_CHECKSIG 4").sigops_count_accurate(accurate).should == 4
       end
     end
-    
+
     it "should count multisig as 20 sigops in legact inaccurate mode" do
       Script.from_string("OP_CHECKMULTISIG").sigops_count_accurate(false).should == 20
       Script.from_string("OP_CHECKMULTISIGVERIFY").sigops_count_accurate(false).should == 20
@@ -408,7 +408,7 @@ describe 'Bitcoin::Script' do
       Script.from_string("5 OP_CHECKMULTISIG").sigops_count_accurate(false).should == 20
       Script.from_string("40 OP_CHECKMULTISIG").sigops_count_accurate(false).should == 20
     end
-    
+
     it "should count multisig accurately using number of pubkeys" do
       Script.from_string("1 OP_CHECKMULTISIG").sigops_count_accurate(true).should == 1
       Script.from_string("1 OP_CHECKMULTISIGVERIFY").sigops_count_accurate(true).should == 1
@@ -420,12 +420,12 @@ describe 'Bitcoin::Script' do
       Script.from_string("16 OP_CHECKMULTISIGVERIFY").sigops_count_accurate(true).should == 16
       Script.from_string("4 OP_CHECKMULTISIG 7 OP_CHECKMULTISIGVERIFY").sigops_count_accurate(true).should == 11
     end
-    
+
     it "should count multisig as 20 sigops in accurate mode when the pubkey count is missing" do
       Script.from_string("OP_CHECKMULTISIG").sigops_count_accurate(true).should == 20
       Script.from_string("OP_CHECKMULTISIGVERIFY").sigops_count_accurate(true).should == 20
     end
-    
+
     it "should count multisig as 20 sigops when pubkey count is not OP_{1,...,16}, but bignum as pushdata" do
       Script.from_string("#{Script::OP_PUSHDATA1}:1:01 OP_CHECKMULTISIG").sigops_count_accurate(true).should == 20
       Script.from_string("#{Script::OP_PUSHDATA1}:1:02 OP_CHECKMULTISIGVERIFY").sigops_count_accurate(true).should == 20
@@ -438,25 +438,25 @@ describe 'Bitcoin::Script' do
       Script.from_string("DEADBEEF OP_CHECKMULTISIG").sigops_count_accurate(true).should == 20
       Script.from_string("#{Script::OP_PUSHDATA1}:1:11 OP_CHECKMULTISIG").sigops_count_accurate(true).should == 20
     end
-    
+
     it "should extract signature count from P2SH scriptSig" do
-      
+
       # Given a P2SH input script (the one with the signatures and a serialized script inside)
       # This should count as 12 sigops (1 + 4 + 7)
       script = Script.from_string("OP_CHECKSIG 4 OP_CHECKMULTISIG 7 OP_CHECKMULTISIGVERIFY")
-      
+
       # Serialize the script to be used as a plain pushdata (which will be decoded as a script).
       serialized_script = Script.new("").append_pushdata(script.to_binary)
-      
+
       # If empty should return 0.
       Script.from_string("").sigops_count_for_p2sh.should == 0
-      
+
       # If ends with OP_N
       Script.from_string("0").sigops_count_for_p2sh.should == 0
       Script.from_string("1").sigops_count_for_p2sh.should == 0
       Script.from_string("5").sigops_count_for_p2sh.should == 0
       Script.from_string("16").sigops_count_for_p2sh.should == 0
-      
+
       # If ends with opcode
       Script.from_string("OP_NOP").sigops_count_for_p2sh.should == 0
       Script.from_string("OP_HASH160").sigops_count_for_p2sh.should == 0
@@ -464,20 +464,25 @@ describe 'Bitcoin::Script' do
       Script.from_string("DEADBEEF OP_NOP").sigops_count_for_p2sh.should == 0
       Script.from_string("DEADBEEF OP_HASH160").sigops_count_for_p2sh.should == 0
       Script.from_string("DEADBEEF OP_CHECKSIG").sigops_count_for_p2sh.should == 0
-      
+
       # If only has the script, should parse it well
       serialized_script.sigops_count_for_p2sh.should == 12
-      
+
       # If ends with the script, should also parse well.
       Script.new(Script.from_string("DEADBEEF CAFEBABE").to_binary + serialized_script.to_binary).sigops_count_for_p2sh.should == 12
       Script.new(Script.from_string("DEADBEEF 1").to_binary + serialized_script.to_binary).sigops_count_for_p2sh.should == 12
-      
+
       # If has the script, but ends with non-script, should return 0
       # DEADBEEF is a script with OP_CHECKSIGVERIFY in it, so we wrap it in a serialized script with plain pushdata to have 0 count.
       Script.new(serialized_script.to_binary + Script.new("").append_pushdata(Script.from_string("DEADBEEF").to_binary).to_binary).sigops_count_for_p2sh.should == 0
       Script.new(serialized_script.to_binary + Script.from_string("1").to_binary).sigops_count_for_p2sh.should == 0
     end
-    
+
+    it "should count sigops up until an invalid OP_PUSHDATA" do
+      script_binary = Bitcoin::Protocol.read_binary_file(fixtures_path("txscript-invalid-too-many-sigops-followed-by-invalid-pushdata.bin"))
+      Script.new(script_binary).sigops_count_accurate(false).should == 39998
+    end
+
   end
 
   it '#run' do
