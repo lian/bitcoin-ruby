@@ -225,7 +225,7 @@ class Bitcoin::Script
       end
     end
     chunks
-  rescue Exception => ex
+  rescue => ex
     # bail out! #run returns false but serialization roundtrips still create the right payload.
     chunks.pop if ex.message.include?("invalid OP_PUSHDATA")
     @parse_invalid = true

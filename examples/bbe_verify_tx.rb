@@ -23,7 +23,7 @@ def get_tx(hash)
   end
   json = open(url).read
   Bitcoin::Protocol::Tx.from_json(json)
-rescue Exception
+rescue
   nil
 end
 

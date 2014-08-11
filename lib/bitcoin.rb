@@ -329,7 +329,7 @@ module Bitcoin
       raise "malformed signature"       unless signature.bytesize == 65
       pubkey = Bitcoin::OpenSSL_EC.recover_compact(hash, signature)
       pubkey_to_address(pubkey) == address if pubkey
-    rescue Exception => ex
+    rescue => ex
       p [ex.message, ex.backtrace]; false
     end
 

@@ -58,7 +58,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
         p $!; puts *$@
       end
     end
-  rescue Exception
+  rescue
     p $!; puts *$@
   end
 
@@ -74,7 +74,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   # receive only transactions with 6 confirmations.
   # You can send the last block/tx/output you know about, and it will also send you
   # all the objects you're missing.
-  # 
+  #
   # Receive new blocks:
   #  bitcoin_node monitor block
   # Receive blocks since block 123, and new ones as they come in:
@@ -93,7 +93,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
   #  bitcoin_node monitor connection"
   # Combine multiple channels:
   #  bitcoin_node monitor "block tx tx_1 tx_6 connection"
-  # 
+  #
   # NOTE: When a new block is found, it might include transactions that we
   # didn't previously receive as unconfirmed. To make sure you receive all
   # transactions, also subscribe to the tx_1 channel.
