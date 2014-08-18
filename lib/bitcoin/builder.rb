@@ -287,10 +287,7 @@ module Bitcoin
 
       # Randomize the outputs using SecureRandom
       def randomize_outputs
-        outs_copy = @outs.dup
-        @outs = [*1..@outs.size].reverse_each.with_object([]){ |i, res|
-          res << outs_copy.delete_at(SecureRandom.random_number(i))
-        }
+        @outs.sort_by!{ SecureRandom.random_bytes(4).unpack("I")[0] }
       end
     end
 
