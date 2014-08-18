@@ -173,7 +173,7 @@ describe "Bitcoin::Wallet::DeterministicKeyStore" do
   end
 
   it "should get key" do
-    @ks.key('1KDUUSjPJkKwVEJsfpxEzBAf7iEbmqUwUu').priv.should ==
+    @ks.key('1GKjKQemNRhxL1ChTRFJNLZCXeCDxut2d7').priv.should ==
       '7f27bb0ca02e558c4b4b4e267417437adac01403e0d0bb9b07797d1dbb1adfd1'
   end
 
@@ -183,8 +183,8 @@ describe "Bitcoin::Wallet::DeterministicKeyStore" do
   end
 
   it "should export key" do
-    @ks.export('1KDUUSjPJkKwVEJsfpxEzBAf7iEbmqUwUu').should ==
-      '5JnHbCHicVj2Wgd2KgNPU7dQ6te55GzHjc4PH9cQDFUjeepYSHX'
+    @ks.export('1GKjKQemNRhxL1ChTRFJNLZCXeCDxut2d7').should ==
+      'L1UtDvpnffnVg1szqSmQAgFexzvcysZrs3jwLH1FT4uREpZqcXaR'
   end
 
 end
