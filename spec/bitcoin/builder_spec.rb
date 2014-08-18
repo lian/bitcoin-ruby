@@ -201,7 +201,7 @@ describe "Bitcoin::Builder" do
     tx.out.map(&:value).inject(:+).should == 50e8 - 10000
   end
 
-  it "randomize_outputs should not modify information" do
+  it "randomize_outputs should not modify output values or fees" do
     change_address = Bitcoin::Key.generate.addr
     tx = build_tx(input_value: @block.tx[0].out.map(&:value).inject(:+),
                   change_address: change_address, leave_fee: true) do |t|
