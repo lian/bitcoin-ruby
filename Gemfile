@@ -16,4 +16,5 @@ group :development do
   gem "rake", ">= 0.8.0"
   gem 'bacon', '>= 1.2.0'
   gem 'simplecov', require: false
+  gem 'rdoc'
 end
