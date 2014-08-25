@@ -16,13 +16,34 @@ describe "Bitcoin::Key" do
     k = Bitcoin::Key.generate
     k.priv.size.should == 64
     k.pub.size.should == 66
-    #p k.priv, k.pub
+    k.compressed.should == true
+
+    k = Bitcoin::Key.generate(compressed: true)
+    k.priv.size.should == 64
+    k.pub.size.should == 66
+    k.compressed.should == true
+
+    k = Bitcoin::Key.generate(true)
+    k.priv.size.should == 64
+    k.pub.size.should == 66
+    k.compressed.should == true
+
+    k = Bitcoin::Key.generate(compressed: false)
+    k.priv.size.should == 64
+    k.pub.size.should == 130
+    k.compressed.should == false
+
+    k = Bitcoin::Key.generate(false)
+    k.priv.size.should == 64
+    k.pub.size.should == 130
+    k.compressed.should == false
   end
 
   it "should create empty key" do
     k = Bitcoin::Key.new
     k.priv.should == nil
     k.pub.should == nil
+    k.compressed.should == true
   end
 
   it "should create key from priv + pub" do
