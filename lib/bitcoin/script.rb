@@ -689,7 +689,6 @@ class Bitcoin::Script
   # returns a raw binary script sig of the form:
   #  OP_0 <sig> [<sig> ...]
   def self.to_multisig_script_sig(*sigs)
-    sigs.map!{|s| s + "\x01" }
     from_string("0 #{sigs.map{|s|s.unpack('H*')[0]}.join(' ')}").raw
   end
 
