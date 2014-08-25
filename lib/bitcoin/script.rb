@@ -443,7 +443,7 @@ class Bitcoin::Script
 
     @debug << "RESULT"
     return false if @stack.empty?
-    return false if [0, ''].include?(@stack.pop)
+    return false if cast_to_bool(@stack.pop) == false
     true
   end
 
@@ -957,15 +957,14 @@ class Bitcoin::Script
 
   # Returns 1 if the inputs are exactly equal, 0 otherwise.
   def op_equal
-    #a, b = @stack.pop(2)
-    a, b = pop_int(2)
+    a, b = pop_string(2)
     @stack << (a == b ? 1 : 0)
   end
 
   # Marks transaction as invalid if top stack value is not true. True is removed, but false is not.
   def op_verify
     res = pop_int
-    if res == 0
+    if cast_to_bool(res) == false
       @stack << res
       @script_invalid = true # raise 'transaction invalid' ?
     else
@@ -1013,7 +1012,7 @@ class Bitcoin::Script
 
   # If the input is true, duplicate it.
   def op_ifdup
-    if cast_to_bignum(@stack.last) != 0
+    if cast_to_bool(@stack.last) == true
       @stack << @stack.last
     end
   end
@@ -1061,8 +1060,8 @@ class Bitcoin::Script
   def op_if
     value = false
     if @do_exec
-      return if @stack.size < 1
-      value = pop_int == 0 ? false : true
+      (invalid; return) if @stack.size < 1
+      value = cast_to_bool(pop_string) == false ? false : true
     end
     @exec_stack << value
   end
@@ -1071,8 +1070,8 @@ class Bitcoin::Script
   def op_notif
     value = false
     if @do_exec
-      return if @stack.size < 1
-      value = pop_int == 0 ? true : false
+      (invalid; return) if @stack.size < 1
+      value = cast_to_bool(pop_string) == false ? true : false
     end
     @exec_stack << value
   end
@@ -1171,8 +1170,12 @@ class Bitcoin::Script
   def cast_to_bignum(buf)
     return (invalid; 0) unless buf
     case buf
-    when Numeric; buf
-    when String; OpenSSL::BN.new([buf.bytesize].pack("N") + buf.reverse, 0).to_i
+    when Numeric
+      invalid if OpenSSL::BN.new(buf.to_s).to_s(0).unpack("N")[0] > 4
+      buf
+    when String
+      invalid if buf.bytesize > 4
+      OpenSSL::BN.new([buf.bytesize].pack("N") + buf.reverse, 0).to_i
     else; raise TypeError, 'cast_to_bignum: failed to cast: %s (%s)' % [buf, buf.class]
     end
   end
@@ -1180,10 +1183,26 @@ class Bitcoin::Script
   def cast_to_string(buf)
     return (invalid; "") unless buf
     case buf
-    when Numeric; OpenSSL::BN.new(buf.to_s).to_s(0)[4..-1]
+    when Numeric; OpenSSL::BN.new(buf.to_s).to_s(0)[4..-1].reverse
     when String; buf;
     else; raise TypeError, 'cast_to_string: failed to cast: %s (%s)' % [buf, buf.class]
     end
+  end
+
+  def cast_to_bool(buf)
+    buf = cast_to_string(buf).unpack("C*")
+    size = buf.size
+    buf.each.with_index{|byte,index|
+      if byte != 0
+        # Can be negative zero
+        if (index == (size-1)) && byte == 0x80
+          return false
+        else
+          return true
+        end
+      end
+    }
+    return false
   end
 
   # Same as OP_NUMEQUAL, but runs OP_VERIFY afterward.

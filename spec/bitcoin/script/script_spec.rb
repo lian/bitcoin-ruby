@@ -208,7 +208,7 @@ describe 'Bitcoin::Script' do
       Script.from_string("OP_RETURN").get_op_return_data.should == nil
       Script.from_string("OP_RETURN dead beef").get_op_return_data.should == nil
       Script.from_string("OP_RETURN deadbeef").get_op_return_data.should == "deadbeef"
-      Script.from_string("OP_RETURN OP_CHECKSIG").get_op_return_data.should == "00ac"
+      Script.from_string("OP_RETURN OP_CHECKSIG").get_op_return_data.should == "ac00"
     end
 
   end

@@ -727,7 +727,19 @@ describe "Bitcoin::Script OPCODES" do
       "0 OP_0NOTEQUAL 0 OP_EQUAL",
       "2 82 OP_ADD 0 OP_EQUAL",
     ].each{|script|
-      Bitcoin::Script.from_string(script).run.should == true
+      parsed_script = Bitcoin::Script.from_string(script)
+      result = parsed_script.run
+      #p [script, parsed_script, parsed_script.debug result]
+      result.should == true
+    }
+
+    [
+      "ffffff7f ffffff7f OP_ADD ffffff7f OP_ADD OP_TRUE"
+    ].each{|script|
+      parsed_script = Bitcoin::Script.from_string(script)
+      result = parsed_script.run
+      #p [script, parsed_script, parsed_script.debug result]
+      result.should == false
     }
   end
 
