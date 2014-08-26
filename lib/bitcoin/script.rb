@@ -603,8 +603,7 @@ class Bitcoin::Script
   # generate pubkey tx script for given +pubkey+. returns a raw binary script of the form:
   #  <pubkey> OP_CHECKSIG
   def self.to_pubkey_script(pubkey)
-    pk = [pubkey].pack("H*")
-    [[pk.bytesize].pack("C"), pk, "\xAC"].join
+    pack_pushdata([pubkey].pack("H*")) + [ OP_CHECKSIG ].pack("C")
   end
 
   # generate hash160 tx for given +address+. returns a raw binary script of the form:
@@ -637,38 +636,34 @@ class Bitcoin::Script
   # returns a raw binary script of the form:
   #  <m> <pubkey> [<pubkey> ...] <n_pubkeys> OP_CHECKMULTISIG
   def self.to_multisig_script(m, *pubkeys)
-    pubs = pubkeys.map{|pk|p=[pk].pack("H*"); [p.bytesize].pack("C") + p}
-    [ [80 + m.to_i].pack("C"), *pubs, [80 + pubs.size].pack("C"), "\xAE"].join
+    pubs = pubkeys.map{|pk| pack_pushdata([pk].pack("H*")) }
+    [ [80 + m.to_i].pack("C"), *pubs, [80 + pubs.size, OP_CHECKMULTISIG].pack("CC")].join
   end
 
   # generate OP_RETURN output script with given data. returns a raw binary script of the form:
   #  OP_RETURN <data>
   def self.to_op_return_script(data = nil)
-    return "\x6A"  unless data
-    data = [data].pack("H*")
-    ["\x6A", [data.bytesize].pack("C"), data].join
+    buf = [ OP_RETURN ].pack("C")
+    return buf unless data
+    return buf + pack_pushdata( [data].pack("H*") )
   end
 
   # generate input script sig spending a pubkey output with given +signature+ and +pubkey+.
   # returns a raw binary script sig of the form:
   #  <signature> [<pubkey>]
   def self.to_pubkey_script_sig(signature, pubkey)
-    hash_type = "\x01"
-    #pubkey = [pubkey].pack("H*") if pubkey.bytesize != 65
-    return [ [signature.bytesize+1].pack("C"), signature, hash_type ].join unless pubkey
+    hash_type = [ SIGHASH_TYPE[:all] ].pack("C")
+    buf = pack_pushdata(signature + hash_type)
+    return buf unless pubkey
 
-    case pubkey[0]
-    when "\x04"
-      expected_size = 65
-    when "\x02", "\x03"
-      expected_size = 33
-    end
+    expected_size = case pubkey[0]
+                    when "\x04"; 65
+                    when "\x02", "\x03"; 33
+                    end
 
-    if !expected_size || pubkey.bytesize != expected_size
-      raise "pubkey is not in binary form"
-    end
+    raise "pubkey is not in binary form" if !expected_size || pubkey.bytesize != expected_size
 
-    [ [signature.bytesize+1].pack("C"), signature, hash_type, [pubkey.bytesize].pack("C"), pubkey ].join
+    return buf + pack_pushdata(pubkey)
   end
 
   # generate p2sh multisig output script for given +args+.
@@ -689,8 +684,9 @@ class Bitcoin::Script
   # returns a raw binary script sig of the form:
   #  OP_0 <sig> [<sig> ...]
   def self.to_multisig_script_sig(*sigs)
-    sigs.map!{|s| s + "\x01" }
-    from_string("0 #{sigs.map{|s|s.unpack('H*')[0]}.join(' ')}").raw
+    partial_script = [OP_0].pack("C*")
+    sigs.reverse_each{ |sig| partial_script = add_sig_to_multisig_script_sig(sig, partial_script) }
+    partial_script
   end
 
   # take a multisig script sig (or p2sh multisig script sig) and add
@@ -698,20 +694,16 @@ class Bitcoin::Script
   # multiple parties. Signatures must be in the same order as the
   # pubkeys in the output script being redeemed.
   def self.add_sig_to_multisig_script_sig(sig, script_sig)
-    sig += [SIGHASH_TYPE[:all]].pack("C*")
-    sig_len = [sig.bytesize].pack("C*")
-    script_sig.insert(1, sig_len + sig)
+    signature = sig + [SIGHASH_TYPE[:all]].pack("C*")
+    offset = script_sig.empty? ? 0 : 1
+    script_sig.insert(offset, pack_pushdata(signature))
   end
 
   # generate input script sig spending a p2sh-multisig output script.
   # returns a raw binary script sig of the form:
   #  OP_0 <sig> [<sig> ...] <redeem_script>
   def self.to_p2sh_multisig_script_sig(redeem_script, *sigs)
-    partial_script = [OP_0].pack("C*")
-    sigs[0].reverse_each { |sig| partial_script = add_sig_to_multisig_script_sig(sig, partial_script) }
-    push = [OP_PUSHDATA1].pack("C*")
-    script_len = [redeem_script.bytesize].pack("C*")
-    full_script_sig = partial_script + push + script_len + redeem_script
+    to_multisig_script_sig(*sigs.flatten) + pack_pushdata(redeem_script)
   end
 
   def get_signatures_required
