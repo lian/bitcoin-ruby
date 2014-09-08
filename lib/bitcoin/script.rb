@@ -156,6 +156,8 @@ class Bitcoin::Script
 
   # create a new script. +bytes+ is typically input_script + output_script
   def initialize(input_script, previous_output_script=nil)
+    @raw_byte_sizes = [input_script.bytesize, previous_output_script ? previous_output_script.bytesize : 0]
+
     @raw = if previous_output_script
              input_script + [ Bitcoin::Script::OP_CODESEPARATOR ].pack("C") + previous_output_script
            else
@@ -398,7 +400,7 @@ class Bitcoin::Script
     return false if @parse_invalid
 
     #p [to_string, block_timestamp, is_p2sh?]
-    @script_invalid = true if @raw.bytesize > 10_000
+    @script_invalid = true if @raw_byte_sizes.any?{|size| size > 10_000 }
     @last_codeseparator_index = 0
 
     if block_timestamp >= 1333238400 # Pay to Script Hash (BIP 0016)

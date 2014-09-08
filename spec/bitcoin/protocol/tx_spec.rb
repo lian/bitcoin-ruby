@@ -238,6 +238,15 @@ describe 'Tx' do
     outpoint_tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-ab9805c6d57d7070d9a42c5176e47bb705023e6b67249fb6760880548298e742.json'))
     outpoint_tx.hash.should == "ab9805c6d57d7070d9a42c5176e47bb705023e6b67249fb6760880548298e742"
     tx.verify_input_signature(1, outpoint_tx).should == true
+
+    # testnet3 e335562f7e297aadeed88e5954bc4eeb8dc00b31d829eedb232e39d672b0c009
+    tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-e335562f7e297aadeed88e5954bc4eeb8dc00b31d829eedb232e39d672b0c009.json'))
+    tx.hash.should == "e335562f7e297aadeed88e5954bc4eeb8dc00b31d829eedb232e39d672b0c009"
+    prev_txs = {}
+    tx.in.map{|i| i.previous_output }.uniq.each{|i| prev_txs[i] = Bitcoin::P::Tx.from_json(fixtures_file("tx-#{i}.json")) }
+    tx.in.each.with_index{|i,idx|
+      tx.verify_input_signature(idx, prev_txs[i.previous_output]).should == true
+    }
   end
 
   it '#sign_input_signature' do
