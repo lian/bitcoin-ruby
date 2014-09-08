@@ -161,8 +161,16 @@ class Bitcoin::Script
            else
              input_script
            end
+
+    @chunks = parse(input_script)
+
+    if previous_output_script
+      @script_codeseparator_index = @chunks.size
+      @chunks << Bitcoin::Script::OP_CODESEPARATOR
+      @chunks += parse(previous_output_script)
+    end
+
     @stack, @stack_alt, @exec_stack = [], [], []
-    @chunks = parse(@raw)
     @last_codeseparator_index = 0
     @do_exec = true
   end
@@ -274,7 +282,11 @@ class Bitcoin::Script
       if chunk == OP_CODESEPARATOR and idx <= @last_codeseparator_index
         buf.clear
       elsif chunk == OP_CODESEPARATOR
-        # skip
+        if idx == @script_codeseparator_index
+          break
+        else
+          # skip
+        end
       elsif drop_signatures.none?{|e| e == chunk }
         buf << chunk
       end

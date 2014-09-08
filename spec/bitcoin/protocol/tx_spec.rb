@@ -222,6 +222,13 @@ describe 'Tx' do
     outpoint_tx.hash.should == "a955032f4d6b0c9bfe8cad8f00a8933790b9c1dc28c82e0f48e75b35da0e4944"
     tx.verify_input_signature(0, outpoint_tx).should == true
 
+    # drop multisig OP_CODESEPARATOR in subscript for signature_hash_for_input when used in ScriptSig
+    tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-eb3b82c0884e3efa6d8b0be55b4915eb20be124c9766245bcc7f34fdac32bccb.json'))
+    tx.hash.should == "eb3b82c0884e3efa6d8b0be55b4915eb20be124c9766245bcc7f34fdac32bccb"
+    outpoint_tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-b8fd633e7713a43d5ac87266adc78444669b987a56b3a65fb92d58c2c4b0e84d.json'))
+    outpoint_tx.hash.should == "b8fd633e7713a43d5ac87266adc78444669b987a56b3a65fb92d58c2c4b0e84d"
+    tx.verify_input_signature(1, outpoint_tx).should == true
+
     # OP_DUP OP_HASH160
     tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-5df1375ffe61ac35ca178ebb0cab9ea26dedbd0e96005dfcee7e379fa513232f.json'))
     tx.hash.should == "5df1375ffe61ac35ca178ebb0cab9ea26dedbd0e96005dfcee7e379fa513232f"
