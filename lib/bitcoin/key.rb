@@ -7,7 +7,7 @@ module Bitcoin
 
     # Generate a new keypair.
     #  Bitcoin::Key.generate
-    def self.generate(opts={comprssed: true})
+    def self.generate(opts={compressed: true})
       k = new(nil, nil, opts); k.generate; k
     end
 
