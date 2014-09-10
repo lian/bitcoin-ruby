@@ -318,6 +318,13 @@ describe 'Bitcoin::Script' do
         Script.from_string("2 #{PUBKEYS[0..2].join(' ')} 3 OP_CHECKMULTISIG").raw
       Script.to_multisig_script(1, *PUBKEYS[0..1]).should ==
         Script.from_string("1 #{PUBKEYS[0..1].join(' ')} 2 OP_CHECKMULTISIG").raw
+
+      m=n=16; Bitcoin::Script.new(Bitcoin::Script.to_multisig_script(m, *(["a"]*n))).to_string
+        .should == "16 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 16 OP_CHECKMULTISIG"
+      m=n=17; Bitcoin::Script.new(Bitcoin::Script.to_multisig_script(m, *(["a"]*n))).to_string
+        .should == "0:1:11 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 0:1:11 OP_CHECKMULTISIG"
+      m=n=20; Bitcoin::Script.new(Bitcoin::Script.to_multisig_script(m, *(["a"]*n))).to_string
+        .should == "0:1:14 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 0:1:14 OP_CHECKMULTISIG"
     end
 
     it "should generate p2sh script" do

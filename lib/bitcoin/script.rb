@@ -650,8 +650,14 @@ class Bitcoin::Script
   # returns a raw binary script of the form:
   #  <m> <pubkey> [<pubkey> ...] <n_pubkeys> OP_CHECKMULTISIG
   def self.to_multisig_script(m, *pubkeys)
+    raise "invalid m-of-n number" unless [m, pubkeys.size].all?{|i| (0..20).include?(i) }
+    raise "invalid m-of-n number" if pubkeys.size < m
     pubs = pubkeys.map{|pk| pack_pushdata([pk].pack("H*")) }
-    [ [80 + m.to_i].pack("C"), *pubs, [80 + pubs.size, OP_CHECKMULTISIG].pack("CC")].join
+
+    m = m > 16 ?              pack_pushdata([m].pack("C"))              : [80 + m.to_i].pack("C")
+    n = pubkeys.size > 16 ?   pack_pushdata([pubkeys.size].pack("C"))   : [80 + pubs.size].pack("C")
+
+    [ m, *pubs, n, [OP_CHECKMULTISIG].pack("C")].join
   end
 
   # generate OP_RETURN output script with given data. returns a raw binary script of the form:
