@@ -374,7 +374,7 @@ module Bitcoin
 
     # shows the total number of Bitcoins in circulation, reward era and reward in that era.
     def blockchain_total_btc(height)
-      reward, interval = 5000000000, 210000
+      reward, interval = 5000000000, Bitcoin.network[:reward_halving]
       total_btc = reward
       reward_era, remainder = (height).divmod(interval)
       reward_era.times{
@@ -386,7 +386,7 @@ module Bitcoin
     end
 
     def block_creation_reward(block_height)
-      5000000000 / (2 ** (block_height / 210000.0).floor)
+      5000000000 / (2 ** (block_height / Bitcoin.network[:reward_halving].to_f).floor)
     end
   end
 
@@ -502,6 +502,7 @@ module Bitcoin
       :default_port => 8333,
       :protocol_version => 70001,
       :coinbase_maturity => 100,
+      :reward_halving => 210_000,
       :retarget_interval => 2016,
       :retarget_time     => 1209600, # 2 weeks
       :target_spacing    => 600, # block interval
@@ -558,6 +559,7 @@ module Bitcoin
       :known_nodes => [],
       :checkpoints => {},
       :coinbase_maturity => 100,
+      :reward_halving => 210_000,
       :retarget_interval => 2016,
       :retarget_time => 1209600, # 2 weeks
       :target_spacing    => 600, # block interval
@@ -584,6 +586,7 @@ module Bitcoin
       :known_nodes => [],
       :checkpoints => {},
       :coinbase_maturity => 100,
+      :reward_halving => 210_000,
       :retarget_interval => 2016,
       :retarget_time => 1209600, # 2 weeks
       :target_spacing    => 600, # block interval
@@ -604,6 +607,7 @@ module Bitcoin
       :default_port => 18333,
       :protocol_version => 70001,
       :coinbase_maturity => 100,
+      :reward_halving => 210_000,
       :retarget_interval => 2016,
       :retarget_time => 1209600, # 2 weeks
       :target_spacing    => 600, # block interval
@@ -646,6 +650,7 @@ module Bitcoin
       :dust => CENT / 10,
       :per_dust_fee => true,
       :coinbase_maturity => 100,
+      :reward_halving => 840_000,
       :retarget_interval => 2016,
       :retarget_time => 302400, # 3.5 days
       :dns_seeds => [
@@ -656,7 +661,7 @@ module Bitcoin
         "dnsseed.weminemnc.com",
       ],
       :genesis_hash => "12a765e31ffd4059bada1e25190f6e98c99d9714d334efa41a195a7e7e04bfe2",
-      :proof_of_work_limit => 0,
+      :proof_of_work_limit => 0x1e0fffff,
       :alert_pubkeys => ["040184710fa689ad5023690c80f3a49c8f13f8d45b8c857fbcbc8bc4a8e4d3eb4b10f4d4604fa08dce601aaf0f470216fe1b51850b4acf21b179c45070ac7b03a9"],
       :known_nodes => [],
       :checkpoints => {
@@ -694,6 +699,7 @@ module Bitcoin
       :per_dust_fee => true,
       :free_tx_bytes => 5_000,
       :coinbase_maturity => 100,
+      :reward_halving => 840_000,
       :retarget_interval => 2016,
       :retarget_time => 302400, # 3.5 days
       :max_money => 84_000_000 * COIN,
@@ -703,7 +709,7 @@ module Bitcoin
         "testnet-seed.weminemnc.com",
       ],
       :genesis_hash => "f5ae71e26c74beacc88382716aced69cddf3dffff24f384e1808905e0188f68f",
-      :proof_of_work_limit => 0,
+      :proof_of_work_limit => 0x1e0fffff,
       :alert_pubkeys => ["04302390343f91cc401d56d68b123028bf52e5fca1939df127f63c6467cdf9c8e2c14b61104cf817d0b780da337893ecc4aaff1309e536162dabbdb45200ca2b0a"],
       :known_nodes => [],
       :checkpoints => {
@@ -726,6 +732,7 @@ module Bitcoin
       :free_tx_bytes => 1_000,
       :dust => CENT,
       :per_dust_fee => false,
+      :reward_halving => 210_000,
       :dns_seeds => [ "seed.freico.in", "fledge.freico.in" ],
       :genesis_hash => "000000005b1e3d23ecfd2dd4a6e1a35238aa0392c0a8528c40df52376d7efe2c",
       :proof_of_work_limit => 0,
@@ -749,6 +756,7 @@ module Bitcoin
       :free_tx_bytes => 1_000,
       :dust => CENT,
       :per_dust_fee => true,
+      :reward_halving => 210_000,
       :dns_seeds => [],
       :genesis_hash => "000000000062b72c5e2ceb45fbc8587e807c155b0da735e6483dfba2f0a9c770",
       :proof_of_work_limit => 0x1d00ffff,
@@ -774,6 +782,7 @@ module Bitcoin
       :free_tx_bytes => 1_000,
       :dust => CENT,
       :per_dust_fee => true,
+      :reward_halving => 210_000,
       :max_money => 21_000_000 * COIN,
       :dns_seeds => [],
       :genesis_hash => "00000001f8ab0d14bceaeb50d163b0bef15aecf62b87bd5f5c864d37f201db97",
