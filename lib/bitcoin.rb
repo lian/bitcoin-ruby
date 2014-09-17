@@ -453,7 +453,7 @@ module Bitcoin
 
   # maximum size of a block (in bytes)
   MAX_BLOCK_SIZE = 1_000_000
-  
+
   # soft limit for new blocks
   MAX_BLOCK_SIZE_GEN = MAX_BLOCK_SIZE/2
 
@@ -476,14 +476,14 @@ module Bitcoin
   # interval (in blocks) for difficulty retarget
   RETARGET_INTERVAL = 2016
   RETARGET = 2016 # deprecated constant
-  
-  
+
+
   # interval (in blocks) for mining reward reduction
   REWARD_DROP = 210_000
 
   CENT =   1_000_000
   COIN = 100_000_000
-  
+
   MIN_FEE_MODE     = [ :block, :relay, :send ]
 
   NETWORKS = {
@@ -621,7 +621,7 @@ module Bitcoin
         "dnsseed.weminemnc.com",
       ],
       :genesis_hash => "12a765e31ffd4059bada1e25190f6e98c99d9714d334efa41a195a7e7e04bfe2",
-      :proof_of_work_limit => 0,
+      :proof_of_work_limit => 0x1e0fffff,
       :alert_pubkeys => ["040184710fa689ad5023690c80f3a49c8f13f8d45b8c857fbcbc8bc4a8e4d3eb4b10f4d4604fa08dce601aaf0f470216fe1b51850b4acf21b179c45070ac7b03a9"],
       :known_nodes => [],
       :checkpoints => {
@@ -668,7 +668,7 @@ module Bitcoin
         "testnet-seed.weminemnc.com",
       ],
       :genesis_hash => "f5ae71e26c74beacc88382716aced69cddf3dffff24f384e1808905e0188f68f",
-      :proof_of_work_limit => 0,
+      :proof_of_work_limit => 0x1e0fffff,
       :alert_pubkeys => ["04302390343f91cc401d56d68b123028bf52e5fca1939df127f63c6467cdf9c8e2c14b61104cf817d0b780da337893ecc4aaff1309e536162dabbdb45200ca2b0a"],
       :known_nodes => [],
       :checkpoints => {
