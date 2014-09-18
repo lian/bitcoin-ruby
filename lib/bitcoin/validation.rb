@@ -1,5 +1,15 @@
 # encoding: ascii-8bit
 
+# Validates blocks and transactions before they are accepted into the local blockchain.
+# There are two modes of validation, "syntax" and "context". "syntax" validates everything
+# that can be validated without access to the rest of the blockchain, for example that the
+# block hash matches the claimed difficulty, and the tx hashes add up to the given merkle
+# root, etc. The "context" rules include the checks that need to cross-reference data
+# against the local database, like comparing the difficulty target to the last blocks, or
+# checking for doublespends. (Suggestions for better names for these modes are welcome!)
+# Everything accepted into the local storage should at least be syntax-validated, but it
+# should be possible to skip context-validation when the current block is already known,
+# for example when checkpoints are used.
 module Bitcoin::Validation
     
   class ValidationError < StandardError
@@ -121,7 +131,7 @@ module Bitcoin::Validation
 
     # check that bits satisfy required difficulty
     def difficulty
-      return true  if Bitcoin.network_name == :testnet3
+      return true  if Bitcoin.network[:no_difficulty] == true
       block.bits == next_bits_required || [block.bits, next_bits_required]
     end
 
@@ -140,7 +150,7 @@ module Bitcoin::Validation
       block.time > min_time || [block.time, min_time]
     end
 
-    # check transactions
+    # Run all syntax checks on transactions
     def transactions_syntax
       # check if there are no double spends within this block
       return false if block.tx.map(&:in).flatten.map {|i| [i.prev_out, i.prev_out_index] }.uniq! != nil
@@ -155,6 +165,7 @@ module Bitcoin::Validation
       }
     end
 
+    # Run all context checks on transactions
     def transactions_context
       tx_validators.all?{|v|
         begin
@@ -166,17 +177,27 @@ module Bitcoin::Validation
       }
     end
 
+    # Get validators for all tx objects in the current block
     def tx_validators
-      @tx_validators ||= block.tx[1..-1].map {|tx| tx.validator(store, block, tx_cache: prev_txs_hash)}
+      @tx_validators ||= block.tx[1..-1].map {|tx| tx.validator(store, block, self)}
     end
 
     # Fetch all prev_txs that will be needed for validation
     # Used for optimization in tx validators
     def prev_txs_hash
       @prev_tx_hash ||= (
-        inputs = block.tx.map {|tx| tx.in }.flatten
+        inputs = block.tx[1..-1].map {|tx| tx.in }.flatten
         txs = store.get_txs(inputs.map{|i| i.prev_out.reverse_hth })
         Hash[*txs.map {|tx| [tx.hash, tx] }.flatten]
+      )
+    end
+
+    # Fetch all prev_outs that already have a next_in, i.e. are already spent.
+    def spent_outs_txins
+      @spent_outs_txins ||= (
+        next_ins = store.get_txins_for_txouts(block.tx[1..-1].map(&:in).flatten.map.with_index {|txin, idx| [txin.prev_out.reverse_hth, txin.prev_out_index] })
+        # Only returns next_ins that are in blocks in the main chain
+        next_ins.select {|i| store.get_block_id_for_tx_id(i.tx_id) }
       )
     end
 
@@ -210,7 +231,7 @@ module Bitcoin::Validation
   end
 
   class Tx
-    attr_accessor :tx, :store, :error
+    attr_accessor :tx, :store, :error, :block_validator
 
     RULES = {
       syntax: [:hash, :lists, :max_size, :output_values, :inputs, :lock_time, :standard],
@@ -244,12 +265,14 @@ module Bitcoin::Validation
       "b3c19d78b4953b694717a47d9852f8ea1ccd4cf93a45ba2e43a0f97d7cdb2655"
     ]
 
-    # setup new validator for given +tx+, validating context with +store+.
-    # also needs the +block+ to find prev_outs for chains of tx inside one block.
-    # opts+ may include :tx_cache which should be hash with transactiotns including prev_txs
-    def initialize(tx, store, block = nil, opts = {})
+    # Setup new validator for given +tx+, validating context with +store+.
+    # Also needs the +block+ that includes the tx to be validated, to find
+    # prev_outs for chains of txs inside the block.
+    # Optionally accepts the validator object for the block, to optimize fetching
+    # prev_txs and checking for doublespends.
+    def initialize(tx, store, block = nil, block_validator = nil)
       @tx, @store, @block, @errors = tx, store, block, []
-      @tx_cache = opts[:tx_cache]
+      @block_validator = block_validator
     end
 
     # check that tx hash matches data
@@ -320,9 +343,11 @@ module Bitcoin::Validation
 
     # check that none of the prev_outs are already spent in the main chain or in the current block
     def not_spent
+      # if we received cached spents, use it
+      return block_validator.spent_outs_txins.empty? if block_validator
+
       # find all spent txouts
-      # OPTIMIZE: these could be fetched in one query for all transactions and cached
-      next_ins = store.get_txins_for_txouts(tx.in.map.with_index {|txin, idx| [prev_txs[idx].hash, txin.prev_out_index] })
+      next_ins = store.get_txins_for_txouts(tx.in.map.with_index {|txin, idx| [txin.prev_out.reverse_hth, txin.prev_out_index] })
 
       # no txouts found spending these txins, we can safely return true
       return true if next_ins.empty?
@@ -356,7 +381,7 @@ module Bitcoin::Validation
     # only returns tx that are in a block in the main chain or the current block.
     def prev_txs
       @prev_txs ||= tx.in.map {|i|
-        prev_tx = @tx_cache ? @tx_cache[i.prev_out.reverse_hth] : store.get_tx(i.prev_out.reverse_hth)
+        prev_tx = block_validator ? block_validator.prev_txs_hash[i.prev_out.reverse_hth] : store.get_tx(i.prev_out.reverse_hth)
         next prev_tx if prev_tx && prev_tx.blk_id # blk_id is set only if it's in the main chain
         @block.tx.find {|t| t.binary_hash == i.prev_out } if @block
       }.compact

@@ -20,10 +20,14 @@ end
 
 require 'bitcoin'
 
-def fixtures_file(relative_path)
-  basedir = File.join(File.dirname(__FILE__), 'fixtures')
-  Bitcoin::Protocol.read_binary_file( File.join(basedir, relative_path) )
+def fixtures_path(relative_path)
+  File.join(File.dirname(__FILE__), 'fixtures', relative_path)
 end
+
+def fixtures_file(relative_path)
+  Bitcoin::Protocol.read_binary_file( fixtures_path(relative_path) )
+end
+
 
 include Bitcoin::Builder
 
@@ -127,4 +131,23 @@ def setup_db backend, db = nil, conf = {}
     db.drop_table(*db.tables, cascade: true)
   end
   Bitcoin::Storage.send(backend, conf.merge(db: uri, log_level: :warn))
+end
+
+
+class Time
+  class << self
+    alias_method :real_new, :new
+    alias_method :new, :now
+    def now; @time || real_new; end
+    def freeze(time = nil)
+      begin
+        prev = @time
+        @time = time || now
+        yield
+      ensure
+        @time = prev
+      end
+    end
+    def frozen?; !@time.nil?; end
+  end
 end

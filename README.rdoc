@@ -1,4 +1,4 @@
-= Bitcoin-ruby {<img src="https://api.travis-ci.org/lian/bitcoin-ruby.png?branch=master" />}[http://travis-ci.org/lian/bitcoin-ruby]
+= Bitcoin-ruby {<img src="https://api.travis-ci.org/lian/bitcoin-ruby.svg?branch=master" />}[http://travis-ci.org/lian/bitcoin-ruby]
 
 This is a ruby library for interacting with the bitcoin protocol/network.
 
@@ -21,6 +21,7 @@ Some of the main features are:
 
 * ruby 1.9.3
 * ruby 2.0.0
+* ruby 2.1.2
 
 == Installation
 
@@ -31,7 +32,7 @@ We assume you already have a ruby 1.9 or 2.0 compatible interpreter and rubygems
 
 if you want to have it available system-wide, just build the gem and install it:
 
- gem build bitcoin-ruby.gemspec && gem install bitcoin-ruby-0.0.2.gem
+ gem build bitcoin-ruby.gemspec && gem install bitcoin-ruby-0.0.5.gem
 
 now you can just call +bitcoin_node+ from anywhere.
 
@@ -187,7 +188,7 @@ as well as the private key for the address required to sign for it.
  
  end
  
- # examine your transaction. you can relay it through http://webbtc.com/relay_tx
+ # examine your transaction. you can relay it through http://test.webbtc.com/relay_tx
  # that will also give you a hint on the error if something goes wrong
  puts new_tx.to_json
 
@@ -196,7 +197,7 @@ as well as the private key for the address required to sign for it.
 The Bitcoin::Network::Node can connect to peers and download the blockchain into a
 Bitcoin::Storage backend. For now it works completely self-contained:
 
- node = Bitcoin::Network::Node.new(options) # options = {:network => :bitcoin, ...}
+ node = Bitcoin::Network::Node.new(options) # options = {network: :bitcoin, ...}
  node.run
 
 In the future you will be able to register callbacks to the node and control many aspects
@@ -256,3 +257,6 @@ Even if you are completely lost, just pointing out what is unclear helps a lot!
 
 If you are curious or like to participate in development, drop by \#bitcoin-ruby on irc.freenode.net!
 
+== License
+
+Available here: [link:COPYING]

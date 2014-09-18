@@ -40,11 +40,13 @@ describe 'Bitcoin::Protocol::Addr' do
   end
 
   it 'initalize time, service and port' do
-    addr = Bitcoin::Protocol::Addr.new(nil)
-    t = Time.now.to_i; (t-10..t+10).include?(addr[:time]).should == true
-    addr[:service]  .should == 1
-    addr[:port]     .should == Bitcoin.network[:default_port]
-    addr[:ip]       .should == "127.0.0.1"
+    Time.freeze do
+      addr = Bitcoin::Protocol::Addr.new(nil)
+      addr[:time].should == Time.now.to_i
+      addr[:service]  .should == 1
+      addr[:port]     .should == Bitcoin.network[:default_port]
+      addr[:ip]       .should == "127.0.0.1"
+    end
   end
 
   it 'addr payload' do

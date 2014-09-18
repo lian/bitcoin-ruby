@@ -1,0 +1,81 @@
+#!/usr/bin/env ruby
+$:.unshift( File.expand_path("../../lib", __FILE__) )
+
+require 'bitcoin'
+require 'optparse'
+require 'fileutils'
+Bitcoin.require_dependency :eventmachine
+Bitcoin.require_dependency :json
+
+defaults = Bitcoin::Network::Node::DEFAULT_CONFIG
+
+options = Bitcoin::Config.load(defaults, :blockchain)
+
+optparse = OptionParser.new do |opts|
+  opts.banner = "Usage: bitcoin_node [options]"
+
+  opts.separator("\nAvailable options:\n")
+
+  opts.on("-c", "--config FILE",
+    "Config file (default: #{Bitcoin::Config::CONFIG_PATHS})") do |file|
+    options = Bitcoin::Config.load_file(options, file, :blockchain)
+  end
+
+  opts.on("-n", "--network [NETWORK]",
+    "User Network (default: #{options[:network]})") do |network|
+    options[:network] = network
+  end
+
+  opts.on("--command [HOST:PORT]",
+          "Command socket (default: #{options[:command].join(':')})") do |command|
+    options[:command] = command.split(":")
+  end
+
+  opts.on( '-h', '--help', 'Display this screen' ) do
+    puts opts; exit
+  end
+end
+
+optparse.parse!
+
+Bitcoin.network = options[:network]
+FileUtils.mkdir_p File.join(ENV['HOME'], ".bitcoin-ruby/#{Bitcoin.network_name}")
+                  
+EM.run do
+  Bitcoin::Network::CommandClient.connect(*options[:command]) do
+    on_response do |cmd, data|
+      unless cmd == "monitor"
+        puts JSON.pretty_generate data
+        EM.stop
+      end
+    end
+    on_block do |block, depth|
+      hash = Bitcoin::P::Block.new(block['hex'].htb).to_hash.merge("depth" => block['depth'])
+      puts JSON.pretty_generate(hash)
+    end
+    on_tx do |tx, confirmations|
+      hash = Bitcoin::P::Tx.new(tx['hex'].htb).to_hash.merge("nhash" => tx['nhash'], "conf" => tx['conf'])
+      puts JSON.pretty_generate(hash)
+    end
+    on_output do |data|
+      puts JSON.pretty_generate(data)
+    end
+    on_connection do |data|
+      p data
+    end
+    on_connected do
+      cmd, params = ARGV.shift, Hash[ARGV.map {|a| a.split("=") }]
+      case cmd
+      when "create_tx"
+        params["keys"] = JSON.parse(params["keys"])
+        params["recipients"] = JSON.parse(params["recipients"])
+      when "assemble_tx"
+        params["sig_pubs"] = JSON.parse(params["sig_pubs"])
+      when "monitor"
+        params["addresses"] = JSON.parse(params["addresses"])  if params["addresses"]
+        $stdout.sync = true
+      end
+      request(cmd, params)
+    end
+  end
+end

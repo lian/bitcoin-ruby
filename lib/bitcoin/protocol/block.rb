@@ -73,7 +73,7 @@ module Bitcoin
         @ver, @prev_block, @mrkl_root, @time, @bits, @nonce = buf.read(80).unpack("Va32a32VVV")
         recalc_block_hash
 
-        if (@ver & BLOCK_VERSION_AUXPOW) > 0
+        if Bitcoin.network[:project] == :namecoin && (@ver & BLOCK_VERSION_AUXPOW) > 0
           @aux_pow = AuxPow.new(nil)
           @aux_pow.parse_data_from_io(buf)
         end
@@ -220,12 +220,19 @@ module Bitcoin
         JSON.pretty_generate( h, options )
       end
 
+      # block header binary output
+      def block_header
+        [@ver, @prev_block, @mrkl_root, @time, @bits, @nonce, Protocol.pack_var_int(0)].pack("Va32a32VVVa*")
+      end
+
       # read binary block from a file
       def self.from_file(path); new( Bitcoin::Protocol.read_binary_file(path) ); end
 
       # read json block from a file
       def self.from_json_file(path); from_json( Bitcoin::Protocol.read_binary_file(path) ); end
 
+      # Get a Bitcoin::Validation object to validate this block. It needs a +store+
+      # to validate against, and optionally takes the +prev_block+ for optimization.
       def validator(store, prev_block = nil)
         @validator ||= Bitcoin::Validation::Block.new(self, store, prev_block)
       end

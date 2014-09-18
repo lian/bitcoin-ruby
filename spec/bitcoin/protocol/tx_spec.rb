@@ -222,6 +222,13 @@ describe 'Tx' do
     outpoint_tx.hash.should == "a955032f4d6b0c9bfe8cad8f00a8933790b9c1dc28c82e0f48e75b35da0e4944"
     tx.verify_input_signature(0, outpoint_tx).should == true
 
+    # drop multisig OP_CODESEPARATOR in subscript for signature_hash_for_input when used in ScriptSig
+    tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-eb3b82c0884e3efa6d8b0be55b4915eb20be124c9766245bcc7f34fdac32bccb.json'))
+    tx.hash.should == "eb3b82c0884e3efa6d8b0be55b4915eb20be124c9766245bcc7f34fdac32bccb"
+    outpoint_tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-b8fd633e7713a43d5ac87266adc78444669b987a56b3a65fb92d58c2c4b0e84d.json'))
+    outpoint_tx.hash.should == "b8fd633e7713a43d5ac87266adc78444669b987a56b3a65fb92d58c2c4b0e84d"
+    tx.verify_input_signature(1, outpoint_tx).should == true
+
     # OP_DUP OP_HASH160
     tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-5df1375ffe61ac35ca178ebb0cab9ea26dedbd0e96005dfcee7e379fa513232f.json'))
     tx.hash.should == "5df1375ffe61ac35ca178ebb0cab9ea26dedbd0e96005dfcee7e379fa513232f"
@@ -231,6 +238,15 @@ describe 'Tx' do
     outpoint_tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-ab9805c6d57d7070d9a42c5176e47bb705023e6b67249fb6760880548298e742.json'))
     outpoint_tx.hash.should == "ab9805c6d57d7070d9a42c5176e47bb705023e6b67249fb6760880548298e742"
     tx.verify_input_signature(1, outpoint_tx).should == true
+
+    # testnet3 e335562f7e297aadeed88e5954bc4eeb8dc00b31d829eedb232e39d672b0c009
+    tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-e335562f7e297aadeed88e5954bc4eeb8dc00b31d829eedb232e39d672b0c009.json'))
+    tx.hash.should == "e335562f7e297aadeed88e5954bc4eeb8dc00b31d829eedb232e39d672b0c009"
+    prev_txs = {}
+    tx.in.map{|i| i.previous_output }.uniq.each{|i| prev_txs[i] = Bitcoin::P::Tx.from_json(fixtures_file("tx-#{i}.json")) }
+    tx.in.each.with_index{|i,idx|
+      tx.verify_input_signature(idx, prev_txs[i.previous_output]).should == true
+    }
   end
 
   it '#sign_input_signature' do
@@ -453,6 +469,14 @@ describe 'Tx' do
       tx.verify_input_signature(0, prev_tx).should == true
     end
 
-  end
+    it "should do OP_CHECKMULTISIG with OP_0 used as a pubkey" do
+      tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-6606c366a487bff9e412d0b6c09c14916319932db5954bf5d8719f43f828a3ba.json'))
+      tx.hash.should == "6606c366a487bff9e412d0b6c09c14916319932db5954bf5d8719f43f828a3ba"
+      prev_tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-4142ee4877eb116abf955a7ec6ef2dc38133b793df762b76d75e3d7d4d8badc9.json'))
+      prev_tx.hash.should == "4142ee4877eb116abf955a7ec6ef2dc38133b793df762b76d75e3d7d4d8badc9"
+      tx.verify_input_signature(0, prev_tx).should == true
+    end
 
+  end
+  
 end

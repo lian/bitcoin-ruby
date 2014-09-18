@@ -7,6 +7,7 @@ include Bitcoin
 describe Bitcoin::Protocol::AuxPow do
 
   before do
+    Bitcoin.network = :namecoin
     @data = fixtures_file("rawblock-auxpow.bin")
     @blk = P::Block.new(@data)
     @aux_pow = @blk.aux_pow

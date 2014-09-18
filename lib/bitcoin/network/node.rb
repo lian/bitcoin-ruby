@@ -54,9 +54,12 @@ module Bitcoin::Network
       :connect => [],
       :command => ["127.0.0.1", 9999],
       :storage => "utxo::sqlite://~/.bitcoin-ruby/<network>/blocks.db",
+      :announce => false,
+      :external_port => nil,
       :mode => :full,
       :cache_head => true,
       :index_nhash => false,
+      :index_p2sh_type => false,
       :dns => true,
       :epoll_limit => 10000,
       :epoll_user => nil,
@@ -106,6 +109,7 @@ module Bitcoin::Network
       @store = Bitcoin::Storage.send(backend, {
           db: config, mode: @config[:mode], cache_head: @config[:cache_head],
           skip_validation: @config[:skip_validation], index_nhash: @config[:index_nhash],
+          index_p2sh_type: @config[:index_p2sh_type],
           log_level: @config[:log][:storage]}, ->(locator) {
           peer = @connections.select(&:connected?).sample
           peer.send_getblocks(locator)
@@ -254,8 +258,8 @@ module Bitcoin::Network
         end
 
         subscribe(:block) do |blk, depth|
-          @log.debug { "Relaying block #{blk.hash}" }
           next  unless @store.in_sync?
+          @log.debug { "Relaying block #{blk.hash}" }
           @connections.each do |conn|
             next  unless conn.connected?
             conn.send_inv(:block, blk.hash)
@@ -412,13 +416,6 @@ module Bitcoin::Network
             unless @unconfirmed[obj[1].hash]
               @unconfirmed[obj[1].hash] = obj[1]
               push_notification(:tx, [obj[1], 0])
-
-              if @notifiers[:output]
-                obj[1].out.each.with_index do |out, idx|
-                  address = Bitcoin::Script.new(out.pk_script).get_address
-                  push_notification(:output, { nhash: obj[1].nhash, hash: obj[1].hash, idx: idx, address: address, value: out.value, confirmations: 0 })
-                end
-              end
             end
           end
         rescue Bitcoin::Validation::ValidationError
@@ -476,6 +473,12 @@ module Bitcoin::Network
       @config[:listen][0]
     end
 
+    # get the external port
+    # assume the same as local port if config option :external_port isn't given explicitly
+    def external_port
+      @config[:external_port] || @config[:listen][1] || Bitcoin.network[:default_port]
+    end
+
     # push notification +message+ to +channel+
     def push_notification channel, message
       @notifiers[channel.to_sym].push(message)  if @notifiers[channel.to_sym]
@@ -486,12 +489,30 @@ module Bitcoin::Network
     # see CommandHandler for details.
     def subscribe channel
       @notifiers[channel.to_sym] ||= EM::Channel.new
-      @notifiers[channel.to_sym].subscribe {|*data| yield(*data) }
+      @notifiers[channel.to_sym].subscribe do |*data|
+        begin
+          yield(*data)
+        rescue
+          p $!; puts *$@
+        end
+      end
+    end
+
+    def unsubscribe channel, id
+      @notifiers[channel.to_sym].unsubscribe(id)
     end
 
     # should the node accept new incoming connections?
     def accept_connections?
       connections.select(&:incoming?).size < config[:max][:connections_in]
+    end
+
+    # get Addr object for our own server
+    def addr
+      @addr = Bitcoin::P::Addr.new
+      @addr.time, @addr.service, @addr.ip, @addr.port =
+        Time.now.tv_sec, (1 << 0), external_ip, external_port
+      @addr
     end
 
   end

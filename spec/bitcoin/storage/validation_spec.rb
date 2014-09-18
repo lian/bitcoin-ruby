@@ -72,9 +72,11 @@ Bitcoin.network = :spec
   end
 
   it "5. Block timestamp must not be more than two hours in the future" do
-    fake_time = (Time.now + 3 * 60 * 60).to_i
-    check_block(@block, [:max_timestamp, [fake_time, Time.now.to_i + 7200]]) {|b|
-      b.time = fake_time }
+    Time.freeze do
+      fake_time = (Time.now + 3 * 60 * 60).to_i
+      check_block(@block, [:max_timestamp, [fake_time, Time.now.to_i + 7200]]) {|b|
+        b.time = fake_time }
+    end
   end
 
   it "6. First transaction must be coinbase (i.e. only 1 input, with hash=0, n=-1), the rest must not be" do

@@ -9,6 +9,7 @@ tmp/
 log/
 rdoc/
 coverage/
+spec/bitcoin/fixtures/fake_chain
 *.conf
 *.db
 .rbx/

@@ -7,7 +7,7 @@ module Bitcoin::Storage::Backends
 
   # Storage backend using Sequel to connect to arbitrary SQL databases.
   # Inherits from StoreBase and implements its interface.
-  class SequelStore < StoreBase
+  class SequelStore < SequelStoreBase
 
     # sequel database connection
     attr_accessor :db
@@ -80,7 +80,11 @@ module Bitcoin::Storage::Backends
           fast_insert(:txin, new_tx.map.with_index {|tx, tx_idx|
             tx, _ = *tx
             tx.in.map.with_index {|txin, txin_idx|
-              txin_data(new_tx_ids[tx_idx], txin, txin_idx) } }.flatten)
+              p2sh_type = nil
+              if @config[:index_p2sh_type] && !txin.coinbase? && (script = tx.scripts[txin_idx]) && script.is_p2sh?
+                p2sh_type = Bitcoin::Script.new(script.inner_p2sh_script).type
+              end
+              txin_data(new_tx_ids[tx_idx], txin, txin_idx, p2sh_type) } }.flatten)
 
           # store txouts
           txout_i = 0
@@ -92,7 +96,7 @@ module Bitcoin::Storage::Backends
               txout_data(new_tx_ids[tx_idx], txout, txout_idx, script_type) } }.flatten, return_ids: true)
 
           # store addrs
-          persist_addrs addrs.map {|i, h| [txout_ids[i], h]}
+          persist_addrs addrs.map {|i, addr| [txout_ids[i], addr]}
           names.each {|i, script| store_name(script, txout_ids[i]) }
         end
         @head = wrap_block(attrs.merge(id: block_id))  if chain == MAIN
@@ -123,22 +127,46 @@ module Bitcoin::Storage::Backends
     # bulk-store addresses and txout mappings
     def persist_addrs addrs
       addr_txouts, new_addrs = [], []
-      existing_addr = Hash[*@db[:addr].filter(hash160: addrs.map(&:last).uniq).map {|addr| [addr[:hash160], addr[:id]] }.flatten]
-      addrs.group_by {|_, a| a }.each do |hash160, txouts|
-        if existing_id = existing_addr[hash160]
-          txouts.each {|id, _| addr_txouts << [existing_id, id] }
-        else
-          new_addrs << [hash160, txouts.map {|id, _| id }]
+
+      # find addresses that are already there
+      existing_addr = {}
+      addrs.each do |i, addr|
+        hash160 = Bitcoin.hash160_from_address(addr)
+        type = Bitcoin.address_type(addr)
+        if existing = @db[:addr][hash160: hash160, type: ADDRESS_TYPES.index(type)]
+          existing_addr[[hash160, type]] = existing[:id]
         end
       end
 
-      new_addr_ids = fast_insert(:addr, new_addrs.map {|hash160, txout_id| {hash160: hash160}}, return_ids: true)
+      # iterate over all txouts, grouped by hash160
+      addrs.group_by {|_, a| a }.each do |addr, txouts|
+        hash160 = Bitcoin.hash160_from_address(addr)
+        type = Bitcoin.address_type(addr)
+
+        if existing_id = existing_addr[[hash160, type]]
+          # link each txout to existing address
+          txouts.each {|id, _| addr_txouts << [existing_id, id] }
+        else
+          # collect new address/txout mapping
+          new_addrs << [[hash160, type], txouts.map {|id, _| id }]
+        end
+      end
+
+      # insert all new addresses
+      new_addr_ids = fast_insert(:addr, new_addrs.map {|hash160_and_type, txout_id|
+          hash160, type = *hash160_and_type
+          { hash160: hash160, type: ADDRESS_TYPES.index(type) }
+        }, return_ids: true)
+
+
+      # link each new txout to the new addresses
       new_addr_ids.each.with_index do |addr_id, idx|
         new_addrs[idx][1].each do |txout_id|
           addr_txouts << [addr_id, txout_id]
         end
       end
 
+      # insert addr/txout links
       fast_insert(:addr_txout, addr_txouts.map {|addr_id, txout_id| { addr_id: addr_id, txout_id: txout_id }})
     end
 
@@ -168,17 +196,21 @@ module Bitcoin::Storage::Backends
     end
 
     # prepare txin data for storage
-    def txin_data tx_id, txin, idx
-      { tx_id: tx_id, tx_idx: idx,
+    def txin_data tx_id, txin, idx, p2sh_type = nil
+      data = {
+        tx_id: tx_id, tx_idx: idx,
         script_sig: txin.script_sig.blob,
         prev_out: txin.prev_out.blob,
         prev_out_index: txin.prev_out_index,
-        sequence: txin.sequence.unpack("V")[0] }
+        sequence: txin.sequence.unpack("V")[0],
+      }
+      data[:p2sh_type] = SCRIPT_TYPES.index(p2sh_type)  if @config[:index_p2sh_type]
+      data
     end
 
     # store input +txin+
-    def store_txin(tx_id, txin, idx)
-      @db[:txin].insert(txin_data(tx_id, txin, idx))
+    def store_txin(tx_id, txin, idx, p2sh_type = nil)
+      @db[:txin].insert(txin_data(tx_id, txin, idx, p2sh_type))
     end
 
     # prepare txout data for storage
@@ -209,9 +241,9 @@ module Bitcoin::Storage::Backends
       end
     end
 
-    # check if block +blk_hash+ exists
+    # check if block +blk_hash+ exists in the main chain
     def has_block(blk_hash)
-      !!@db[:blk].where(:hash => blk_hash.htb.blob).get(1)
+      !!@db[:blk].where(:hash => blk_hash.htb.blob, :chain => 0).get(1)
     end
 
     # check if transaction +tx_hash+ exists
@@ -268,6 +300,12 @@ module Bitcoin::Storage::Backends
       wrap_block(@db[:blk][:id => block_id])
     end
 
+    # get block id in the main chain by given +tx_id+
+    def get_block_id_for_tx_id(tx_id)
+      @db[:blk_tx].join(:blk, id: :blk_id)
+        .where(tx_id: tx_id, chain: MAIN).first[:blk_id] rescue nil
+    end
+
     # get transaction for given +tx_hash+
     def get_tx(tx_hash)
       wrap_tx(@db[:tx][:hash => tx_hash.htb.blob])
@@ -322,14 +360,14 @@ module Bitcoin::Storage::Backends
     end
 
     # get all Models::TxOut matching given +hash160+
-    def get_txouts_for_hash160(hash160, unconfirmed = false)
-      addr = @db[:addr][:hash160 => hash160]
+    def get_txouts_for_hash160(hash160, type = :hash160, unconfirmed = false)
+      addr = @db[:addr][hash160: hash160, type: ADDRESS_TYPES.index(type)]
       return []  unless addr
-      txouts = @db[:addr_txout].where(:addr_id => addr[:id])
-        .map{|t| @db[:txout][:id => t[:txout_id]] }
+      txouts = @db[:addr_txout].where(addr_id: addr[:id])
+        .map{|t| @db[:txout][id: t[:txout_id]] }
         .map{|o| wrap_txout(o) }
       unless unconfirmed
-        txouts.select!{|o| @db[:blk][:id => o.get_tx.blk_id][:chain] == MAIN rescue false }
+        txouts.select!{|o| @db[:blk][id: o.get_tx.blk_id][:chain] == MAIN rescue false }
       end
       txouts
     end
@@ -404,7 +442,8 @@ module Bitcoin::Storage::Backends
     # wrap given +input+ into Models::TxIn
     def wrap_txin(input)
       return nil  unless input
-      data = {:id => input[:id], :tx_id => input[:tx_id], :tx_idx => input[:tx_idx]}
+      data = { :id => input[:id], :tx_id => input[:tx_id], :tx_idx => input[:tx_idx],
+        :p2sh_type => input[:p2sh_type] ? SCRIPT_TYPES[input[:p2sh_type]] : nil }
       txin = Bitcoin::Storage::Models::TxIn.new(self, data)
       txin.prev_out = input[:prev_out]
       txin.prev_out_index = input[:prev_out_index]

@@ -5,8 +5,7 @@ module Bitcoin::Storage::Backends
 
   # Storage backend using Sequel to connect to arbitrary SQL databases.
   # Inherits from StoreBase and implements its interface.
-  class UtxoStore < StoreBase
-
+  class UtxoStore < SequelStoreBase
 
     # possible script types
     SCRIPT_TYPES = [:unknown, :pubkey, :hash160, :multisig, :p2sh]
@@ -191,6 +190,18 @@ module Bitcoin::Storage::Backends
       end
     end
 
+    # store hash160 and type of +addr+
+    def store_addr(txout_id, addr)
+      hash160 = Bitcoin.hash160_from_address(addr)
+      type = ADDRESS_TYPES.index(Bitcoin.address_type(addr))
+
+      addr = @db[:addr][hash160: hash160, type: type]
+      addr_id = addr[:id]  if addr
+      addr_id ||= @db[:addr].insert(hash160: hash160, type: type)
+
+      @db[:addr_txout].insert(addr_id: addr_id, txout_id: txout_id)
+    end
+
     def add_watched_address address
       hash160 = Bitcoin.hash160_from_address(address)
       @db[:addr].insert(hash160: hash160)  unless @db[:addr][hash160: hash160]
@@ -304,14 +315,10 @@ module Bitcoin::Storage::Backends
     end
 
     # get all Models::TxOut matching given +hash160+
-    def get_txouts_for_hash160(hash160, unconfirmed = false)
-      addr = @db[:addr][hash160: hash160]
+    def get_txouts_for_hash160(hash160, type = :hash160, unconfirmed = false)
+      addr = @db[:addr][hash160: hash160, type: ADDRESS_TYPES.index(type)]
       return []  unless addr
       @db[:addr_txout].where(addr_id: addr[:id]).map {|ao| wrap_txout(@db[:utxo][id: ao[:txout_id]]) }.compact
-    end
-
-    def get_balance hash160
-      get_txouts_for_hash160(hash160).map(&:value).inject(:+) || 0
     end
 
     # wrap given +block+ into Models::Block
@@ -341,7 +348,7 @@ module Bitcoin::Storage::Backends
     def wrap_tx(tx_hash)
       utxos = @db[:utxo].where(tx_hash: tx_hash.blob)
       return nil  unless utxos.any?
-      data = { blk_id: utxos.first[:blk_id] }
+      data = { blk_id: utxos.first[:blk_id], id: tx_hash }
       tx = Bitcoin::Storage::Models::Tx.new(self, data)
       tx.hash = tx_hash # utxos.first[:tx_hash].hth
       utxos.each {|u| tx.out[u[:tx_idx]] = wrap_txout(u) }

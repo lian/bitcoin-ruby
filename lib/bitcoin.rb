@@ -4,7 +4,7 @@
 require 'digest/sha2'
 require 'digest/rmd160'
 require 'openssl'
-
+require 'securerandom'
 
 module Bitcoin
 
@@ -127,6 +127,11 @@ module Bitcoin
 
     def pubkey_to_address(pubkey)
       hash160_to_address( hash160(pubkey) )
+    end
+
+    def pubkeys_to_p2sh_multisig_address(m, *pubkeys)
+      redeem_script = Bitcoin::Script.to_p2sh_multisig_script(m, *pubkeys).last
+      return Bitcoin.hash160_to_p2sh_address(Bitcoin.hash160(redeem_script.hth)), redeem_script
     end
 
     def int_to_base58(int_val, leading_zero_bytes=0)
@@ -324,7 +329,7 @@ module Bitcoin
       raise "malformed signature"       unless signature.bytesize == 65
       pubkey = Bitcoin::OpenSSL_EC.recover_compact(hash, signature)
       pubkey_to_address(pubkey) == address if pubkey
-    rescue Exception => ex
+    rescue => ex
       p [ex.message, ex.backtrace]; false
     end
 
@@ -533,7 +538,35 @@ module Bitcoin
         216116 => "00000000000001b4f4b433e81ee46494af945cf96014816a4e2370f11b23df4e",
         225430 => "00000000000001c108384350f74090433e7fcf79a606b8e797f065b130575932",
         290000 => "0000000000000000fa0b2badd05db0178623ebf8dd081fe7eb874c26e27d0b3b",
+        300000 => "000000000000000082ccf8f1557c5d40b21edabb18d2d691cfbf87118bac7254",
+        305000 => "0000000000000000142bb90561e1a907d500bf534a6727a63a92af5b6abc6160",
       }
+    },
+
+    :regtest => {
+      :project => :bitcoin,
+      :magic_head => "\xFA\xBF\xB5\xDA",
+      :address_version => "6f",
+      :p2sh_version => "c4",
+      :privkey_version => "ef",
+      :default_port => 18444,
+      :max_money => 21_000_000 * COIN,
+      :dns_seeds => [ ],
+      :genesis_hash => "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206",
+      :proof_of_work_limit => (1<<255) - 1,
+      :alert_pubkeys => ["04302390343f91cc401d56d68b123028bf52e5fca1939df127f63c6467cdf9c8e2c14b61104cf817d0b780da337893ecc4aaff1309e536162dabbdb45200ca2b0a"],
+      :known_nodes => [],
+      :checkpoints => {},
+      :coinbase_maturity => 100,
+      :retarget_interval => 2016,
+      :retarget_time => 1209600, # 2 weeks
+      :target_spacing    => 600, # block interval
+      :max_money => 21_000_000 * COIN,
+      :min_tx_fee => 10_000,
+      :min_relay_tx_fee => 10_000,
+      :free_tx_bytes => 1_000,
+      :dust => CENT,
+      :per_dust_fee => false,
     },
 
     :testnet => {
@@ -576,6 +609,7 @@ module Bitcoin
       :target_spacing    => 600, # block interval
       :max_money => 21_000_000 * COIN,
       :min_tx_fee => 10_000,
+      :no_difficulty => true, # no good. add right testnet3 difficulty calculation instead
       :min_relay_tx_fee => 10_000,
       :free_tx_bytes => 1_000,
       :dust => CENT,
@@ -593,6 +627,7 @@ module Bitcoin
         542 => "0000000083c1f82cf72c6724f7a317325806384b06408bce7a4327f418dfd5ad",
         71018 => "000000000010dd93dc55541116b2744eb8f4c3b706df6e8512d231a03fb9e435",
         200000 => "0000000000287bffd321963ef05feab753ebe274e1d78b2fd4e2bfe9ad3aa6f2",
+        250000 => "0000000005910c146e4e8d71e8aa6617393738a9794b43cf113076dbaf08460b",
       }
     },
 

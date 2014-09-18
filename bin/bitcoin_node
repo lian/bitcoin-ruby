@@ -43,6 +43,16 @@ optparse = OptionParser.new do |opts|
     end
   end
 
+  opts.on("-a", "--announce",
+    "Announce our own address to the network, so we will get incoming connections.") do
+    options[:announce] = true
+  end
+
+  opts.on("--external-port PORT",
+    "Specify external port that can be used to reach this node (uses local port otherwise).") do |port|
+    options[:external_port] = port.to_i
+  end
+
   opts.on("-s", "--storage [BACKEND::CONFIG]",
     "Use storage backend (default: #{options[:storage]})") do |storage|
     options[:storage] = storage
@@ -136,35 +146,7 @@ Bitcoin.network = options[:network]
 FileUtils.mkdir_p File.join(ENV['HOME'], ".bitcoin-ruby/#{Bitcoin.network_name}")
 
 if ARGV.any?
-  EM.run do
-    Bitcoin::Network::CommandClient.connect(*options[:command]) do
-      on_response do |cmd, data|
-        unless cmd == "monitor"
-          puts JSON.pretty_generate data
-          EM.stop
-        end
-      end
-      on_block do |block, depth|
-        puts "block: #{block['hash']} (#{depth})"
-      end
-      on_tx do |tx, confirmations|
-        puts "tx(#{confirmations}): #{tx['hash']}"
-      end
-      on_output do |tx_hash, address, value, confirmations|
-        puts "output(#{confirmations}): tx #{tx_hash[0..8]}: #{address} received #{value.to_f / 1e8} BTC"
-      end
-      on_connection do |type, host|
-        if type == "connected"
-          puts "Connected: #{host['host']}:#{host['port']}"
-        else
-          puts "Disconnected: #{host.inspect}"
-        end
-      end
-      on_connected do
-        request(ARGV[0], *(ARGV[1] || "").split(" "))
-      end
-    end
-  end
+  system(File.join(File.dirname(__FILE__), "bitcoin_node_cli"), *ARGV) 
 else
   node = Bitcoin::Network::Node.new(options)
   node.run

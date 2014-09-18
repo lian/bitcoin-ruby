@@ -95,13 +95,14 @@ module Bitcoin::Storage::Models
   # Transaction input retrieved from storage. (see Bitcoin::Protocol::TxIn
   class TxIn < Bitcoin::Protocol::TxIn
 
-    attr_reader :store, :id, :tx_id, :tx_idx
+    attr_reader :store, :id, :tx_id, :tx_idx, :p2sh_type
 
     def initialize store, data
       @store = store
       @id = data[:id]
       @tx_id = data[:tx_id]
       @tx_idx = data[:tx_idx]
+      @p2sh_type = data[:p2sh_type]
     end
 
     # get the transaction this input is in

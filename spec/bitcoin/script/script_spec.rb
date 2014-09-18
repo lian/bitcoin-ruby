@@ -20,6 +20,7 @@ describe 'Bitcoin::Script' do
     "0423b8161514560bc8638054b6637ab78f400b24e5694ec8061db635d1f28a17902b14dbf4f80780da659ab24f11ded3095c780452a4004c30ab58dffac33d839a",
     "04f43e76afac66bf3927638b6c4f7e324513ce56d2d658ac9d24c420d09993a4464eea6141a68a4748c092ad0e8f4ac29c4a2f661ef4d22b21f20110f42fcd6f6d",
   ]
+
   describe "serialization" do
     it '#to_string' do
       Script.new(SCRIPT[0]).to_string.should ==
@@ -207,7 +208,7 @@ describe 'Bitcoin::Script' do
       Script.from_string("OP_RETURN").get_op_return_data.should == nil
       Script.from_string("OP_RETURN dead beef").get_op_return_data.should == nil
       Script.from_string("OP_RETURN deadbeef").get_op_return_data.should == "deadbeef"
-      Script.from_string("OP_RETURN OP_CHECKSIG").get_op_return_data.should == "00ac"
+      Script.from_string("OP_RETURN OP_CHECKSIG").get_op_return_data.should == "ac00"
     end
 
   end
@@ -232,6 +233,7 @@ describe 'Bitcoin::Script' do
       Script.new(SCRIPT[4]).is_send_to_ip?.should == false
       Script.new(SCRIPT[5]).is_pubkey?.should == false
       Script.new(SCRIPT[6]).is_pubkey?.should == false
+      Script.from_string("0 OP_CHECKSIG").is_pubkey?.should == false # testnet aba0441c4c9933dcd7db789c39053739ec435ab742ed2c23c05f22f1488c0bfd
     end
 
     it "#is_hash160?" do
@@ -316,6 +318,13 @@ describe 'Bitcoin::Script' do
         Script.from_string("2 #{PUBKEYS[0..2].join(' ')} 3 OP_CHECKMULTISIG").raw
       Script.to_multisig_script(1, *PUBKEYS[0..1]).should ==
         Script.from_string("1 #{PUBKEYS[0..1].join(' ')} 2 OP_CHECKMULTISIG").raw
+
+      m=n=16; Bitcoin::Script.new(Bitcoin::Script.to_multisig_script(m, *(["a"]*n))).to_string
+        .should == "16 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 16 OP_CHECKMULTISIG"
+      m=n=17; Bitcoin::Script.new(Bitcoin::Script.to_multisig_script(m, *(["a"]*n))).to_string
+        .should == "0:1:11 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 0:1:11 OP_CHECKMULTISIG"
+      m=n=20; Bitcoin::Script.new(Bitcoin::Script.to_multisig_script(m, *(["a"]*n))).to_string
+        .should == "0:1:14 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 0:1:14 OP_CHECKMULTISIG"
     end
 
     it "should generate p2sh script" do
@@ -371,12 +380,12 @@ describe 'Bitcoin::Script' do
       }.should.raise
     end
   end
-  
-  
+
+
   describe "signatures_count" do
-    
+
     it "should be zero in data-only scripts" do
-      [false, true].each do |accurate|        
+      [false, true].each do |accurate|
         Script.from_string("").sigops_count_accurate(accurate).should == 0
         Script.from_string("DEADBEEF").sigops_count_accurate(accurate).should == 0
         Script.from_string("DEAD BEEF").sigops_count_accurate(accurate).should == 0
@@ -389,7 +398,7 @@ describe 'Bitcoin::Script' do
     end
 
     it "should count sigops" do
-      [false, true].each do |accurate|        
+      [false, true].each do |accurate|
         Script.from_string("OP_CHECKSIG").sigops_count_accurate(accurate).should == 1
         Script.from_string("OP_CHECKSIGVERIFY").sigops_count_accurate(accurate).should == 1
         Script.from_string("OP_CHECKSIG OP_CHECKSIGVERIFY").sigops_count_accurate(accurate).should == 2
@@ -397,7 +406,7 @@ describe 'Bitcoin::Script' do
         Script.from_string("1 OP_CHECKSIG 2 OP_CHECKSIG DEADBEEF OP_CHECKSIG 3 OP_CHECKSIG 4").sigops_count_accurate(accurate).should == 4
       end
     end
-    
+
     it "should count multisig as 20 sigops in legact inaccurate mode" do
       Script.from_string("OP_CHECKMULTISIG").sigops_count_accurate(false).should == 20
       Script.from_string("OP_CHECKMULTISIGVERIFY").sigops_count_accurate(false).should == 20
@@ -406,7 +415,7 @@ describe 'Bitcoin::Script' do
       Script.from_string("5 OP_CHECKMULTISIG").sigops_count_accurate(false).should == 20
       Script.from_string("40 OP_CHECKMULTISIG").sigops_count_accurate(false).should == 20
     end
-    
+
     it "should count multisig accurately using number of pubkeys" do
       Script.from_string("1 OP_CHECKMULTISIG").sigops_count_accurate(true).should == 1
       Script.from_string("1 OP_CHECKMULTISIGVERIFY").sigops_count_accurate(true).should == 1
@@ -418,12 +427,12 @@ describe 'Bitcoin::Script' do
       Script.from_string("16 OP_CHECKMULTISIGVERIFY").sigops_count_accurate(true).should == 16
       Script.from_string("4 OP_CHECKMULTISIG 7 OP_CHECKMULTISIGVERIFY").sigops_count_accurate(true).should == 11
     end
-    
+
     it "should count multisig as 20 sigops in accurate mode when the pubkey count is missing" do
       Script.from_string("OP_CHECKMULTISIG").sigops_count_accurate(true).should == 20
       Script.from_string("OP_CHECKMULTISIGVERIFY").sigops_count_accurate(true).should == 20
     end
-    
+
     it "should count multisig as 20 sigops when pubkey count is not OP_{1,...,16}, but bignum as pushdata" do
       Script.from_string("#{Script::OP_PUSHDATA1}:1:01 OP_CHECKMULTISIG").sigops_count_accurate(true).should == 20
       Script.from_string("#{Script::OP_PUSHDATA1}:1:02 OP_CHECKMULTISIGVERIFY").sigops_count_accurate(true).should == 20
@@ -436,25 +445,25 @@ describe 'Bitcoin::Script' do
       Script.from_string("DEADBEEF OP_CHECKMULTISIG").sigops_count_accurate(true).should == 20
       Script.from_string("#{Script::OP_PUSHDATA1}:1:11 OP_CHECKMULTISIG").sigops_count_accurate(true).should == 20
     end
-    
+
     it "should extract signature count from P2SH scriptSig" do
-      
+
       # Given a P2SH input script (the one with the signatures and a serialized script inside)
       # This should count as 12 sigops (1 + 4 + 7)
       script = Script.from_string("OP_CHECKSIG 4 OP_CHECKMULTISIG 7 OP_CHECKMULTISIGVERIFY")
-      
+
       # Serialize the script to be used as a plain pushdata (which will be decoded as a script).
       serialized_script = Script.new("").append_pushdata(script.to_binary)
-      
+
       # If empty should return 0.
       Script.from_string("").sigops_count_for_p2sh.should == 0
-      
+
       # If ends with OP_N
       Script.from_string("0").sigops_count_for_p2sh.should == 0
       Script.from_string("1").sigops_count_for_p2sh.should == 0
       Script.from_string("5").sigops_count_for_p2sh.should == 0
       Script.from_string("16").sigops_count_for_p2sh.should == 0
-      
+
       # If ends with opcode
       Script.from_string("OP_NOP").sigops_count_for_p2sh.should == 0
       Script.from_string("OP_HASH160").sigops_count_for_p2sh.should == 0
@@ -462,20 +471,25 @@ describe 'Bitcoin::Script' do
       Script.from_string("DEADBEEF OP_NOP").sigops_count_for_p2sh.should == 0
       Script.from_string("DEADBEEF OP_HASH160").sigops_count_for_p2sh.should == 0
       Script.from_string("DEADBEEF OP_CHECKSIG").sigops_count_for_p2sh.should == 0
-      
+
       # If only has the script, should parse it well
       serialized_script.sigops_count_for_p2sh.should == 12
-      
+
       # If ends with the script, should also parse well.
       Script.new(Script.from_string("DEADBEEF CAFEBABE").to_binary + serialized_script.to_binary).sigops_count_for_p2sh.should == 12
       Script.new(Script.from_string("DEADBEEF 1").to_binary + serialized_script.to_binary).sigops_count_for_p2sh.should == 12
-      
+
       # If has the script, but ends with non-script, should return 0
       # DEADBEEF is a script with OP_CHECKSIGVERIFY in it, so we wrap it in a serialized script with plain pushdata to have 0 count.
       Script.new(serialized_script.to_binary + Script.new("").append_pushdata(Script.from_string("DEADBEEF").to_binary).to_binary).sigops_count_for_p2sh.should == 0
       Script.new(serialized_script.to_binary + Script.from_string("1").to_binary).sigops_count_for_p2sh.should == 0
     end
-    
+
+    it "should count sigops up until an invalid OP_PUSHDATA" do
+      script_binary = Bitcoin::Protocol.read_binary_file(fixtures_path("txscript-invalid-too-many-sigops-followed-by-invalid-pushdata.bin"))
+      Script.new(script_binary).sigops_count_accurate(false).should == 39998
+    end
+
   end
 
   it '#run' do
@@ -504,6 +518,120 @@ describe 'Bitcoin::Script' do
 
     # mainnet tx: 340aa9f72206d600b7e89c9137e4d2d77a920723f83e34707ff452121fd48492 redeeming output from f2d72a7bf22e29e3f2dc721afbf0a922860f81db9fc7eb397937f9d7e87cc438
     script = Bitcoin::Script.from_string("027ce87f6f41dd4d7d874b40889f7df6b288f77f OP_DEPTH OP_HASH256 OP_HASH160 OP_SHA256 OP_SHA1 OP_RIPEMD160 OP_EQUAL")
+    script.run.should == true
+  end
+
+  it "should run op_checkmultisig p2sh script with empty signature" do
+    # mainnet tx: b78706427923f73b334fd68040f35900503da33c671723c41ca845f6fba6c29c
+    tx1 = Bitcoin::P::Tx.new("01000000023904cd3644c6d440a6d752c95f07737c46f5e70fb6fbb28f00aa17e281868b7b010000006b483045022100ac455750dc430957942e9766f88aecfe6eb17d4244eb2cb50ca4a25336fd4dd702202640cc943f4fe8f2166b03005bed3bd024f4762767322b60bf471ecf8e3f3ede012102348d4cad0084f88c4c02bdc1bf90cc6c0893a0b97af76ef644daf72e6786b4afffffffffb84057ae61ad22ac17c02635ee1b37d170ef785847ec28efe848a5607331568e020000006b483045022100d7fee595d7a1f9969767098f8582e7a563f08437f461f0a25395f35c1833839302205f565ab12d343478471a78669c4c3476714032f7758a781d7deab19f160784e0012102ea69c47753d8e0228c0c426294a6b4dc926aebbeb8561248d40be37d257d94e0ffffffff01a08601000000000017a91438430c4d1c214bf11d2c0c3dea8e5e9a5d11aab08700000000".htb)
+    # mainnet tx: 136becd0892fa38c5aca8104db8b90b3a0e6b40912b7d1462aed583c067054cd
+    tx2 = Bitcoin::P::Tx.new("01000000019cc2a6fbf645a81cc42317673ca33d500059f34080d64f333bf72379420687b70000000008000051005102ae91ffffffff0150c300000000000002ae9100000000".htb)
+    tx2.verify_input_signature(0, tx1).should == true
+  end
+
+  it "should debug script branches (OP_IF/NOTIF/ELSE/ENDIF) correctly" do
+
+    script = Bitcoin::Script.from_string("1 OP_NOTIF OP_RETURN OP_ENDIF")
+    script.run {}
+    script.debug.should == [
+      [], "OP_1",
+      [1], "OP_NOTIF",
+      [], "OP_ENDIF",
+      [], "RESULT"
+    ]
+
+    script = Bitcoin::Script.from_string("1 OP_IF OP_RETURN OP_ENDIF")
+    script.run {}
+    script.debug.should == [
+      [], "OP_1",
+      [1], "OP_IF",
+      [], "OP_RETURN",
+      [], "INVALID TRANSACTION", "RESULT"
+    ]
+
+    script = Bitcoin::Script.from_string("1 OP_IF OP_2 OP_ELSE OP_3 OP_ENDIF OP_2 OP_EQUAL")
+    script.run {}
+    script.debug.should == [
+      [], "OP_1",
+      [1], "OP_IF",
+      [], "OP_2",
+      [2], "OP_ELSE",
+      [2], "OP_ENDIF",
+      [2], "OP_2",
+      [2, 2], "OP_EQUAL",
+      [1], "RESULT"]
+
+    script = Bitcoin::Script.from_string("0 OP_IF OP_2 OP_ELSE OP_3 OP_ENDIF OP_2 OP_EQUAL")
+    script.run {}
+    script.debug.should == [
+      [], "OP_0",
+      [[""]], "OP_IF",
+      [], "OP_ELSE",
+      [], "OP_3",
+      [3], "OP_ENDIF",
+      [3], "OP_2",
+      [3, 2], "OP_EQUAL",
+      [0], "RESULT"]
+
+    script = Bitcoin::Script.from_string("0 OP_IF deadbeef OP_ELSE OP_3 OP_ENDIF OP_2 OP_EQUAL")
+    script.run {}
+    script.debug.should == [
+      [], "OP_0",
+      [[""]], "OP_IF",
+      [], "OP_ELSE",
+      [], "OP_3",
+      [3], "OP_ENDIF",
+      [3], "OP_2",
+      [3, 2], "OP_EQUAL",
+      [0], "RESULT"]
+
+    script = Bitcoin::Script.from_string("1 OP_IF 2 OP_ELSE 3 OP_ENDIF 2 OP_EQUAL")
+    script.run {}
+    script.debug.should ==  [[], "OP_1", [1], "OP_IF", [], "OP_2", [2], "OP_ELSE", [2], "OP_ENDIF", [2], "OP_2", [2, 2], "OP_EQUAL", [1], "RESULT"]
+
+    script = Bitcoin::Script.from_string("
+0
+3045022041ccefcad804c28fcd843afeb10df3bd09d93e56542cda4ae9bcac18ed69f6c7022100f24d891b69695099a66b81a4ef382ff0ef388ad211505cd32e2ad3adebe5f74501
+304502201124a34c8bcc6a41c9bda088bc28e4274af02872866fa926205b0799e0f3b28a022100d0bbe8382a4e6ff46968bb8c2990bb63ef7f413f5b7c3912b4948b3eb0e72fc301
+1
+635221022d73c0041da9794fcaa7286fcce35e126f84f8b53563be6abb3b213f964bfbfc2102ab2445a289939e49e326dd29ca068cb38d1c9ef7618b7272d14c79c1abdea5cd52ae675221025182b1ca9a1ea9358f61cb363ac80c80b145204d9c4d875c35873d3d578853
+OP_IF
+2
+022d73c0041da9794fcaa7286fcce35e126f84f8b53563be6abb3b213f964bfbfc
+02ab2445a289939e49e326dd29ca068cb38d1c9ef7618b7272d14c79c1abdea5cd
+2
+OP_CHECKMULTISIG
+OP_ELSE
+2
+025182b1ca9a1ea9358f61cb363ac80c80b145204d9c4d875c35873d3d57885348
+02b18808b3e6857e396167890a52f898cbd5215354f027b89fed895058e49a158b
+2
+OP_CHECKMULTISIG
+OP_ENDIF")
+    script.run {}
+    script.debug.should == [
+      [], "OP_0",
+      [[""]], "PUSH DATA 3045022041ccefcad804c28fcd843afeb10df3bd09d93e56542cda4ae9bcac18ed69f6c7022100f24d891b69695099a66b81a4ef382ff0ef388ad211505cd32e2ad3adebe5f74501",
+      [[""], ["3045022041ccefcad804c28fcd843afeb10df3bd09d93e56542cda4ae9bcac18ed69f6c7022100f24d891b69695099a66b81a4ef382ff0ef388ad211505cd32e2ad3adebe5f74501"]], "PUSH DATA 304502201124a34c8bcc6a41c9bda088bc28e4274af02872866fa926205b0799e0f3b28a022100d0bbe8382a4e6ff46968bb8c2990bb63ef7f413f5b7c3912b4948b3eb0e72fc301",
+      [[""], ["3045022041ccefcad804c28fcd843afeb10df3bd09d93e56542cda4ae9bcac18ed69f6c7022100f24d891b69695099a66b81a4ef382ff0ef388ad211505cd32e2ad3adebe5f74501"], ["304502201124a34c8bcc6a41c9bda088bc28e4274af02872866fa926205b0799e0f3b28a022100d0bbe8382a4e6ff46968bb8c2990bb63ef7f413f5b7c3912b4948b3eb0e72fc301"]], "OP_1",
+      [[""], ["3045022041ccefcad804c28fcd843afeb10df3bd09d93e56542cda4ae9bcac18ed69f6c7022100f24d891b69695099a66b81a4ef382ff0ef388ad211505cd32e2ad3adebe5f74501"], ["304502201124a34c8bcc6a41c9bda088bc28e4274af02872866fa926205b0799e0f3b28a022100d0bbe8382a4e6ff46968bb8c2990bb63ef7f413f5b7c3912b4948b3eb0e72fc301"], 1], "PUSH DATA 635221022d73c0041da9794fcaa7286fcce35e126f84f8b53563be6abb3b213f964bfbfc2102ab2445a289939e49e326dd29ca068cb38d1c9ef7618b7272d14c79c1abdea5cd52ae675221025182b1ca9a1ea9358f61cb363ac80c80b145204d9c4d875c35873d3d578853",
+      [[""], ["3045022041ccefcad804c28fcd843afeb10df3bd09d93e56542cda4ae9bcac18ed69f6c7022100f24d891b69695099a66b81a4ef382ff0ef388ad211505cd32e2ad3adebe5f74501"], ["304502201124a34c8bcc6a41c9bda088bc28e4274af02872866fa926205b0799e0f3b28a022100d0bbe8382a4e6ff46968bb8c2990bb63ef7f413f5b7c3912b4948b3eb0e72fc301"], 1, ["635221022d73c0041da9794fcaa7286fcce35e126f84f8b53563be6abb3b213f964bfbfc2102ab2445a289939e49e326dd29ca068cb38d1c9ef7618b7272d14c79c1abdea5cd52ae675221025182b1ca9a1ea9358f61cb363ac80c80b145204d9c4d875c35873d3d578853"]], "OP_IF",
+
+      [[""], ["3045022041ccefcad804c28fcd843afeb10df3bd09d93e56542cda4ae9bcac18ed69f6c7022100f24d891b69695099a66b81a4ef382ff0ef388ad211505cd32e2ad3adebe5f74501"], ["304502201124a34c8bcc6a41c9bda088bc28e4274af02872866fa926205b0799e0f3b28a022100d0bbe8382a4e6ff46968bb8c2990bb63ef7f413f5b7c3912b4948b3eb0e72fc301"], 1], "OP_2",
+      [[""], ["3045022041ccefcad804c28fcd843afeb10df3bd09d93e56542cda4ae9bcac18ed69f6c7022100f24d891b69695099a66b81a4ef382ff0ef388ad211505cd32e2ad3adebe5f74501"], ["304502201124a34c8bcc6a41c9bda088bc28e4274af02872866fa926205b0799e0f3b28a022100d0bbe8382a4e6ff46968bb8c2990bb63ef7f413f5b7c3912b4948b3eb0e72fc301"], 1, 2], "PUSH DATA 022d73c0041da9794fcaa7286fcce35e126f84f8b53563be6abb3b213f964bfbfc",
+      [[""], ["3045022041ccefcad804c28fcd843afeb10df3bd09d93e56542cda4ae9bcac18ed69f6c7022100f24d891b69695099a66b81a4ef382ff0ef388ad211505cd32e2ad3adebe5f74501"], ["304502201124a34c8bcc6a41c9bda088bc28e4274af02872866fa926205b0799e0f3b28a022100d0bbe8382a4e6ff46968bb8c2990bb63ef7f413f5b7c3912b4948b3eb0e72fc301"], 1, 2, ["022d73c0041da9794fcaa7286fcce35e126f84f8b53563be6abb3b213f964bfbfc"]], "PUSH DATA 02ab2445a289939e49e326dd29ca068cb38d1c9ef7618b7272d14c79c1abdea5cd",
+      [[""], ["3045022041ccefcad804c28fcd843afeb10df3bd09d93e56542cda4ae9bcac18ed69f6c7022100f24d891b69695099a66b81a4ef382ff0ef388ad211505cd32e2ad3adebe5f74501"], ["304502201124a34c8bcc6a41c9bda088bc28e4274af02872866fa926205b0799e0f3b28a022100d0bbe8382a4e6ff46968bb8c2990bb63ef7f413f5b7c3912b4948b3eb0e72fc301"], 1, 2, ["022d73c0041da9794fcaa7286fcce35e126f84f8b53563be6abb3b213f964bfbfc"], ["02ab2445a289939e49e326dd29ca068cb38d1c9ef7618b7272d14c79c1abdea5cd"]], "OP_2",
+      [[""], ["3045022041ccefcad804c28fcd843afeb10df3bd09d93e56542cda4ae9bcac18ed69f6c7022100f24d891b69695099a66b81a4ef382ff0ef388ad211505cd32e2ad3adebe5f74501"], ["304502201124a34c8bcc6a41c9bda088bc28e4274af02872866fa926205b0799e0f3b28a022100d0bbe8382a4e6ff46968bb8c2990bb63ef7f413f5b7c3912b4948b3eb0e72fc301"], 1, 2, ["022d73c0041da9794fcaa7286fcce35e126f84f8b53563be6abb3b213f964bfbfc"], ["02ab2445a289939e49e326dd29ca068cb38d1c9ef7618b7272d14c79c1abdea5cd"], 2], "OP_CHECKMULTISIG",
+      [[""], 0], "OP_ELSE",
+      [[""], 0], "OP_ENDIF",
+      [[""], 0], "RESULT"]
+  end
+
+  it "should not execute p2sh recursively" do
+    # this script_sig includes a pattern that matches the p2sh template
+    script_sig = "0 a914b472a266d0bd89c13706a4132ccfb16f7c3b9fcb87"
+    pk_script = "OP_HASH160 92a04bc86e23f169691bd6926d11853cc61e1852 OP_EQUAL"
+    script = Bitcoin::Script.from_string(script_sig + " " + pk_script)
     script.run.should == true
   end
 
