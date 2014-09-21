@@ -432,11 +432,13 @@ module Bitcoin
     #    o.value 12345
     #    o.script {|s| s.recipient address }
     #  end
+    #
+    #  t.output {|o| o.to "deadbeef", OP_RETURN }
     class TxOutBuilder
       attr_reader :txout
 
       def initialize
-        @txout = P::TxOut.new
+        @txout = P::TxOut.new(0)
       end
 
       # Set output value (in base units / "satoshis")
