@@ -3,7 +3,6 @@
 require_relative '../spec_helper'
 include Bitcoin
 include Bitcoin::Wallet
-include MiniTest
 
 describe "Bitcoin::Wallet::TxDP" do
 
