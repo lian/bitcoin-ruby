@@ -173,12 +173,13 @@ module Bitcoin
       # case to specify a tx fee that should be left unclaimed by the
       # change output.
       def tx opts = {}
+        return @tx  if @tx.hash
+
         if opts[:change_address] && !opts[:input_value]
           raise "Must give 'input_value' when auto-generating change output!"
         end
         @ins.each {|i| @tx.add_in(i.txin) }
         @outs.each {|o| @tx.add_out(o.txout) }
-
         if opts[:change_address]
           output_value = @tx.out.map(&:value).inject(:+)
           change_value = opts[:input_value] - output_value
