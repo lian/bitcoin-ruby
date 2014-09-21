@@ -632,6 +632,8 @@ module Bitcoin
       :dust => CENT,
       :per_dust_fee => false,
       :dns_seeds => [
+        "testnet-seed.alexykot.me",
+        "testnet-seed.bitcoin.schildbach.de",
         "testnet-seed.bitcoin.petertodd.org",
         "testnet-seed.bluematt.me",
       ],
