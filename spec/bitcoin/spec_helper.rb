@@ -81,7 +81,13 @@ rescue LoadError
   exit 1
 end
 Bacon.summary_on_exit
+
+begin
+  require 'minitest'
+rescue LoadError
+end
 require 'minitest/mock'
+include MiniTest
 
 class Time
   class << self
