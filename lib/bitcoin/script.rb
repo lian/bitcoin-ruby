@@ -1,6 +1,7 @@
 # encoding: ascii-8bit
 
 require 'bitcoin'
+require 'bitcoin/script/script_parser'
 
 class Bitcoin::Script
 
@@ -184,65 +185,13 @@ class Bitcoin::Script
 
   # parse raw script
   def parse(bytes, offset=0)
-    program = bytes.unpack("C*")
-    chunks = []
-    until program.empty?
-      opcode = program.shift
-
-      if (opcode > 0) && (opcode < OP_PUSHDATA1)
-        len, tmp = opcode, program[0]
-        chunks << program.shift(len).pack("C*")
-
-        # 0x16 = 22 due to OP_2_16 from_string parsing
-        if len == 1 && tmp && tmp <= 22
-          chunks.last.bitcoin_pushdata = OP_PUSHDATA0
-          chunks.last.bitcoin_pushdata_length = len
-        else
-          raise "invalid OP_PUSHDATA0" if len != chunks.last.bytesize
-        end
-      elsif (opcode == OP_PUSHDATA1)
-        len = program.shift(1)[0]
-        chunks << program.shift(len).pack("C*")
-
-        unless len > OP_PUSHDATA1 && len <= 0xff
-          chunks.last.bitcoin_pushdata = OP_PUSHDATA1
-          chunks.last.bitcoin_pushdata_length = len
-        else
-          raise "invalid OP_PUSHDATA1" if len != chunks.last.bytesize
-        end
-      elsif (opcode == OP_PUSHDATA2)
-        len = program.shift(2).pack("C*").unpack("v")[0]
-        chunks << program.shift(len).pack("C*")
-
-        unless len > 0xff && len <= 0xffff
-          chunks.last.bitcoin_pushdata = OP_PUSHDATA2
-          chunks.last.bitcoin_pushdata_length = len
-        else
-          raise "invalid OP_PUSHDATA2" if len != chunks.last.bytesize
-        end
-      elsif (opcode == OP_PUSHDATA4)
-        len = program.shift(4).pack("C*").unpack("V")[0]
-        chunks << program.shift(len).pack("C*")
-
-        unless len > 0xffff # && len <= 0xffffffff
-          chunks.last.bitcoin_pushdata = OP_PUSHDATA4
-          chunks.last.bitcoin_pushdata_length = len
-        else
-          raise "invalid OP_PUSHDATA4" if len != chunks.last.bytesize
-        end
-      else
-        chunks << opcode
-      end
+    script_parser = ScriptParser.new(bytes, offset)
+    begin
+      script_parser.parse
+    rescue
+      @parse_invalid = true
     end
-    chunks
-  rescue => ex
-    # bail out! #run returns false but serialization roundtrips still create the right payload.
-    chunks.pop if ex.message.include?("invalid OP_PUSHDATA")
-    @parse_invalid = true
-    c = bytes.unpack("C*").pack("C*")
-    c.bitcoin_pushdata = OP_PUSHDATA_INVALID
-    c.bitcoin_pushdata_length = c.bytesize
-    chunks << c
+    script_parser.chunks
   end
 
   # string representation of the script
