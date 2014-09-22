@@ -36,7 +36,7 @@ module Bitcoin::Storage::Backends
     def initialize config, *args
       super config, *args
       @spent_outs, @new_outs, @watched_addrs = [], [], []
-      @deleted_utxos, @tx_cache, @block_cache = {}, {}, {}
+      @tx_cache, @block_cache = {}, {}
     end
 
     # connect to database
@@ -80,7 +80,6 @@ module Bitcoin::Storage::Backends
 
         if @config[:block_cache] > 0
           @block_cache.shift  if @block_cache.size > @config[:block_cache]
-          @deleted_utxos.shift  if @deleted_utxos.size > @config[:block_cache]
           @block_cache[blk.hash] = blk
         end
 
@@ -127,19 +126,8 @@ module Bitcoin::Storage::Backends
         blk = @db[:blk][hash: block_hash.htb.blob]
         delete_utxos = @db[:utxo].where(blk_id: blk[:id])
         @db[:addr_txout].where("txout_id IN ?", delete_utxos.map{|o|o[:id]}).delete
-
-        delete_utxos.delete
-        (@deleted_utxos[depth] || []).each do |utxo|
-          utxo[:pk_script] = utxo[:pk_script].to_sequel_blob
-          utxo_id = @db[:utxo].insert(utxo)
-          addrs = Bitcoin::Script.new(utxo[:pk_script]).get_addresses
-          addrs.each do |addr|
-            hash160 = Bitcoin.hash160_from_address(addr)
-            store_addr(utxo_id, hash160)
-          end
-        end
-
         @db[:blk].where(id: blk[:id]).update(chain: SIDE)
+        delete_utxos.delete
       end
 
       new_main.each do |block_hash|

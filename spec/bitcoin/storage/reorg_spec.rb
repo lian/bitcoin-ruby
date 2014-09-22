@@ -8,10 +8,11 @@ Bitcoin.network = :testnet
     
 [
  [:utxo, :sqlite, index_all_addrs: true],
- [:sequel, :sqlite], # [:sequel, :postgres],
+ [:sequel, :sqlite],
  [:utxo, :postgres, index_all_addrs: true],
- [:sequel, :mysql],
+ [:sequel, :postgres],
  [:utxo, :mysql, index_all_addrs: true],
+ [:sequel, :mysql],
 ].compact.each do |options|
 
   next  unless storage = setup_db(*options)
@@ -20,6 +21,14 @@ Bitcoin.network = :testnet
 
   def balance addr
     @store.get_balance(Bitcoin.hash160_from_address(addr))
+  end
+
+  # check if transaction is currently considered to be in a main chain block
+  def check_tx tx_hash
+    return false  unless tx = @store.get_tx(tx_hash)
+    return false  unless blk = tx.get_block
+    return false  unless blk.chain == 0
+    true
   end
 
   before do
@@ -32,6 +41,8 @@ Bitcoin.network = :testnet
     Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("ff"*32)
     
     @key = Bitcoin::Key.generate
+    @key2 = Bitcoin::Key.generate
+    @key3 = Bitcoin::Key.generate
     @block0 = create_block "00"*32, false, [], @key
     Bitcoin.network[:genesis_hash] = @block0.hash
     
@@ -141,14 +152,21 @@ Bitcoin.network = :testnet
     block1 = create_block @block0.hash
     @store.get_head.should == block1
 
-    block2_0 = create_block block1.hash
+    block2_0 = create_block block1.hash, true, tx = [->(tx) {
+        create_tx(tx, block1.tx[0], 0, [[12345, @key2]]) }]
     @store.get_head.should == block2_0
+    check_tx(block2_0.tx[1].hash).should == true
 
-    block2_1 = create_block block1.hash
+    block2_1 = create_block block1.hash, true, tx = [->(tx) {
+        create_tx(tx, block1.tx[0], 0, [[54321, @key3]]) }]
     @store.get_head.should == block2_0
+    check_tx(block2_0.tx[1].hash).should == true
+    check_tx(block2_1.tx[1].hash).should == false
 
     block3 = create_block block2_1.hash
     @store.get_head.should == block3
+    check_tx(block2_0.tx[1].hash).should == false
+    check_tx(block2_1.tx[1].hash).should == true
     @store.get_block_by_depth(2).hash.should == block2_1.hash
   end
 
@@ -170,6 +188,41 @@ Bitcoin.network = :testnet
 
     block4 = create_block block3_0.hash
     @store.get_head.should == block4
+  end
+
+  it "should reorg back-and-forth" do
+    block1 = create_block @block0.hash
+
+    # extend main chain like usual
+    block2_0 = create_block block1.hash, true, tx = [->(tx) {
+        create_tx(tx, block1.tx[0], 0, [[12345, @key2]]) }]
+    @store.get_head.should == block2_0
+    check_tx(block2_0.tx[0].hash).should == true
+
+    # add new block at same height, so it becomes a side block
+    block2_1 = create_block block1.hash, true, tx = [->(tx) {
+        create_tx(tx, block1.tx[0], 0, [[12345, @key2]]) }]
+    @store.get_head.should == block2_0
+    check_tx(block2_0.tx[0].hash).should == true
+    check_tx(block2_1.tx[0].hash).should == false
+
+    # add on top of the side block, to cause a reorg and make the first block the new side
+    block3_0 = create_block block2_1.hash
+    @store.get_head.should == block3_0
+    @store.get_block_by_depth(2).should == block2_1
+    check_tx(block2_0.tx[0].hash).should == false
+    check_tx(block2_1.tx[0].hash).should == true
+
+    # add on top of the first, now side-chain block, to make them same height again
+    block3_1 = create_block block2_0.hash
+    @store.get_head.should == block3_0
+
+    # add another block to reorg back
+    block4 = create_block block3_1.hash
+    @store.get_head.should == block4
+    @store.get_block_by_depth(3).should == block3_1
+    check_tx(block2_0.tx[0].hash).should == true
+    check_tx(block2_1.tx[0].hash).should == false
   end
 
   it "should reconnect orphans" do
