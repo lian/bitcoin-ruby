@@ -17,6 +17,7 @@ module Bitcoin
     autoload :TxOut,   'bitcoin/protocol/txout'
     autoload :Tx,      'bitcoin/protocol/tx'
     autoload :Block,   'bitcoin/protocol/block'
+    autoload :MerkleBlock, 'bitcoin/protocol/merkle_block'
     autoload :Addr,    'bitcoin/protocol/address'
     autoload :Alert,   'bitcoin/protocol/alert'
     autoload :Version, 'bitcoin/protocol/version'
@@ -128,7 +129,7 @@ module Bitcoin
       pkt("verack", "")
     end
 
-    TypeLookup = Hash[:tx, 1, :block, 2, nil, 0]
+    TypeLookup = Hash[:tx, 1, :block, 2, :merkle_block, 3, nil, 0]
 
     def self.getdata_pkt(type, hashes)
       return if hashes.size > MAX_INV_SZ
@@ -163,6 +164,10 @@ module Bitcoin
 
     def self.headers_pkt(version, blocks)
       pkt "headers", [pack_var_int(blocks.size), blocks.map{|block| block.block_header}.join].join
+    end
+
+    def self.filterload_pkt filter
+      pkt "filterload", filter.serialize.htb
     end
 
     def self.read_binary_file(path)

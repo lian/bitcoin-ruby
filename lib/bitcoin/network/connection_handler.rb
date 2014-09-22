@@ -105,8 +105,18 @@ module Bitcoin::Network
         @started = Time.now
         @node.push_notification(:connection, info.merge(type: :connected))
         @node.addrs << addr
+        filterload  if @node.store.is_spv?
+        send_getblocks
       end
       send_data P::Addr.pkt(@node.addr)  if @node.config[:announce]
+    end
+
+    def filterload
+      return  unless (addrs = @node.store.watched_addrs(@node.store.get_depth)) && addrs.any?
+      log.info { "Setting bloom filter for #{addrs.size} addresses." }
+      filter = Bitcoin::BloomFilter.new(addrs.size * 22, 0.000001, 0, :update_all)
+      addrs.each {|a| filter.insert(Bitcoin.hash160_from_address(a).htb) }
+      send_data(Bitcoin::P.filterload_pkt(filter))
     end
 
     # received +inv_tx+ message for given +hash+.
@@ -173,6 +183,11 @@ module Bitcoin::Network
       @node.queue.push([:block, blk])
     end
 
+    def on_merkle_block(blk)
+      log.debug { ">> merkle_block: #{blk.hash}" }
+      @node.queue.push([:block, blk])
+    end
+
     # received +headers+ message for given +headers+.
     # push each header to storage queue
     def on_headers(headers)
@@ -186,6 +201,13 @@ module Bitcoin::Network
       log.debug { ">> version: #{version.version}" }
       @node.external_ips << version.to.split(":")[0]
       @version = version
+
+      # TODO: proper peer selection
+      unless @version.version >= 70002 || @version.services & 1
+        log.info { "Peer doesn't fit our needs, disconnecting." }
+        return close_connection
+      end
+
       log.debug { "<< verack" }
       send_data( Protocol.verack_pkt )
 
@@ -248,6 +270,7 @@ module Bitcoin::Network
         :to         => @host,
         :user_agent => "/bitcoin-ruby:#{Bitcoin::VERSION}/",
         #:user_agent => "/Satoshi:0.8.3/",
+        :relay      => !@node.store.is_spv?,
       })
       send_data(version.to_pkt)
       log.debug { "<< version: #{Bitcoin.network[:protocol_version]}" }
@@ -271,7 +294,7 @@ module Bitcoin::Network
 
     # send +getdata block+ message for given block +hash+
     def send_getdata_block(hash)
-      pkt = Protocol.getdata_pkt(:block, [hash])
+      pkt = Protocol.getdata_pkt(@node.store.is_spv? ? :merkle_block : :block, [hash])
       log.debug { "<< getdata block: #{hash.hth}" }
       send_data(pkt)
     end

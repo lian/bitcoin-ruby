@@ -10,8 +10,14 @@ module Bitcoin::Storage::Backends
       super(*args)
     end
 
+    def init_store_connection; end
+
     def reset
-      @blk, @tx = [], {}
+      @blk, @tx, @addrs = [], {}, []
+    end
+
+    def add_watched_address address, depth = get_depth
+      @addrs << [address, depth]  unless @addrs.include?([address, depth])
     end
 
     def persist_block(blk, chain, depth, prev_work = 0)

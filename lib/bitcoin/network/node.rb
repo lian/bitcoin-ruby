@@ -259,10 +259,12 @@ module Bitcoin::Network
         subscribe(:block) do |blk, depth|
           next  unless @store.in_sync?
           @log.debug { "Relaying block #{blk.hash}" }
-          @connections.each do |conn|
-            next  unless conn.connected?
-            conn.send_inv(:block, blk.hash)
-          end
+          @connections.select(&:connected?).each {|c| c.send_inv(:block, blk.hash) }
+        end
+
+        # subscribe to new watched address notifications and update filters
+        @store.subscribe(:watch_address) do |addr, depth|
+          @connections.select(&:connected?).each(&:filterload)  if @store.is_spv?
         end
 
         @store.subscribe(:block) do |blk, depth, chain|
@@ -367,15 +369,12 @@ module Bitcoin::Network
 
     # query blocks from random peer
     def getblocks locator = store.get_locator
+      return  if @last_getblocks && @last_getblocks == locator
+      @last_getblocks = locator
       peer = @connections.select(&:connected?).sample
       return  unless peer
       log.info { "querying blocks from #{peer.host}:#{peer.port}" }
-      case @config[:mode]
-      when /lite/
-        peer.send_getheaders locator  unless @queue.size >= @config[:max][:queue]
-      when /full|pruned/
-        peer.send_getblocks locator  unless @inv_queue.size >= @config[:max][:inv]
-      end
+      peer.send_getblocks locator  unless @inv_queue.size >= @config[:max][:inv]
     end
 
     # check if the addr store is full and request new addrs
@@ -414,6 +413,7 @@ module Bitcoin::Network
             # store block and schedule new #getblocks when it was an orphan
             EM.next_tick { getblocks }  unless @store.new_block(obj[1])[1] == 0
           else
+            @store.send("new_#{obj[0]}", obj[1])
             drop = @unconfirmed.size - @config[:max][:unconfirmed] + 1
             drop.times { @unconfirmed.shift }  if drop > 0
             unless @unconfirmed[obj[1].hash]

@@ -13,7 +13,7 @@ module Bitcoin::Storage
   @log = Bitcoin::Logger.create(:storage)
   def self.log; @log; end
 
-  BACKENDS = [:dummy, :sequel, :utxo]
+  BACKENDS = [:dummy, :sequel, :utxo, :spv]
   BACKENDS.each do |name|
     module_eval <<-EOS
       def self.#{name} config, *args
@@ -66,14 +66,11 @@ module Bitcoin::Storage
         @config = base.merge(self.class::DEFAULT_CONFIG).merge(config)
         @log    = config[:log] || Bitcoin::Storage.log
         @log.level = @config[:log_level]  if @config[:log_level]
+
         init_store_connection
         @getblocks_callback = getblocks_callback
         @checkpoints = Bitcoin.network[:checkpoints] || {}
-        @watched_addrs = []
         @notifiers = {}
-      end
-
-      def init_store_connection
       end
 
       # name of the storage backend currently in use ("sequel" or "utxo")
@@ -91,15 +88,21 @@ module Bitcoin::Storage
         raise "Not implemented"
       end
 
+      def add_watched_address addr, depth = 0
+        push_notification(:watch_address, [addr, depth])
+      end
 
       # handle a new block incoming from the network
       def new_block blk
         time = Time.now
         res = store_block(blk)
+        # TODO: show tx/hashes count correctly
         log.info { "block #{blk.hash} " +
           "[#{res[0]}, #{['main', 'side', 'orphan'][res[1]]}] " +
-          "(#{"%.4fs, %3dtx, %.3fkb" % [(Time.now - time), blk.tx.size, blk.payload.bytesize.to_f/1000]})" }  if res && res[1]
+          "(#{"%.6fs, %3dtx, %.3fkb" % [(Time.now - time), (blk.respond_to?(:hashes) ? blk.hashes.count : blk.tx.count), blk.to_payload.bytesize.to_f/1000]})" }  if res && res[1]
         res
+#      rescue
+#        [0, 0]
       end
 
       # store given block +blk+.
@@ -157,6 +160,7 @@ module Bitcoin::Storage
               end
               validator.validate(rules: [:context], raise_errors: true)
             end
+
             res = persist_block(blk, MAIN, depth, prev_block.work)
             push_notification(:block, [blk, *res])
             return res
@@ -398,14 +402,12 @@ module Bitcoin::Storage
         [script_type, addrs, names]
       end
 
-      def add_watched_address address
-        hash160 = Bitcoin.hash160_from_address(address)
-        @db[:addr].insert(hash160: hash160)  unless @db[:addr][hash160: hash160]
-        @watched_addrs << hash160  unless @watched_addrs.include?(hash160)
-      end
-
       def rescan
         raise "Not implemented"
+      end
+
+      def check_consistency *a
+        log.warn { "Consistency check not implemented" }
       end
 
       # import satoshi bitcoind blk0001.dat blockchain file
@@ -422,8 +424,14 @@ module Bitcoin::Storage
               raise "invalid network magic" unless Bitcoin.network[:magic_head] == magic
 
               size = file.read(4).unpack("L")[0]
-              blk = Bitcoin::P::Block.new(file.read(size))
+              buf = file.read(size)
+              blk = Bitcoin::P::Block.new(buf)
+
+              (txs = blk.tx; blk = Bitcoin::P::MerkleBlock.from_block(blk))  if is_spv?
               depth, chain = new_block(blk)
+              txs.each {|t| store_tx(t) }  if is_spv?
+
+              push_notification(:block, [blk, depth, chain])
               break  if max_depth && depth >= max_depth
             end
           end
@@ -438,7 +446,9 @@ module Bitcoin::Storage
       end
 
       def in_sync?
-        (get_head && (Time.now - get_head.time).to_i < 3600) ? true : false
+        in_sync = (get_head && (Time.now - get_head.time).to_i < 3600)
+        log.info { "Storage in sync with blockchain." }  if in_sync && !@in_sync
+        @in_sync = in_sync
       end
 
       def push_notification channel, message
@@ -456,6 +466,7 @@ module Bitcoin::Storage
 
       def is_utxo?; storage_mode == :utxo; end
       def is_full?; storage_mode == :full; end
+      def is_spv?; storage_mode == :spv; end
 
     end
 

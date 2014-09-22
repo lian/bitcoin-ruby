@@ -51,6 +51,8 @@ module Bitcoin::Storage::Backends
     def reset
       [:blk, :utxo, :addr, :addr_txout].each {|table| @db[table].delete }
       @head = nil
+      @spent_outs, @new_outs, @watched_addrs = [], [], []
+      @deleted_utxos, @tx_cache, @block_cache = {}, {}, {}
     end
 
     # persist given block +blk+ to storage.
@@ -90,6 +92,10 @@ module Bitcoin::Storage::Backends
         end
         return depth, chain
       end
+    end
+
+    def store_tx *args
+      # TODO
     end
 
     def persist_transactions txs, block_id, depth
@@ -190,7 +196,7 @@ module Bitcoin::Storage::Backends
       @db[:addr_txout].insert(addr_id: addr_id, txout_id: txout_id)
     end
 
-    def add_watched_address address
+    def add_watched_address address, depth = get_depth
       hash160 = Bitcoin.hash160_from_address(address)
       @db[:addr].insert(hash160: hash160)  unless @db[:addr][hash160: hash160]
       @watched_addrs << hash160  unless @watched_addrs.include?(hash160)

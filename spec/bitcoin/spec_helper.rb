@@ -114,6 +114,8 @@ def setup_db backend, db = nil, conf = {}
           ENV["TEST_DB_POSTGRES"].dup rescue nil
         when :mysql
           ENV["TEST_DB_MYSQL"].dup rescue nil
+        else
+          db
         end
   if [:postgres, :mysql].include?(db)
     unless uri

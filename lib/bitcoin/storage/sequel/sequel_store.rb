@@ -26,6 +26,7 @@ module Bitcoin::Storage::Backends
     # create sequel store with given +config+
     def initialize config, *args
       super config, *args
+      @watched_addrs = [] # TODO
     end
 
     # connect to database
@@ -37,6 +38,12 @@ module Bitcoin::Storage::Backends
     def reset
       [:blk, :blk_tx, :tx, :txin, :txout, :addr, :addr_txout, :names].each {|table| @db[table].delete }
       @head = nil
+    end
+
+    def add_watched_address address, depth = get_depth
+      hash160 = Bitcoin.hash160_from_address(address)
+      @db[:addr].insert(hash160: hash160)  unless @db[:addr][hash160: hash160]
+      @watched_addrs << hash160  unless @watched_addrs.include?(hash160)
     end
 
     # persist given block +blk+ to storage.
@@ -183,6 +190,8 @@ module Bitcoin::Storage::Backends
 
     # store transaction +tx+
     def store_tx(tx, validate = true)
+      # coinbase txs are never allowed outside a block (except for testing...)
+      return  if validate && tx.is_coinbase?
       @log.debug { "Storing tx #{tx.hash} (#{tx.to_payload.bytesize} bytes)" }
       tx.validator(self).validate(raise_errors: true)  if validate
       @db.transaction do

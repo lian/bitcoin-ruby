@@ -19,6 +19,9 @@ module Bitcoin
       # transactions (Array of Tx)
       attr_accessor :tx
 
+      # number of transactions in this block (even if this is just a header)
+      attr_accessor :tx_count
+
       # merkle root
       attr_accessor :mrkl_root
 
@@ -80,11 +83,11 @@ module Bitcoin
 
         return buf if buf.eof?
 
-        tx_size = Protocol.unpack_var_int_from_io(buf)
-        @tx_count = tx_size
+        @tx_count = self.is_a?(MerkleBlock) ? buf.read(4).unpack("V")[0] : Protocol.unpack_var_int_from_io(buf)
+
         return buf if header_only
 
-        tx_size.times{  break if payload == true
+        @tx_count.times{  break if payload == true
           t = Tx.new(nil)
           payload = t.parse_data_from_io(buf)
           @tx << t

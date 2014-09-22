@@ -11,7 +11,7 @@
 module Bitcoin::Storage::Models
 
   # Block retrieved from storage. (see Bitcoin::Protocol::Block)
-  class Block < Bitcoin::Protocol::Block
+  class Block < Bitcoin::Protocol::MerkleBlock
 
     attr_accessor :ver, :prev_block, :mrkl_root, :time, :bits, :nonce, :tx
     attr_reader :store, :id, :depth, :chain, :work, :size
