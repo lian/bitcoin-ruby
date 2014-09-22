@@ -218,6 +218,7 @@ module Bitcoin::Network
       @last_getblocks << [version, hashes, stop_hash]
       @last_getblocks.shift  if @last_getblocks.size > 3
 
+      return nil  unless @node.store.is_full?
       blk = @node.store.db[:blk][hash: hashes[0].htb.blob]
       depth = blk[:depth]  if blk
       log.info { ">> getblocks #{hashes[0]} (#{depth || 'unknown'})" }

@@ -56,7 +56,6 @@ module Bitcoin::Network
       :storage => "utxo::sqlite://~/.bitcoin-ruby/<network>/blocks.db",
       :announce => false,
       :external_port => nil,
-      :mode => :full,
       :cache_head => true,
       :index_nhash => false,
       :index_p2sh_type => false,
@@ -107,7 +106,7 @@ module Bitcoin::Network
     def set_store
       backend, config = @config[:storage].split('::')
       @store = Bitcoin::Storage.send(backend, {
-          db: config, mode: @config[:mode], cache_head: @config[:cache_head],
+          db: config, cache_head: @config[:cache_head],
           skip_validation: @config[:skip_validation], index_nhash: @config[:index_nhash],
           index_p2sh_type: @config[:index_p2sh_type],
           log_level: @config[:log][:storage]}, ->(locator) {

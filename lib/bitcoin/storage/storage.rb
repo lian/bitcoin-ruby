@@ -450,6 +450,13 @@ module Bitcoin::Storage
         @notifiers[channel.to_sym].subscribe {|*data| yield(*data) }
       end
 
+      def storage_mode
+        :full
+      end
+
+      def is_utxo?; storage_mode == :utxo; end
+      def is_full?; storage_mode == :full; end
+
     end
 
     class SequelStoreBase < StoreBase
