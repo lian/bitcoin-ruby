@@ -1,4 +1,4 @@
-= Bitcoin-ruby {<img src="https://api.travis-ci.org/lian/bitcoin-ruby.svg?branch=master" />}[http://travis-ci.org/lian/bitcoin-ruby]
+= Bitcoin-ruby {<img src="https://api.travis-ci.org/lian/bitcoin-ruby.svg?branch=master" />}[http://travis-ci.org/lian/bitcoin-ruby] {<img src="http://inch-ci.org/github/lian/bitcoin-ruby.svg?branch=master" alt="Inline docs" />}[http://inch-ci.org/github/lian/bitcoin-ruby]
 
 This is a ruby library for interacting with the bitcoin protocol/network.
 
