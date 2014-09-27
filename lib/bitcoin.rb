@@ -374,7 +374,7 @@ module Bitcoin
 
     # shows the total number of Bitcoins in circulation, reward era and reward in that era.
     def blockchain_total_btc(height)
-      reward, interval = 5000000000, Bitcoin.network[:reward_halving]
+      reward, interval = Bitcoin.network[:reward_base], Bitcoin.network[:reward_halving]
       total_btc = reward
       reward_era, remainder = (height).divmod(interval)
       reward_era.times{
@@ -386,7 +386,16 @@ module Bitcoin
     end
 
     def block_creation_reward(block_height)
-      5000000000 / (2 ** (block_height / Bitcoin.network[:reward_halving].to_f).floor)
+      if (Bitcoin.network_name == :dogecoin || Bitcoin.network_name == :dogecoin_testnet) && block_height < Bitcoin.network[:difficulty_change_block]
+        # Dogecoin early rewards were random, using part of the hash of the
+        # previous block as the seed for the Mersenne Twister algorithm.
+        # Given we don't have previous block hash available, and this value is
+        # functionally a maximum (not exact value), I'm using the maximum the random
+        # reward generator can produce and calling it good enough.
+        Bitcoin.network[:reward_base] / (2 ** (block_height / Bitcoin.network[:reward_halving].to_f).floor) * 2
+      else
+        Bitcoin.network[:reward_base] / (2 ** (block_height / Bitcoin.network[:reward_halving].to_f).floor)
+      end
     end
   end
 
@@ -502,6 +511,7 @@ module Bitcoin
       :default_port => 8333,
       :protocol_version => 70001,
       :coinbase_maturity => 100,
+      :reward_base => 50 * COIN,
       :reward_halving => 210_000,
       :retarget_interval => 2016,
       :retarget_time     => 1209600, # 2 weeks
@@ -559,6 +569,7 @@ module Bitcoin
       :known_nodes => [],
       :checkpoints => {},
       :coinbase_maturity => 100,
+      :reward_base => 50 * COIN,
       :reward_halving => 210_000,
       :retarget_interval => 2016,
       :retarget_time => 1209600, # 2 weeks
@@ -586,6 +597,7 @@ module Bitcoin
       :known_nodes => [],
       :checkpoints => {},
       :coinbase_maturity => 100,
+      :reward_base => 50 * COIN,
       :reward_halving => 210_000,
       :retarget_interval => 2016,
       :retarget_time => 1209600, # 2 weeks
@@ -607,6 +619,7 @@ module Bitcoin
       :default_port => 18333,
       :protocol_version => 70001,
       :coinbase_maturity => 100,
+      :reward_base => 50 * COIN,
       :reward_halving => 210_000,
       :retarget_interval => 2016,
       :retarget_time => 1209600, # 2 weeks
@@ -650,6 +663,7 @@ module Bitcoin
       :dust => CENT / 10,
       :per_dust_fee => true,
       :coinbase_maturity => 100,
+      :reward_base => 50 * COIN,
       :reward_halving => 840_000,
       :retarget_interval => 2016,
       :retarget_time => 302400, # 3.5 days
@@ -699,6 +713,7 @@ module Bitcoin
       :per_dust_fee => true,
       :free_tx_bytes => 5_000,
       :coinbase_maturity => 100,
+      :reward_base => 50 * COIN,
       :reward_halving => 840_000,
       :retarget_interval => 2016,
       :retarget_time => 302400, # 3.5 days
@@ -717,6 +732,105 @@ module Bitcoin
       }
     },
 
+    :dogecoin => {
+      :project => :dogecoin,
+      :magic_head => "\xc0\xc0\xc0\xc0",
+      :address_version => "1e",
+      :p2sh_version => "16",
+      :privkey_version => "9e",
+      :default_port => 22556,
+      :protocol_version => 70003,
+      :max_money => 100_000_000_000 * COIN,
+      :min_tx_fee => COIN,
+      :min_relay_tx_fee => COIN,
+      :free_tx_bytes => 26_000,
+      :dust => COIN,
+      :per_dust_fee => true,
+      :coinbase_maturity => 30,
+      :coinbase_maturity_new => 240,
+      :reward_base => 500_000 * COIN,
+      :reward_halving => 100_000,
+      :retarget_interval => 240,
+      :retarget_time => 14400, # 4 hours
+      :retarget_time_new => 60, # 1 minute
+      :target_spacing => 60, # block interval
+      :dns_seeds => [
+                     "seed.dogechain.info", 
+                     "seed.dogecoin.com",
+                    ],
+      :genesis_hash => "1a91e3dace36e2be3bf030a65679fe821aa1d6ef92e7c9902eb318182c355691",
+      :proof_of_work_limit => 0x1e0fffff,
+      :alert_pubkeys => [],
+      :known_nodes => [
+                       "daemons.chain.so",
+                       "bootstrap.chain.so",
+                      ],
+      :checkpoints => {
+                       0 => "1a91e3dace36e2be3bf030a65679fe821aa1d6ef92e7c9902eb318182c355691",
+                       42279 => "8444c3ef39a46222e87584ef956ad2c9ef401578bd8b51e8e4b9a86ec3134d3a",
+                       42400 => "557bb7c17ed9e6d4a6f9361cfddf7c1fc0bdc394af7019167442b41f507252b4",
+                       104679 => "35eb87ae90d44b98898fec8c39577b76cb1eb08e1261cfc10706c8ce9a1d01cf",
+                       128370 => "3f9265c94cab7dc3bd6a2ad2fb26c8845cb41cff437e0a75ae006997b4974be6",
+                       145000 => "cc47cae70d7c5c92828d3214a266331dde59087d4a39071fa76ddfff9b7bde72",
+                       165393 =>"7154efb4009e18c1c6a6a79fc6015f48502bcd0a1edd9c20e44cd7cbbe2eeef1",
+                       186774 => "3c712c49b34a5f34d4b963750d6ba02b73e8a938d2ee415dcda141d89f5cb23a",
+                       199992 => "3408ff829b7104eebaf61fd2ba2203ef2a43af38b95b353e992ef48f00ebb190",
+                       225000 => "be148d9c5eab4a33392a6367198796784479720d06bfdd07bd547fe934eea15a",
+                       250000 => "0e4bcfe8d970979f7e30e2809ab51908d435677998cf759169407824d4f36460",
+                       270639 => "c587a36dd4f60725b9dd01d99694799bef111fc584d659f6756ab06d2a90d911",
+                       299742 => "1cc89c0c8a58046bf0222fe131c099852bd9af25a80e07922918ef5fb39d6742",
+                       323141 => "60c9f919f9b271add6ef5671e9538bad296d79f7fdc6487ba702bf2ba131d31d",
+                       339202 => "8c29048df5ae9df38a67ea9470fdd404d281a3a5c6f33080cd5bf14aa496ab03"
+                     },
+      :auxpow_chain_id => 0x0062,
+      # Doge-specific hard-fork cutoffs
+      :difficulty_change_block => 145000,
+      :maturity_change_block => 145000,
+      :auxpow_start_block => 371337
+    },
+
+    :dogecoin_testnet => {
+      :project => :dogecoin,
+      :magic_head => "\xfc\xc1\xb7\xdc",
+      :address_version => "71",
+      :p2sh_version => "c4",
+      :privkey_version => "f1",
+      :default_port => 44556,
+      :protocol_version => 70003,
+      :min_tx_fee => COIN,
+      :min_relay_tx_fee => COIN,
+      :dust => COIN,
+      :per_dust_fee => true,
+      :free_tx_bytes => 26_000,
+      :coinbase_maturity => 30,
+      :coinbase_maturity_new => 240,
+      :reward_base => 500_000 * COIN,
+      :reward_halving => 100_000,
+      :retarget_interval => 240,
+      :retarget_time => 14400, # 4 hours
+      :retarget_time_new => 60, # 1 minute
+      :target_spacing => 60, # block interval
+      :max_money => 100_000_000_000 * COIN,
+      :dns_seeds => [ 
+                     "testdoge-seed.lionservers.de",
+      ],
+      :genesis_hash => "bb0a78264637406b6360aad926284d544d7049f45189db5664f3c4d07350559e",
+      :proof_of_work_limit => 0x1e0fffff,
+      :alert_pubkeys => [],
+      :known_nodes => [
+		       "localhost",
+                       "testnets.chain.so", 
+      ],
+      :checkpoints => {
+        546 => "ac537cfeda975e45040e9938d08e40a16e0fbd6388d02d9b4928b8ae0108c626",
+      },
+      :auxpow_chain_id => 0x0062,
+      # Doge-specific hard-fork cutoffs
+      :difficulty_change_block => 145000,
+      :maturity_change_block => 145000,
+      :reset_target_block => 157500,
+      :auxpow_start_block => 158100
+    },
 
     :freicoin => {
       :project => :freicoin,
@@ -730,6 +844,7 @@ module Bitcoin
       :min_tx_fee => 50_000,
       :min_relay_tx_fee => 10_000,
       :free_tx_bytes => 1_000,
+      :reward_base => 50 * COIN,
       :dust => CENT,
       :per_dust_fee => false,
       :reward_halving => 210_000,
@@ -754,6 +869,7 @@ module Bitcoin
       :min_tx_fee => 50_000,
       :min_relay_tx_fee => 10_000,
       :free_tx_bytes => 1_000,
+      :reward_base => 50 * COIN,
       :dust => CENT,
       :per_dust_fee => true,
       :reward_halving => 210_000,
@@ -780,6 +896,7 @@ module Bitcoin
       :min_tx_fee => 50_000,
       :min_relay_tx_fee => 10_000,
       :free_tx_bytes => 1_000,
+      :reward_base => 50 * COIN,
       :dust => CENT,
       :per_dust_fee => true,
       :reward_halving => 210_000,
