@@ -386,7 +386,16 @@ module Bitcoin
     end
 
     def block_creation_reward(block_height)
-      Bitcoin.network[:reward_base] / (2 ** (block_height / Bitcoin.network[:reward_halving].to_f).floor)
+      if (Bitcoin.network_name == :dogecoin || Bitcoin.network_name == :dogecoin_testnet) && block_height < Bitcoin.network[:difficulty_change_block]
+        # Dogecoin early rewards were random, using part of the hash of the
+        # previous block as the seed for the Mersenne Twister algorithm.
+        # Given we don't have previous block hash available, and this value is
+        # functionally a maximum (not exact value), I'm using the maximum the random
+        # reward generator can produce and calling it good enough.
+        Bitcoin.network[:reward_base] / (2 ** (block_height / Bitcoin.network[:reward_halving].to_f).floor) * 2
+      else
+        Bitcoin.network[:reward_base] / (2 ** (block_height / Bitcoin.network[:reward_halving].to_f).floor)
+      end
     end
   end
 
@@ -739,7 +748,7 @@ module Bitcoin
       :per_dust_fee => true,
       :coinbase_maturity => 30,
       :coinbase_maturity_new => 240,
-      :reward_base => 1000000 * 100_000_000, # 500,000 DOGE
+      :reward_base => 500000 * 100_000_000, # 500,000 DOGE
       :reward_halving => 100_000,
       :retarget_interval => 240,
       :retarget_time => 14400, # 4 hours
@@ -789,7 +798,7 @@ module Bitcoin
       :free_tx_bytes => 5_000,
       :coinbase_maturity => 30,
       :coinbase_maturity_new => 240,
-      :reward_base => 1000000 * 100_000_000, # 500,000 DOGE
+      :reward_base => 500000 * 100_000_000, # 500,000 DOGE
       :reward_halving => 100_000,
       :retarget_interval => 240,
       :retarget_time => 14400, # 4 hours
