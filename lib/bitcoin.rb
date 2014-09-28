@@ -511,7 +511,7 @@ module Bitcoin
       :default_port => 8333,
       :protocol_version => 70001,
       :coinbase_maturity => 100,
-      :reward_base => 5000000000,
+      :reward_base => 50 * COIN,
       :reward_halving => 210_000,
       :retarget_interval => 2016,
       :retarget_time     => 1209600, # 2 weeks
@@ -569,7 +569,7 @@ module Bitcoin
       :known_nodes => [],
       :checkpoints => {},
       :coinbase_maturity => 100,
-      :reward_base => 5000000000,
+      :reward_base => 50 * COIN,
       :reward_halving => 210_000,
       :retarget_interval => 2016,
       :retarget_time => 1209600, # 2 weeks
@@ -597,7 +597,7 @@ module Bitcoin
       :known_nodes => [],
       :checkpoints => {},
       :coinbase_maturity => 100,
-      :reward_base => 5000000000,
+      :reward_base => 50 * COIN,
       :reward_halving => 210_000,
       :retarget_interval => 2016,
       :retarget_time => 1209600, # 2 weeks
@@ -619,7 +619,7 @@ module Bitcoin
       :default_port => 18333,
       :protocol_version => 70001,
       :coinbase_maturity => 100,
-      :reward_base => 5000000000,
+      :reward_base => 50 * COIN,
       :reward_halving => 210_000,
       :retarget_interval => 2016,
       :retarget_time => 1209600, # 2 weeks
@@ -663,7 +663,7 @@ module Bitcoin
       :dust => CENT / 10,
       :per_dust_fee => true,
       :coinbase_maturity => 100,
-      :reward_base => 5000000000,
+      :reward_base => 50 * COIN,
       :reward_halving => 840_000,
       :retarget_interval => 2016,
       :retarget_time => 302400, # 3.5 days
@@ -713,7 +713,7 @@ module Bitcoin
       :per_dust_fee => true,
       :free_tx_bytes => 5_000,
       :coinbase_maturity => 100,
-      :reward_base => 5000000000,
+      :reward_base => 50 * COIN,
       :reward_halving => 840_000,
       :retarget_interval => 2016,
       :retarget_time => 302400, # 3.5 days
@@ -741,14 +741,14 @@ module Bitcoin
       :default_port => 22556,
       :protocol_version => 70003,
       :max_money => 100_000_000_000 * COIN,
-      :min_tx_fee => 100_000_000, # 1.0 DOGE
-      :min_relay_tx_fee => 100_000_000, # 1.0 DOGE
+      :min_tx_fee => COIN,
+      :min_relay_tx_fee => COIN,
       :free_tx_bytes => 26_000,
       :dust => COIN,
       :per_dust_fee => true,
       :coinbase_maturity => 30,
       :coinbase_maturity_new => 240,
-      :reward_base => 500000 * 100_000_000, # 500,000 DOGE
+      :reward_base => 500_000 * COIN,
       :reward_halving => 100_000,
       :retarget_interval => 240,
       :retarget_time => 14400, # 4 hours
@@ -775,6 +775,12 @@ module Bitcoin
                        165393 =>"7154efb4009e18c1c6a6a79fc6015f48502bcd0a1edd9c20e44cd7cbbe2eeef1",
                        186774 => "3c712c49b34a5f34d4b963750d6ba02b73e8a938d2ee415dcda141d89f5cb23a",
                        199992 => "3408ff829b7104eebaf61fd2ba2203ef2a43af38b95b353e992ef48f00ebb190",
+                       225000 => "be148d9c5eab4a33392a6367198796784479720d06bfdd07bd547fe934eea15a",
+                       250000 => "0e4bcfe8d970979f7e30e2809ab51908d435677998cf759169407824d4f36460",
+                       270639 => "c587a36dd4f60725b9dd01d99694799bef111fc584d659f6756ab06d2a90d911",
+                       299742 => "1cc89c0c8a58046bf0222fe131c099852bd9af25a80e07922918ef5fb39d6742",
+                       323141 => "60c9f919f9b271add6ef5671e9538bad296d79f7fdc6487ba702bf2ba131d31d",
+                       339202 => "8c29048df5ae9df38a67ea9470fdd404d281a3a5c6f33080cd5bf14aa496ab03"
                      },
       :auxpow_chain_id => 0x0062,
       # Doge-specific hard-fork cutoffs
@@ -791,14 +797,14 @@ module Bitcoin
       :privkey_version => "f1",
       :default_port => 44556,
       :protocol_version => 70003,
-      :min_tx_fee => 100_000_000, # 1 DOGE
-      :min_relay_tx_fee => 100_000_000, # 1 DOGE
-      :dust => CENT / 1000,
+      :min_tx_fee => COIN,
+      :min_relay_tx_fee => COIN,
+      :dust => COIN,
       :per_dust_fee => true,
-      :free_tx_bytes => 5_000,
+      :free_tx_bytes => 26_000,
       :coinbase_maturity => 30,
       :coinbase_maturity_new => 240,
-      :reward_base => 500000 * 100_000_000, # 500,000 DOGE
+      :reward_base => 500_000 * COIN,
       :reward_halving => 100_000,
       :retarget_interval => 240,
       :retarget_time => 14400, # 4 hours
@@ -838,7 +844,7 @@ module Bitcoin
       :min_tx_fee => 50_000,
       :min_relay_tx_fee => 10_000,
       :free_tx_bytes => 1_000,
-      :reward_base => 5000000000,
+      :reward_base => 50 * COIN,
       :dust => CENT,
       :per_dust_fee => false,
       :reward_halving => 210_000,
@@ -863,7 +869,7 @@ module Bitcoin
       :min_tx_fee => 50_000,
       :min_relay_tx_fee => 10_000,
       :free_tx_bytes => 1_000,
-      :reward_base => 5000000000,
+      :reward_base => 50 * COIN,
       :dust => CENT,
       :per_dust_fee => true,
       :reward_halving => 210_000,
@@ -890,7 +896,7 @@ module Bitcoin
       :min_tx_fee => 50_000,
       :min_relay_tx_fee => 10_000,
       :free_tx_bytes => 1_000,
-      :reward_base => 5000000000,
+      :reward_base => 50 * COIN,
       :dust => CENT,
       :per_dust_fee => true,
       :reward_halving => 210_000,
