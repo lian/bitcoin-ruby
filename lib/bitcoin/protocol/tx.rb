@@ -213,11 +213,28 @@ module Bitcoin
         tx
       end
 
+      def self.from_toshi_hash(h)
+        tx = new(nil)
+        tx.ver, tx.lock_time = *h.values_at('version', 'lock_time')
+        h['inputs'] .each{|input|   tx.add_in  TxIn.from_toshi_hash(input)   }
+        h['outputs'].each{|output|  tx.add_out TxOut.from_toshi_hash(output) }
+        tx.instance_eval{ @hash = hash_from_payload(@payload = to_payload) }
+        tx
+      end
       # convert ruby hash to raw binary
       def self.binary_from_hash(h); from_hash(h).to_payload; end
 
       # parse json representation
-      def self.from_json(json_string); from_hash( JSON.load(json_string) ); end
+      # def self.from_json(json_string); from_hash( JSON.load(json_string) ); end
+
+      def self.from_json(json_string)
+        begin
+          from_hash( JSON.load(json_string) )
+          # NoMethodError: undefined method `each' for nil:NilClass if toshi hash
+        rescue NoMethodError => message          
+          from_toshi_hash( JSON.load(json_string) ) if message.to_s.strip == "undefined method `each' for nil:NilClass"
+        end
+      end
 
       # convert json representation to raw binary
       def self.binary_from_json(json_string); from_json(json_string).to_payload; end

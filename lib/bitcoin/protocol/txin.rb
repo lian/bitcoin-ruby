@@ -95,6 +95,17 @@ module Bitcoin
         txin
       end
 
+      def self.from_toshi_hash(input)
+        txin = TxIn.new([ input['previous_transaction_hash'] ].pack('H*').reverse, input['output_index'])
+        if input['coinbase']
+          txin.script_sig = [ input['coinbase'] ].pack("H*")
+        else
+          txin.script_sig = Script.binary_from_string(input['script'])
+        end
+        txin.sequence = [ input['sequence'] || 0xffffffff ].pack("V")
+        txin
+      end
+
       def self.from_hex_hash(hash, index)
         TxIn.new([hash].pack("H*").reverse, index, 0)
       end
