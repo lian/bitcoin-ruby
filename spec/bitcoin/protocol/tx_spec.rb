@@ -124,6 +124,11 @@ describe 'Tx' do
     # coinbase tx with non-default sequence
     tx = Tx.from_json( json=fixtures_file('0961c660358478829505e16a1f028757e54b5bbf9758341a7546573738f31429.json'))
     Tx.new( tx.to_payload ).to_json.should == json
+
+    # toshi format
+    Tx.from_toshi_hash(JSON.load(fixtures_file('rawtx-02-toshi.json'))).should == Tx.from_hash(JSON.load(fixtures_file('rawtx-02.json')))
+    Tx.from_toshi_hash(JSON.load(fixtures_file('rawtx-03-toshi.json'))).should == Tx.from_hash(JSON.load(fixtures_file('rawtx-03.json')))
+    Tx.from_toshi_hash(JSON.load(fixtures_file('coinbase-toshi.json'))).should == Tx.from_hash(JSON.load(fixtures_file('coinbase.json')))        
   end
 
   it 'Tx.binary_from_json' do

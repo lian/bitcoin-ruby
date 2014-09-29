@@ -70,7 +70,11 @@ module Bitcoin
         script = Script.binary_from_string(output['scriptPubKey'])
         new(amount, script)
       end
-
+      def self.from_toshi_hash(output)
+        amount = output['amount']
+        script = Script.binary_from_string(output['script'])
+        new(amount, script)
+      end
       # set pk_script and pk_script_length
       def pk_script=(pk_script)
         @pk_script_length, @pk_script = pk_script.bytesize, pk_script
