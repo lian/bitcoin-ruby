@@ -225,7 +225,16 @@ module Bitcoin
       def self.binary_from_hash(h); from_hash(h).to_payload; end
 
       # parse json representation
-      def self.from_json(json_string); from_hash( JSON.load(json_string) ); end
+      # def self.from_json(json_string); from_hash( JSON.load(json_string) ); end
+
+      def self.from_json(json_string)
+        begin
+          from_hash( JSON.load(json_string) )
+          # NoMethodError: undefined method `each' for nil:NilClass if toshi hash
+        rescue NoMethodError => message          
+          from_toshi_hash( JSON.load(json_string) ) if message.to_s.strip == "undefined method `each' for nil:NilClass"
+        end
+      end
 
       # convert json representation to raw binary
       def self.binary_from_json(json_string); from_json(json_string).to_payload; end
