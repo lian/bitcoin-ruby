@@ -641,7 +641,8 @@ module Bitcoin
         409004 => "487518d663d9f1fa08611d9395ad74d982b667fbdc0e77e9cf39b4f1355908a3",
         456000 => "bf34f71cc6366cd487930d06be22f897e34ca6a40501ac7d401be32456372004",
         541794 => "1cbccbe6920e7c258bbce1f26211084efb19764aa3224bec3f4320d77d6a2fd2",
-      }
+      },
+      auxpow_chain_id: 1,
     })
 
   NETWORKS[:litecoin_testnet] = NETWORKS[:litecoin].merge({
