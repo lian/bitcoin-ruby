@@ -84,10 +84,6 @@ describe 'Tx' do
     tx.to_payload.should      == @payload[0]
     tx.to_hash.should == orig_tx.to_hash
     Tx.binary_from_hash( orig_tx.to_hash ).should == @payload[0]
-    # toshi format
-    Tx.from_toshi_hash(JSON.load(fixtures_file('rawtx-02-toshi.json'))).should == Tx.from_hash(JSON.load(fixtures_file('rawtx-02.json')))
-    Tx.from_toshi_hash(JSON.load(fixtures_file('rawtx-03-toshi.json'))).should == Tx.from_hash(JSON.load(fixtures_file('rawtx-03.json')))
-    Tx.from_toshi_hash(JSON.load(fixtures_file('coinbase-toshi.json'))).should == Tx.from_hash(JSON.load(fixtures_file('coinbase.json')))     
   end
 
   it 'Tx.binary_from_hash' do
@@ -128,10 +124,11 @@ describe 'Tx' do
     # coinbase tx with non-default sequence
     tx = Tx.from_json( json=fixtures_file('0961c660358478829505e16a1f028757e54b5bbf9758341a7546573738f31429.json'))
     Tx.new( tx.to_payload ).to_json.should == json
+
     # toshi format
-    Tx.from_json(fixtures_file('rawtx-02-toshi.json')).should == Tx.from_json(fixtures_file('rawtx-02.json'))
-    Tx.from_json(fixtures_file('rawtx-03-toshi.json')).should == Tx.from_json(fixtures_file('rawtx-03.json'))
-    Tx.from_json(fixtures_file('coinbase-toshi.json')).should == Tx.from_json(fixtures_file('coinbase.json'))        
+    Tx.from_json(fixtures_file('rawtx-02-toshi.json')).to_payload.should == Tx.from_json(fixtures_file('rawtx-02.json')).to_payload
+    Tx.from_json(fixtures_file('rawtx-03-toshi.json')).to_payload.should == Tx.from_json(fixtures_file('rawtx-03.json')).to_payload
+    Tx.from_json(fixtures_file('coinbase-toshi.json')).to_payload.should == Tx.from_json(fixtures_file('coinbase.json')).to_payload
   end
 
   it 'Tx.binary_from_json' do

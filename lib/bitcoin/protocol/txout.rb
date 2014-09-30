@@ -66,15 +66,11 @@ module Bitcoin
       end
 
       def self.from_hash(output)
-        amount = output['value'].gsub('.','').to_i
-        script = Script.binary_from_string(output['scriptPubKey'])
+        amount = output['value'] ? output['value'].gsub('.','').to_i : output['amount']
+        script = Script.binary_from_string(output['scriptPubKey'] || output['script'])
         new(amount, script)
       end
-      def self.from_toshi_hash(output)
-        amount = output['amount']
-        script = Script.binary_from_string(output['script'])
-        new(amount, script)
-      end
+
       # set pk_script and pk_script_length
       def pk_script=(pk_script)
         @pk_script_length, @pk_script = pk_script.bytesize, pk_script
