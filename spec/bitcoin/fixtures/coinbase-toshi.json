@@ -1,0 +1,33 @@
+{
+  "hash":"6d7e160109d3d6bdfadfeb7f2a041d57dd6c910e0798554b495f2963c1b0c787",
+  "version":1,
+  "lock_time":0,
+  "size":177,
+  "inputs":[
+    {
+      "previous_transaction_hash":"0000000000000000000000000000000000000000000000000000000000000000",
+      "output_index":4294967295,
+      "amount":2500000000,
+      "coinbase":"03c4ed04e4b883e5bda9e7a59ee4bb99e9b1bcfabe6d6da1f05b26289f973240ae74a5768b942e93b459a7af0e01f99c9868492e543ebb1000000000000000ea8f12dcc51201004d696e6564206279206368656e6775616e67667531"
+    }
+  ],
+  "outputs":[
+    {
+      "amount":2502773013,
+      "spent":false,
+      "script":"OP_DUP OP_HASH160 c825a1ecf2a6830c4401620c3a16f1995057c2ab OP_EQUALVERIFY OP_CHECKSIG",
+      "script_hex":"76a914c825a1ecf2a6830c4401620c3a16f1995057c2ab88ac",
+      "script_type":"hash160",
+      "addresses":[
+        "1KFHE7w8BhaENAswwryaoccDb6qcT6DbYY"
+      ]
+    }
+  ],
+  "amount":2502773013,
+  "fees":0,
+  "confirmations":19,
+  "block_height":323012,
+  "block_hash":"000000000000000019b16f4a6cd8717ab8f4836bbc9822894cc49785badfdaa7",
+  "block_time":"2014-09-29T04:24:35Z",
+  "block_branch":"main"
+}
