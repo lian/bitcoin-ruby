@@ -386,7 +386,7 @@ module Bitcoin
     end
 
     def block_creation_reward(block_height)
-      if (Bitcoin.network_name == :dogecoin || Bitcoin.network_name == :dogecoin_testnet) && block_height < Bitcoin.network[:difficulty_change_block]
+      if (Bitcoin.network_project == :dogecoin) && block_height < Bitcoin.network[:difficulty_change_block]
         # Dogecoin early rewards were random, using part of the hash of the
         # previous block as the seed for the Mersenne Twister algorithm.
         # Given we don't have previous block hash available, and this value is
@@ -460,7 +460,7 @@ module Bitcoin
     @network
   end
 
-  [:bitcoin, :namecoin, :litecoin].each do |n|
+  [:bitcoin, :namecoin, :litecoin, :dogecoin].each do |n|
     instance_eval "def #{n}?; network_project == :#{n}; end"
   end
 
