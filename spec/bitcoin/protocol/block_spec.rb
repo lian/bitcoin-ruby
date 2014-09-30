@@ -116,28 +116,6 @@ describe 'Bitcoin::Protocol::Block' do
       Bitcoin.network = :bitcoin
     end
 
-    it "should work with freicoin blocks" do
-      Bitcoin.network = :freicoin # change to freicoin
-      freicoin_block = "freicoin-genesis-block-000000005b1e3d23ecfd2dd4a6e1a35238aa0392c0a8528c40df52376d7efe2c"
-      Block.from_json(fixtures_file(freicoin_block + '.json'))
-        .to_payload.should == fixtures_file(freicoin_block + '.bin')
-
-      json = Block.new(fixtures_file(freicoin_block + '.bin')).to_json
-      Block.from_json(json)
-        .to_payload.should == fixtures_file(freicoin_block + '.bin')
-      Block.from_json(json).hash == freicoin_block.split("-").last
-
-      freicoin_block = "freicoin-block-000000005d231b285e63af83edae2d8f5e50e70d396468643092b9239fd3be3c"
-      Block.from_json(fixtures_file(freicoin_block + '.json'))
-        .to_payload.should == fixtures_file(freicoin_block + '.bin')
-
-      json = Block.new(fixtures_file(freicoin_block + '.bin')).to_json
-      Block.from_json(json)
-        .to_payload.should == fixtures_file(freicoin_block + '.bin')
-      Block.from_json(json).hash == freicoin_block.split("-").last
-      Bitcoin.network = :bitcoin
-    end
-
     it 'should check block hash' do
       block = Block.from_json(fixtures_file('rawblock-0.json'))
       h = block.to_hash

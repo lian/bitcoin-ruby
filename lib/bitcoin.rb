@@ -460,7 +460,7 @@ module Bitcoin
     @network
   end
 
-  [:bitcoin, :namecoin, :litecoin, :freicoin].each do |n|
+  [:bitcoin, :namecoin, :litecoin].each do |n|
     instance_eval "def #{n}?; network_project == :#{n}; end"
   end
 
@@ -830,33 +830,6 @@ module Bitcoin
       :maturity_change_block => 145000,
       :reset_target_block => 157500,
       :auxpow_start_block => 158100
-    },
-
-    :freicoin => {
-      :project => :freicoin,
-      :magic_head => "\x2c\xfe\x7e\x6d",
-      :address_version => "00",
-      :p2sh_version => "05",
-      :privkey_version => "80",
-      :default_port => 8639,
-      :protocol_version => 60002,
-      :max_money => 21_000_000 * COIN,
-      :min_tx_fee => 50_000,
-      :min_relay_tx_fee => 10_000,
-      :free_tx_bytes => 1_000,
-      :reward_base => 50 * COIN,
-      :dust => CENT,
-      :per_dust_fee => false,
-      :reward_halving => 210_000,
-      :dns_seeds => [ "seed.freico.in", "fledge.freico.in" ],
-      :genesis_hash => "000000005b1e3d23ecfd2dd4a6e1a35238aa0392c0a8528c40df52376d7efe2c",
-      :proof_of_work_limit => 0,
-      :alert_pubkeys => [],
-      :known_nodes => [],
-      :checkpoints => {
-        10080 => "00000000003ff9c4b806639ec4376cc9acafcdded0e18e9dbcc2fc42e8e72331",
-        15779 => "000000000003eb31742b35f5efd8ffb5cdd19dcd8e82cdaad90e592c450363b6",
-      }
     },
 
     :namecoin => {
