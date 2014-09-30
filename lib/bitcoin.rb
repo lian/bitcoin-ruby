@@ -859,7 +859,8 @@ module Bitcoin
         24000 => "425ab0983cf04f43f346a4ca53049d0dc2db952c0a68eb0b55c3bb64108d5371",
         97778 => "7553b1e43da01cfcda4335de1caf623e941d43894bd81c2af27b6582f9d83c6f",
         165000 => "823d7a54ebab04d14c4ba3508f6b5f25977406f4d389539eac0174d52c6b4b62",
-      }
+      },
+      :auxpow_chain_id => 1
     },
 
     :namecoin_testnet => {
@@ -883,7 +884,8 @@ module Bitcoin
       :checkpoints => {
         0 => "000000000062b72c5e2ceb45fbc8587e807c155b0da735e6483dfba2f0a9c770",
 
-      }
+      },
+      :auxpow_chain_id => 1
     },
   }
 
