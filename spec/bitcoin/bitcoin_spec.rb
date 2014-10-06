@@ -318,6 +318,13 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     Bitcoin.hash_mrkl_tree(["aa", "bb", "cc"]).last.should !=
       Bitcoin.hash_mrkl_tree(["aa", "bb", "cc", "cc"]).last
   end
+  
+  it 'return a value even if a merkle branch is empty' do
+    branch = []
+    mrkl_index = 0
+    target = "089b911f5e471c0e1800f3384281ebec5b372fbb6f358790a92747ade271ccdf"
+    Bitcoin.mrkl_branch_root(branch.map(&:hth), target, mrkl_index).should == target
+  end
 
   it 'nonce compact bits to bignum hex' do
     Bitcoin.decode_compact_bits( "1b00b5ac".to_i(16) ).index(/[^0]/).should == 12
