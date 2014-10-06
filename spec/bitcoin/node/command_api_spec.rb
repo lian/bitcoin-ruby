@@ -475,6 +475,34 @@ describe 'Node Command API' do
         test_command("tslb") {|r| (0..TSLB_TIMEOUT).include?(r['tslb']).should == true }
       end
 
+      it "should receive block notifications on reorg" do
+        r = send "monitor", channel: "block"
+        should_receive r, id: 1
+        should_receive r, { hash: @block.hash, hex: @block.payload.hth, depth: 1 }
+
+        # extend main chain by two blocks
+        @block2a = create_block @block.hash, false
+        store_block @block2a
+        should_receive r, { hash: @block2a.hash, hex: @block2a.payload.hth, depth: 2 }
+        @block3a = create_block @block2a.hash, false
+        store_block @block3a
+        should_receive r, { hash: @block3a.hash, hex: @block3a.payload.hth, depth: 3 }
+
+        # create two side-chain blocks
+        @block2b = create_block @block.hash, false
+        store_block @block2b
+        @block3b = create_block @block2b.hash, false
+        store_block @block3b
+
+        # third side-chain block makes it reorg
+        @block4b = create_block @block3b.hash, false
+        store_block @block4b
+        should_receive @request, { new_main: [ @block2b.hash, @block3b.hash ],
+                                   new_side: [ @block2a.hash, @block3a.hash ] }
+        should_receive r, { hash: @block2b.hash, hex: @block2b.payload.hth, depth: 2 }
+        should_receive r, { hash: @block3b.hash, hex: @block3b.payload.hth, depth: 3 }
+      end
+
     end
 
     describe :tx do
