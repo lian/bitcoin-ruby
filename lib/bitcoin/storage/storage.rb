@@ -108,18 +108,23 @@ module Bitcoin::Storage
       def store_block blk
         log.debug { "new block #{blk.hash}" }
 
+        # ignore block if we already have it
         existing = get_block(blk.hash)
         if existing && existing.chain == MAIN
           log.debug { "=> exists (#{existing.depth}, #{existing.chain})" }
           return [existing.depth]
         end
 
+        # find the prev_block this block links to
         prev_block = get_block(blk.prev_block.reverse_hth)
+
+        # validate block syntax
         unless @config[:skip_validation]
           validator = blk.validator(self, prev_block)
           validator.validate(rules: [:syntax], raise_errors: true)
         end
 
+        # when there is no prev_block, this block is either the genesis or an orphan
         if !prev_block || prev_block.chain == ORPHAN
           if blk.hash == Bitcoin.network[:genesis_hash]
             log.debug { "=> genesis (0)" }
@@ -131,14 +136,18 @@ module Bitcoin::Storage
             return persist_block(blk, ORPHAN, depth)
           end
         end
+
         depth = prev_block.depth + 1
 
+        # if there is a checkpoint at this height, make sure the block hash matches
         checkpoint = @checkpoints[depth]
         if checkpoint && blk.hash != checkpoint
           log.warn "Block #{depth} doesn't match checkpoint #{checkpoint}"
           exit  if depth > get_depth # TODO: handle checkpoint mismatch properly
         end
+
         if prev_block.chain == MAIN
+          # if prev_block is the current head of the main chain, this block becomes the new one
           if prev_block == get_head
             log.debug { "=> main (#{depth})" }
             if !@config[:skip_validation] && ( !@checkpoints.any? || depth > @checkpoints.keys.last )
@@ -151,23 +160,30 @@ module Bitcoin::Storage
             res = persist_block(blk, MAIN, depth, prev_block.work)
             push_notification(:block, [blk, *res])
             return res
+          # if prev_block is below head in the main chain, this block starts a new side chain
           else
             log.debug { "=> side (#{depth})" }
             return persist_block(blk, SIDE, depth, prev_block.work)
           end
+        # prev_block is in a side chain
         else
-          head = get_head
-          if prev_block.work + blk.block_work  <= head.work
+          # if main chain is still longer, new block extends the side chain
+          if prev_block.work + blk.block_work <= get_head.work
             log.debug { "=> side (#{depth})" }
             return persist_block(blk, SIDE, depth, prev_block.work)
+          # if side chain is now longer than main, trigger a reorg
           else
             log.debug { "=> reorg" }
             new_main, new_side = [], []
+            # walk down the side chain until we find the fork block (the first in the main chain)
+            # these blocks will become the new main chain
             fork_block = prev_block
             while fork_block.chain != MAIN
               new_main << fork_block.hash
               fork_block = fork_block.get_prev_block
             end
+            # walk up the main chain starting with the fork block
+            # these blocks will become the new side chain
             b = fork_block
             while b = b.get_next_block
               new_side << b.hash
@@ -175,10 +191,14 @@ module Bitcoin::Storage
             log.debug { "new main: #{new_main.inspect}" }
             log.debug { "new side: #{new_side.inspect}" }
 
-            push_notification(:reorg, [ new_main, new_side ])
-
+            # switch side and main chain
             reorg(new_side.reverse, new_main.reverse)
-            return persist_block(blk, MAIN, depth, prev_block.work)
+            push_notification(:reorg, [ new_main.reverse, new_side ])
+
+            # now the current block simply extends the new main chain
+            res = persist_block(blk, MAIN, depth, prev_block.work)
+            push_notification(:block, [blk, *res])
+            return res
           end
         end
       end
