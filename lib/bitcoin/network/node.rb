@@ -280,6 +280,10 @@ module Bitcoin::Network
           new_main.each {|b| @log.debug { "new main: #{b}" } }
           new_side.each {|b| @log.debug { "new side: #{b}" } }
           push_notification(:reorg, [new_main, new_side])
+          new_main.each do |hash|
+            blk = @store.get_block(hash)
+            push_notification(:block, [blk, blk.depth, 0])
+          end
         end
 
       end
