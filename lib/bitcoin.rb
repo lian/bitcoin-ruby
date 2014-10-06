@@ -277,10 +277,12 @@ module Bitcoin
 
     # get merkle root from +branch+ and +target+.
     def mrkl_branch_root(branch, target, idx)
-      branch.map do |hash|
+      branch.each do |hash|
         a, b = *( idx & 1 == 0 ? [target, hash] : [hash, target] )
-        idx >>= 1; target = bitcoin_mrkl( a, b )
-      end.last
+        idx >>= 1;
+	target = bitcoin_mrkl( a, b )
+      end
+      target
     end
 
     def sign_data(key, data)
