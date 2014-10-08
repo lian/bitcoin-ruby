@@ -504,6 +504,16 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     Bitcoin.block_difficulty(436835377).should == "1751454.5353407"
   end
 
+  it 'should calculate retarget difficulty' do
+    prev_height = 201599
+    prev_block_time = 1349227021
+    prev_block_bits = 0x1a05db8b
+    last_retarget_time = 1348092851
+    new_difficulty = Bitcoin.block_new_target(prev_height, prev_block_time, prev_block_bits, last_retarget_time)
+    
+    Bitcoin.decode_compact_bits(new_difficulty.should) == Bitcoin.decode_compact_bits(0x1a057e08)
+  end
+
   it '#block_hashes_to_win' do
     Bitcoin.block_hashes_to_win(436835377).should == 7522554734795001
   end
