@@ -349,6 +349,38 @@ module Bitcoin
       "%.7f" % Math.exp(max_body - Math.log(bits&0x00ffffff) + scaland * (0x1d - ((bits&0xff000000)>>24)))
     end
 
+    # Calculate new difficulty target. Note this takes in details of the preceeding
+    # block, not the current one.
+    #
+    # prev_height is the height of the block before the retarget occurs
+    # prev_block_time "time" field from the block before the retarget occurs
+    # prev_block_bits "bits" field from the block before the retarget occurs (target as a compact value)
+    # last_retarget_time is the "time" field from the block when a retarget last occurred
+    def block_new_target(prev_height, prev_block_time, prev_block_bits, last_retarget_time)
+      # target interval - what is the ideal interval between the blocks
+      retarget_time = Bitcoin.network[:retarget_time]
+
+      actual_time = prev_block_time - last_retarget_time
+
+      min = retarget_time / 4
+      max = retarget_time * 4
+
+      actual_time = min if actual_time < min
+      actual_time = max if actual_time > max
+
+      # It could be a bit confusing: we are adjusting difficulty of the previous block, while logically
+      # we should use difficulty of the previous retarget block
+
+      prev_target = decode_compact_bits(prev_block_bits).to_i(16)
+
+      new_target = prev_target * actual_time / retarget_time
+      if new_target < Bitcoin.decode_compact_bits(Bitcoin.network[:proof_of_work_limit]).to_i(16)
+        encode_compact_bits(new_target.to_s(16))
+      else
+        Bitcoin.network[:proof_of_work_limit]
+      end
+    end
+
     # average number of hashes required to win a block with the current target. (nbits)
     def block_hashes_to_win(target_nbits)
       current_target  = decode_compact_bits(target_nbits).to_i(16)

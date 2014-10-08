@@ -27,7 +27,55 @@ describe 'Bitcoin::Dogecoin' do
     # Broken address
     Bitcoin.valid_address?("DRjyUS2uuieEPkhZNdQz8hE5YycxVEqSXA").should == false
   end
-  
+
+  it 'should calculate retarget difficulty' do
+    Bitcoin::network = :dogecoin
+
+    prev_height = 239
+    prev_block_time = 1386475638 # Block 239
+    prev_block_bits = 0x1e0ffff0
+    last_retarget_time = 1386474927 # Block 1
+    new_difficulty = Bitcoin.block_new_target(prev_height, prev_block_time, prev_block_bits, last_retarget_time)
+    new_difficulty.to_s(16).should == 0x1e00ffff.to_s(16)
+
+    prev_height = 479
+    prev_block_time = 1386475840
+    prev_block_bits = 0x1e0fffff
+    last_retarget_time = 1386475638 # Block 239
+    new_difficulty = Bitcoin.block_new_target(prev_height, prev_block_time, prev_block_bits, last_retarget_time)
+    new_difficulty.to_s(16).should == 0x1e00ffff.to_s(16)
+
+    prev_height = 9_599
+    prev_block_time = 1386954113
+    prev_block_bits = 0x1c1a1206
+    last_retarget_time = 1386942008 # Block 9359
+    new_difficulty = Bitcoin.block_new_target(prev_height, prev_block_time, prev_block_bits, last_retarget_time)
+    new_difficulty.to_s(16).should == 0x1c15ea59.to_s(16)
+
+    # First hard-fork at 145,000, which applies to block 145,001 onwards
+    prev_height = 145_000
+    prev_block_time = 1395094679
+    prev_block_bits = 0x1b499dfd
+    last_retarget_time = 1395094427
+    new_difficulty = Bitcoin.block_new_target(prev_height, prev_block_time, prev_block_bits, last_retarget_time)
+    new_difficulty.to_s(16).should == 0x1b671062.to_s(16)
+
+    # Test the second hard-fork at 371,337 as well
+    prev_height = 371336
+    prev_block_time = 1410464569
+    prev_block_bits = 0x1b2fdf75
+    last_retarget_time = 1410464445
+    new_difficulty = Bitcoin.block_new_target(prev_height, prev_block_time, prev_block_bits, last_retarget_time)
+    new_difficulty.to_s(16).should == 0x1b364184.to_s(16)
+
+    prev_height = 408_596
+    prev_block_time = 1412800112
+    prev_block_bits = 0x1b033d8b
+    last_retarget_time = 1412799989 # Block 408,595
+    new_difficulty = Bitcoin.block_new_target(prev_height, prev_block_time, prev_block_bits, last_retarget_time)
+    new_difficulty.to_s(16).should == 0x1b039e52.to_s(16)
+  end
+
   it 'should calculate reward upper bounds' do
     Bitcoin::network = :dogecoin
 

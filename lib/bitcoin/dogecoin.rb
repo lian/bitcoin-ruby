@@ -13,7 +13,7 @@ module Bitcoin::Dogecoin
   end
 
   # fixed reward past the 600k block
-  POST_600K_REWARD = 10000 * COIN
+  POST_600K_REWARD = 10000 * Bitcoin::COIN
 
   # Dogecoin-specific Script methods for parsing and creating of dogecoin scripts,
   # as well as methods to extract address, doge_hash, doge and value.
@@ -35,6 +35,53 @@ module Bitcoin::Dogecoin
             Bitcoin.network[:reward_base] / (2 ** (block_height / Bitcoin.network[:reward_halving].to_f).floor)
           else
             POST_600K_REWARD
+          end
+        end
+        
+        def block_new_target(prev_height, prev_block_time, prev_block_bits, last_retarget_time)
+          new_difficulty_protocol = (prev_height + 1) >= Bitcoin.network[:difficulty_change_block]
+
+          # target interval for block interval in seconds
+          retarget_time = Bitcoin.network[:retarget_time]
+
+          if new_difficulty_protocol
+            # what is the ideal interval between the blocks
+            retarget_time = Bitcoin.network[:retarget_time_new]
+          end
+
+          # actual time elapsed since last retarget
+          actual_time = prev_block_time - last_retarget_time
+
+          if new_difficulty_protocol
+            # DigiShield implementation - thanks to RealSolid & WDC for this code
+            actual_time = retarget_time + (actual_time - retarget_time)/8;
+            # amplitude filter - thanks to daft27 for this code
+            min = retarget_time - (retarget_time/4)
+            max = retarget_time + (retarget_time/2)
+          elsif prev_height+1 > 10000
+            min = retarget_time / 4
+            max = retarget_time * 4
+          elsif prev_height+1 > 5000
+            min = retarget_time / 8
+            max = retarget_time * 4
+          else
+            min = retarget_time / 16
+            max = retarget_time * 4
+          end
+
+          actual_time = min if actual_time < min
+          actual_time = max if actual_time > max
+
+          # It could be a bit confusing: we are adjusting difficulty of the previous block, while logically
+          # we should use difficulty of the previous 2016th block ("first")
+
+          prev_target = decode_compact_bits(prev_block_bits).to_i(16)
+
+          new_target = prev_target * actual_time / retarget_time
+          if new_target < Bitcoin.decode_compact_bits(Bitcoin.network[:proof_of_work_limit]).to_i(16)
+            encode_compact_bits(new_target.to_s(16))
+          else
+            Bitcoin.network[:proof_of_work_limit]
           end
         end
       end
