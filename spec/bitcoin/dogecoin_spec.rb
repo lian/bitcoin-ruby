@@ -27,6 +27,21 @@ describe 'Bitcoin::Dogecoin' do
     # Broken address
     Bitcoin.valid_address?("DRjyUS2uuieEPkhZNdQz8hE5YycxVEqSXA").should == false
   end
+  
+  it 'should calculate reward upper bounds' do
+    Bitcoin::network = :dogecoin
+
+    Bitcoin.block_creation_reward(99000).should == 1000000 * COIN # Note this is the maximum possible, not actual reward
+    Bitcoin.block_creation_reward(144999).should == 500000 * COIN
+    Bitcoin.block_creation_reward(145000).should == 250000 * COIN # Hard-forked to remove random rewards
+    Bitcoin.block_creation_reward(199999).should == 250000 * COIN
+    Bitcoin.block_creation_reward(299999).should == 125000 * COIN
+    Bitcoin.block_creation_reward(399999).should == 62500 * COIN
+    Bitcoin.block_creation_reward(499999).should == 31250 * COIN
+    Bitcoin.block_creation_reward(599999).should == 15625 * COIN
+    Bitcoin.block_creation_reward(600000).should == 10000 * COIN
+    Bitcoin.block_creation_reward(700000).should == 10000 * COIN
+  end
 
   it 'should calculate merkle root from AuxPoW transaction branch' do
     # Taken directly from Dogecoin block #403,931

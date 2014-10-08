@@ -20,6 +20,7 @@ module Bitcoin
   autoload :Builder,    'bitcoin/builder'
   autoload :Validation, 'bitcoin/validation'
 
+  autoload :Dogecoin,   'bitcoin/dogecoin'
   autoload :Namecoin,   'bitcoin/namecoin'
   autoload :Litecoin,   'bitcoin/litecoin'
 
@@ -386,16 +387,7 @@ module Bitcoin
     end
 
     def block_creation_reward(block_height)
-      if (Bitcoin.network_project == :dogecoin) && block_height < Bitcoin.network[:difficulty_change_block]
-        # Dogecoin early rewards were random, using part of the hash of the
-        # previous block as the seed for the Mersenne Twister algorithm.
-        # Given we don't have previous block hash available, and this value is
-        # functionally a maximum (not exact value), I'm using the maximum the random
-        # reward generator can produce and calling it good enough.
-        Bitcoin.network[:reward_base] / (2 ** (block_height / Bitcoin.network[:reward_halving].to_f).floor) * 2
-      else
-        Bitcoin.network[:reward_base] / (2 ** (block_height / Bitcoin.network[:reward_halving].to_f).floor)
-      end
+      Bitcoin.network[:reward_base] / (2 ** (block_height / Bitcoin.network[:reward_halving].to_f).floor)
     end
   end
 
@@ -460,11 +452,12 @@ module Bitcoin
     @network_options = nil # clear cached parameters
     @network = name.to_sym
     @network_project = network[:project] rescue nil
+    Dogecoin.load  if dogecoin? || dogecoin_testnet?
     Namecoin.load  if namecoin?
     @network
   end
 
-  [:bitcoin, :namecoin, :litecoin, :dogecoin].each do |n|
+  [:bitcoin, :namecoin, :litecoin, :dogecoin, :dogecoin_testnet].each do |n|
     instance_eval "def #{n}?; network_project == :#{n}; end"
   end
 
