@@ -1,0 +1,45 @@
+# encoding: ascii-8bit
+
+# This module includes (almost) everything necessary to add dogecoin support
+# to bitcoin-ruby. When switching to a :dogecoin network, it will load its
+# functionality into the Script class and the Storage backend.
+# The only things not included here should be parsing the AuxPow, which is
+# done in Protocol::Block directly, and passing the txout to #store_doge from
+# the storage backend.
+module Bitcoin::Dogecoin
+
+  def self.load
+    Bitcoin::Util.class_eval { include Util }
+  end
+
+  # fixed reward past the 600k block
+  POST_600K_REWARD = 10000 * COIN
+
+  # Dogecoin-specific Script methods for parsing and creating of dogecoin scripts,
+  # as well as methods to extract address, doge_hash, doge and value.
+  module Util
+
+    def self.included(base)
+      base.constants.each {|c| const_set(c, base.const_get(c)) unless constants.include?(c) }
+      base.class_eval do
+
+        def block_creation_reward(block_height)
+          if block_height < Bitcoin.network[:difficulty_change_block]
+            # Dogecoin early rewards were random, using part of the hash of the
+            # previous block as the seed for the Mersenne Twister algorithm.
+            # Given we don't have previous block hash available, and this value is
+            # functionally a maximum (not exact value), I'm using the maximum the random
+            # reward generator can produce and calling it good enough.
+            Bitcoin.network[:reward_base] / (2 ** (block_height / Bitcoin.network[:reward_halving].to_f).floor) * 2
+          elsif block_height < 600000
+            Bitcoin.network[:reward_base] / (2 ** (block_height / Bitcoin.network[:reward_halving].to_f).floor)
+          else
+            POST_600K_REWARD
+          end
+        end
+      end
+    end
+
+  end
+
+end
