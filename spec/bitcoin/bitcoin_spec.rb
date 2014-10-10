@@ -327,6 +327,7 @@ describe 'Bitcoin Address/Hash160/PubKey' do
   end
 
   it 'nonce compact bits to bignum hex' do
+    Bitcoin.decode_compact_bits( "01fedcba".to_i(16) ).to_i(16).should == -0x7e
     Bitcoin.decode_compact_bits( "1b00b5ac".to_i(16) ).index(/[^0]/).should == 12
     Bitcoin.decode_compact_bits( "1b00b5ac".to_i(16) ).to_i(16).should ==
       "000000000000b5ac000000000000000000000000000000000000000000000000".to_i(16)
