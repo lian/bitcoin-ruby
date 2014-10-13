@@ -54,7 +54,12 @@ module Bitcoin::Dogecoin
 
           if new_difficulty_protocol
             # DigiShield implementation - thanks to RealSolid & WDC for this code
-            actual_time = retarget_time + (actual_time - retarget_time)/8;
+            # We round always towards zero to match the C++ version
+            if actual_time < retarget_time
+              actual_time = retarget_time + ((actual_time - retarget_time) / 8.0).ceil
+            else
+              actual_time = retarget_time + ((actual_time - retarget_time) / 8.0).floor
+            end
             # amplitude filter - thanks to daft27 for this code
             min = retarget_time - (retarget_time/4)
             max = retarget_time + (retarget_time/2)

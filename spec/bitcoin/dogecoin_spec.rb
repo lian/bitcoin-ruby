@@ -60,6 +60,15 @@ describe 'Bitcoin::Dogecoin' do
     new_difficulty = Bitcoin.block_new_target(prev_height, prev_block_time, prev_block_bits, last_retarget_time)
     new_difficulty.to_s(16).should == 0x1b671062.to_s(16)
 
+    # Test case for correct rounding of modulated time - by default C++ and Ruby do not
+    # necessarily round identically
+    prev_height = 145_001
+    prev_block_time = 1395094727
+    prev_block_bits = 0x1b671062
+    last_retarget_time = 1395094679
+    new_difficulty = Bitcoin.block_new_target(prev_height, prev_block_time, prev_block_bits, last_retarget_time)
+    new_difficulty.to_s(16).should == 0x1b6558a4.to_s(16)
+
     # Test the second hard-fork at 371,337 as well
     prev_height = 371336
     prev_block_time = 1410464569
