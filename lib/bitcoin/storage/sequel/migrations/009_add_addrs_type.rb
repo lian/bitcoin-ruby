@@ -6,9 +6,11 @@ Sequel.migration do
 
     @log.info { "Running migration #{__FILE__}" }
 
-    puts "Fixing address types for #{self[:txout].where(type: 4).count} p2sh addresses..."
-
     add_column :addr, :type, :int, default: 0, null: false
+
+    if (count = self[:txout].where(type: 4).count) > 0
+      puts "Fixing address types for #{count} p2sh addresses..."
+    end
 
     i = 0
     # iterate over all txouts with p2sh type

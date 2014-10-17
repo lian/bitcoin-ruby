@@ -10,13 +10,14 @@ include Bitcoin::Validation
 
 Bitcoin::network = :testnet
 [
- [:dummy],
- [:sequel, :sqlite],
- [:utxo, :sqlite, index_all_addrs: true],
- [:sequel, :postgres],
- [:utxo, :postgres, index_all_addrs: true],
- [:sequel, :mysql],
- [:utxo, :mysql, index_all_addrs: true],
+  [:dummy],
+  [:sequel, :sqlite],
+  [:utxo, :sqlite, index_all_addrs: true],
+  [:sequel, :postgres],
+  [:utxo, :postgres, index_all_addrs: true],
+  [:sequel, :mysql],
+  [:utxo, :mysql, index_all_addrs: true],
+  [:spv, "spec/test_spv"],
 ].compact.each do |options|
 
   next  unless storage = setup_db(*options)
@@ -96,10 +97,12 @@ Bitcoin::network = :testnet
         P::Block.new(fixtures_file('testnet/block_2.bin')).hash
     end
 
-    it "should store and retrieve all relevant block data for hash/json serialization" do
-      (0..2).each do |i|
-        expected = P::Block.new(fixtures_file("testnet/block_#{i}.bin")).to_hash
-        @store.get_block_by_depth(i).to_hash.should == expected
+    unless @store.backend_name == "spv"
+      it "should store and retrieve all relevant block data for hash/json serialization" do
+        (0..2).each do |i|
+          expected = P::Block.new(fixtures_file("testnet/block_#{i}.bin")).to_hash
+          @store.get_block_by_depth(i).to_hash.should == expected
+        end
       end
     end
 
@@ -139,24 +142,25 @@ Bitcoin::network = :testnet
     it "should get next block" do
       @store.get_block("0000000098932356a236718829dd9e3eb0f9143317ab921333b1a203de336de4")
         .get_next_block.should == nil
+
       @store.get_block("00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008")
         .get_next_block.should ==
         @store.get_block("000000033cc282bc1fa9dcae7a533263fd7fe66490f550d80076433340831604")
     end
 
-    it "should get block for tx" do
-      @store.store_block(@blk)
-      @store.get_block_by_tx(@blk.tx[0].hash).should == @blk
-    end
-
-    it "should get block id for tx id" do
-      @store.store_block(@blk)
-      tx = @store.get_tx(@blk.tx[0].hash)
-      @store.get_block_id_for_tx_id(tx.id).should == @store.get_block(@blk.hash).id
-    end
-
-    unless @store.backend_name == 'utxo'
+    unless ['utxo', 'spv'].include?(@store.backend_name)
       describe :transactions do
+
+        it "should get block for tx" do
+          @store.store_block(@blk)
+          @store.get_block_by_tx(@blk.tx[0].hash).should == @blk
+        end
+
+        it "should get block id for tx id" do
+          @store.store_block(@blk)
+          tx = @store.get_tx(@blk.tx[0].hash)
+          @store.get_block_id_for_tx_id(tx.id).should == @store.get_block(@blk.hash).id
+        end
 
         it "should store tx" do
           @store.store_tx(@tx, false).should != false
@@ -228,7 +232,7 @@ Bitcoin::network = :testnet
           @store.store_tx(@tx, false)
           keys.each do |key|
             hash160 = Bitcoin.hash160(key.pub)
-            txouts = @store.get_txouts_for_hash160(hash160, :hash160, true)
+            txouts = @store.get_txouts_for_hash160(hash160, :pubkey_hash, true)
             txouts.size.should == 1
             txouts[0].pk_script.should == txout.pk_script
           end
@@ -236,13 +240,13 @@ Bitcoin::network = :testnet
 
         it "should index output script type" do
           @store.store_tx(@tx, false)
-          @store.get_tx(@tx.hash).out.first.type.should == :hash160
+          @store.get_tx(@tx.hash).out.first.type.should == :pubkey_hash
         end
 
       end
     end
 
-
+    unless @store.backend_name == "spv"
     describe :txouts do
 
       before do
@@ -265,7 +269,7 @@ Bitcoin::network = :testnet
       end
 
       it "should get txouts for hash160" do
-        @store.get_txouts_for_hash160(@key2.hash160, :hash160, true)
+        @store.get_txouts_for_hash160(@key2.hash160, :pubkey_hash, true)
           .should == [@block.tx[1].out[0]]
       end
 
@@ -301,7 +305,7 @@ Bitcoin::network = :testnet
           t.input {|i| i.prev_out(@block.tx[1], 0); i.signature_key(@key2) }
           t.output do |o|
             o.value 10
-            o.to @key2.hash160, :p2sh
+            o.to @key2.hash160, :script_hash
           end
           t.output do |o|
             o.value 10
@@ -312,7 +316,7 @@ Bitcoin::network = :testnet
 
         @store.store_block(block)
 
-        p2sh_address = Bitcoin.hash160_to_p2sh_address(@key2.hash160)
+        p2sh_address = Bitcoin.hash160_to_address(@key2.hash160, :script_hash)
         o1 = @store.get_unspent_txouts_for_address(@key2.addr)
         o2 = @store.get_unspent_txouts_for_address(p2sh_address)
 
@@ -379,6 +383,8 @@ Bitcoin::network = :testnet
         @block.tx << @tx
         @store.store_block(@block).should == [5, 0]
       end
+
+    end
 
     end
 

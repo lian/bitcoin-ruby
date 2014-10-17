@@ -73,6 +73,11 @@ module Bitcoin
         [version, hashes, stop_hash]
       end
 
+      def parse_merkle_block payload
+        merkle_block = Bitcoin::P::MerkleBlock.new(payload)
+        @h.on_merkle_block(merkle_block)
+      end
+
       def process_pkt(command, payload)
         @stats['total_packets'] += 1
         @stats['total_bytes'] += payload.bytesize
@@ -80,6 +85,7 @@ module Bitcoin
         case command
         when 'tx';       @h.on_tx( Tx.new(payload) )
         when 'block';    @h.on_block( Block.new(payload) )
+        when 'merkleblock'; parse_merkle_block(payload)
         when 'headers';  parse_headers(payload)
         when 'inv';      parse_inv(payload, :put)
         when 'getdata';  parse_inv(payload, :get)

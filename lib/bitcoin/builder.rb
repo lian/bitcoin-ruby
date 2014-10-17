@@ -95,7 +95,7 @@ module Bitcoin
         @block.bits = Bitcoin.encode_compact_bits(target)
         t = Time.now
         @block.recalc_block_hash
-        until @block.hash < target
+        until @block.hash.to_i(16) < target.to_i(16)
           @block.nonce += 1
           @block.recalc_block_hash
           if @block.nonce == 100000
@@ -173,18 +173,20 @@ module Bitcoin
       # case to specify a tx fee that should be left unclaimed by the
       # change output.
       def tx opts = {}
+        return @tx  if @tx.hash
+
         if opts[:change_address] && !opts[:input_value]
           raise "Must give 'input_value' when auto-generating change output!"
         end
         @ins.each {|i| @tx.add_in(i.txin) }
         @outs.each {|o| @tx.add_out(o.txout) }
-
         if opts[:change_address]
           output_value = @tx.out.map(&:value).inject(:+)
           change_value = opts[:input_value] - output_value
           if opts[:leave_fee]
-            if change_value >= @tx.minimum_block_fee
-              change_value -= @tx.minimum_block_fee
+            fee = @tx.minimum_block_fee + (opts[:extra_fee] || 0)
+            if change_value >= fee
+              change_value -= fee
             else
               change_value = 0
             end
@@ -432,11 +434,13 @@ module Bitcoin
     #    o.value 12345
     #    o.script {|s| s.recipient address }
     #  end
+    #
+    #  t.output {|o| o.to "deadbeef", OP_RETURN }
     class TxOutBuilder
       attr_reader :txout
 
       def initialize
-        @txout = P::TxOut.new
+        @txout = P::TxOut.new(0)
       end
 
       # Set output value (in base units / "satoshis")

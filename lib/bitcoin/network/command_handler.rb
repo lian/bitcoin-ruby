@@ -153,6 +153,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
 
     conf = params[:conf].to_i
     block_id = @node.subscribe(:block) do |block, depth|
+      # take the block whose transactions now have +conf+ confirmations
       next  unless block = @node.store.get_block_by_depth(depth - conf + 1)
       block.tx.each {|tx| respond_monitor_tx(request, monitor_id, tx, conf) }
     end
@@ -206,9 +207,10 @@ class Bitcoin::Network::CommandHandler < EM::Connection
 
     if (conf = params[:conf].to_i) > 0
       block_id = @node.subscribe(:block) do |block, depth|
-        block = @node.store.get_block_by_depth(depth - conf + 1)
-        next  unless block
-        block.tx.each do |tx|
+        next  unless block = @node.store.get_block_by_depth(depth - conf + 1)
+        txs = @node.store.is_spv? ?
+          block.hashes.map {|h| @node.store.get_tx(h) }.compact : block.tx
+        txs.each do |tx|
           tx.out.each.with_index do |out, idx|
             respond_monitor_output(request, monitor_id, tx, out, idx, conf)
           end
@@ -400,6 +402,11 @@ class Bitcoin::Network::CommandHandler < EM::Connection
     { state: :rescanning }
   end
 
+  def handle_add_watched_address params
+    n = @node.store.add_watched_address(params[:address], params[:depth])
+    { watching: n } # TODO: return number of missed transactions(?)
+  end
+
   # Get Time Since Last Block.
   #  bitcoin_node tslb
   def handle_tslb
@@ -486,6 +493,7 @@ class Bitcoin::Network::CommandHandler < EM::Connection
       return respond(request, { error: "Transaction syntax invalid.",
                      details: validator.error })
     end
+
     unless validator.validate(rules: [:context])
       return respond(request, { error: "Transaction context invalid.",
                      details: validator.error })

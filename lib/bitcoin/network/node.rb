@@ -56,7 +56,6 @@ module Bitcoin::Network
       :storage => "utxo::sqlite://~/.bitcoin-ruby/<network>/blocks.db",
       :announce => false,
       :external_port => nil,
-      :mode => :full,
       :cache_head => true,
       :index_nhash => false,
       :index_p2sh_type => false,
@@ -79,8 +78,8 @@ module Bitcoin::Network
         :unconfirmed => 100,
       },
       :intervals => {
-        :queue => 1,
-        :inv_queue => 1,
+        :queue => 0.1,
+        :inv_queue => 0.1,
         :addrs => 5,
         :connect => 5,
         :relay => 0,
@@ -107,7 +106,7 @@ module Bitcoin::Network
     def set_store
       backend, config = @config[:storage].split('::')
       @store = Bitcoin::Storage.send(backend, {
-          db: config, mode: @config[:mode], cache_head: @config[:cache_head],
+          db: config, cache_head: @config[:cache_head],
           skip_validation: @config[:skip_validation], index_nhash: @config[:index_nhash],
           index_p2sh_type: @config[:index_p2sh_type],
           log_level: @config[:log][:storage]}, ->(locator) {
@@ -260,10 +259,12 @@ module Bitcoin::Network
         subscribe(:block) do |blk, depth|
           next  unless @store.in_sync?
           @log.debug { "Relaying block #{blk.hash}" }
-          @connections.each do |conn|
-            next  unless conn.connected?
-            conn.send_inv(:block, blk.hash)
-          end
+          @connections.select(&:connected?).each {|c| c.send_inv(:block, blk.hash) }
+        end
+
+        # subscribe to new watched address notifications and update filters
+        @store.subscribe(:watch_address) do |addr, depth|
+          @connections.select(&:connected?).each(&:filterload)  if @store.is_spv?
         end
 
         @store.subscribe(:block) do |blk, depth, chain|
@@ -368,15 +369,12 @@ module Bitcoin::Network
 
     # query blocks from random peer
     def getblocks locator = store.get_locator
+      return  if @last_getblocks && @last_getblocks == locator
+      @last_getblocks = locator
       peer = @connections.select(&:connected?).sample
       return  unless peer
       log.info { "querying blocks from #{peer.host}:#{peer.port}" }
-      case @config[:mode]
-      when /lite/
-        peer.send_getheaders locator  unless @queue.size >= @config[:max][:queue]
-      when /full|pruned/
-        peer.send_getblocks locator  unless @inv_queue.size >= @config[:max][:inv]
-      end
+      peer.send_getblocks locator  unless @inv_queue.size >= @config[:max][:inv]
     end
 
     # check if the addr store is full and request new addrs
@@ -393,8 +391,7 @@ module Bitcoin::Network
 
     # check for new items in the queue and process them
     def work_queue
-      @log.debug { "queue worker running" }
-      return getblocks  if @queue.size == 0
+      return  if @queue.size == 0
 
       # switch off utxo cache once there aren't tons of new blocks coming in
       if @store.in_sync?
@@ -413,8 +410,10 @@ module Bitcoin::Network
       while obj = @queue.shift
         begin
           if obj[0].to_sym == :block
-            @store.new_block(obj[1])
+            # store block and schedule new #getblocks when it was an orphan
+            EM.next_tick { getblocks }  unless @store.new_block(obj[1])[1] == 0
           else
+            @store.send("new_#{obj[0]}", obj[1])
             drop = @unconfirmed.size - @config[:max][:unconfirmed] + 1
             drop.times { @unconfirmed.shift }  if drop > 0
             unless @unconfirmed[obj[1].hash]
@@ -437,7 +436,6 @@ module Bitcoin::Network
     # check for new items in the inv queue and process them,
     # unless the queue is already full
     def work_inv_queue
-      @log.debug { "inv queue worker running" }
       return  if @inv_queue.size == 0
       return  if @queue.size >= @config[:max][:queue]
       while inv = @inv_queue.shift

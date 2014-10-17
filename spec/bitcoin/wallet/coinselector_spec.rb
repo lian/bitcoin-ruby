@@ -2,7 +2,6 @@
 
 require_relative '../spec_helper'
 
-include MiniTest
 include Bitcoin::Wallet
 
 describe Bitcoin::Wallet::SimpleCoinSelector do

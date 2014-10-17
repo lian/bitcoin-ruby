@@ -4,8 +4,8 @@ Bitcoin Node. Connects to the network and downloads the blockchain into local st
 
 == Usage
 
-To run the node with the default options (download the blockchain into ./bitcoin.db
-using the sequel::sqlite3 STORAGE backend):
+To run the node with the default options (download the blockchain into
+<tt>~/.bitcoin-ruby/bitcoin/blocks.db</tt> using the <tt>sequel::utxo</tt> STORAGE backend):
 
  bitcoin_node
 
@@ -13,37 +13,41 @@ You can specify options (see +--help+) or pass a config file with +--config+ (se
 
 Some common options you might want to use:
 
-<tt>-n --network</tt> <i><name></i>::
-  Network to use. Usually +bitcoin+. Support for +namecoin+ is also quite good.
+-n --network <name>::
+  Network to use. Usually +bitcoin+.
+  Support for +namecoin+ is also quite good.
   Use +testnet+ for development.
 
-<tt>-c --config</tt> <i><file></i>::
+-c --config <file>::
   Read options from config file. See also CONFIG.
 
-<tt>--connect</tt> <i><ip:port></i>::
+--connect <ip:port>::
   List of peers to connect to.
 
-<tt>-s --storage</tt> <i><backend-string></i>::
+-s --storage <backend-string>::
   Storage backend to use. See also STORAGE.
 
-<tt>--import</tt> <i><blockchain dir></i>::
+--import <blockchain dir>::
   Import blockchain in bitcoind/qt format from given directory.
 
-<tt>--skip-validation</tt>::
+--skip-validation::
   Skip validation of received blockchain data. Can be used to speed up import/sync when
   blockchain data is received from a trusted source.
 
-<tt>--check-blocks <i><count></i></tt>::
+--check-blocks <count>::
   Check consistency of the +count+ most recent blocks. Pass -1 to check all blocks.
 
-<tt>-v --verbose</tt>::
+-v --verbose::
   Display debug output.
 
-<tt>-h --help</tt>::
+-h --help::
   Display all available options.
 
 It will take a long time to download/store the entire blockchain at first, so be patient ;)
 
+If you already have a local blockchain DB created by bitcoind/-qt, you can speed up the initial import by loading it directly and skipping validation:
+
+ bitcoin_node --import ~/.bitcoin/blocks --skip-validation
 
 == Command socket
 
@@ -70,7 +74,7 @@ Bitcoin::Network::CommandClient convenient.
 
 === Raw socket
 
-Of course you can also connect to the socket by any other means you like, just
+Of course you can also connect to the socket by any other means you like, just send
 your commands as valid JSON, like:
 
  {"id": 0, "method": <command>, "params": <params>}
@@ -125,7 +129,7 @@ Trigger the node to ask its peers for new blocks.
 
 ==== getaddr
 
-Trigger the node to ask its for new peer addresses.
+Trigger the node to ask its peers for more peer addresses.
 
  bitcoin_node_cli getaddr
 

@@ -172,7 +172,7 @@ describe 'Bitcoin::Script' do
 
       # from tx 274f8be3b7b9b1a220285f5f71f61e2691dd04df9d69bb02a8b3b85f91fb1857, second pubkey has invalid encoding.
       output = "1 0351efb6e91a31221652105d032a2508275f374cea63939ad72f1b1e02f477da78 00f2b7816db49d55d24df7bdffdbc1e203b424e8cd39f5651ab938e5e4a193569e 2 OP_CHECKMULTISIG"
-      Bitcoin::Script.from_string(output).get_multisig_addresses.should == ["1NdB761LmTmrJixxp93nz7pEiCx5cKPW44"]
+      Bitcoin::Script.from_string(output).get_multisig_addresses.should == ["1NdB761LmTmrJixxp93nz7pEiCx5cKPW44", nil]
     end
 
     it "#get_p2sh_address" do
@@ -283,10 +283,10 @@ describe 'Bitcoin::Script' do
     it "#type" do
       Script.new(SCRIPT[0]).type.should == :pubkey
       Script.new(SCRIPT[1]).type.should == :unknown
-      Script.new(SCRIPT[2]).type.should == :hash160
+      Script.new(SCRIPT[2]).type.should == :pubkey_hash
       Script.new(SCRIPT[3]).type.should == :multisig
       Script.new(SCRIPT[4]).type.should == :multisig
-      Script.new(SCRIPT[5]).type.should == :p2sh
+      Script.new(SCRIPT[5]).type.should == :script_hash
       Script.new(SCRIPT[6]).type.should == :op_return
       Script.from_string("OP_RETURN OP_CHECKSIG").type.should == :op_return
       Script.from_string("OP_RETURN dead beef").type.should == :unknown

@@ -1,0 +1,167 @@
+#!/usr/bin/env ruby
+$:.unshift( File.expand_path("../lib", __FILE__) )
+
+require 'bitcoin'
+require 'json'
+require 'timeout'
+
+Bitcoin.network = :regtest
+
+DATADIR="spec/tmp"
+
+BITCOIND_DATADIR="#{DATADIR}/bitcoind"
+BITCOIND_CMD = "../bitcoin/src/bitcoind"
+BITCOIND = "#{BITCOIND_CMD} -regtest -txindex -datadir=#{BITCOIND_DATADIR} -keypool=5"
+
+NODE_DIR = "#{DATADIR}/bitcoin_node"
+NODE = "ruby bin/bitcoin_node -c #{NODE_DIR}/node.conf --skip-validation -q"
+NODE_CLI = "ruby bin/bitcoin_node_cli -c #{NODE_DIR}/node.conf"
+
+RESET_BLOCKCHAIN = !File.exist?(BITCOIND_DATADIR)# || true
+START_BLOCKS = 150
+
+describe "test" do
+
+  def bitcoind *args
+    c="#{BITCOIND} -server " +
+      #    "-printtoconsole " +
+      "#{args.join(' ')}"
+    `#{c}`.strip
+  end
+
+  def cli *args
+    JSON.parse(`#{NODE_CLI} #{args.join(' ')}`)
+  end
+
+  def should_receive io
+    Timeout.timeout(10) do
+      packet = ''
+      while (l = io.readline) && l != ""
+        packet += l
+        begin
+          data = JSON.parse packet
+          yield data
+          break
+        rescue JSON::ParserError
+        rescue
+          p $!
+        end
+      end
+    end
+  end
+
+  before(:all) do
+    if RESET_BLOCKCHAIN
+      puts "Resetting blockchain or initializing new one."
+      `rm -rf #{BITCOIND_DATADIR}`
+      `mkdir -p #{BITCOIND_DATADIR}`
+      `echo "rpcuser=rpcuser\nrpcpassword=testpassrpc\nport=99333\nrpcport=99399" > #{BITCOIND_DATADIR}/bitcoin.conf`
+    end
+
+    puts "Starting bitcoind..."
+    @bitcoind_pid = fork do
+      `#{BITCOIND} -server`
+      puts "Stopped bitcoind."
+    end
+    Process.detach(@bitcoind_pid)
+    sleep RESET_BLOCKCHAIN ? 3 : 1
+
+    if RESET_BLOCKCHAIN || bitcoind("getblockcount").to_i == 0
+      puts "Generating blockchain from scratch..."
+      Thread.start do
+        START_BLOCKS.times do
+          bitcoind "setgenerate true"
+        end
+      end
+
+      while (c = bitcoind("getblockcount").to_i) < START_BLOCKS
+        print "\r#{c}/#{START_BLOCKS}"
+        sleep 1
+      end
+      puts
+    end
+
+    @node_pid = fork do
+      puts "Starting bitcoin_node..."
+      `rm -rf #{NODE_DIR}`
+      `mkdir -p #{NODE_DIR}/db`
+      store = "spv::#{NODE_DIR}/db"
+      `echo "all:\n  network: regtest\n  listen: ['127.0.0.1', 99444]\n  command: ['127.0.0.1', 99999]\n  connect: [['127.0.0.1', 99333]]\n  storage: #{store}\n  max:\n    connections_out: 1\n    connections_in: 0" > #{NODE_DIR}/node.conf`
+      system("#{NODE}")
+      puts "Stopped bitcoin_node."
+    end
+    Process.detach(@node_pid)
+
+    while cli("info")["blocks"]["depth"] < bitcoind("getblockcount").to_i
+      puts "Waiting for bitcoin-ruby to sync"
+      sleep 0.1
+    end
+
+    @key = Bitcoin::Key.generate
+    puts "Adding watched address #{@key.addr}"
+    cli "add_watched_address address=#{@key.addr}"
+  end
+
+  after(:all) do
+    cli "stop"
+    bitcoind "stop"
+    sleep 1
+  end
+
+  it "should update blocks" do
+    count = cli("info")["blocks"]["depth"]
+    bitcoind("setgenerate true")
+    sleep 1
+    expect(cli("info")["blocks"]["depth"]).to eq count + 1
+  end
+
+  it "should monitor outputs" do
+    io = IO.popen("#{NODE_CLI} monitor channel=output"); sleep 0.1
+
+    txid = bitcoind "sendtoaddress #{@key.addr} 10"
+    puts "Sending 10 BTC to #{@key.addr}: #{txid}"
+
+    should_receive(io) do |data|
+      puts "Received tx #{data['hash']}"
+      expect(data['hash']).to eq txid
+    end
+
+    Process.kill("KILL", io.pid)
+
+    3.times do |i|
+      io = IO.popen("#{NODE_CLI} monitor channel=output conf=#{i+1}"); sleep 0.1
+
+      bitcoind "setgenerate true"
+      puts "Generating block..."
+
+      should_receive(io) do |data|
+        puts "Received tx #{data['hash']} with #{data['conf']} confirmations."
+        expect(data['hash']).to eq txid
+        expect(data['conf']).to eq i+1
+      end
+      Process.kill("KILL", io.pid)
+    end
+
+  end
+
+  it "should not receive outputs for different address" do
+    io = IO.popen("#{NODE_CLI} monitor channel=output"); sleep 0.1
+
+    @key2 = Bitcoin::Key.generate
+    txid = bitcoind "sendtoaddress #{@key2.addr} 10"
+    puts "Sending 10 BTC to #{@key2.addr}: #{txid}"
+
+    sleep 0.1
+
+    txid = bitcoind "sendtoaddress #{@key.addr} 10"
+    puts "Sending 10 BTC to #{@key.addr}: #{txid}"
+
+    should_receive(io) do |data|
+      puts "Received tx #{data['hash']}"
+      expect(data['hash']).to eq(txid)
+    end
+
+    Process.kill("KILL", io.pid)
+  end
+
+end

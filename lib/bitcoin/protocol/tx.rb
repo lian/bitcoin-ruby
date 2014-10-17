@@ -189,6 +189,7 @@ module Bitcoin
           'in'  =>  @in.map{|i| i.to_hash(options) },
           'out' => @out.map{|o| o.to_hash(options) }
         }
+        h['nid'] = normalized_hash  if options[:with_nid]
         h
       end
 

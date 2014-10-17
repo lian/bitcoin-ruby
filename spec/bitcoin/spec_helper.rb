@@ -34,7 +34,8 @@ include Bitcoin::Builder
 # create block for given +prev+ block
 # if +store+ is true, save it to @store
 # accepts an array of +tx+ callbacks
-def create_block prev, store = true, tx = [], key = Bitcoin::Key.generate, coinbase_value = 50e8, opts = {}
+def create_block prev, store = true, tx = [], key = @key, coinbase_value = 50e8, opts = {}
+  key ||= Bitcoin::Key.generate
   opts[:bits] ||= Bitcoin.network[:proof_of_work_limit]
   block = build_block(Bitcoin.decode_compact_bits(opts[:bits])) do |b|
     b.time opts[:time]  if opts[:time]
@@ -80,27 +81,13 @@ end
 
 Bitcoin::network = :bitcoin
 
-Bitcoin::NETWORKS[:spec] = {
-  :project => :bitcoin,
-  :magic_head => "spec",
-  :address_version => "6f",
-  :p2sh_version => "c4",
-  :privkey_version => "ef",
-  :default_port => 48333,
-  :protocol_version => 70001,
-  :max_money => 21_000_000 * 100_000_000,
-  :dns_seeds => [],
-  :genesis_hash => "000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943",
-  :proof_of_work_limit => 553713663,
-  :alert_pubkeys => [],
-  :known_nodes => [],
-  :checkpoints => {},
-  :min_tx_fee => 10_000,
-  :min_relay_tx_fee => 10_000,
-  :free_tx_bytes => 1_000,
-  :dust => 1_000_000,
-  :per_dust_fee => false,
-}
+Bitcoin::NETWORKS[:spec] = Bitcoin::NETWORKS[:regtest].merge({
+  magic_head: "spec",
+  default_port: 48333,
+  proof_of_work_limit: 553713663,
+  genesis_hash: "000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943",
+  alert_pubkeys: [],
+})
 
 begin
   require 'bacon'
@@ -110,7 +97,13 @@ rescue LoadError
   exit 1
 end
 Bacon.summary_on_exit
+
+begin
+  require 'minitest'
+rescue LoadError
+end
 require 'minitest/mock'
+include MiniTest
 
 require 'sequel'
 def setup_db backend, db = nil, conf = {}
@@ -121,6 +114,8 @@ def setup_db backend, db = nil, conf = {}
           ENV["TEST_DB_POSTGRES"].dup rescue nil
         when :mysql
           ENV["TEST_DB_MYSQL"].dup rescue nil
+        else
+          db
         end
   if [:postgres, :mysql].include?(db)
     unless uri

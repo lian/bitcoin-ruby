@@ -12,8 +12,10 @@ group :development do
 
   gem 'sqlite3', platforms: :ruby, require: false
   gem 'pg', platforms: :ruby, require: false
+  gem 'leveldb-ruby'
 
   gem "rake", ">= 0.8.0"
   gem 'bacon', '>= 1.2.0'
   gem 'simplecov', require: false
+  gem 'rdoc'
 end

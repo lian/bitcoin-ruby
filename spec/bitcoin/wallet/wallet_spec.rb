@@ -3,7 +3,6 @@
 require_relative '../spec_helper'
 require 'json'
 require 'fileutils'
-include MiniTest
 include Bitcoin
 include Bitcoin::Wallet
 
@@ -57,7 +56,7 @@ describe Bitcoin::Wallet::Wallet do
     file_stub = StringIO.new
     file_stub.write(keystore_data.to_json); file_stub.rewind
     @keystore = SimpleKeyStore.new(file: file_stub)
-    @selector = MiniTest::Mock.new
+    @selector = Mock.new
     @wallet = Wallet.new(@storage, @keystore, @selector)
   end
 

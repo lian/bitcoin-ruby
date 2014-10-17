@@ -139,10 +139,16 @@ module Bitcoin::Validation
     def min_timestamp
       return true  if store.get_depth <= 11
       d = store.get_depth
-      first = store.db[:blk][hash: block.prev_block.reverse.blob]
-      times = [first[:time]]
-      (10).times { first = store.db[:blk][hash: first[:prev_hash].blob]
+      if ["sequel", "utxo"].include?(store.backend_name)
+        first = store.db[:blk][hash: block.prev_block.reverse.blob]
+        times = [first[:time]]
+        (10).times { first = store.db[:blk][hash: first[:prev_hash].blob];
         times << first[:time] }
+      else
+        first = store.get_block(block.prev_block.reverse.hth)
+        times = [first.time]
+        (10).times { first = first.get_prev_block; times << first.time }
+      end
       times.sort!
       mid, rem = times.size.divmod(2)
       min_time = (rem == 0 ? times[mid-1, 2].inject(:+) / 2.0 : times[mid])
