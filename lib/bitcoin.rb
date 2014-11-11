@@ -93,6 +93,14 @@ module Bitcoin
       address_checksum?(address)
     end
 
+    # check if given +pubkey+ is valid.
+    def valid_pubkey?(pubkey)
+      ::OpenSSL::PKey::EC::Point.from_hex(bitcoin_elliptic_curve.group, pubkey)
+      true
+    rescue OpenSSL::PKey::EC::Point::Error
+      false
+    end
+
     # get hash160 for given +address+. returns nil if address is invalid.
     def hash160_from_address(address)
       return nil  unless valid_address?(address)

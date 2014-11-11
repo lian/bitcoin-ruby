@@ -163,6 +163,14 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     success.should == true
   end
 
+  it 'validate bitcoin public key' do
+    key = Bitcoin::Key.generate
+    Bitcoin.valid_pubkey?(key.pub_compressed).should == true
+    Bitcoin.valid_pubkey?(key.pub_uncompressed).should == true
+    Bitcoin.valid_pubkey?(key.addr).should == false
+    Bitcoin.valid_pubkey?(key.priv).should == false
+  end
+
   it 'validate p2sh address' do
     Bitcoin.network = :testnet
     Bitcoin.valid_address?("2MyLngQnhzjzatKsB7XfHYoP9e2XUXSiBMM").should == true
