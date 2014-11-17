@@ -27,7 +27,7 @@ Some of the main features are:
 
 We assume you already have a ruby 1.9 or 2.0 compatible interpreter and rubygems environment.
 
- git clone https://github.com/lian/bitcoin-ruby.git; cd bitcoin-ruby
+ git clone --depth 1 https://github.com/lian/bitcoin-ruby.git; cd bitcoin-ruby
  ruby -Ilib bin/bitcoin_node
 
 if you want to have it available system-wide, just build the gem and install it:
