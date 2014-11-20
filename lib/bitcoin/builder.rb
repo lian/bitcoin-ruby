@@ -181,7 +181,7 @@ module Bitcoin
         @ins.each {|i| @tx.add_in(i.txin) }
         @outs.each {|o| @tx.add_out(o.txout) }
         if opts[:change_address]
-          output_value = @tx.out.map(&:value).inject(:+)
+          output_value = @tx.out.map(&:value).inject(:+) || 0
           change_value = opts[:input_value] - output_value
           if opts[:leave_fee]
             fee = @tx.minimum_block_fee + (opts[:extra_fee] || 0)
