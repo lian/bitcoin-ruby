@@ -1217,6 +1217,11 @@ class Bitcoin::Script
     return false
   end
 
+  # Test if the stack is empty
+  def stack_empty?
+    @stack.empty?
+  end
+
   # Same as OP_NUMEQUAL, but runs OP_VERIFY afterward.
   def op_numequalverify
     op_numequal; op_verify

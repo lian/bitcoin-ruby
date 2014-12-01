@@ -160,7 +160,7 @@ module Bitcoin
       # verify input signature +in_idx+ against the corresponding
       # output in +outpoint_tx+
       # outpoint
-      def verify_input_signature(in_idx, outpoint_tx_or_script, block_timestamp=Time.now.to_i)
+      def verify_input_signature(in_idx, outpoint_tx_or_script, block_timestamp=Time.now.to_i, opts={})
         outpoint_idx  = @in[in_idx].prev_out_index
         script_sig    = @in[in_idx].script_sig
         
@@ -173,10 +173,14 @@ module Bitcoin
         end
 
         @scripts[in_idx] = Bitcoin::Script.new(script_sig, script_pubkey)
-        @scripts[in_idx].run(block_timestamp) do |pubkey,sig,hash_type,subscript|
+        sig_valid = @scripts[in_idx].run(block_timestamp) do |pubkey,sig,hash_type,subscript|
           hash = signature_hash_for_input(in_idx, subscript, hash_type)
           Bitcoin.verify_signature( hash, sig, pubkey.unpack("H*")[0] )
         end
+        # BIP62 rule #6
+        return false if opts[:verify_cleanstack] && !@scripts[in_idx].stack_empty?
+
+        return sig_valid
       end
 
       # convert to ruby hash (see also #from_hash)
