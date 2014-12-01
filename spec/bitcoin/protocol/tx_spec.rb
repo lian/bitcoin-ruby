@@ -252,6 +252,13 @@ describe 'Tx' do
     tx.in.each.with_index{|i,idx|
       tx.verify_input_signature(idx, prev_txs[i.previous_output]).should == true
     }
+
+    # BIP62 rule #6 - this is the same transaction from OP_CHECKSIG with OP_0, but with stricter checks
+    tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-9fb65b7304aaa77ac9580823c2c06b259cc42591e5cce66d76a81b6f51cc5c28.json'))
+    tx.hash.should == "9fb65b7304aaa77ac9580823c2c06b259cc42591e5cce66d76a81b6f51cc5c28"
+    outpoint_tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-a6ce7081addade7676cd2af75c4129eba6bf5e179a19c40c7d4cf6a5fe595954.json'))
+    outpoint_tx.hash.should == "a6ce7081addade7676cd2af75c4129eba6bf5e179a19c40c7d4cf6a5fe595954"
+    tx.verify_input_signature(0, outpoint_tx, Time.now.to_i, verify_cleanstack: true).should == false
   end
 
   it '#sign_input_signature' do
