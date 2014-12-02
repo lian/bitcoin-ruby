@@ -671,9 +671,8 @@ class Bitcoin::Script
   # generate input script sig spending a pubkey output with given +signature+ and +pubkey+.
   # returns a raw binary script sig of the form:
   #  <signature> [<pubkey>]
-  def self.to_pubkey_script_sig(signature, pubkey)
-    hash_type = [ SIGHASH_TYPE[:all] ].pack("C")
-    buf = pack_pushdata(signature + hash_type)
+  def self.to_pubkey_script_sig(signature, pubkey, hash_type = SIGHASH_TYPE[:all])
+    buf = pack_pushdata(signature + [hash_type].pack("C"))
     return buf unless pubkey
 
     expected_size = case pubkey[0]
@@ -704,8 +703,9 @@ class Bitcoin::Script
   # returns a raw binary script sig of the form:
   #  OP_0 <sig> [<sig> ...]
   def self.to_multisig_script_sig(*sigs)
+    hash_type = sigs.last.is_a?(Numeric) ? sigs.pop : SIGHASH_TYPE[:all]
     partial_script = [OP_0].pack("C*")
-    sigs.reverse_each{ |sig| partial_script = add_sig_to_multisig_script_sig(sig, partial_script) }
+    sigs.reverse_each{ |sig| partial_script = add_sig_to_multisig_script_sig(sig, partial_script, hash_type) }
     partial_script
   end
 
@@ -713,8 +713,8 @@ class Bitcoin::Script
   # another signature to it after the OP_0. Used to sign a tx by
   # multiple parties. Signatures must be in the same order as the
   # pubkeys in the output script being redeemed.
-  def self.add_sig_to_multisig_script_sig(sig, script_sig)
-    signature = sig + [SIGHASH_TYPE[:all]].pack("C*")
+  def self.add_sig_to_multisig_script_sig(sig, script_sig, hash_type)
+    signature = sig + [hash_type].pack("C*")
     offset = script_sig.empty? ? 0 : 1
     script_sig.insert(offset, pack_pushdata(signature))
   end

@@ -371,6 +371,7 @@ describe 'Bitcoin::Script' do
 
       Script.to_pubkey_script_sig(@sig, pub).should == expected_script
     end
+
     it "should reject an improperly encoding public key" do
       # Not binary encoded, like it's supposed to be.
       pub = '02bc3e2b520d4be3e2651f2ba554392ea31edd69d2081186ab98acda3c4bf45e41'
@@ -378,6 +379,21 @@ describe 'Bitcoin::Script' do
       lambda {
         Script.to_pubkey_script_sig(@sig, pub)
       }.should.raise
+    end
+
+    it "should support different hash types" do
+      hash_type = Script::SIGHASH_TYPE[:single]
+      pub = '04bc3e2b520d4be3e2651f2ba554392ea31edd69d2081186ab98acda3c4bf45e41a5f6e093277b774b5893347e38ffafce2b9e82226e6e0b378cf79b8c2eed983c'.htb
+      expected_script = '483045022062437a8f60651cd968137355775fa8bdb83d4ca717fdbc08bf9868a051e0542f022100f5cd626c15ef0de0803ddf299e8895743e7ff484d6335874edfe086ee0a08fec034104bc3e2b520d4be3e2651f2ba554392ea31edd69d2081186ab98acda3c4bf45e41a5f6e093277b774b5893347e38ffafce2b9e82226e6e0b378cf79b8c2eed983c'.htb
+
+      Script.to_pubkey_script_sig(@sig, pub, hash_type).should == expected_script
+    end
+
+    it "should generate multisig script sig" do
+      hash_type = Script::SIGHASH_TYPE[:none]
+      expected_script = '00483045022062437a8f60651cd968137355775fa8bdb83d4ca717fdbc08bf9868a051e0542f022100f5cd626c15ef0de0803ddf299e8895743e7ff484d6335874edfe086ee0a08fec02483045022062437a8f60651cd968137355775fa8bdb83d4ca717fdbc08bf9868a051e0542f022100f5cd626c15ef0de0803ddf299e8895743e7ff484d6335874edfe086ee0a08fec02'.htb
+
+      Script.to_multisig_script_sig(@sig, @sig, hash_type).should == expected_script
     end
   end
 
