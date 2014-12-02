@@ -136,6 +136,77 @@ describe 'Tx' do
       fixtures_file('rawtx-2f4a2717ec8c9f077a87dde6cbe0274d5238793a3f3f492b63c744837285e58a.bin')
   end
 
+  it 'validates ECDSA signature format' do
+    # TX 3da75972766f0ad13319b0b461fd16823a731e44f6e9de4eb3c52d6a6fb6c8ae
+    sig_orig = ["304502210088984573e3e4f33db7df6aea313f1ce67a3ef3532ea89991494c7f018258371802206ceefc9291450dbd40d834f249658e0f64662d52a41cf14e20c9781144f2fe0701"].pack("H*")
+    Bitcoin::Script::is_der_signature?(sig_orig).should == true
+    Bitcoin::Script::is_canonical_signature?(sig_orig).should == true
+
+    # Trimmed to be too short
+    sig = sig_orig.slice(0, 8)
+    Bitcoin::Script::is_der_signature?(sig).should == false
+
+    # Zero-padded to be too long
+    sig = String.new(sig_orig)
+    sig << 0x00
+    sig << 0x00
+    Bitcoin::Script::is_der_signature?(sig).should == false
+
+    # Wrong first byte
+    sig_bytes = sig_orig.unpack("C*")
+    sig_bytes[0] = 0x20
+    sig = sig_bytes.pack("C*")
+    Bitcoin::Script::is_der_signature?(sig).should == false
+
+    # Length byte broken
+    sig_bytes = sig_orig.unpack("C*")
+    sig_bytes[1] = 0x20
+    sig = sig_bytes.pack("C*")
+    Bitcoin::Script::is_der_signature?(sig).should == false
+
+    # Incorrect R value type
+    sig_bytes = sig_orig.unpack("C*")
+    sig_bytes[2] = 0x03
+    sig = sig_bytes.pack("C*")
+    Bitcoin::Script::is_der_signature?(sig).should == false
+
+    # R value length infeasibly long
+    sig_bytes = sig_orig.unpack("C*")
+    sig_bytes[3] = sig_orig.size - 4
+    sig = sig_bytes.pack("C*")
+    Bitcoin::Script::is_der_signature?(sig).should == false
+
+    # Negative R value
+    sig_bytes = sig_orig.unpack("C*")
+    sig_bytes[4] = 0x80 | sig_bytes[4]
+    sig = sig_bytes.pack("C*")
+    Bitcoin::Script::is_der_signature?(sig).should == false
+
+    # R value excessively padded
+    sig_bytes = sig_orig.unpack("C*")
+    sig_bytes[5] = 0x00
+    sig = sig_bytes.pack("C*")
+    Bitcoin::Script::is_der_signature?(sig).should == false
+
+    # Incorrect S value type
+    sig_bytes = sig_orig.unpack("C*")
+    sig_bytes[37] = 0x03
+    sig = sig_bytes.pack("C*")
+    Bitcoin::Script::is_der_signature?(sig).should == false
+
+    # Zero S length
+    sig_bytes = sig_orig.unpack("C*")
+    sig_bytes[38] = 0x00
+    sig = sig_bytes.pack("C*")
+    Bitcoin::Script::is_der_signature?(sig).should == false
+
+    # Negative S value
+    sig_bytes = sig_orig.unpack("C*")
+    sig_bytes[39] = 0x80 | sig_bytes[39]
+    sig = sig_bytes.pack("C*")
+    Bitcoin::Script::is_der_signature?(sig).should == false
+  end
+
   it '#verify_input_signature' do
     # transaction-2 of block-170
     tx          = Tx.new( fixtures_file('rawtx-f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16.bin') )
