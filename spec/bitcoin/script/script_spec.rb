@@ -638,7 +638,19 @@ OP_ENDIF")
 end
 
 describe "Implements BIP62" do
-  it 'rules 3 and 4' do
+  it 'tests for incorrectly encoded S-values in signatures' do
+    # TX 3da75972766f0ad13319b0b461fd16823a731e44f6e9de4eb3c52d6a6fb6c8ae
+    sig_orig = ["304502210088984573e3e4f33db7df6aea313f1ce67a3ef3532ea89991494c7f018258371802206ceefc9291450dbd40d834f249658e0f64662d52a41cf14e20c9781144f2fe0701"].pack("H*")
+    Bitcoin::Script::is_low_der_signature?(sig_orig).should == true
+    
+    # Set the start of the S-value to 0xff so it's well above the order of the curve divided by two
+    sig = sig_orig.unpack("C*")
+    length_r = sig[3]
+    sig[6 + length_r] = 0xff
+
+    Bitcoin::Script::is_low_der_signature?(sig.pack("C*")).should == false
+  end
+  it 'enforces rules 3 and 4' do
       Script.new([75].pack("C") + 'A' * 75).pushes_are_canonical?.should == true
       Script.new([Bitcoin::Script::OP_PUSHDATA1, 75].pack("CC") + 'A' * 75).pushes_are_canonical?.should == false
       Script.new([Bitcoin::Script::OP_PUSHDATA2, 255].pack("Cv") + 'A' * 255).pushes_are_canonical?.should == false

@@ -1448,6 +1448,51 @@ class Bitcoin::Script
     true
   end
 
+  # Compares two arrays of bytes
+  def self.compare_big_endian(c1, c2)
+    # Clone the arrays
+    c1 = Array.new(c1)
+    c2 = Array.new(c2)
+
+    while c1.size > c2.size
+      if c1.shift > 0
+        return 1
+      end
+    end
+    while c2.size > c1.size
+      if c2.shift > 0
+        return -1
+      end
+    end
+
+    for idx in 0..c1.size
+      if c1[idx] != c2[idx]
+        return c1[idx] - c2[idx]
+      end
+    end
+    0
+  end
+
+  # Loosely correlates with IsLowDERSignature() from interpreter.cpp
+  def self.is_low_der_signature?(sig)
+    s = sig.unpack("C*")
+
+    length_r = s[3]
+    length_s = s[5+length_r]
+    s_val = s.slice(6 + length_r, length_s)
+
+    # If the S value is above the order of the curve divided by two, its
+    # complement modulo the order could have been used instead, which is
+    # one byte shorter when encoded correctly.
+    max_mod_half_order = [
+      0x7f,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+      0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+      0x5d,0x57,0x6e,0x73,0x57,0xa4,0x50,0x1d,
+      0xdf,0xe9,0x2f,0x46,0x68,0x1b,0x20,0xa0]
+
+    compare_big_endian(s_val, [0]) > 0 &&
+      compare_big_endian(s_val, max_mod_half_order) <= 0
+  end
 
   def self.is_canonical_signature?(sig)
     return false if !is_der_signature?(sig)

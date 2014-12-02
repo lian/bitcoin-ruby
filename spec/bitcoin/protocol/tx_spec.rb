@@ -135,6 +135,42 @@ describe 'Tx' do
     Tx.binary_from_json( fixtures_file('rawtx-2f4a2717ec8c9f077a87dde6cbe0274d5238793a3f3f492b63c744837285e58a.json') ).should ==
       fixtures_file('rawtx-2f4a2717ec8c9f077a87dde6cbe0274d5238793a3f3f492b63c744837285e58a.bin')
   end
+  
+  it 'compares arrays of bytes' do
+    # This function is used in validating an ECDSA signature's S value
+    c1 = []
+    c2 = []
+    Bitcoin::Script::compare_big_endian(c1, c2).should == 0
+    
+    c1 = [0]
+    c2 = []
+    Bitcoin::Script::compare_big_endian(c1, c2).should == 0
+    
+    c1 = []
+    c2 = [0]
+    Bitcoin::Script::compare_big_endian(c1, c2).should == 0
+    
+    c1 = [5]
+    c2 = [5]
+    Bitcoin::Script::compare_big_endian(c1, c2).should == 0
+    
+    c1 = [04]
+    c2 = [5]
+    Bitcoin::Script::compare_big_endian(c1, c2).should == -1
+    
+    c1 = [4]
+    c2 = [05]
+    Bitcoin::Script::compare_big_endian(c1, c2).should == -1
+    
+    c1 = [5]
+    c2 = [4]
+    Bitcoin::Script::compare_big_endian(c1, c2).should == 1
+    
+    c1 = [05]
+    c2 = [004]
+    Bitcoin::Script::compare_big_endian(c1, c2).should == 1
+
+  end
 
   it 'validates ECDSA signature format' do
     # TX 3da75972766f0ad13319b0b461fd16823a731e44f6e9de4eb3c52d6a6fb6c8ae
