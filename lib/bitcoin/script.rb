@@ -1413,20 +1413,49 @@ class Bitcoin::Script
   end
 
 
-
-  def self.is_canonical_signature?(sig)
+  # Loosely correlates with IsDERSignature() from interpreter.cpp
+  def self.is_der_signature?(sig)
     return false if sig.bytesize < 9 # Non-canonical signature: too short
     return false if sig.bytesize > 73 # Non-canonical signature: too long
 
     s = sig.unpack("C*")
 
-    hash_type = s[-1] & (~(SIGHASH_TYPE[:anyonecanpay]))
-    return false if hash_type < SIGHASH_TYPE[:all]   ||  hash_type > SIGHASH_TYPE[:single] # Non-canonical signature: unknown hashtype byte
-
     return false if s[0] != 0x30 # Non-canonical signature: wrong type
     return false if s[1] != s.size-3 # Non-canonical signature: wrong length marker
 
-    # TODO: add/port rest from bitcoind
+    length_r = s[3]
+    return false if (5 + length_r) >= s.size # Non-canonical signature: S length misplaced
+    length_s = s[5+length_r]
+    return false if (length_r + length_s + 7) != s.size # Non-canonical signature: R+S length mismatch
+
+    return false if s[2] != 0x02 # Non-canonical signature: R value type mismatch
+
+    return false if length_r == 0 # Non-canonical signature: R length is zero
+
+    r_val = s.slice(4, length_r)
+    return false if r_val[0] & 0x80 != 0 # Non-canonical signature: R value negative
+
+    return false if length_r > 1 && (r_val[0] == 0x00) && !(r_val[1] & 0x80 != 0) # Non-canonical signature: R value excessively padded
+
+    s_val = s.slice(6 + length_r, length_s)
+    return false if s[6 + length_r - 2] != 0x02 # Non-canonical signature: S value type mismatch
+
+    return false if length_s == 0 # Non-canonical signature: S length is zero
+    return false if (s_val[0] & 0x80) != 0 # Non-canonical signature: S value negative
+
+    return false if length_s > 1 && (s_val[0] == 0x00) && !(s_val[1] & 0x80) # Non-canonical signature: S value excessively padded
+
+    true
+  end
+
+
+  def self.is_canonical_signature?(sig)
+    return false if !is_der_signature?(sig)
+
+    s = sig.unpack("C*")
+
+    hash_type = s[-1] & (~(SIGHASH_TYPE[:anyonecanpay]))
+    return false if hash_type < SIGHASH_TYPE[:all]   ||  hash_type > SIGHASH_TYPE[:single] # Non-canonical signature: unknown hashtype byte
 
     true
   end
