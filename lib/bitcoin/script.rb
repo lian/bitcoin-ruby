@@ -396,7 +396,7 @@ class Bitcoin::Script
   end
 
   # run the script. +check_callback+ is called for OP_CHECKSIG operations
-  def run(block_timestamp=Time.now.to_i, &check_callback)
+  def run(block_timestamp=Time.now.to_i, opts={}, &check_callback)
     return false if @parse_invalid
 
     #p [to_string, block_timestamp, is_p2sh?]
@@ -430,7 +430,17 @@ class Bitcoin::Script
         when *OPCODES_METHOD.keys
           m = method( n=OPCODES_METHOD[chunk] )
           @debug << n.to_s.upcase
-          (m.arity == 1) ? m.call(check_callback) : m.call  # invoke opcode method
+          # invoke opcode method
+          case m.arity
+          when 0
+            m.call
+          when 1
+            m.call(check_callback)
+          when -2 # One fixed parameter, one optional
+            m.call(check_callback, opts)
+          else
+            puts "Bitcoin::Script: opcode #{name} method parameters invalid"
+          end
         when *OP_2_16
           @stack << OP_2_16.index(chunk) + 2
           @debug << "OP_#{chunk-80}"
@@ -1293,14 +1303,14 @@ class Bitcoin::Script
   # do a CHECKSIG operation on the current stack,
   # asking +check_callback+ to do the actual signature verification.
   # This is used by Protocol::Tx#verify_input_signature
-  def op_checksig(check_callback)
+  def op_checksig(check_callback, opts={})
     return invalid if @stack.size < 2
     pubkey = cast_to_string(@stack.pop)
-    #return (@stack << 0) unless Bitcoin::Script.is_canonical_pubkey?(pubkey) # only for isStandard
+    return (@stack << 0) unless Bitcoin::Script.check_pubkey_encoding?(pubkey, opts)
     drop_sigs      = [ cast_to_string(@stack[-1]) ]
 
     signature = cast_to_string(@stack.pop)
-    #return (@stack << 0) unless Bitcoin::Script.is_canonical_signature?(signature) # only for isStandard
+    return (@stack << 0) unless Bitcoin::Script.check_signature_encoding?(signature, opts)
     return (@stack << 0) if signature == ""
 
     sig, hash_type = parse_sig(signature)
@@ -1324,8 +1334,8 @@ class Bitcoin::Script
   end
 
   # Same as OP_CHECKSIG, but OP_VERIFY is executed afterward.
-  def op_checksigverify(check_callback)
-    op_checksig(check_callback)
+  def op_checksigverify(check_callback, opts={})
+    op_checksig(check_callback, opts)
     op_verify
   end
 
@@ -1342,7 +1352,7 @@ class Bitcoin::Script
   #
   # TODO: validate signature order
   # TODO: take global opcode count
-  def op_checkmultisig(check_callback)
+  def op_checkmultisig(check_callback, opts={})
     return invalid if @stack.size < 1
     n_pubkeys = pop_int
     return invalid  unless (0..20).include?(n_pubkeys)
@@ -1365,6 +1375,8 @@ class Bitcoin::Script
     success = true
     while success && n_sigs > 0
       sig, pub = sigs.pop, pubkeys.pop
+      return (@stack << 0) unless Bitcoin::Script.check_pubkey_encoding?(pub, opts)
+      return (@stack << 0) unless Bitcoin::Script.check_signature_encoding?(sig, opts)
       unless sig && sig.size > 0
         success = false
         break
@@ -1383,8 +1395,8 @@ class Bitcoin::Script
   end
 
   # Same as OP_CHECKMULTISIG, but OP_VERIFY is executed afterward.
-  def op_checkmultisigverify(check_callback)
-    op_checkmultisig(check_callback)
+  def op_checkmultisigverify(check_callback, opts={})
+    op_checkmultisig(check_callback, opts)
     op_verify
   end
 
@@ -1399,7 +1411,12 @@ class Bitcoin::Script
   OPCODES_METHOD[0]  = :op_0
   OPCODES_METHOD[81] = :op_1
 
-  def self.is_canonical_pubkey?(pubkey)
+  def self.check_pubkey_encoding?(pubkey, opts={})
+    return false if opts[:verify_strictenc] && !is_compressed_or_uncompressed_pub_key?(pubkey)
+    true
+  end
+
+  def self.is_compressed_or_uncompressed_pub_key?(pubkey)
     return false if pubkey.bytesize < 33 # "Non-canonical public key: too short"
     case pubkey[0]
     when "\x04"
@@ -1412,6 +1429,13 @@ class Bitcoin::Script
     true
   end
 
+  # Loosely matches CheckSignatureEncoding()
+  def self.check_signature_encoding?(sig, opts={})
+    return false if (opts[:verify_dersig] || opts[:verify_low_s] || opts[:verify_strictenc]) and !is_der_signature?(sig)
+    return false if opts[:verify_low_s] && !is_low_der_signature?(sig)
+    return false if opts[:verify_strictenc] && !is_defined_hashtype_signature?(sig)
+    true
+  end
 
   # Loosely correlates with IsDERSignature() from interpreter.cpp
   def self.is_der_signature?(sig)
@@ -1494,11 +1518,10 @@ class Bitcoin::Script
       compare_big_endian(s_val, max_mod_half_order) <= 0
   end
 
-  def self.is_canonical_signature?(sig)
-    return false if !is_der_signature?(sig)
+  def self.is_defined_hashtype_signature?(sig)
+    return false if sig.empty?
 
     s = sig.unpack("C*")
-
     hash_type = s[-1] & (~(SIGHASH_TYPE[:anyonecanpay]))
     return false if hash_type < SIGHASH_TYPE[:all]   ||  hash_type > SIGHASH_TYPE[:single] # Non-canonical signature: unknown hashtype byte
 

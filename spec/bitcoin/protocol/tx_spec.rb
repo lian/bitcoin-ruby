@@ -176,7 +176,7 @@ describe 'Tx' do
     # TX 3da75972766f0ad13319b0b461fd16823a731e44f6e9de4eb3c52d6a6fb6c8ae
     sig_orig = ["304502210088984573e3e4f33db7df6aea313f1ce67a3ef3532ea89991494c7f018258371802206ceefc9291450dbd40d834f249658e0f64662d52a41cf14e20c9781144f2fe0701"].pack("H*")
     Bitcoin::Script::is_der_signature?(sig_orig).should == true
-    Bitcoin::Script::is_canonical_signature?(sig_orig).should == true
+    Bitcoin::Script::is_defined_hashtype_signature?(sig_orig).should == true
 
     # Trimmed to be too short
     sig = sig_orig.slice(0, 8)
