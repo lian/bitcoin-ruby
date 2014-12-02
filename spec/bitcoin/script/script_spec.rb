@@ -652,3 +652,12 @@ OP_ENDIF")
   end
 
 end
+
+describe "Implements BIP62" do
+  it 'rules 3 and 4' do
+      Script.new([75].pack("C") + 'A' * 75).pushes_are_canonical?.should == true
+      Script.new([Bitcoin::Script::OP_PUSHDATA1, 75].pack("CC") + 'A' * 75).pushes_are_canonical?.should == false
+      Script.new([Bitcoin::Script::OP_PUSHDATA2, 255].pack("Cv") + 'A' * 255).pushes_are_canonical?.should == false
+      Script.new([Bitcoin::Script::OP_PUSHDATA4, 1645].pack("CV") + 'A' * 1645).pushes_are_canonical?.should == false
+    end
+end

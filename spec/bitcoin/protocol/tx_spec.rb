@@ -253,6 +253,13 @@ describe 'Tx' do
       tx.verify_input_signature(idx, prev_txs[i.previous_output]).should == true
     }
 
+    # BIP62 rule #2
+    tx = Bitcoin::Protocol::Tx.from_json(fixtures_file('0f24294a1d23efbb49c1765cf443fba7930702752aba6d765870082fe4f13cae.json'))
+    tx.hash.should == '0f24294a1d23efbb49c1765cf443fba7930702752aba6d765870082fe4f13cae'
+    outpoint_tx = Bitcoin::Protocol::Tx.from_json(fixtures_file('aea682d68a3ea5e3583e088dcbd699a5d44d4b083f02ad0aaf2598fe1fa4dfd4.json'))
+    outpoint_tx.hash.should == 'aea682d68a3ea5e3583e088dcbd699a5d44d4b083f02ad0aaf2598fe1fa4dfd4'
+    tx.verify_input_signature(0, outpoint_tx, Time.now.to_i, verify_sigpushonly: true).should == false
+
     # BIP62 rule #6 - this is the same transaction from OP_CHECKSIG with OP_0, but with stricter checks
     tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-9fb65b7304aaa77ac9580823c2c06b259cc42591e5cce66d76a81b6f51cc5c28.json'))
     tx.hash.should == "9fb65b7304aaa77ac9580823c2c06b259cc42591e5cce66d76a81b6f51cc5c28"

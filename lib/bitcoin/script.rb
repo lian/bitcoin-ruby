@@ -540,6 +540,54 @@ class Bitcoin::Script
     @chunks[0] == OP_RETURN && @chunks.size <= 2
   end
 
+  # Verify the script is only pushing data onto the stack
+  def is_push_only?
+    check_pushes(push_only=true, canonical_only=false)
+  end
+
+  # Make sure opcodes used to push data match their intended length ranges
+  def pushes_are_canonical?
+    check_pushes(push_only=false, canonical_only=true)
+  end
+
+  def check_pushes(push_only=true, canonical_only=false)
+    program = @raw.unpack("C*")
+    until program.empty?
+      opcode = program.shift
+      if opcode > OP_16
+        return false if push_only
+        next
+      end
+      if opcode < OP_PUSHDATA1 && opcode > OP_0
+        # Could have used an OP_n code, rather than a 1-byte push.
+        return false if canonical_only && opcode == 1 && program[0] <= 16
+        program.shift(opcode)
+      end
+      if opcode == OP_PUSHDATA1
+        len = program.shift(1)[0]
+        # Could have used a normal n-byte push, rather than OP_PUSHDATA1.
+        return false if canonical_only && len < OP_PUSHDATA1
+        program.shift(len)
+      end
+      if opcode == OP_PUSHDATA2
+        len = program.shift(2).pack("C*").unpack("v")[0]
+        # Could have used an OP_PUSHDATA1.
+        return false if canonical_only && len <= 0xff
+        program.shift(len)
+      end
+      if opcode == OP_PUSHDATA4
+        len = program.shift(4).pack("C*").unpack("V")[0]
+        # Could have used an OP_PUSHDATA2.
+        return false if canonical_only && len <= 0xffff
+        program.shift(len)
+      end
+    end
+    true
+  rescue => ex
+    # catch parsing errors
+    false
+  end
+
   # get type of this tx
   def type
     if is_hash160?;     :hash160
