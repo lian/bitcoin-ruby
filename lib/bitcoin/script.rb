@@ -396,7 +396,7 @@ class Bitcoin::Script
   end
 
   # run the script. +check_callback+ is called for OP_CHECKSIG operations
-  def run(block_timestamp=Time.now.to_i, &check_callback)
+  def run(block_timestamp=Time.now.to_i, opts={}, &check_callback)
     return false if @parse_invalid
 
     #p [to_string, block_timestamp, is_p2sh?]
@@ -430,7 +430,17 @@ class Bitcoin::Script
         when *OPCODES_METHOD.keys
           m = method( n=OPCODES_METHOD[chunk] )
           @debug << n.to_s.upcase
-          (m.arity == 1) ? m.call(check_callback) : m.call  # invoke opcode method
+          # invoke opcode method
+          case m.arity
+          when 0
+            m.call
+          when 1
+            m.call(check_callback)
+          when -2 # One fixed parameter, one optional
+            m.call(check_callback, opts)
+          else
+            puts "Bitcoin::Script: opcode #{name} method parameters invalid"
+          end
         when *OP_2_16
           @stack << OP_2_16.index(chunk) + 2
           @debug << "OP_#{chunk-80}"
@@ -538,6 +548,54 @@ class Bitcoin::Script
   # is this an op_return script
   def is_op_return?
     @chunks[0] == OP_RETURN && @chunks.size <= 2
+  end
+
+  # Verify the script is only pushing data onto the stack
+  def is_push_only?
+    check_pushes(push_only=true, canonical_only=false)
+  end
+
+  # Make sure opcodes used to push data match their intended length ranges
+  def pushes_are_canonical?
+    check_pushes(push_only=false, canonical_only=true)
+  end
+
+  def check_pushes(push_only=true, canonical_only=false)
+    program = @raw.unpack("C*")
+    until program.empty?
+      opcode = program.shift
+      if opcode > OP_16
+        return false if push_only
+        next
+      end
+      if opcode < OP_PUSHDATA1 && opcode > OP_0
+        # Could have used an OP_n code, rather than a 1-byte push.
+        return false if canonical_only && opcode == 1 && program[0] <= 16
+        program.shift(opcode)
+      end
+      if opcode == OP_PUSHDATA1
+        len = program.shift(1)[0]
+        # Could have used a normal n-byte push, rather than OP_PUSHDATA1.
+        return false if canonical_only && len < OP_PUSHDATA1
+        program.shift(len)
+      end
+      if opcode == OP_PUSHDATA2
+        len = program.shift(2).pack("C*").unpack("v")[0]
+        # Could have used an OP_PUSHDATA1.
+        return false if canonical_only && len <= 0xff
+        program.shift(len)
+      end
+      if opcode == OP_PUSHDATA4
+        len = program.shift(4).pack("C*").unpack("V")[0]
+        # Could have used an OP_PUSHDATA2.
+        return false if canonical_only && len <= 0xffff
+        program.shift(len)
+      end
+    end
+    true
+  rescue => ex
+    # catch parsing errors
+    false
   end
 
   # get type of this tx
@@ -1217,6 +1275,11 @@ class Bitcoin::Script
     return false
   end
 
+  # Test if the stack is empty
+  def stack_empty?
+    @stack.empty?
+  end
+
   # Same as OP_NUMEQUAL, but runs OP_VERIFY afterward.
   def op_numequalverify
     op_numequal; op_verify
@@ -1240,14 +1303,14 @@ class Bitcoin::Script
   # do a CHECKSIG operation on the current stack,
   # asking +check_callback+ to do the actual signature verification.
   # This is used by Protocol::Tx#verify_input_signature
-  def op_checksig(check_callback)
+  def op_checksig(check_callback, opts={})
     return invalid if @stack.size < 2
     pubkey = cast_to_string(@stack.pop)
-    #return (@stack << 0) unless Bitcoin::Script.is_canonical_pubkey?(pubkey) # only for isStandard
+    return (@stack << 0) unless Bitcoin::Script.check_pubkey_encoding?(pubkey, opts)
     drop_sigs      = [ cast_to_string(@stack[-1]) ]
 
     signature = cast_to_string(@stack.pop)
-    #return (@stack << 0) unless Bitcoin::Script.is_canonical_signature?(signature) # only for isStandard
+    return (@stack << 0) unless Bitcoin::Script.check_signature_encoding?(signature, opts)
     return (@stack << 0) if signature == ""
 
     sig, hash_type = parse_sig(signature)
@@ -1271,8 +1334,8 @@ class Bitcoin::Script
   end
 
   # Same as OP_CHECKSIG, but OP_VERIFY is executed afterward.
-  def op_checksigverify(check_callback)
-    op_checksig(check_callback)
+  def op_checksigverify(check_callback, opts={})
+    op_checksig(check_callback, opts)
     op_verify
   end
 
@@ -1289,7 +1352,7 @@ class Bitcoin::Script
   #
   # TODO: validate signature order
   # TODO: take global opcode count
-  def op_checkmultisig(check_callback)
+  def op_checkmultisig(check_callback, opts={})
     return invalid if @stack.size < 1
     n_pubkeys = pop_int
     return invalid  unless (0..20).include?(n_pubkeys)
@@ -1312,6 +1375,8 @@ class Bitcoin::Script
     success = true
     while success && n_sigs > 0
       sig, pub = sigs.pop, pubkeys.pop
+      return (@stack << 0) unless Bitcoin::Script.check_pubkey_encoding?(pub, opts)
+      return (@stack << 0) unless Bitcoin::Script.check_signature_encoding?(sig, opts)
       unless sig && sig.size > 0
         success = false
         break
@@ -1330,8 +1395,8 @@ class Bitcoin::Script
   end
 
   # Same as OP_CHECKMULTISIG, but OP_VERIFY is executed afterward.
-  def op_checkmultisigverify(check_callback)
-    op_checkmultisig(check_callback)
+  def op_checkmultisigverify(check_callback, opts={})
+    op_checkmultisig(check_callback, opts)
     op_verify
   end
 
@@ -1346,7 +1411,12 @@ class Bitcoin::Script
   OPCODES_METHOD[0]  = :op_0
   OPCODES_METHOD[81] = :op_1
 
-  def self.is_canonical_pubkey?(pubkey)
+  def self.check_pubkey_encoding?(pubkey, opts={})
+    return false if opts[:verify_strictenc] && !is_compressed_or_uncompressed_pub_key?(pubkey)
+    true
+  end
+
+  def self.is_compressed_or_uncompressed_pub_key?(pubkey)
     return false if pubkey.bytesize < 33 # "Non-canonical public key: too short"
     case pubkey[0]
     when "\x04"
@@ -1359,21 +1429,101 @@ class Bitcoin::Script
     true
   end
 
+  # Loosely matches CheckSignatureEncoding()
+  def self.check_signature_encoding?(sig, opts={})
+    return false if (opts[:verify_dersig] || opts[:verify_low_s] || opts[:verify_strictenc]) and !is_der_signature?(sig)
+    return false if opts[:verify_low_s] && !is_low_der_signature?(sig)
+    return false if opts[:verify_strictenc] && !is_defined_hashtype_signature?(sig)
+    true
+  end
 
-
-  def self.is_canonical_signature?(sig)
+  # Loosely correlates with IsDERSignature() from interpreter.cpp
+  def self.is_der_signature?(sig)
     return false if sig.bytesize < 9 # Non-canonical signature: too short
     return false if sig.bytesize > 73 # Non-canonical signature: too long
 
     s = sig.unpack("C*")
 
-    hash_type = s[-1] & (~(SIGHASH_TYPE[:anyonecanpay]))
-    return false if hash_type < SIGHASH_TYPE[:all]   ||  hash_type > SIGHASH_TYPE[:single] # Non-canonical signature: unknown hashtype byte
-
     return false if s[0] != 0x30 # Non-canonical signature: wrong type
     return false if s[1] != s.size-3 # Non-canonical signature: wrong length marker
 
-    # TODO: add/port rest from bitcoind
+    length_r = s[3]
+    return false if (5 + length_r) >= s.size # Non-canonical signature: S length misplaced
+    length_s = s[5+length_r]
+    return false if (length_r + length_s + 7) != s.size # Non-canonical signature: R+S length mismatch
+
+    return false if s[2] != 0x02 # Non-canonical signature: R value type mismatch
+
+    return false if length_r == 0 # Non-canonical signature: R length is zero
+
+    r_val = s.slice(4, length_r)
+    return false if r_val[0] & 0x80 != 0 # Non-canonical signature: R value negative
+
+    return false if length_r > 1 && (r_val[0] == 0x00) && !(r_val[1] & 0x80 != 0) # Non-canonical signature: R value excessively padded
+
+    s_val = s.slice(6 + length_r, length_s)
+    return false if s[6 + length_r - 2] != 0x02 # Non-canonical signature: S value type mismatch
+
+    return false if length_s == 0 # Non-canonical signature: S length is zero
+    return false if (s_val[0] & 0x80) != 0 # Non-canonical signature: S value negative
+
+    return false if length_s > 1 && (s_val[0] == 0x00) && !(s_val[1] & 0x80) # Non-canonical signature: S value excessively padded
+
+    true
+  end
+
+  # Compares two arrays of bytes
+  def self.compare_big_endian(c1, c2)
+    # Clone the arrays
+    c1 = Array.new(c1)
+    c2 = Array.new(c2)
+
+    while c1.size > c2.size
+      if c1.shift > 0
+        return 1
+      end
+    end
+    while c2.size > c1.size
+      if c2.shift > 0
+        return -1
+      end
+    end
+
+    for idx in 0..c1.size
+      if c1[idx] != c2[idx]
+        return c1[idx] - c2[idx]
+      end
+    end
+    0
+  end
+
+  # Loosely correlates with IsLowDERSignature() from interpreter.cpp
+  def self.is_low_der_signature?(sig)
+    s = sig.unpack("C*")
+
+    length_r = s[3]
+    length_s = s[5+length_r]
+    s_val = s.slice(6 + length_r, length_s)
+
+    # If the S value is above the order of the curve divided by two, its
+    # complement modulo the order could have been used instead, which is
+    # one byte shorter when encoded correctly.
+    max_mod_half_order = [
+      0x7f,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+      0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+      0x5d,0x57,0x6e,0x73,0x57,0xa4,0x50,0x1d,
+      0xdf,0xe9,0x2f,0x46,0x68,0x1b,0x20,0xa0]
+
+    compare_big_endian(s_val, [0]) > 0 &&
+      compare_big_endian(s_val, max_mod_half_order) <= 0
+  end
+
+  def self.is_defined_hashtype_signature?(sig)
+    return false if sig.empty?
+
+    s = sig.unpack("C*")
+    hash_type = s[-1] & (~(SIGHASH_TYPE[:anyonecanpay]))
+    return false if hash_type < SIGHASH_TYPE[:all]   ||  hash_type > SIGHASH_TYPE[:single] # Non-canonical signature: unknown hashtype byte
 
     true
   end
