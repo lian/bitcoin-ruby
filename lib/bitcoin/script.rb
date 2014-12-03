@@ -1474,26 +1474,17 @@ class Bitcoin::Script
 
   # Compares two arrays of bytes
   def self.compare_big_endian(c1, c2)
-    # Clone the arrays
-    c1 = Array.new(c1)
-    c2 = Array.new(c2)
+    c1, c2 = c1.dup, c2.dup # Clone the arrays
 
     while c1.size > c2.size
-      if c1.shift > 0
-        return 1
-      end
-    end
-    while c2.size > c1.size
-      if c2.shift > 0
-        return -1
-      end
+      return 1 if c1.shift > 0
     end
 
-    for idx in 0..c1.size
-      if c1[idx] != c2[idx]
-        return c1[idx] - c2[idx]
-      end
+    while c2.size > c1.size
+      return -1 if c2.shift > 0
     end
+
+    c1.size.times{|idx| return c1[idx] - c2[idx] if c1[idx] != c2[idx] }
     0
   end
 
