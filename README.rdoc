@@ -15,7 +15,7 @@ Some of the main features are:
 * Bitcoin::Builder provides a high-level API for creating transactions (and blocks)
 * Bitcoin::Wallet is a draft implementation of a simple wallet
 * Bitcoin::Namecoin implements all the namecoin-specific differences (see NAMECOIN)
-* Bitcoin::Litecoin implements all the litecoin-sepcific differences
+* Bitcoin::Litecoin implements all the litecoin-specific differences
 
 == Compatible with...
 
