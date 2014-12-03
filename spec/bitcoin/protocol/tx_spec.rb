@@ -373,6 +373,14 @@ describe 'Tx' do
     outpoint_tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-a6ce7081addade7676cd2af75c4129eba6bf5e179a19c40c7d4cf6a5fe595954.json'))
     outpoint_tx.hash.should == "a6ce7081addade7676cd2af75c4129eba6bf5e179a19c40c7d4cf6a5fe595954"
     tx.verify_input_signature(0, outpoint_tx, Time.now.to_i, verify_cleanstack: true).should == false
+
+    # Ensure BIP62 is applied to P2SH scripts
+    tx = Bitcoin::P::Tx.from_json(fixtures_file('7208e5edf525f04e705fb3390194e316205b8f995c8c9fcd8c6093abe04fa27d.json'))
+    tx.hash.should == "7208e5edf525f04e705fb3390194e316205b8f995c8c9fcd8c6093abe04fa27d"
+    outpoint_tx = Bitcoin::P::Tx.from_json(fixtures_file('3e58b7eed0fdb599019af08578effea25c8666bbe8e200845453cacce6314477.json'))
+    outpoint_tx.hash.should == "3e58b7eed0fdb599019af08578effea25c8666bbe8e200845453cacce6314477"
+    tx.verify_input_signature(0, outpoint_tx).should == true
+    tx.verify_input_signature(0, outpoint_tx, Time.now.to_i, verify_low_s: true).should == false
   end
 
   it '#sign_input_signature' do

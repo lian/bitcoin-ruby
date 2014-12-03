@@ -152,7 +152,7 @@ class Bitcoin::Script
 
   SIGHASH_TYPE = { all: 1, none: 2, single: 3, anyonecanpay: 128 }
 
-  attr_reader :raw, :chunks, :debug
+  attr_reader :raw, :chunks, :debug, :stack
 
   # create a new script. +bytes+ is typically input_script + output_script
   def initialize(input_script, previous_output_script=nil)
@@ -404,7 +404,7 @@ class Bitcoin::Script
     @last_codeseparator_index = 0
 
     if block_timestamp >= 1333238400 # Pay to Script Hash (BIP 0016)
-      return pay_to_script_hash(check_callback)  if is_p2sh?
+      return pay_to_script_hash(block_timestamp, opts, check_callback)  if is_p2sh?
     end
 
     @debug = []
@@ -483,7 +483,7 @@ class Bitcoin::Script
   # pay_to_script_hash: https://en.bitcoin.it/wiki/BIP_0016
   #
   # <sig> {<pub> OP_CHECKSIG} | OP_HASH160 <script_hash> OP_EQUAL
-  def pay_to_script_hash(check_callback)
+  def pay_to_script_hash(block_timestamp, opts, check_callback)
     return false if @chunks.size < 4
     *rest, script, _, script_hash, _ = @chunks
     script = rest.pop if script == OP_CODESEPARATOR
@@ -492,8 +492,9 @@ class Bitcoin::Script
     return false unless Bitcoin.hash160(script.unpack("H*")[0]) == script_hash.unpack("H*")[0]
 
     script = self.class.new(to_binary(rest) + script).inner_p2sh!(script)
-    result = script.run(&check_callback)
+    result = script.run(block_timestamp, opts, &check_callback)
     @debug = script.debug
+    @stack = script.stack # Set the execution stack to match the redeem script, so checks on stack contents at end of script execution validate correctly
     result
   end
 
@@ -1273,11 +1274,6 @@ class Bitcoin::Script
       end
     }
     return false
-  end
-
-  # Test if the stack is empty
-  def stack_empty?
-    @stack.empty?
   end
 
   # Same as OP_NUMEQUAL, but runs OP_VERIFY afterward.

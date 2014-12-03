@@ -182,7 +182,7 @@ module Bitcoin
           Bitcoin.verify_signature( hash, sig, pubkey.unpack("H*")[0] )
         end
         # BIP62 rule #6
-        return false if opts[:verify_cleanstack] && !@scripts[in_idx].stack_empty?
+        return false if opts[:verify_cleanstack] && !@scripts[in_idx].stack.empty?
 
         return sig_valid
       end
