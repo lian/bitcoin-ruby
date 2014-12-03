@@ -713,7 +713,7 @@ class Bitcoin::Script
   # another signature to it after the OP_0. Used to sign a tx by
   # multiple parties. Signatures must be in the same order as the
   # pubkeys in the output script being redeemed.
-  def self.add_sig_to_multisig_script_sig(sig, script_sig, hash_type)
+  def self.add_sig_to_multisig_script_sig(sig, script_sig, hash_type = SIGHASH_TYPE[:all])
     signature = sig + [hash_type].pack("C*")
     offset = script_sig.empty? ? 0 : 1
     script_sig.insert(offset, pack_pushdata(signature))
