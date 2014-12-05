@@ -39,6 +39,7 @@ module OpenSSL_EC
   attach_function :BN_new, [], :pointer
   attach_function :BN_rshift, [:pointer, :pointer, :int], :int
   attach_function :BN_set_word, [:pointer, :int], :int
+  attach_function :BN_sub, [:pointer, :pointer, :pointer], :int
   attach_function :EC_GROUP_get_curve_GFp, [:pointer, :pointer, :pointer, :pointer, :pointer], :int
   attach_function :EC_GROUP_get_degree, [:pointer], :int
   attach_function :EC_GROUP_get_order, [:pointer, :pointer, :pointer], :int
@@ -224,6 +225,46 @@ module OpenSSL_EC
     EC_KEY_free(eckey)
 
     pub_hex
+  end
+
+  # Regenerate a DER-encoded signature such that the S-value complies with the BIP62
+  # specification.
+  #
+  def self.signature_to_low_s(signature)
+    init_ffi_ssl
+
+    temp = signature.unpack("C*")
+    length_r = temp[3]
+    length_s = temp[5+length_r]
+    sig = FFI::MemoryPointer.from_string(signature)
+
+    # Calculate the lower s value
+    s = BN_bin2bn(sig[6 + length_r], length_s, BN_new())
+    eckey = EC_KEY_new_by_curve_name(NID_secp256k1)
+    group, order, ctx = EC_KEY_get0_group(eckey), BN_new(), BN_CTX_new()
+    # TODO: Should check the s value is over half the order of the curve, and
+    # return the original signature if not
+    EC_GROUP_get_order(group, order, ctx)
+    BN_sub(s, order, s)
+
+    BN_free(order)
+    BN_CTX_free(ctx)
+
+    buf = FFI::MemoryPointer.new(:uint8, 32)
+    BN_bn2bin(s, buf)
+
+    # Re-encode the signature in DER format
+    sig = [0x30, 0, 0x02, length_r]
+    sig.concat(temp.slice(4, length_r))
+    sig << 0x02
+    sig << 32 # Revised s length
+    sig.concat(buf.read_string(32).unpack("C*"))
+    sig[1] = sig.size - 2
+
+    BN_free(s)
+    EC_KEY_free(eckey)
+
+    sig.pack("C*")
   end
 
   def self.sign_compact(hash, private_key, public_key_hex = nil, pubkey_compressed = nil)

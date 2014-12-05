@@ -215,10 +215,6 @@ module Bitcoin
     end
 
     def bitcoin_elliptic_curve
-      # TODO: This can produce values which do not pass the low S-value check
-      # from BIP62. Need to look at how best to solve that (here or perhaps
-      # through OpenSSL) once Bitcoin Core implements that check in its own
-      # signature generation.
       ::OpenSSL::PKey::EC.new("secp256k1")
     end
 
