@@ -482,6 +482,8 @@ module Bitcoin
 
   autoload :OpenSSL_EC, "bitcoin/ffi/openssl"
 
+  autoload :Secp256k1, "bitcoin/ffi/secp256k1"
+
   @network = :bitcoin
 
   def self.network

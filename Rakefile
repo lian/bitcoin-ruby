@@ -28,6 +28,7 @@ task :bacon do
 
   specs = PROJECT_SPECS
   #specs.delete_if{|i| File.basename(i) == 'storage_spec.rb' } # skip for now
+  specs.delete_if{|i| File.basename(i) == 'secp256k1_spec.rb' } # skip for now
 
   # E.g. SPEC=specs/bitcoin/script/ to run script-related specs only.
   if spec_mask = ENV["SPEC"]
