@@ -68,6 +68,8 @@ module Bitcoin
     end
 
     def self.verify(data, signature, pub_key)
+      init
+
       data_buf = FFI::MemoryPointer.new(:uchar, data.bytesize)
       data_buf.put_bytes(0, data)
 
@@ -113,6 +115,8 @@ module Bitcoin
     end
 
     def self.recover_compact(message, signature)
+      init
+
       return nil if signature.bytesize != 65
 
       version = signature.unpack('C')[0]
