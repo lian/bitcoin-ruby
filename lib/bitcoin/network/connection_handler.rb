@@ -99,13 +99,12 @@ module Bitcoin::Network
 
     # complete handshake; set state, started time, notify listeners and add address to Node
     def complete_handshake
-      if @state == :handshake
-        log.debug { 'Handshake completed' }
-        @state = :connected
-        @started = Time.now
-        @node.push_notification(:connection, info.merge(type: :connected))
-        @node.addrs << addr
-      end
+      return unless @state == :handshake
+      log.debug { 'Handshake completed' }
+      @state = :connected
+      @started = Time.now
+      @node.push_notification(:connection, info.merge(type: :connected))
+      @node.addrs << addr
       send_data P::Addr.pkt(@node.addr)  if @node.config[:announce]
     end
 
