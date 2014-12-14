@@ -106,7 +106,7 @@ module Bitcoin::Network
 
     def set_store
       backend, config = @config[:storage].split('::')
-      @store = Bitcoin::Storage.send(backend, {
+      @store = Bitcoin::Storage.create_store(backend, {
         db: config,
         mode: @config[:mode],
         cache_head: @config[:cache_head],

@@ -130,7 +130,7 @@ def setup_db backend, db = nil, conf = {}
     db = Sequel.connect(uri)
     db.drop_table(*db.tables, cascade: true)
   end
-  Bitcoin::Storage.send(backend, conf.merge(db: uri, log_level: :warn))
+  Bitcoin::Storage.create_store(backend, conf.merge(db: uri, log_level: :warn))
 end
 
 

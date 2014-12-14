@@ -94,7 +94,7 @@ describe 'Bitcoin::Namecoin' do
         Bitcoin.network[:proof_of_work_limit] = Bitcoin.encode_compact_bits("ff"*32)
         [:name_new, :name_firstupdate, :name_update].each {|type|
           Bitcoin::Storage::Backends::SequelStore::SCRIPT_TYPES << type }
-        @store = Bitcoin::Storage.send(configuration[:name], configuration)
+        @store = Bitcoin::Storage.create_store(configuration[:name], configuration)
         @store.reset
         @store.log.level = :error
         @key = Bitcoin::Key.generate

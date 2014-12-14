@@ -14,12 +14,9 @@ module Bitcoin::Storage
   def self.log; @log; end
 
   BACKENDS = [:dummy, :sequel, :utxo]
-  BACKENDS.each do |name|
-    module_eval <<-EOS
-      def self.#{name} config
-        Backends.const_get("#{name.capitalize}Store").new(config)
-      end
-    EOS
+
+  def self.create_store(backend, config)
+    Backends.const_get("#{backend.capitalize}Store").new(config)
   end
 
   module Backends
