@@ -33,8 +33,8 @@ module Bitcoin::Storage::Backends
     }
 
     # create sequel store with given +config+
-    def initialize config, *args
-      super config, *args
+    def initialize config
+      super config
       @spent_outs, @new_outs, @watched_addrs = [], [], []
       @deleted_utxos, @tx_cache, @block_cache = {}, {}, {}
     end

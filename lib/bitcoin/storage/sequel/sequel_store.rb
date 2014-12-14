@@ -24,8 +24,8 @@ module Bitcoin::Storage::Backends
     }
 
     # create sequel store with given +config+
-    def initialize config, *args
-      super config, *args
+    def initialize config
+      super config
     end
 
     # connect to database

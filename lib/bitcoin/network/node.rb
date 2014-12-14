@@ -107,13 +107,14 @@ module Bitcoin::Network
     def set_store
       backend, config = @config[:storage].split('::')
       @store = Bitcoin::Storage.send(backend, {
-          db: config, mode: @config[:mode], cache_head: @config[:cache_head],
-          skip_validation: @config[:skip_validation], index_nhash: @config[:index_nhash],
-          index_p2sh_type: @config[:index_p2sh_type],
-          log_level: @config[:log][:storage]}, ->(locator) {
-          peer = @connections.select(&:connected?).sample
-          peer.send_getblocks(locator)
-        })
+        db: config,
+        mode: @config[:mode],
+        cache_head: @config[:cache_head],
+        skip_validation: @config[:skip_validation],
+        index_nhash: @config[:index_nhash],
+        index_p2sh_type: @config[:index_p2sh_type],
+        log_level: @config[:log][:storage]
+      })
       @store.log.level = @config[:log][:storage]
       @store.check_consistency(@config[:check_blocks])
       if @config[:import]

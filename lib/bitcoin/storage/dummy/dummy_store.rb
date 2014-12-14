@@ -5,9 +5,9 @@ module Bitcoin::Storage::Backends
 
     attr_accessor :blk, :tx
 
-    def initialize *args
+    def initialize config
       reset
-      super(*args)
+      super(config)
     end
 
     def reset
