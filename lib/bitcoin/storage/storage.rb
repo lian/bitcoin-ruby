@@ -14,6 +14,15 @@ module Bitcoin::Storage
   def self.log; @log; end
 
   BACKENDS = [:dummy, :sequel, :utxo]
+  BACKENDS.each do |name|
+    module_eval <<-EOS
+      def self.#{name} config, *args
+        STDERR.puts "Warning: 'Bitcoin::Storage.#{name}' is deprecated. " \
+          "Please use 'Bitcoin::Storage.create_store' instead."
+        create_store("#{name}", config)
+      end
+    EOS
+  end
 
   def self.create_store(backend, config)
     Backends.const_get("#{backend.capitalize}Store").new(config)
