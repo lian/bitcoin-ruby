@@ -24,6 +24,8 @@ module Bitcoin
   autoload :Namecoin,   'bitcoin/namecoin'
   autoload :Litecoin,   'bitcoin/litecoin'
 
+  autoload :ContractHash,   'bitcoin/contracthash'
+
   module Network
     autoload :ConnectionHandler,  'bitcoin/network/connection_handler'
     autoload :CommandHandler,     'bitcoin/network/command_handler'
@@ -477,6 +479,7 @@ module Bitcoin
       end
       def to_hex; to_bn.to_hex; end
       def self.bn2mpi(hex) BN.from_hex(hex).to_mpi; end
+      def ec_add(point); self.class.new(group, OpenSSL::BN.from_hex(OpenSSL_EC.ec_add(self, point))); end
     end
   end
 

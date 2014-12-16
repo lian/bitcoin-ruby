@@ -61,6 +61,9 @@ module OpenSSL_EC
   attach_function :ECDSA_do_sign, [:pointer, :uint, :pointer], :pointer
   attach_function :BN_num_bits, [:pointer], :int
   attach_function :ECDSA_SIG_free, [:pointer], :void
+  attach_function :EC_POINT_add, [:pointer, :pointer, :pointer, :pointer, :pointer], :int
+  attach_function :EC_POINT_point2hex, [:pointer, :pointer, :int, :pointer], :string
+  attach_function :EC_POINT_hex2point, [:pointer, :string, :pointer, :pointer], :pointer
 
   def self.BN_num_bytes(ptr); (BN_num_bits(ptr) + 7) / 8; end
 
@@ -277,6 +280,26 @@ module OpenSSL_EC
 
     compressed = (version >= 31) ? (version -= 4; true) : false
     pubkey = recover_public_key_from_signature(hash, signature, version-27, compressed)
+  end
+
+  # lifted from https://github.com/GemHQ/money-tree
+  def self.ec_add(point_0, point_1)
+    init_ffi_ssl
+
+    eckey = EC_KEY_new_by_curve_name(NID_secp256k1)
+    group = EC_KEY_get0_group(eckey)
+
+    point_0_hex = point_0.to_bn.to_s(16)
+    point_0_pt = EC_POINT_hex2point(group, point_0_hex, nil, nil)
+    point_1_hex = point_1.to_bn.to_s(16)
+    point_1_pt = EC_POINT_hex2point(group, point_1_hex, nil, nil)
+
+    sum_point = EC_POINT_new(group)
+    success = EC_POINT_add(group, sum_point, point_0_pt, point_1_pt, nil)
+    hex = EC_POINT_point2hex(group, sum_point, POINT_CONVERSION_UNCOMPRESSED, nil)
+    EC_KEY_free(eckey)
+    EC_POINT_free(sum_point)
+    hex
   end
 
   def self.init_ffi_ssl
