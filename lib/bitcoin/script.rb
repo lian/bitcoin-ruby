@@ -495,6 +495,7 @@ class Bitcoin::Script
     script, script_hash = cast_to_string(script), cast_to_string(script_hash)
 
     return false unless Bitcoin.hash160(script.unpack("H*")[0]) == script_hash.unpack("H*")[0]
+    return true  if check_callback == :check
 
     script = self.class.new(to_binary(rest) + script).inner_p2sh!(script)
     result = script.run(block_timestamp, opts, &check_callback)
@@ -517,6 +518,7 @@ class Bitcoin::Script
     script
   end
 
+  # is this a :script_hash (pay-to-script-hash/p2sh) script?
   def is_pay_to_script_hash?
     return false  if @inner_p2sh
     if @previous_output_script
@@ -526,6 +528,13 @@ class Bitcoin::Script
       return false  unless @chunks[-2].is_a?(String)
       @chunks.size >= 3 && @chunks[-3] == OP_HASH160 &&
         @chunks[-2].bytesize == 20 && @chunks[-1] == OP_EQUAL
+      !@inner_p2sh && # don't match if we're inside a p2sh inner script, to prevent recursion
+        @chunks.size >= 3 &&
+        @chunks[-3] == OP_HASH160 &&
+        @chunks[-2].is_a?(String) && @chunks[-2].bytesize == 20 &&
+        @chunks[-1] == OP_EQUAL &&
+        # make sure the script_sig matches the p2sh hash from the pk_script (if there is one)
+        (@chunks.size > 3 ? pay_to_script_hash(:check) : true)
     end
   end
   alias :is_p2sh? :is_pay_to_script_hash?

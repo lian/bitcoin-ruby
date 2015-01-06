@@ -265,6 +265,8 @@ describe 'Bitcoin::Script' do
       Script.new(SCRIPT[4]).is_p2sh?.should == false
       Script.new(SCRIPT[5]).is_p2sh?.should == true
       Script.new(SCRIPT[6]).is_p2sh?.should == false
+      Script.from_string("OP_DUP OP_HASH160 b689ebc262f50297139e7d16c4f8909e14ed4322 OP_EQUALVERIFY OP_CHECKSIGVERIFY OP_HASH160 1b6246121883816fc0637e4aa280aca1df219b1a OP_EQUAL")
+        .is_p2sh?.should == false
     end
 
     it '#is_op_return?' do
