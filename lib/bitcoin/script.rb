@@ -803,6 +803,25 @@ class Bitcoin::Script
     to_multisig_script_sig(*sigs.flatten) + pack_pushdata(redeem_script)
   end
 
+  # Sort signatures in the given +script_sig+ according to the order of pubkeys in
+  # the redeem script. Also needs the +sig_hash+ to match signatures to pubkeys.
+  def self.sort_p2sh_multisig_signatures script_sig, sig_hash
+    script = new(script_sig)
+    redeem_script = new(script.chunks[-1])
+    pubkeys = redeem_script.get_multisig_pubkeys
+
+    # find the pubkey for each signature by trying to verify it
+    sigs = Hash[script.chunks[1...-1].map.with_index do |sig, idx|
+      pubkey = pubkeys.map {|key|
+        Bitcoin::Key.new(nil, key.hth).verify(sig_hash, sig) ? key : nil }.compact.first
+      raise "Key for signature ##{idx} not found in redeem script!"  unless pubkey
+      [pubkey, sig]
+    end]
+
+    [OP_0].pack("C*") + pubkeys.map {|k| sigs[k] ? pack_pushdata(sigs[k]) : nil }.join +
+      pack_pushdata(redeem_script.raw)
+  end
+
   def get_signatures_required
     return false unless is_multisig?
     @chunks[0] - 80

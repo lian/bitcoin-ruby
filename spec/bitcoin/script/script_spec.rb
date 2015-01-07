@@ -653,6 +653,51 @@ OP_ENDIF")
     script.run.should == true
   end
 
+  def build_p2sh_multisig_tx(m, *keys)
+    redeem_script = Bitcoin::Script.to_multisig_script(m, *keys.map(&:pub))
+    p2sh_address = Bitcoin.hash160_to_p2sh_address(Bitcoin.hash160(redeem_script.hth))
+
+    prev_tx = build_tx {|t| t.input {|i| i.coinbase}
+      t.output {|o| o.to p2sh_address; o.value 50e8 } }
+    tx = build_tx {|t| t.input {|i| i.prev_out prev_tx, 0 }
+      t.output {|o| o.to Bitcoin::Key.generate.addr; o.value 50e8 } }
+
+    sig_hash = tx.signature_hash_for_input(0, redeem_script)
+    return prev_tx, tx, redeem_script, sig_hash
+  end
+
+  it "#sort_p2sh_multisig_signatures 3-of-3" do
+    keys = 3.times.map { Bitcoin::Key.generate }
+
+    prev_tx, tx, redeem_script, sig_hash = build_p2sh_multisig_tx(3, *keys)
+    sigs = keys.map {|k| k.sign(sig_hash) }
+
+    # add sigs in all possible orders, sort them, and see if they are valid
+    [0, 1, 2].permutation do |order|
+      script_sig = Script.to_p2sh_multisig_script_sig(redeem_script)
+      order.each{|i| script_sig = Script.add_sig_to_multisig_script_sig(sigs[i], script_sig)}
+      script_sig = Script.sort_p2sh_multisig_signatures(script_sig, sig_hash)
+      tx.in[0].script_sig = script_sig
+      tx.verify_input_signature(0, prev_tx).should == true
+    end
+  end
+
+  it "#sort_p2sh_multisig_signatures 2-of-3" do
+    keys = 3.times.map { Bitcoin::Key.generate }
+
+    prev_tx, tx, redeem_script, sig_hash = build_p2sh_multisig_tx(2, *keys)
+    sigs = keys.map {|k| k.sign(sig_hash) }
+
+    # add sigs in all possible orders, sort them, and see if they are valid
+    [0, 1, 2].permutation(2) do |order|
+      script_sig = Script.to_p2sh_multisig_script_sig(redeem_script)
+      order.each{|i| script_sig = Script.add_sig_to_multisig_script_sig(sigs[i], script_sig)}
+      script_sig = Script.sort_p2sh_multisig_signatures(script_sig, sig_hash)
+      tx.in[0].script_sig = script_sig
+      tx.verify_input_signature(0, prev_tx).should == true
+    end
+  end
+
 end
 
 describe "Implements BIP62" do
