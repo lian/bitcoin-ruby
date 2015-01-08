@@ -303,7 +303,12 @@ module Bitcoin
     end
 
     def sign_data(key, data)
-      key.dsa_sign_asn1(data)
+      sig = key.dsa_sign_asn1(data)
+      if Script.is_low_der_signature?(sig)
+        sig
+      else
+        Bitcoin::OpenSSL_EC.signature_to_low_s(sig)
+      end
     end
 
     def verify_signature(hash, signature, public_key)
