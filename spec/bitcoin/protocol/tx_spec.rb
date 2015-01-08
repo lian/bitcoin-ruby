@@ -381,6 +381,13 @@ describe 'Tx' do
     outpoint_tx.hash.should == "3e58b7eed0fdb599019af08578effea25c8666bbe8e200845453cacce6314477"
     tx.verify_input_signature(0, outpoint_tx).should == true
     tx.verify_input_signature(0, outpoint_tx, Time.now.to_i, verify_low_s: true).should == false
+
+    # testnet3 P2SH check
+    tx = Bitcoin::P::Tx.from_json(fixtures_file('156e6e1b84c5c3bd3a0927b25e4119fadce6e6d5186f363317511d1d680fae9a.json'))
+    tx.hash.should == "156e6e1b84c5c3bd3a0927b25e4119fadce6e6d5186f363317511d1d680fae9a"
+    outpoint_tx = Bitcoin::P::Tx.from_json(fixtures_file('8d0b238a06b5a70be75d543902d02d7a514d68d3252a949a513865ac3538874c.json'))
+    outpoint_tx.hash.should == "8d0b238a06b5a70be75d543902d02d7a514d68d3252a949a513865ac3538874c"
+    tx.verify_input_signature(0, outpoint_tx).should == true
   end
 
   it '#sign_input_signature' do

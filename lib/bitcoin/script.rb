@@ -157,19 +157,20 @@ class Bitcoin::Script
   # create a new script. +bytes+ is typically input_script + output_script
   def initialize(input_script, previous_output_script=nil)
     @raw_byte_sizes = [input_script.bytesize, previous_output_script ? previous_output_script.bytesize : 0]
+    @input_script, @previous_output_script = input_script, previous_output_script
 
-    @raw = if previous_output_script
-             input_script + [ Bitcoin::Script::OP_CODESEPARATOR ].pack("C") + previous_output_script
+    @raw = if @previous_output_script
+             @input_script + [ Bitcoin::Script::OP_CODESEPARATOR ].pack("C") + @previous_output_script
            else
-             input_script
+             @input_script
            end
 
-    @chunks = parse(input_script)
+    @chunks = parse(@input_script)
 
     if previous_output_script
       @script_codeseparator_index = @chunks.size
       @chunks << Bitcoin::Script::OP_CODESEPARATOR
-      @chunks += parse(previous_output_script)
+      @chunks += parse(@previous_output_script)
     end
 
     @stack, @stack_alt, @exec_stack = [], [], []
@@ -354,8 +355,12 @@ class Bitcoin::Script
   end
 
   # script object of a string representation
-  def self.from_string(script_string)
-    new(binary_from_string(script_string))
+  def self.from_string(input_script, previous_output_script=nil)
+    if previous_output_script
+      new(binary_from_string(input_script), binary_from_string(previous_output_script))
+    else
+      new(binary_from_string(input_script))
+    end
   end
 
   class ScriptOpcodeError < StandardError; end
@@ -514,9 +519,14 @@ class Bitcoin::Script
 
   def is_pay_to_script_hash?
     return false  if @inner_p2sh
-    return false  unless @chunks[-2].is_a?(String)
-    @chunks.size >= 3 && @chunks[-3] == OP_HASH160 &&
-      @chunks[-2].bytesize == 20 && @chunks[-1] == OP_EQUAL
+    if @previous_output_script
+      return false if @previous_output_script.bytesize != 23
+      @previous_output_script.unpack("Cx21C") == [OP_HASH160, OP_EQUAL]
+    else
+      return false  unless @chunks[-2].is_a?(String)
+      @chunks.size >= 3 && @chunks[-3] == OP_HASH160 &&
+        @chunks[-2].bytesize == 20 && @chunks[-1] == OP_EQUAL
+    end
   end
   alias :is_p2sh? :is_pay_to_script_hash?
 
