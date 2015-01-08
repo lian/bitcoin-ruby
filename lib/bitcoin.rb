@@ -181,16 +181,24 @@ module Bitcoin
 
     # target compact bits (int) to bignum hex
     def decode_compact_bits(bits)
-      bytes = Array.new(size=((bits >> 24) & 255), 0)
-      bytes[0] = (bits >> 16) & 0x7f if size >= 1
-      bytes[1] = (bits >>  8) & 255 if size >= 2
-      bytes[2] = (bits      ) & 255 if size >= 3
-      target = bytes.pack("C*").unpack("H*")[0].rjust(64, '0')
-      # Bit number 24 represents the sign
-      if (bits & 0x00800000) != 0
-        "-" + target
+      if Bitcoin.network_project == :dogecoin
+        bytes = Array.new(size=((bits >> 24) & 255), 0)
+        bytes[0] = (bits >> 16) & 0x7f if size >= 1
+        bytes[1] = (bits >>  8) & 255 if size >= 2
+        bytes[2] = (bits      ) & 255 if size >= 3
+        target = bytes.pack("C*").unpack("H*")[0].rjust(64, '0')
+        # Bit number 24 represents the sign
+        if (bits & 0x00800000) != 0
+          "-" + target
+        else
+          target
+        end
       else
-        target
+        bytes = Array.new(size=((bits >> 24) & 255), 0)
+        bytes[0] = (bits >> 16) & 255 if size >= 1
+        bytes[1] = (bits >>  8) & 255 if size >= 2
+        bytes[2] = (bits      ) & 255 if size >= 3
+        bytes.pack("C*").unpack("H*")[0].rjust(64, '0')
       end
     end
 

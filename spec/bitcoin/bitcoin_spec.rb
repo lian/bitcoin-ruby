@@ -335,7 +335,6 @@ describe 'Bitcoin Address/Hash160/PubKey' do
   end
 
   it 'nonce compact bits to bignum hex' do
-    Bitcoin.decode_compact_bits( "01fedcba".to_i(16) ).to_i(16).should == -0x7e
     Bitcoin.decode_compact_bits( "1b00b5ac".to_i(16) ).index(/[^0]/).should == 12
     Bitcoin.decode_compact_bits( "1b00b5ac".to_i(16) ).to_i(16).should ==
       "000000000000b5ac000000000000000000000000000000000000000000000000".to_i(16)
@@ -355,6 +354,9 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     Bitcoin.decode_compact_bits(target).should ==
       "0000000065465700000000000000000000000000000000000000000000000000"
     Bitcoin.encode_compact_bits( Bitcoin.decode_compact_bits( target ) ).should == target
+
+    #Bitcoin.network = :dogecoin
+    #Bitcoin.decode_compact_bits( "01fedcba".to_i(16) ).to_i(16).should == -0x7e
   end
 
   it '#block_hash' do
