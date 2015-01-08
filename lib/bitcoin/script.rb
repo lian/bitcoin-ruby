@@ -522,19 +522,18 @@ class Bitcoin::Script
   def is_pay_to_script_hash?
     return false  if @inner_p2sh
     if @previous_output_script
-      return false if @previous_output_script.bytesize != 23
-      @previous_output_script.unpack("Cx21C") == [OP_HASH160, OP_EQUAL]
+      chunks = Bitcoin::Script.new(@previous_output_script).chunks
+      chunks.size == 3 &&
+      chunks[-3] == OP_HASH160 &&
+      chunks[-2].is_a?(String) && chunks[-2].bytesize == 20 &&
+      chunks[-1] == OP_EQUAL
     else
-      return false  unless @chunks[-2].is_a?(String)
-      @chunks.size >= 3 && @chunks[-3] == OP_HASH160 &&
-        @chunks[-2].bytesize == 20 && @chunks[-1] == OP_EQUAL
-      !@inner_p2sh && # don't match if we're inside a p2sh inner script, to prevent recursion
-        @chunks.size >= 3 &&
-        @chunks[-3] == OP_HASH160 &&
-        @chunks[-2].is_a?(String) && @chunks[-2].bytesize == 20 &&
-        @chunks[-1] == OP_EQUAL &&
-        # make sure the script_sig matches the p2sh hash from the pk_script (if there is one)
-        (@chunks.size > 3 ? pay_to_script_hash(:check) : true)
+      @chunks.size >= 3 &&
+      @chunks[-3] == OP_HASH160 &&
+      @chunks[-2].is_a?(String) && @chunks[-2].bytesize == 20 &&
+      @chunks[-1] == OP_EQUAL &&
+      # make sure the script_sig matches the p2sh hash from the pk_script (if there is one)
+      (@chunks.size > 3 ? pay_to_script_hash(nil, nil, :check) : true)
     end
   end
   alias :is_p2sh? :is_pay_to_script_hash?
