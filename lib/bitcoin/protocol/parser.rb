@@ -48,11 +48,10 @@ module Bitcoin
         count, payload = Protocol.unpack_var_int(payload)
         payload.each_byte.each_slice(30){|i|
           begin
-            addr = Addr.new(i.pack("C*"))
+            @h.on_addr Addr.new(i.pack("C*"))
           rescue
             puts "Error parsing addr: #{i.inspect}"
           end
-          @h.on_addr( addr )
         }
       end
 
