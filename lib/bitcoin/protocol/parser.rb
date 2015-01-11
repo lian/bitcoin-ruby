@@ -9,7 +9,7 @@ module Bitcoin
       def initialize(handler=nil)
         @h = handler || Handler.new
         @buf = ""
-        @stats = { 'total_packets' => 0, 'total_bytes' => 0 }
+        @stats = { 'total_packets' => 0, 'total_bytes' => 0, 'total_errors' => 0 }
       end
 
       def log; @log ||= Bitcoin::Logger.create("parser"); end
@@ -25,7 +25,7 @@ module Bitcoin
           when 2
             type == :put ? @h.on_inv_block(hash) : @h.on_get_block(hash)
           else
-            @h.on_error :parse_inv, i.pack("C*")
+            parse_error :parse_inv, i.pack("C*")
           end
         end
       end
@@ -33,7 +33,7 @@ module Bitcoin
       def parse_addr(payload)
         count, payload = Protocol.unpack_var_int(payload)
         payload.each_byte.each_slice(30) do |i|
-          @h.on_addr(Addr.new(i.pack("C*"))) rescue @h.on_error(:addr, i.pack("C*"))
+          @h.on_addr(Addr.new(i.pack("C*"))) rescue parse_error(:addr, i.pack("C*"))
         end
       end
 
@@ -76,7 +76,7 @@ module Bitcoin
         when 'mempool';  handle_mempool_request(payload)
         when 'notfound'; handle_notfound_reply(payload)
         else
-          @h.on_error :unknown_packet, [command, payload]
+          parse_error :unknown_packet, [command, payload]
         end
       end
 
@@ -106,7 +106,7 @@ module Bitcoin
           when 1; @h.on_notfound(:tx, hash)
           when 2; @h.on_notfound(:block, hash)
           else
-            @h.on_error(:notfound, [i.pack("C*"), hash])
+            parse_error(:notfound, [i.pack("C*"), hash])
           end
         end
       end
@@ -156,6 +156,12 @@ module Bitcoin
           log.debug { [type, msg] }
         end
       end
+
+      def parse_error *err
+        @stats['total_errors'] += 1
+        @h.on_error *err
+      end
+
     end # Parser
 
   end
