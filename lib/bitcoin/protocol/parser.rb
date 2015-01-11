@@ -9,50 +9,32 @@ module Bitcoin
       def initialize(handler=nil)
         @h = handler || Handler.new
         @buf = ""
-        @stats = {
-          'total_packets' => 0,
-          'total_bytes' => 0
-        }
+        @stats = { 'total_packets' => 0, 'total_bytes' => 0 }
       end
 
-      def log
-        @log ||= Bitcoin::Logger.create("parser")
-      end
+      def log; @log ||= Bitcoin::Logger.create("parser"); end
 
       # handles inv/getdata packets
-      #
       def parse_inv(payload, type=:put)
         count, payload = Protocol.unpack_var_int(payload)
-        payload.each_byte.each_slice(36){|i|
+        payload.each_byte.each_slice(36) do |i|
           hash = i[4..-1].reverse.pack("C32")
           case i[0]
           when 1
-            if type == :put
-              @h.on_inv_transaction(hash)
-            else
-              @h.on_get_transaction(hash)
-            end
+            type == :put ? @h.on_inv_transaction(hash) : @h.on_get_transaction(hash)
           when 2
-            if type == :put
-              @h.on_inv_block(hash)
-            else
-              @h.on_get_block(hash)
-            end
+            type == :put ? @h.on_inv_block(hash) : @h.on_get_block(hash)
           else
-            p ['parse_inv error', i]
+            @h.on_error :parse_inv, i.pack("C*")
           end
-        }
+        end
       end
 
       def parse_addr(payload)
         count, payload = Protocol.unpack_var_int(payload)
-        payload.each_byte.each_slice(30){|i|
-          begin
-            @h.on_addr Addr.new(i.pack("C*"))
-          rescue
-            puts "Error parsing addr: #{i.inspect}"
-          end
-        }
+        payload.each_byte.each_slice(30) do |i|
+          @h.on_addr(Addr.new(i.pack("C*"))) rescue @h.on_error(:addr, i.pack("C*"))
+        end
       end
 
       def parse_headers(payload)
@@ -94,7 +76,7 @@ module Bitcoin
         when 'mempool';  handle_mempool_request(payload)
         when 'notfound'; handle_notfound_reply(payload)
         else
-          p ['unknown-packet', command, payload]
+          @h.on_error :unknown_packet, [command, payload]
         end
       end
 
@@ -118,15 +100,15 @@ module Bitcoin
       def handle_notfound_reply(payload)
         return unless @h.respond_to?(:on_notfound)
         count, payload = Protocol.unpack_var_int(payload)
-        payload.each_byte.each_slice(36){|i|
+        payload.each_byte.each_slice(36) do |i|
           hash = i[4..-1].reverse.pack("C32")
           case i[0]
           when 1; @h.on_notfound(:tx, hash)
           when 2; @h.on_notfound(:block, hash)
           else
-            p ['handle_notfound_reply error', i, hash]
+            @h.on_error(:notfound, [i.pack("C*"), hash])
           end
-        }
+        end
       end
 
       def parse(buf)

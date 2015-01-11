@@ -5,12 +5,12 @@ require_relative '../spec_helper.rb'
 describe 'Bitcoin::Protocol::Parser - Inventory Vectors' do
 
   class Test_Handler < Bitcoin::Protocol::Handler
-    attr_reader :tx_inv
-    attr_reader :block_inv
+    attr_reader :tx_inv, :block_inv, :err
     def on_inv_transaction(hash); (@tx_inv ||= []) << hash.hth; end
     def on_get_transaction(hash); (@tx_inv ||= []) << hash.hth; end
     def on_inv_block(hash); (@block_inv ||= []) << hash.hth; end
     def on_get_block(hash); (@block_inv ||= []) << hash.hth; end
+    def on_error(*err); (@err ||= []) << err; end
   end
 
 
@@ -121,6 +121,14 @@ describe 'Bitcoin::Protocol::Parser - Inventory Vectors' do
       :locator_hashes => locator_hashes,
       :stop_hash => "0000000000000000000000000000000000000000000000000000000000007e57"
     }
+  end
+
+  it 'parses broken inv packet' do
+    pkt = [("01 00 00 00 00" + " 00"*32).split(" ").join].pack("H*")
+    parser = Bitcoin::Protocol::Parser.new( handler = Test_Handler.new )
+    parser.parse_inv(pkt).should == nil
+    handler.tx_inv.should == nil
+    handler.err.should == [[:parse_inv, pkt[1..-1]]]
   end
 
 end
