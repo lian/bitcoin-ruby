@@ -66,6 +66,10 @@ module OpenSSL_EC
   attach_function :EC_POINT_add, [:pointer, :pointer, :pointer, :pointer, :pointer], :int
   attach_function :EC_POINT_point2hex, [:pointer, :pointer, :int, :pointer], :string
   attach_function :EC_POINT_hex2point, [:pointer, :string, :pointer, :pointer], :pointer
+  attach_function :ECDSA_SIG_new, [], :pointer
+  attach_function :d2i_ECDSA_SIG, [:pointer, :pointer, :long], :pointer
+  attach_function :i2d_ECDSA_SIG, [:pointer, :pointer], :int
+  attach_function :OPENSSL_free, :CRYPTO_free, [:pointer], :void
 
   def self.BN_num_bytes(ptr); (BN_num_bits(ptr) + 7) / 8; end
 
@@ -346,6 +350,29 @@ module OpenSSL_EC
     EC_KEY_free(eckey)
     EC_POINT_free(sum_point)
     hex
+  end
+
+  # repack signature for OpenSSL 1.0.1k handling of DER signatures
+  # https://github.com/bitcoin/bitcoin/pull/5634/files
+  def self.repack_der_signature(signature)
+    init_ffi_ssl
+
+    return false if signature.empty?
+
+    # New versions of OpenSSL will reject non-canonical DER signatures. de/re-serialize first.
+    norm_der = FFI::MemoryPointer.new(:pointer)
+    sig_ptr  = FFI::MemoryPointer.new(:pointer).put_pointer(0, FFI::MemoryPointer.from_string(signature))
+
+    norm_sig = d2i_ECDSA_SIG(nil, sig_ptr, signature.bytesize)
+
+    derlen = i2d_ECDSA_SIG(norm_sig, norm_der)
+    ECDSA_SIG_free(norm_sig)
+    return false if derlen <= 0
+
+    ret = norm_der.read_pointer.read_string(derlen)
+    OPENSSL_free(norm_der.read_pointer)
+
+    ret
   end
 
   def self.init_ffi_ssl

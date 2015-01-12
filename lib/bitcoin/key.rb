@@ -111,7 +111,12 @@ module Bitcoin
     #  key2.verify("some data", sig)
     def verify(data, sig)
       regenerate_pubkey unless @key.public_key
-      @key.dsa_verify_asn1(data, sig)
+      sig = Bitcoin::OpenSSL_EC.repack_der_signature(sig)
+      if sig
+        @key.dsa_verify_asn1(data, sig)
+      else
+        false
+      end
     end
 
 

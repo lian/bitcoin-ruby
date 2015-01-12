@@ -322,7 +322,12 @@ module Bitcoin
     def verify_signature(hash, signature, public_key)
       key  = bitcoin_elliptic_curve
       key.public_key = ::OpenSSL::PKey::EC::Point.from_hex(key.group, public_key)
-      key.dsa_verify_asn1(hash, signature)
+      signature = Bitcoin::OpenSSL_EC.repack_der_signature(signature)
+      if signature
+        key.dsa_verify_asn1(hash, signature)
+      else
+        false
+      end
     rescue OpenSSL::PKey::ECError, OpenSSL::PKey::EC::Point::Error
       false
     end
