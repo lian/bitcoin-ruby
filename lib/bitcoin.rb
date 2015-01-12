@@ -42,11 +42,6 @@ module Bitcoin
     autoload :TxDP,                'bitcoin/wallet/txdp'
   end
 
-  module Gui
-    autoload :Gui,        'bitcoin/gui/gui'
-    autoload :Connection, 'bitcoin/gui/connection'
-  end
-
   def self.require_dependency name, opts = {}
     begin
       require name.to_s

@@ -43,8 +43,7 @@ intentionally kept to a minimum, so nobody has to install unneeded dependencies.
 
 * +eventmachine+ to run a node / connect to peers
 * +sequel+, +sqlite3+/+pg+/+mysql+ to use a storage backend
-* +em-dns+ or +nslookup+ to get peer addrs from DNS seeds
-* +gir_ffi+ for the gui
+* +em-dns+ for bin/bitcoin_dns_seed
 * +bacon+ to run the specs
 * +scrypt+ to use a much faster scrypt hash implementation for Litecoin
 
