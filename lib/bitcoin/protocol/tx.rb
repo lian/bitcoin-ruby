@@ -44,6 +44,7 @@ module Bitcoin
       # create tx from raw binary +data+
       def initialize(data=nil)
         @ver, @lock_time, @in, @out, @scripts = 1, 0, [], [], []
+        @enable_bitcoinconsensus = !!ENV['USE_BITCOINCONSENSUS']
         parse_data_from_io(data) if data
       end
 
@@ -163,6 +164,10 @@ module Bitcoin
       #
       # options are: verify_sigpushonly, verify_minimaldata, verify_cleanstack, verify_dersig, verify_low_s, verify_strictenc
       def verify_input_signature(in_idx, outpoint_tx_or_script, block_timestamp=Time.now.to_i, opts={})
+        if @enable_bitcoinconsensus
+          return bitcoinconsensus_verify_script(in_idx, outpoint_tx_or_script, block_timestamp, opts)
+        end
+
         outpoint_idx  = @in[in_idx].prev_out_index
         script_sig    = @in[in_idx].script_sig
         
@@ -185,6 +190,29 @@ module Bitcoin
         return false if opts[:verify_cleanstack] && !@scripts[in_idx].stack.empty?
 
         return sig_valid
+      end
+
+      def bitcoinconsensus_verify_script(in_idx, outpoint_tx_or_script, block_timestamp=Time.now.to_i, opts={})
+        raise "Bitcoin::BitcoinConsensus shared library not found" unless Bitcoin::BitcoinConsensus.lib_available?
+
+        # If given an entire previous transaction, take the script from it
+        script_pubkey = if outpoint_tx_or_script.respond_to?(:out)
+          outpoint_idx  = @in[in_idx].prev_out_index
+          outpoint_tx_or_script.out[outpoint_idx].pk_script
+        else
+          # Otherwise, it's already a script.
+          outpoint_tx_or_script
+        end
+
+        flags  = Bitcoin::BitcoinConsensus::SCRIPT_VERIFY_NONE
+        flags |= Bitcoin::BitcoinConsensus::SCRIPT_VERIFY_P2SH        if block_timestamp >= 1333238400
+        flags |= Bitcoin::BitcoinConsensus::SCRIPT_VERIFY_SIGPUSHONLY if opts[:verify_sigpushonly]
+        flags |= Bitcoin::BitcoinConsensus::SCRIPT_VERIFY_MINIMALDATA if opts[:verify_minimaldata]
+        flags |= Bitcoin::BitcoinConsensus::SCRIPT_VERIFY_CLEANSTACK  if opts[:verify_cleanstack]
+        flags |= Bitcoin::BitcoinConsensus::SCRIPT_VERIFY_LOW_S       if opts[:verify_low_s]
+
+        payload ||= to_payload
+        Bitcoin::BitcoinConsensus.verify_script(in_idx, script_pubkey, payload, flags)
       end
 
       # convert to ruby hash (see also #from_hash)

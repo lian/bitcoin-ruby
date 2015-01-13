@@ -495,6 +495,7 @@ module Bitcoin
   autoload :OpenSSL_EC, "bitcoin/ffi/openssl"
 
   autoload :Secp256k1, "bitcoin/ffi/secp256k1"
+  autoload :BitcoinConsensus, "bitcoin/ffi/bitcoinconsensus"
 
   @network = :bitcoin
 
