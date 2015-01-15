@@ -360,20 +360,20 @@ describe 'Tx' do
       tx.verify_input_signature(idx, prev_txs[i.previous_output]).should == true
     }
 
-    unless ENV['USE_BITCOINCONSENSUS'] # TODO: fix
-      # BIP62 rule #2
-      tx = Bitcoin::Protocol::Tx.from_json(fixtures_file('0f24294a1d23efbb49c1765cf443fba7930702752aba6d765870082fe4f13cae.json'))
-      tx.hash.should == '0f24294a1d23efbb49c1765cf443fba7930702752aba6d765870082fe4f13cae'
-      outpoint_tx = Bitcoin::Protocol::Tx.from_json(fixtures_file('aea682d68a3ea5e3583e088dcbd699a5d44d4b083f02ad0aaf2598fe1fa4dfd4.json'))
-      outpoint_tx.hash.should == 'aea682d68a3ea5e3583e088dcbd699a5d44d4b083f02ad0aaf2598fe1fa4dfd4'
-      tx.verify_input_signature(0, outpoint_tx, Time.now.to_i, verify_sigpushonly: true).should == false
-    end
+    # BIP62 rule #2 - spend transaction has operations in its signature
+    tx = Tx.new( fixtures_file('rawtx-testnet-3bc52ac063291ad92d95ddda5fd776a342083b95607ad32ed8bc6f8f7d30449e.bin') )
+    tx.hash.should == "3bc52ac063291ad92d95ddda5fd776a342083b95607ad32ed8bc6f8f7d30449e"
+    outpoint_tx = Tx.new( fixtures_file('rawtx-testnet-04fdc38d6722ab4b12d79113fc4b2896bdcc5169710690ee4e78541b98e467b4.bin') )
+    outpoint_tx.hash.should == "04fdc38d6722ab4b12d79113fc4b2896bdcc5169710690ee4e78541b98e467b4"
+    tx.verify_input_signature(0, outpoint_tx, Time.now.to_i).should == true
+    tx.verify_input_signature(0, outpoint_tx, Time.now.to_i, verify_sigpushonly: true).should == false
 
-    # BIP62 rule #6 - this is the same transaction from OP_CHECKSIG with OP_0, but with stricter checks
-    tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-9fb65b7304aaa77ac9580823c2c06b259cc42591e5cce66d76a81b6f51cc5c28.json'))
-    tx.hash.should == "9fb65b7304aaa77ac9580823c2c06b259cc42591e5cce66d76a81b6f51cc5c28"
-    outpoint_tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-a6ce7081addade7676cd2af75c4129eba6bf5e179a19c40c7d4cf6a5fe595954.json'))
-    outpoint_tx.hash.should == "a6ce7081addade7676cd2af75c4129eba6bf5e179a19c40c7d4cf6a5fe595954"
+    # BIP62 rule #6 - spend transaction has an unused "0" on the signature stack
+    tx = Tx.new( fixtures_file('rawtx-testnet-0b294c7d11dd21bcccb8393e6744fed7d4d1981a08c00e3e88838cc421f33c9f.bin') )
+    tx.hash.should == "0b294c7d11dd21bcccb8393e6744fed7d4d1981a08c00e3e88838cc421f33c9f"
+    outpoint_tx = Tx.new( fixtures_file('rawtx-testnet-f80acbd2f594d04ddb0e1cacba662132104909157dff526935a3c88abe9201a5.bin') )
+    outpoint_tx.hash.should == "f80acbd2f594d04ddb0e1cacba662132104909157dff526935a3c88abe9201a5"
+    tx.verify_input_signature(0, outpoint_tx, Time.now.to_i).should == true
     tx.verify_input_signature(0, outpoint_tx, Time.now.to_i, verify_cleanstack: true).should == false
 
     # Ensure BIP62 is applied to P2SH scripts
