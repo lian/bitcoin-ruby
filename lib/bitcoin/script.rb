@@ -570,17 +570,17 @@ class Bitcoin::Script
   end
 
   # Verify the script is only pushing data onto the stack
-  def is_push_only?
-    check_pushes(push_only=true, canonical_only=false)
+  def is_push_only?(script_data=nil)
+    check_pushes(push_only=true, canonical_only=false, (script_data||@input_script))
   end
 
   # Make sure opcodes used to push data match their intended length ranges
-  def pushes_are_canonical?
-    check_pushes(push_only=false, canonical_only=true)
+  def pushes_are_canonical?(script_data=nil)
+    check_pushes(push_only=false, canonical_only=true, (script_data||@raw))
   end
 
-  def check_pushes(push_only=true, canonical_only=false)
-    program = @raw.unpack("C*")
+  def check_pushes(push_only=true, canonical_only=false, buf)
+    program = buf.unpack("C*")
     until program.empty?
       opcode = program.shift
       if opcode > OP_16
