@@ -374,9 +374,7 @@ describe 'Tx' do
     outpoint_tx = Tx.new( fixtures_file('rawtx-testnet-f80acbd2f594d04ddb0e1cacba662132104909157dff526935a3c88abe9201a5.bin') )
     outpoint_tx.hash.should == "f80acbd2f594d04ddb0e1cacba662132104909157dff526935a3c88abe9201a5"
     tx.verify_input_signature(0, outpoint_tx, Time.now.to_i).should == true
-    unless ENV['USE_BITCOINCONSENSUS'] # Waiting on CLEANSTACK support in libbitcoinconsensus
-      tx.verify_input_signature(0, outpoint_tx, Time.now.to_i, verify_cleanstack: true).should == false
-    end
+    tx.verify_input_signature(0, outpoint_tx, Time.now.to_i, verify_cleanstack: true).should == false
 
     # Ensure BIP62 is applied to P2SH scripts
     tx = Bitcoin::P::Tx.from_json(fixtures_file('7208e5edf525f04e705fb3390194e316205b8f995c8c9fcd8c6093abe04fa27d.json'))
