@@ -251,7 +251,7 @@ module OpenSSL_EC
 
     EC_GROUP_get_order(group, order, ctx)
     BN_rshift1(halforder, order)
-    if BN_cmp(order, halforder) > 0
+    if BN_cmp(s, halforder) > 0
       BN_sub(s, order, s)
     end
 
