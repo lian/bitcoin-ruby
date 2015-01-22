@@ -671,7 +671,7 @@ describe "Bitcoin::Script OPCODES" do
 
     address = "3CkxTG25waxsmd13FFgRChPuGYba3ar36B"
     script = Bitcoin::Script.new(Bitcoin::Script.to_address_script(address))
-    script.type.should == :p2sh
+    script.type.should == :script_hash
 
     inner_script = Bitcoin::Script.from_string("0 OP_NOT").raw.unpack("H*")[0]
     script_hash = Bitcoin.hash160(inner_script)

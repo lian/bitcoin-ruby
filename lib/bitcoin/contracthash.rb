@@ -60,8 +60,8 @@ module Bitcoin
       nonce = nonce_hex ? [nonce_hex].pack("H32") : SecureRandom.random_bytes(16)
       if Bitcoin.valid_address?(address_or_ascii)
         address_type = case Bitcoin.address_type(address_or_ascii)
-                       when :hash160;  'P2PH'
-                       when :p2sh;     'P2SH'
+                       when :pubkey_hash;  'P2PH'
+                       when :script_hash;     'P2SH'
                        else
                          raise "unsupported address type #{address_type}"
                        end

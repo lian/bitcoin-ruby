@@ -68,7 +68,7 @@ describe "Bitcoin::Builder" do
 
     tx.out[0].value.should == 123
     script = Bitcoin::Script.new(tx.out[0].pk_script)
-    script.type.should == :hash160
+    script.type.should == :pubkey_hash
     script.get_address.should == @keys[1].addr
 
     tx.verify_input_signature(0, block.tx[0]).should == true

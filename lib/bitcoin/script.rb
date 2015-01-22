@@ -519,7 +519,7 @@ class Bitcoin::Script
   end
 
   # is this a :script_hash (pay-to-script-hash/p2sh) script?
-  def is_pay_to_script_hash?
+  def is_script_hash?
     return false  if @inner_p2sh
     if @previous_output_script
       chunks = Bitcoin::Script.new(@previous_output_script).chunks
@@ -536,35 +536,37 @@ class Bitcoin::Script
       (@chunks.size > 3 ? pay_to_script_hash(nil, nil, :check) : true)
     end
   end
-  alias :is_p2sh? :is_pay_to_script_hash?
+  alias :is_p2sh? :is_script_hash?
+  alias :is_pay_to_script_hash? :is_script_hash?
 
   # check if script is in one of the recognized standard formats
   def is_standard?
-    is_pubkey? || is_hash160? || is_multisig? || is_p2sh?  || is_op_return?
+    is_pubkey? || is_pubkey_hash? || is_multisig? || is_script_hash?  || is_op_return?
   end
 
-  # is this a pubkey script
+  # is this a :pubkey script?
   def is_pubkey?
     return false if @chunks.size != 2
     (@chunks[1] == OP_CHECKSIG) && @chunks[0] && (@chunks[0].is_a?(String)) && @chunks[0] != OP_RETURN
   end
   alias :is_send_to_ip? :is_pubkey?
 
-  # is this a hash160 (address) script
-  def is_hash160?
+  # is this a :pubkey_hash (hash160, regular address) script?
+  def is_pubkey_hash?
     return false  if @chunks.size != 5
     (@chunks[0..1] + @chunks[-2..-1]) ==
       [OP_DUP, OP_HASH160, OP_EQUALVERIFY, OP_CHECKSIG] &&
       @chunks[2].is_a?(String) && @chunks[2].bytesize == 20
   end
+  alias :is_hash160? :is_pubkey_hash?
 
-  # is this a multisig script
+  # is this a :multisig script?
   def is_multisig?
     return false  if @chunks.size < 4 || !@chunks[-2].is_a?(Fixnum)
     @chunks[-1] == OP_CHECKMULTISIG and get_multisig_pubkeys.all?{|c| c.is_a?(String) }
   end
 
-  # is this an op_return script
+  # is this an :op_return script?
   def is_op_return?
     @chunks[0] == OP_RETURN && @chunks.size <= 2
   end
@@ -617,12 +619,12 @@ class Bitcoin::Script
     false
   end
 
-  # get type of this tx
+  # get type of this script
   def type
-    if is_hash160?;     :hash160
+    if is_pubkey_hash?; :pubkey_hash
     elsif is_pubkey?;   :pubkey
     elsif is_multisig?; :multisig
-    elsif is_p2sh?;     :p2sh
+    elsif is_p2sh?;     :script_hash
     elsif is_op_return?;:op_return
     else;               :unknown
     end
@@ -641,8 +643,8 @@ class Bitcoin::Script
 
   # get the hash160 for this hash160 or pubkey script
   def get_hash160
-    return @chunks[2..-3][0].unpack("H*")[0]  if is_hash160?
-    return @chunks[-2].unpack("H*")[0]        if is_p2sh?
+    return @chunks[2..-3][0].unpack("H*")[0]  if is_pubkey_hash?
+    return @chunks[-2].unpack("H*")[0]        if is_script_hash?
     return Bitcoin.hash160(get_pubkey)        if is_pubkey?
   end
 
@@ -667,7 +669,7 @@ class Bitcoin::Script
   end
 
   def get_p2sh_address
-    Bitcoin.hash160_to_p2sh_address(get_hash160)
+    Bitcoin.hash160_to_address(get_hash160, :script_hash)
   end
 
   # get the data possibly included in an OP_RETURN script
@@ -679,9 +681,9 @@ class Bitcoin::Script
   # get all addresses this script corresponds to (if possible)
   def get_addresses
     return [get_pubkey_address]    if is_pubkey?
-    return [get_hash160_address]   if is_hash160?
+    return [get_hash160_address]   if is_pubkey_hash?
     return get_multisig_addresses  if is_multisig?
-    return [get_p2sh_address]      if is_p2sh?
+    return [get_p2sh_address]      if is_script_hash?
     []
   end
 
@@ -691,35 +693,37 @@ class Bitcoin::Script
     addrs.is_a?(Array) ? addrs[0] : addrs
   end
 
-  # generate pubkey tx script for given +pubkey+. returns a raw binary script of the form:
+  # generate :pubkey output script for given +pubkey+. returns a raw binary script of the form:
   #  <pubkey> OP_CHECKSIG
   def self.to_pubkey_script(pubkey)
     pack_pushdata([pubkey].pack("H*")) + [ OP_CHECKSIG ].pack("C")
   end
 
-  # generate hash160 tx for given +address+. returns a raw binary script of the form:
+  # generate :pubkey_hash output script for given +address+. returns a raw binary script of the form:
   #  OP_DUP OP_HASH160 <hash160> OP_EQUALVERIFY OP_CHECKSIG
-  def self.to_hash160_script(hash160)
+  def self.to_pubkey_hash_script(hash160)
     return nil  unless hash160
     #  DUP   HASH160  length  hash160    EQUALVERIFY  CHECKSIG
     [ ["76", "a9",    "14",   hash160,   "88",        "ac"].join ].pack("H*")
   end
+  def self.to_hash160_script(h); to_pubkey_hash_script(h); end
 
-  # generate p2sh output script for given +p2sh+ hash160. returns a raw binary script of the form:
+  # generate :script_hash output script for given +p2sh+ hash160. returns a raw binary script of the form:
   #  OP_HASH160 <p2sh> OP_EQUAL
-  def self.to_p2sh_script(p2sh)
+  def self.to_script_hash_script(p2sh)
     return nil  unless p2sh
     # HASH160  length  hash  EQUAL
     [ ["a9",   "14",   p2sh, "87"].join ].pack("H*")
   end
+  def self.to_p2sh_script(h); to_script_hash_script(h); end
 
-  # generate hash160 or p2sh output script, depending on the type of the given +address+.
+  # generate :pubkey_hash or :script_hash output script, depending on the type of the given +address+.
   # see #to_hash160_script and #to_p2sh_script.
   def self.to_address_script(address)
     hash160 = Bitcoin.hash160_from_address(address)
     case Bitcoin.address_type(address)
-    when :hash160; to_hash160_script(hash160)
-    when :p2sh;    to_p2sh_script(hash160)
+    when :pubkey_hash; to_pubkey_hash_script(hash160)
+    when :script_hash; to_script_hash_script(hash160)
     end
   end
 

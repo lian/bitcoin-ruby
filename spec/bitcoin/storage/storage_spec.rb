@@ -228,7 +228,7 @@ Bitcoin::network = :testnet
           @store.store_tx(@tx, false)
           keys.each do |key|
             hash160 = Bitcoin.hash160(key.pub)
-            txouts = @store.get_txouts_for_hash160(hash160, :hash160, true)
+            txouts = @store.get_txouts_for_hash160(hash160, :pubkey_hash, true)
             txouts.size.should == 1
             txouts[0].pk_script.should == txout.pk_script
           end
@@ -236,7 +236,7 @@ Bitcoin::network = :testnet
 
         it "should index output script type" do
           @store.store_tx(@tx, false)
-          @store.get_tx(@tx.hash).out.first.type.should == :hash160
+          @store.get_tx(@tx.hash).out.first.type.should == :pubkey_hash
         end
 
       end
@@ -265,7 +265,7 @@ Bitcoin::network = :testnet
       end
 
       it "should get txouts for hash160" do
-        @store.get_txouts_for_hash160(@key2.hash160, :hash160, true)
+        @store.get_txouts_for_hash160(@key2.hash160, :pubkey_hash, true)
           .should == [@block.tx[1].out[0]]
       end
 
@@ -301,7 +301,7 @@ Bitcoin::network = :testnet
           t.input {|i| i.prev_out(@block.tx[1], 0); i.signature_key(@key2) }
           t.output do |o|
             o.value 10
-            o.to @key2.hash160, :p2sh
+            o.to @key2.hash160, :script_hash
           end
           t.output do |o|
             o.value 10
@@ -312,7 +312,7 @@ Bitcoin::network = :testnet
 
         @store.store_block(block)
 
-        p2sh_address = Bitcoin.hash160_to_p2sh_address(@key2.hash160)
+        p2sh_address = Bitcoin.hash160_to_address(@key2.hash160, :script_hash)
         o1 = @store.get_unspent_txouts_for_address(@key2.addr)
         o2 = @store.get_unspent_txouts_for_address(p2sh_address)
 
