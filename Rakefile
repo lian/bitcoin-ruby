@@ -7,7 +7,6 @@ end
 PROJECT_SPECS = ( FileList['spec/bitcoin/bitcoin_spec.rb'] +
                   FileList['spec/bitcoin/protocol/*_spec.rb'] +
                   FileList['spec/bitcoin/script/*_spec.rb'] +
-                  FileList['spec/bitcoin/wallet/*_spec.rb'] +
                   ['spec/bitcoin/storage/storage_spec.rb',
                    'spec/bitcoin/storage/reorg_spec.rb',
                    'spec/bitcoin/storage/validation_spec.rb'] +
