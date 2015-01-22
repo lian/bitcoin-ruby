@@ -7,9 +7,6 @@ end
 PROJECT_SPECS = ( FileList['spec/bitcoin/bitcoin_spec.rb'] +
                   FileList['spec/bitcoin/protocol/*_spec.rb'] +
                   FileList['spec/bitcoin/script/*_spec.rb'] +
-                  ['spec/bitcoin/storage/storage_spec.rb',
-                   'spec/bitcoin/storage/reorg_spec.rb',
-                   'spec/bitcoin/storage/validation_spec.rb'] +
                   FileList['spec/bitcoin/node/*_spec.rb'] +
                   FileList['spec/bitcoin/*_spec.rb'] ).uniq
 
