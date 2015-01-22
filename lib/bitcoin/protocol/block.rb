@@ -231,12 +231,6 @@ module Bitcoin
       # read json block from a file
       def self.from_json_file(path); from_json( Bitcoin::Protocol.read_binary_file(path) ); end
 
-      # Get a Bitcoin::Validation object to validate this block. It needs a +store+
-      # to validate against, and optionally takes the +prev_block+ for optimization.
-      def validator(store, prev_block = nil)
-        @validator ||= Bitcoin::Validation::Block.new(self, store, prev_block)
-      end
-
       # get the (statistical) amount of work that was needed to generate this block.
       def block_work
         target = Bitcoin.decode_compact_bits(@bits).to_i(16)
