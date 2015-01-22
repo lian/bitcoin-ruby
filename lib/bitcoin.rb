@@ -21,7 +21,6 @@ module Bitcoin
   autoload :Validation, 'bitcoin/validation'
 
   autoload :Dogecoin,   'bitcoin/dogecoin'
-  autoload :Namecoin,   'bitcoin/namecoin'
   autoload :Litecoin,   'bitcoin/litecoin'
 
   autoload :ContractHash,   'bitcoin/contracthash'
@@ -518,7 +517,7 @@ module Bitcoin
     @network = name.to_sym
     @network_project = network[:project] rescue nil
     Dogecoin.load  if dogecoin? || dogecoin_testnet?
-    Namecoin.load  if namecoin?
+    Namecoin.load  if namecoin? && defined?(Namecoin)
     @network
   end
 
