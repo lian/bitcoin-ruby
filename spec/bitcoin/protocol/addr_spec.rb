@@ -10,8 +10,9 @@ describe 'Bitcoin::Protocol::Parser (addr)' do
       .split(" ").join].pack("H*")
 
     class Addr_Handler < Bitcoin::Protocol::Handler
-      attr_reader :addr
+      attr_reader :addr, :err
       def on_addr(addr); (@addr ||= []) << addr; end
+      def on_error(*err); (@err ||= []) << err; end
     end
 
     parser = Bitcoin::Protocol::Parser.new( handler = Addr_Handler.new )
@@ -22,6 +23,14 @@ describe 'Bitcoin::Protocol::Parser (addr)' do
     handler.addr.map{|i| i.values }.should == [
       [1305992491, 1, "82.83.222.4", 8333]
     ]
+  end
+
+  it "parses broken address packet" do
+    pkt = ["01 00 00 00 00".split(" ").join].pack("H*")
+    parser = Bitcoin::Protocol::Parser.new( handler = Addr_Handler.new )
+    parser.parse_addr(pkt).should == nil
+    handler.addr.should == nil
+    handler.err.should == [[:addr, pkt[1..-1]]]
   end
 
 end
@@ -69,4 +78,5 @@ describe 'Bitcoin::Protocol::Addr' do
     Bitcoin::Protocol::Addr.pkt(addr).should ==
       Bitcoin::Protocol.pkt("addr", "\x01" + addr.to_payload)
   end
+
 end

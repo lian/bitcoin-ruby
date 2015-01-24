@@ -33,6 +33,10 @@ module Bitcoin
         puts block.to_json
       end
 
+      def on_error(message, payload)
+        p ['error', message, payload]
+      end
+
     end
 
   end
