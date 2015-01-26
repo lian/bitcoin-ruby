@@ -6,16 +6,18 @@ Some of the main features are:
 
 * Bitcoin::Util provides the basic bitcoin utility functions for base58, ECC, etc.
 * Bitcoin::Protocol can parse/create (almost?) all protocol messages
-* Bitcoin::Network::Node connects to peers, fetches the blockchain and keeps it up to date
-  (see NODE for usage)
-* Bitcoin::Validation validates block and transaction rules
-* Bitcoin::Storage stores the blockchain and can be queried for transaction data
 * Bitcoin::Script implementation, create/run scripts and verify signatures
 * Bitcoin::Key provides a high-level API for creating and handling keys/addresses
 * Bitcoin::Builder provides a high-level API for creating transactions (and blocks)
-* Bitcoin::Wallet is a draft implementation of a simple wallet
-* Bitcoin::Namecoin implements all the namecoin-specific differences (see NAMECOIN)
 * Bitcoin::Litecoin implements all the litecoin-specific differences
+
+== Related Projects
+
+* bitcoin-ruby-blockchain[http://github.com/mhanne/bitcoin-ruby-blockchain]
+* bitcoin-ruby-node[http://github.com/mhanne/bitcoin-ruby-node]
+* bitcoin-ruby-wallet[http://github.com/mhanne/bitcoin-ruby-wallet]
+* bitcoin-ruby-gui[http://github.com/mhanne/bitcoin-ruby-gui]
+* namecoin-ruby[http://github.com/mhanne/namecoin-ruby]
 
 == Compatible with...
 
@@ -34,41 +36,21 @@ if you want to have it available system-wide, just build the gem and install it:
 
  gem build bitcoin-ruby.gemspec && gem install bitcoin-ruby-0.0.5.gem
 
-now you can just call +bitcoin_node+ from anywhere.
-
-
 Note that some aspects of the library (such as networking, storage, etc.) need
 additional dependencies which are not specified in the gemspec. The core requirements are
 intentionally kept to a minimum, so nobody has to install unneeded dependencies.
 
-* +eventmachine+ to run a node / connect to peers
-* +sequel+, +sqlite3+/+pg+/+mysql+ to use a storage backend
-* +em-dns+ for bin/bitcoin_dns_seed
 * +bacon+ to run the specs
 * +scrypt+ to use a much faster scrypt hash implementation for Litecoin
 
 If you would like to install using Bundler, put it in your Gemfile and run bundle install
  gem 'bitcoin-ruby', git: 'https://github.com/lian/bitcoin-ruby', branch: 'master', require: 'bitcoin'
 
-== Client
-
-There is a node which connects to the network and downloads
-the blockchain into a database. see NODE, Bitcoin::Network::Node.
-
-It also opens an extra socket where local clients can query statistics,
-monitor blockchain data, and relay their own transactions to the network.
-see NODE, Bitcoin::Network::CommandHandler, Bitcoin::Network::CommandClient.
-
-There is a WALLET implementation to manage a set of keys, list balances and create
-transactions. see WALLET, Bitcoin::Wallet.
-
-
 == Library Usage
 
 There are different aspects to the library which can be used separately or in combination.
 Here are some ideas of what you could do. There are also some demo scripts in examples/,
 see EXAMPLES.
-
 
 === Keys/Addresses
 
@@ -191,43 +173,13 @@ as well as the private key for the address required to sign for it.
  # that will also give you a hint on the error if something goes wrong
  puts new_tx.to_json
 
-=== Node / Network connections
-
-The Bitcoin::Network::Node can connect to peers and download the blockchain into a
-Bitcoin::Storage backend. For now it works completely self-contained:
-
- node = Bitcoin::Network::Node.new(options) # options = {network: :bitcoin, ...}
- node.run
-
-In the future you will be able to register callbacks to the node and control many aspects
-of its operation yourself. Also see NODE.
-
-If you want to implement your own node, see lib/bitcoin/connection.rb or
-lib/bitcoin/network/node.rb for examples.
-
-
-=== Storage / Database backends
-
-There is support for different storage backends. Each backend can be used with
-sqlite, postgres or mysql. All backends implement the interface defined in
-Bitcoin::Storage::Backends::StoreBase and return Bitcoin::Storage::Models.
-
- store = Bitcoin::Storage.sequel(:db => "sqlite://bitcoin.db") # in-memory db
- store.get_head #=> block
- txouts = store.get_txouts_for_address("15yN7NPEpu82sHhB6TzCW5z5aXoamiKeGy")
- txouts.first.value #=> 5000000000
- txouts.first.type #=> :pubkey
- txouts.first.get_address #=> "15yN7NPEpu82sHhB6TzCW5z5aXoamiKeGy"
-
-See also STORAGE, Bitcoin::Storage::Backends::UtxoStore, Bitcoin::Storage::Backends::SequelStore and Bitcoin::Storage::Backends::DummyStore for details.
-
 == Documentation
 
 Always trying to improve, any help appreciated! If anything is unclear to you, let us know!
 
-Documentation is generated using RDoc
+Documentation is generated using yardoc:
 
- rake rdoc
+ rake doc
 
 The specs are also a good place to see how something works.
 
@@ -240,11 +192,6 @@ The specs can be run with
 or, if you want to run a single spec
 
  ruby spec/bitcoin/bitcoin_spec.rb
-
-To test the postgres/mysql storage backend, create a database and set it as an environment variable:
-
- echo "create database bitcoin_test" | psql
- TEST_DB_POSTGRES="postgres:/bitcoin_test" rake bacon
 
 If you make changes to the code or add functionality, please also add specs.
 
