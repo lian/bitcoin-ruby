@@ -13,48 +13,15 @@ module Bitcoin
   autoload :P,          'bitcoin/protocol'
   autoload :Script,     'bitcoin/script'
   autoload :VERSION,    'bitcoin/version'
-  autoload :Storage,    'bitcoin/storage/storage'
   autoload :Logger,     'bitcoin/logger'
   autoload :Key,        'bitcoin/key'
-  autoload :Config,     'bitcoin/config'
   autoload :Builder,    'bitcoin/builder'
-  autoload :Validation, 'bitcoin/validation'
 
   autoload :Dogecoin,   'bitcoin/dogecoin'
   autoload :Litecoin,   'bitcoin/litecoin'
 
   autoload :ContractHash,   'bitcoin/contracthash'
 
-  module Network
-    autoload :ConnectionHandler,  'bitcoin/network/connection_handler'
-    autoload :CommandHandler,     'bitcoin/network/command_handler'
-    autoload :CommandClient,     'bitcoin/network/command_client'
-    autoload :Node,               'bitcoin/network/node'
-  end
-
-  module Wallet
-    autoload :KeyGenerator,          'bitcoin/wallet/keygenerator'
-    autoload :SimpleKeyStore,        'bitcoin/wallet/keystore'
-    autoload :DeterministicKeyStore, 'bitcoin/wallet/keystore'
-    autoload :SimpleCoinSelector,    'bitcoin/wallet/coinselector'
-    autoload :Wallet,                'bitcoin/wallet/wallet'
-    autoload :TxDP,                'bitcoin/wallet/txdp'
-  end
-
-  def self.require_dependency name, opts = {}
-    begin
-      require name.to_s
-    rescue LoadError
-      return false if name.to_s == "log4r"
-      print "Cannot load #{opts[:exit] == false ? 'optional' : 'required'} dependency '#{name}'"
-      (opts[:gem] == false) ? puts("") :
-        puts(" - install with `gem install #{opts[:gem] || name}`")
-      puts opts[:message]  if opts[:message]
-      exit 1  unless opts[:exit] == false
-      return false
-    end
-    true
-  end
 
   module Util
 

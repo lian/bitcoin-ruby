@@ -5,7 +5,7 @@ This is a ruby library for interacting with the bitcoin protocol/network.
 Some of the main features are:
 
 * Bitcoin::Util provides the basic bitcoin utility functions for base58, ECC, etc.
-* Bitcoin::Protocol can parse/create (almost?) all protocol messages
+* Bitcoin::Protocol can parse/create all protocol messages
 * Bitcoin::Script implementation, create/run scripts and verify signatures
 * Bitcoin::Key provides a high-level API for creating and handling keys/addresses
 * Bitcoin::Builder provides a high-level API for creating transactions (and blocks)
@@ -13,6 +13,7 @@ Some of the main features are:
 
 == Related Projects
 
+* toshi[https://github.com/coinbase/toshi]
 * bitcoin-ruby-blockchain[http://github.com/mhanne/bitcoin-ruby-blockchain]
 * bitcoin-ruby-node[http://github.com/mhanne/bitcoin-ruby-node]
 * bitcoin-ruby-wallet[http://github.com/mhanne/bitcoin-ruby-wallet]
@@ -30,7 +31,6 @@ Some of the main features are:
 We assume you already have a ruby 1.9 or 2.0 compatible interpreter and rubygems environment.
 
  git clone https://github.com/lian/bitcoin-ruby.git; cd bitcoin-ruby
- ruby -Ilib bin/bitcoin_node
 
 if you want to have it available system-wide, just build the gem and install it:
 

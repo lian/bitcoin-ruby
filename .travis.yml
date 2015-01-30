@@ -1,9 +1,5 @@
 language: ruby
 rvm:
   - 2.0.0
-  - 2.1.0
-before_script:
-  - psql -c 'create database bitcoin_test;' -U postgres
-  - mysql -e 'create database bitcoin_test;'
-env:
-  - TEST_DB_POSTGRES="postgres://postgres@localhost/bitcoin_test" TEST_DB_MYSQL="mysql:/bitcoin_test"
+  - 2.1.2
+  - 2.2.0

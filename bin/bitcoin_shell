@@ -4,7 +4,6 @@ require 'bitcoin'
 
 include Bitcoin
 include Bitcoin::Util
-include Bitcoin::Storage
 
 Bitcoin.network = ARGV.shift || :bitcoin
 

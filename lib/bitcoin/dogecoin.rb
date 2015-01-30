@@ -2,7 +2,7 @@
 
 # This module includes (almost) everything necessary to add dogecoin support
 # to bitcoin-ruby. When switching to a :dogecoin network, it will load its
-# functionality into the Script class and the Storage backend.
+# functionality into the Script class.
 # The only things not included here should be parsing the AuxPow, which is
 # done in Protocol::Block directly, and passing the txout to #store_doge from
 # the storage backend.

@@ -3,7 +3,7 @@
 # Wraps libsecp256k1 (https://github.com/bitcoin/secp256k1)
 # commit: 50cc6ab0625efda6dddf1dc86c1e2671f069b0d8
 
-Bitcoin.require_dependency :ffi, exit: false, message: "Skipping FFI needed for libsecp256k1 methods."
+require 'ffi'
 
 module Bitcoin
   module Secp256k1

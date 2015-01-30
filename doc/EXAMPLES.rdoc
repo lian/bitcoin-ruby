@@ -1,9 +1,0 @@
-= Examples
-
-There are a few demo scripts in `examples/` that might give you an idea where to start.
-
-connect.rb::       Connect to a network node and chat a little.
-verify_tx.rb::     Fetch a transaction from local storage and verify signatures.
-bbe_verify_tx.rb:: Fetch transaction from blockexplorer.com and verify signatures.
-generate_tx.rb::   Create a transaction.
-simple_network_monitor_and_util:: Connects to the network and lets you monitor and query blocks/txs.

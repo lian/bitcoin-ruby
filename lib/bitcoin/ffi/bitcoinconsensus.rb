@@ -1,6 +1,6 @@
 # encoding: ascii-8bit
 
-Bitcoin.require_dependency :ffi, exit: false, message: "Skipping FFI needed for bitcoinconsensus methods."
+require 'ffi'
 
 # Wraps bitcoinconsensus.so (https://github.com/bitcoin/bitcoin)
 # commit: 90c71548c795787b008bc337cb9332f75d1bccdb
