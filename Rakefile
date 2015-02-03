@@ -7,6 +7,7 @@ end
 PROJECT_SPECS = ( FileList['spec/bitcoin/bitcoin_spec.rb'] +
                   FileList['spec/bitcoin/protocol/*_spec.rb'] +
                   FileList['spec/bitcoin/script/*_spec.rb'] +
+                  FileList['spec/bitcoin/trezor/*_spec.rb'] +
                   FileList['spec/bitcoin/*_spec.rb'] ).uniq
 
 RUBY = 'ruby' unless defined?(RUBY)

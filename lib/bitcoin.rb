@@ -22,6 +22,10 @@ module Bitcoin
 
   autoload :ContractHash,   'bitcoin/contracthash'
 
+  module Trezor
+    autoload :Mnemonic,   'bitcoin/trezor/mnemonic'
+  end
+
 
   module Util
 
