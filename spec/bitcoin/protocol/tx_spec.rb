@@ -52,7 +52,7 @@ describe 'Tx' do
   it '#normalized_hash' do
     tx = Tx.new( @payload[0] )
     tx.normalized_hash.size.should == 64
-    tx.normalized_hash.should == "402e30100b6937cc13828ca096377c93afc0ff227ad2f249245e5b1db9123a39"
+    tx.normalized_hash.should == "393a12b91d5b5e2449f2d27a22ffc0af937c3796a08c8213cc37690b10302e40"
 
     new_tx = JSON.parse(tx.to_json)
     script =  Bitcoin::Script.from_string(new_tx['in'][0]['scriptSig'])
@@ -63,7 +63,7 @@ describe 'Tx' do
 
     new_tx.hash.should != tx.hash
     new_tx.normalized_hash.size.should == 64
-    new_tx.normalized_hash.should == "402e30100b6937cc13828ca096377c93afc0ff227ad2f249245e5b1db9123a39"
+    new_tx.normalized_hash.should == "393a12b91d5b5e2449f2d27a22ffc0af937c3796a08c8213cc37690b10302e40"
   end
 
   it '#to_payload' do
