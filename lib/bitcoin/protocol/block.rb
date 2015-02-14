@@ -14,7 +14,9 @@ module Bitcoin
       attr_accessor :hash
 
       # previous block hash
-      attr_accessor :prev_block
+      attr_accessor :prev_block_hash
+      alias :prev_block :prev_block_hash
+      def prev_block=(hash); @prev_block_hash = hash; end
 
       # transactions (Array of Tx)
       attr_accessor :tx
@@ -52,7 +54,7 @@ module Bitcoin
       end
 
       def prev_block_hex
-        @prev_block_hex ||= @prev_block.reverse.unpack("H*")[0]
+        @prev_block_hex ||= @prev_block_hash.reverse.unpack("H*")[0]
       end
 
       # create block from raw binary +data+
@@ -70,7 +72,7 @@ module Bitcoin
       # parse raw binary data
       def parse_data_from_io(buf, header_only=false)
         buf = buf.is_a?(String) ? StringIO.new(buf) : buf
-        @ver, @prev_block, @mrkl_root, @time, @bits, @nonce = buf.read(80).unpack("Va32a32VVV")
+        @ver, @prev_block_hash, @mrkl_root, @time, @bits, @nonce = buf.read(80).unpack("Va32a32VVV")
         recalc_block_hash
 
         if Bitcoin.network[:auxpow_chain_id] != nil && (@ver & BLOCK_VERSION_AUXPOW) > 0
@@ -96,11 +98,11 @@ module Bitcoin
 
       # recalculate the block hash
       def recalc_block_hash
-        @hash = Bitcoin.block_hash(@prev_block.reverse_hth, @mrkl_root.reverse_hth, @time, @bits, @nonce, @ver)
+        @hash = Bitcoin.block_hash(@prev_block_hash.reverse_hth, @mrkl_root.reverse_hth, @time, @bits, @nonce, @ver)
       end
 
       def recalc_block_scrypt_hash
-        @scrypt_hash = Bitcoin.block_scrypt_hash(@prev_block.reverse_hth, @mrkl_root.reverse_hth, @time, @bits, @nonce, @ver)
+        @scrypt_hash = Bitcoin.block_scrypt_hash(@prev_block_hash.reverse_hth, @mrkl_root.reverse_hth, @time, @bits, @nonce, @ver)
       end
 
       def recalc_mrkl_root
@@ -115,12 +117,12 @@ module Bitcoin
       # get the block header info
       # [<version>, <prev_block>, <merkle_root>, <time>, <bits>, <nonce>, <txcount>, <size>]
       def header_info
-        [@ver, @prev_block.reverse_hth, @mrkl_root.reverse_hth, Time.at(@time), @bits, @nonce, @tx.size, @payload.size]
+        [@ver, @prev_block_hash.reverse_hth, @mrkl_root.reverse_hth, Time.at(@time), @bits, @nonce, @tx.size, @payload.size]
       end
 
       # convert to raw binary format
       def to_payload
-        head = [@ver, @prev_block, @mrkl_root, @time, @bits, @nonce].pack("Va32a32VVV")
+        head = [@ver, @prev_block_hash, @mrkl_root, @time, @bits, @nonce].pack("Va32a32VVV")
         head << @aux_pow.to_payload  if @aux_pow
         return head if @tx.size == 0
         head << Protocol.pack_var_int(@tx.size)
@@ -132,7 +134,7 @@ module Bitcoin
       def to_hash
         h = {
           'hash' => @hash, 'ver' => @ver,
-          'prev_block' => @prev_block.reverse_hth, 'mrkl_root' => @mrkl_root.reverse_hth,
+          'prev_block' => @prev_block_hash.reverse_hth, 'mrkl_root' => @mrkl_root.reverse_hth,
           'time' => @time, 'bits' => @bits, 'nonce' => @nonce,
           'n_tx' => @tx.size, 'size' => (@payload||to_payload).bytesize,
           'tx' => @tx.map{|i| i.to_hash },
@@ -191,7 +193,7 @@ module Bitcoin
         blk = new(nil)
         blk.instance_eval{
           @ver, @time, @bits, @nonce = h.values_at('ver', 'time', 'bits', 'nonce')
-          @prev_block, @mrkl_root = h.values_at('prev_block', 'mrkl_root').map{|i| i.htb_reverse }
+          @prev_block_hash, @mrkl_root = h.values_at('prev_block', 'mrkl_root').map{|i| i.htb_reverse }
           unless h['hash'] == recalc_block_hash
             raise "Block hash mismatch! Claimed: #{h['hash']}, Actual: #{@hash}" if do_raise
           end
@@ -222,7 +224,7 @@ module Bitcoin
 
       # block header binary output
       def block_header
-        [@ver, @prev_block, @mrkl_root, @time, @bits, @nonce, Protocol.pack_var_int(0)].pack("Va32a32VVVa*")
+        [@ver, @prev_block_hash, @mrkl_root, @time, @bits, @nonce, Protocol.pack_var_int(0)].pack("Va32a32VVVa*")
       end
 
       # read binary block from a file

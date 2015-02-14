@@ -6,7 +6,9 @@ module Bitcoin
     class TxIn
 
       # previous output hash
-      attr_accessor :prev_out
+      attr_accessor :prev_out_hash
+      alias :prev_out :prev_out_hash
+      def prev_out=(hash); @prev_out_hash = hash; end
 
       # previous output index
       attr_accessor :prev_out_index
@@ -29,7 +31,7 @@ module Bitcoin
       COINBASE_INDEX = 0xffffffff
 
       def initialize *args
-        @prev_out, @prev_out_index, @script_sig_length,
+        @prev_out_hash, @prev_out_index, @script_sig_length,
         @script_sig, @sequence = *args
         @script_sig_length ||= 0
         @script_sig ||= ''
@@ -38,7 +40,7 @@ module Bitcoin
 
       # compare to another txout
       def ==(other)
-        @prev_out == other.prev_out &&
+        @prev_out_hash == other.prev_out_hash &&
           @prev_out_index == other.prev_out_index &&
           @script_sig == other.script_sig &&
           @sequence == other.sequence
@@ -63,18 +65,18 @@ module Bitcoin
       end
 
       def parse_data_from_io(buf)
-        @prev_out, @prev_out_index = buf.read(36).unpack("a32V")
+        @prev_out_hash, @prev_out_index = buf.read(36).unpack("a32V")
         @script_sig_length = Protocol.unpack_var_int_from_io(buf)
         @script_sig = buf.read(@script_sig_length)
         @sequence = buf.read(4)
       end
 
       def to_payload(script=@script_sig, sequence=@sequence)
-        [@prev_out, @prev_out_index].pack("a32V") << Protocol.pack_var_int(script.bytesize) << script << (sequence || DEFAULT_SEQUENCE)
+        [@prev_out_hash, @prev_out_index].pack("a32V") << Protocol.pack_var_int(script.bytesize) << script << (sequence || DEFAULT_SEQUENCE)
       end
 
       def to_hash(options = {})
-        t = { 'prev_out'  => { 'hash' => @prev_out.reverse_hth, 'n' => @prev_out_index } }
+        t = { 'prev_out'  => { 'hash' => @prev_out_hash.reverse_hth, 'n' => @prev_out_index } }
         if coinbase?
           t['coinbase']  = @script_sig.unpack("H*")[0]
         else # coinbase tx
@@ -103,12 +105,12 @@ module Bitcoin
 
       # previous output in hex
       def previous_output
-        @prev_out.reverse_hth
+        @prev_out_hash.reverse_hth
       end
 
       # check if input is coinbase
       def coinbase?
-        (@prev_out_index == COINBASE_INDEX) && (@prev_out == NULL_HASH)
+        (@prev_out_index == COINBASE_INDEX) && (@prev_out_hash == NULL_HASH)
       end
 
       # set script_sig and script_sig_length
