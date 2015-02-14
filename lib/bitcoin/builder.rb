@@ -14,7 +14,6 @@ module Bitcoin
       yield c
       c.block(target)
     end
-    alias :blk :build_block
 
     # build a Bitcoin::Protocol::Tx.
     # see TxBuilder for details.
@@ -23,7 +22,6 @@ module Bitcoin
       yield c
       c.tx opts
     end
-    alias :tx :build_tx
 
     # build a Bitcoin::Script.
     # see ScriptBuilder for details.
