@@ -5,6 +5,8 @@ module Bitcoin
   # Elliptic Curve key as used in bitcoin.
   class Key
 
+    attr_reader :key
+
     # Generate a new keypair.
     #  Bitcoin::Key.generate
     def self.generate(opts={compressed: true})
