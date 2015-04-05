@@ -125,7 +125,7 @@ If you want to control the Bitcoin::Script yourself, you can do so
 You need to know the previous output you want to spend (tx hash and output index),
 as well as the private key for the address required to sign for it.
 
- # use testnet so you don't acidentially your whole money!
+ # use testnet so you don't acidentially blow your whole money!
  Bitcoin.network = :testnet3
  
  # make the DSL methods available in your scope
