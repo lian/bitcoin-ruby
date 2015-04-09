@@ -293,7 +293,7 @@ module Bitcoin
       else
         false
       end
-    rescue OpenSSL::PKey::ECError, OpenSSL::PKey::EC::Point::Error
+    rescue OpenSSL::PKey::ECError, OpenSSL::PKey::EC::Point::Error, OpenSSL::BNError
       false
     end
 

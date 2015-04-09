@@ -1343,7 +1343,7 @@ class Bitcoin::Script
     drop_sigs      = [ cast_to_string(@stack[-1]) ]
 
     signature = cast_to_string(@stack.pop)
-    return (@stack << 0) unless Bitcoin::Script.check_signature_encoding?(signature, opts)
+    return invalid unless Bitcoin::Script.check_signature_encoding?(signature, opts)
     return (@stack << 0) if signature == ""
 
     sig, hash_type = parse_sig(signature)
@@ -1409,7 +1409,7 @@ class Bitcoin::Script
     while success && n_sigs > 0
       sig, pub = sigs.pop, pubkeys.pop
       return (@stack << 0) unless Bitcoin::Script.check_pubkey_encoding?(pub, opts)
-      return (@stack << 0) unless Bitcoin::Script.check_signature_encoding?(sig, opts)
+      return invalid unless Bitcoin::Script.check_signature_encoding?(sig, opts)
       unless sig && sig.size > 0
         success = false
         break
@@ -1464,6 +1464,7 @@ class Bitcoin::Script
 
   # Loosely matches CheckSignatureEncoding()
   def self.check_signature_encoding?(sig, opts={})
+    return true  if sig.bytesize == 0
     return false if (opts[:verify_dersig] || opts[:verify_low_s] || opts[:verify_strictenc]) and !is_der_signature?(sig)
     return false if opts[:verify_low_s] && !is_low_der_signature?(sig)
     return false if opts[:verify_strictenc] && !is_defined_hashtype_signature?(sig)

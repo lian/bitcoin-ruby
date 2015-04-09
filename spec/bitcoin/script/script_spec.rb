@@ -705,7 +705,7 @@ describe "Implements BIP62" do
     # TX 3da75972766f0ad13319b0b461fd16823a731e44f6e9de4eb3c52d6a6fb6c8ae
     sig_orig = ["304502210088984573e3e4f33db7df6aea313f1ce67a3ef3532ea89991494c7f018258371802206ceefc9291450dbd40d834f249658e0f64662d52a41cf14e20c9781144f2fe0701"].pack("H*")
     Bitcoin::Script::is_low_der_signature?(sig_orig).should == true
-    
+
     # Set the start of the S-value to 0xff so it's well above the order of the curve divided by two
     sig = sig_orig.unpack("C*")
     length_r = sig[3]
@@ -719,4 +719,202 @@ describe "Implements BIP62" do
       Script.new([Bitcoin::Script::OP_PUSHDATA2, 255].pack("Cv") + 'A' * 255).pushes_are_canonical?.should == false
       Script.new([Bitcoin::Script::OP_PUSHDATA4, 1645].pack("CV") + 'A' * 1645).pushes_are_canonical?.should == false
     end
+end
+
+describe "Implements BIP66" do
+  def build_crediting_tx(script_pk)
+    tx = Bitcoin::P::Tx.new
+    input = Bitcoin::P::TxIn.new(nil, 0xffffffff, 2, "\x00\x00")
+    output = Bitcoin::P::TxOut.new(0, script_pk)
+    tx.add_in(input)
+    tx.add_out(output)
+    Bitcoin::P::Tx.new(tx.to_payload)
+  end
+
+  def build_spending_tx(script_sig, tx_credit)
+    tx = Bitcoin::P::Tx.new
+    input = Bitcoin::P::TxIn.new(tx_credit.binary_hash, 0, 2, script_sig)
+    output = Bitcoin::P::TxOut.new(0, '')
+    tx.add_in(input)
+    tx.add_out(output)
+    Bitcoin::P::Tx.new(tx.to_payload)
+  end
+
+  # essentially DoTest() from script_tests.cpp
+  def run_script_test(script_sig_str, script_pk_str, opts={})
+    script_sig = Bitcoin::Script.from_string(script_sig_str)
+    script_pk = Bitcoin::Script.from_string(script_pk_str)
+    tx_credit = build_crediting_tx(script_pk.raw)
+    tx = build_spending_tx(script_sig.raw, tx_credit)
+    tx.verify_input_signature(0, tx_credit, Time.now.to_i, opts)
+  end
+
+  it 'overly long signature fails with DERSIG passes without' do
+    script_sig = "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    script_pk = "0 OP_CHECKSIG OP_NOT"
+    run_script_test(script_sig, script_pk, {verify_dersig: true}).should == false
+    run_script_test(script_sig, script_pk).should == true
+  end
+
+  it 'missing S fails with DERSIG passes without' do
+    script_sig = "3022022000000000000000000000000000000000000000000000000000000000000000000"
+    script_pk = "0 OP_CHECKSIG OP_NOT"
+    run_script_test(script_sig, script_pk, {verify_dersig: true}).should == false
+    run_script_test(script_sig, script_pk).should == true
+  end
+
+  it 'S with invalid fails with DERSIG passes without' do
+    script_sig = "3024021077777777777777777777777777777777020a7777777777777777777777777777777701"
+    script_pk = "0 OP_CHECKSIG OP_NOT"
+    run_script_test(script_sig, script_pk, {verify_dersig: true}).should == false
+    run_script_test(script_sig, script_pk).should == true
+  end
+
+  it 'non-integer R fails with DERSIG passes without' do
+    script_sig = "302403107777777777777777777777777777777702107777777777777777777777777777777701"
+    script_pk = "0 OP_CHECKSIG OP_NOT"
+    run_script_test(script_sig, script_pk, {verify_dersig: true}).should == false
+    run_script_test(script_sig, script_pk).should == true
+  end
+
+  it 'non-integer S fails with DERSIG passes without' do
+    script_sig = "302402107777777777777777777777777777777703107777777777777777777777777777777701"
+    script_pk = "0 OP_CHECKSIG OP_NOT"
+    run_script_test(script_sig, script_pk, {verify_dersig: true}).should == false
+    run_script_test(script_sig, script_pk).should == true
+  end
+
+  it 'zero length R fails with DERSIG passes without' do
+    script_sig = "3014020002107777777777777777777777777777777701"
+    script_pk = "0 OP_CHECKSIG OP_NOT"
+    run_script_test(script_sig, script_pk, {verify_dersig: true}).should == false
+    run_script_test(script_sig, script_pk).should == true
+  end
+
+  it 'zero length S fails with DERSIG passes without' do
+    script_sig = "3014021077777777777777777777777777777777020001"
+    script_pk = "0 OP_CHECKSIG OP_NOT"
+    run_script_test(script_sig, script_pk, {verify_dersig: true}).should == false
+    run_script_test(script_sig, script_pk).should == true
+  end
+
+  it 'negative S fails with DERSIG passes without' do
+    script_sig = "302402107777777777777777777777777777777702108777777777777777777777777777777701"
+    script_pk = "0 OP_CHECKSIG OP_NOT"
+    run_script_test(script_sig, script_pk, {verify_dersig: true}).should == false
+    run_script_test(script_sig, script_pk).should == true
+  end
+
+  # see: https://github.com/bitcoin/bips/blob/master/bip-0066.mediawiki#examples
+  # see also: https://github.com/bitcoin/bitcoin/pull/5713/files
+  P1 = "038282263212c609d9ea2a6e3e172de238d8c39cabd5ac1ca10646e23fd5f51508"
+  P2 = "03363d90d447b00c9c99ceac05b6262ee053441c7e55552ffe526bad8f83ff4640"
+
+  # Example 1: S1' P1 CHECKSIG (fails w/ verify_dersig, passes w/o)
+  it 'example 1' do
+    script_sig = "30440220d7a0417c3f6d1a15094d1cf2a3378ca0503eb8a57630953a9e2987e21ddd0a6502207a6266d686c99090920249991d3d42065b6d43eb70187b219c0db82e4f94d1a201"
+    script_pk = "#{P1} OP_CHECKSIG"
+    run_script_test(script_sig, script_pk).should == true
+    run_script_test(script_sig, script_pk, {verify_dersig: true}).should == false
+  end
+
+  # Example 2: S1' P1 CHECKSIG NOT (fails with either)
+  it 'example 2' do
+    script_sig = "304402208e43c0b91f7c1e5bc58e41c8185f8a6086e111b0090187968a86f2822462d3c902200a58f4076b1133b18ff1dc83ee51676e44c60cc608d9534e0df5ace0424fc0be01"
+    script_pk = "#{P1} OP_CHECKSIG OP_NOT"
+    run_script_test(script_sig, script_pk).should == false
+    run_script_test(script_sig, script_pk, {verify_dersig: true}).should == false
+  end
+
+  # Example 3: F P1 CHECKSIG fails (fails with either)
+  it 'example 3' do
+    script_sig = "0"
+    script_pk = "#{P1} OP_CHECKSIG"
+    run_script_test(script_sig, script_pk).should == false
+    run_script_test(script_sig, script_pk, {verify_dersig: true}).should == false
+  end
+
+  # Example 4: F P1 CHECKSIG NOT (passes with either)
+  it 'example 4' do
+    script_sig = "0"
+    script_pk = "#{P1} OP_CHECKSIG OP_NOT"
+    run_script_test(script_sig, script_pk).should == true
+    run_script_test(script_sig, script_pk, {verify_dersig: true}).should == true
+  end
+
+  # Example 5: F' P1 CHECKSIG (fails with either)
+  it 'example 5' do
+    script_sig = "1"
+    script_pk = "#{P1} OP_CHECKSIG"
+    run_script_test(script_sig, script_pk).should == false
+    run_script_test(script_sig, script_pk, {verify_dersig: true}).should == false
+  end
+
+  # Example 6: F' P1 CHECKSIG NOT (fails w/verify_dersig, passes w/o)
+  it 'example 6' do
+    script_sig = "1"
+    script_pk = "#{P1} OP_CHECKSIG OP_NOT"
+    run_script_test(script_sig, script_pk).should == true
+    run_script_test(script_sig, script_pk, {verify_dersig: true}).should == false
+  end
+
+  # Example 7: 0 S1' S2 2 P1 P2 2 CHECKMULTISIG (fails w/verify_dersig, passes w/o)
+  it 'example 7' do
+    s1 = "30440220cae00b1444babfbf6071b0ba8707f6bd373da3df494d6e74119b0430c5db810502205d5231b8c5939c8ff0c82242656d6e06edb073d42af336c99fe8837c36ea39d501"
+    s2 = "304402200b3d0b0375bb15c14620afa4aa10ae90a0d6a046ce217bc20fe0bc1ced68c1b802204b550acab90ae6d3478057c9ad24f9df743815b799b6449dd7e7f6d3bc6e274c01"
+    script_sig = "0 #{s1} #{s2}"
+    script_pk = "2 #{P1} #{P2} 2 OP_CHECKMULTISIG"
+    run_script_test(script_sig, script_pk).should == true
+    run_script_test(script_sig, script_pk, {verify_dersig: true}).should == false
+  end
+
+  # Example 8: 0 S1' S2 2 P1 P2 2 CHECKMULTISIG NOT (fails for either)
+  it 'example 8' do
+    s1 = "30440220f00a77260d34ec2f0c59621dc710f58169d0ca06df1a88cd4b1f1b97bd46991b02201ee220c7e04f26aed03f94aa97fb09ca5627163bf4ba07e6979972ec737db22601"
+    s2 = "3044022079ea80afd538d9ada421b5101febeb6bc874e01dde5bca108c1d0479aec339a4022004576db8f66130d1df686ccf00935703689d69cf539438da1edab208b0d63c4801"
+    script_sig = "0 #{s1} #{s2}"
+    script_pk = "2 #{P1} #{P2} 2 OP_CHECKMULTISIG OP_NOT"
+    run_script_test(script_sig, script_pk).should == false
+    run_script_test(script_sig, script_pk, {verify_dersig: true}).should == false
+  end
+
+  # Example 9: 0 F S2' 2 P1 P2 2 CHECKMULTISIG fails (fails for either)
+  it 'example 9' do
+    s1 = "0"
+    s2 = "3044022081aa9d436f2154e8b6d600516db03d78de71df685b585a9807ead4210bd883490220534bb6bdf318a419ac0749660b60e78d17d515558ef369bf872eff405b676b2e01"
+    script_sig = "0 #{s1} #{s2}"
+    script_pk = "2 #{P1} #{P2} 2 OP_CHECKMULTISIG"
+    run_script_test(script_sig, script_pk).should == false
+    run_script_test(script_sig, script_pk, {verify_dersig: true}).should == false
+  end
+
+  # Example 10: 0 F S2' 2 P1 P2 2 CHECKMULTISIG NOT (fails w/verify_dersig, passes w/o)
+  it 'example 10' do
+    s1 = "0"
+    s2 = "30440220afa76a8f60622f813b05711f051c6c3407e32d1b1b70b0576c1f01b54e4c05c702200d58e9df044fd1845cabfbeef6e624ba0401daf7d7e084736f9ff601c3783bf501"
+    script_sig = "0 #{s1} #{s2}"
+    script_pk = "2 #{P1} #{P2} 2 OP_CHECKMULTISIG OP_NOT"
+    run_script_test(script_sig, script_pk).should == true
+    run_script_test(script_sig, script_pk, {verify_dersig: true}).should == false
+  end
+
+  # Example 11: 0 S1' F 2 P1 P2 2 CHECKMULTISIG (fails for either)
+  it 'example 11' do
+    s1 = "30440220cae00b1444babfbf6071b0ba8707f6bd373da3df494d6e74119b0430c5db810502205d5231b8c5939c8ff0c82242656d6e06edb073d42af336c99fe8837c36ea39d501"
+    s2 = "0"
+    script_sig = "0 #{s1} #{s2}"
+    script_pk = "2 #{P1} #{P2} 2 OP_CHECKMULTISIG"
+    run_script_test(script_sig, script_pk).should == false
+    run_script_test(script_sig, script_pk, {verify_dersig: true}).should == false
+  end
+
+  # Example 12: 0 S1' F 2 P1 P2 2 CHECKMULTISIG NOT (passes for either)
+  it 'example 12' do
+    s1 = "30440220f00a77260d34ec2f0c59621dc710f58169d0ca06df1a88cd4b1f1b97bd46991b02201ee220c7e04f26aed03f94aa97fb09ca5627163bf4ba07e6979972ec737db22601"
+    s2 = "0"
+    script_sig = "0 #{s1} #{s2}"
+    script_pk = "2 #{P1} #{P2} 2 OP_CHECKMULTISIG OP_NOT"
+    run_script_test(script_sig, script_pk).should == true
+    run_script_test(script_sig, script_pk, {verify_dersig: true}).should == true
+  end
 end
