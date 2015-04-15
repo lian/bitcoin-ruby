@@ -23,7 +23,7 @@ module Bitcoin
       #
       def parse_inv(payload, type=:put)
         count, payload = Protocol.unpack_var_int(payload)
-        payload.each_byte.each_slice(36){|i|
+        payload.each_byte.each_slice(36).with_index{|i, idx|
           hash = i[4..-1].reverse.pack("C32")
           case i[0]
           when 1
@@ -34,7 +34,11 @@ module Bitcoin
             end
           when 2
             if type == :put
-              @h.on_inv_block(hash)
+              if @h.respond_to?(:on_inv_block_v2)
+                @h.on_inv_block_v2(hash, idx, count)
+              else
+                @h.on_inv_block(hash)
+              end
             else
               @h.on_get_block(hash)
             end
