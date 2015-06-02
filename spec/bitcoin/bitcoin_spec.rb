@@ -439,12 +439,13 @@ describe 'Bitcoin Address/Hash160/PubKey' do
          "030b4c866585dd868a9d62348a9cd008d6a312937048fff31670e7e920cfc7a744"]
       ].each{|address, privkey, pubkey|
         key = Bitcoin.open_key(privkey)
-        16.times.all?{|n|
+        16.times.each { |n|
         #10_000.times.all?{|n|
         #  puts 'RAM USAGE: ' + `pmap #{Process.pid} | tail -1`[10,40].strip if (n % 1_000) == 0
           s = Bitcoin.sign_message(key.private_key_hex, key.public_key_hex, "Very secret message %d: 11" % n)
-          Bitcoin.verify_message(s['address'], s['signature'], s['message'])
-        }.should == true
+          Bitcoin.verify_message(s['address'], 'invalid-signature', s['message']).should == false
+          Bitcoin.verify_message(s['address'], s['signature'], s['message']).should == true
+        }
       }
     end
   rescue LoadError

@@ -323,9 +323,9 @@ module Bitcoin
 
     def verify_message(address, signature, message)
       signature = signature.unpack("m0")[0] rescue nil # decode base64
-      return unless valid_address?(address)
-      return unless signature
-      return unless signature.bytesize == 65
+      return false unless valid_address?(address)
+      return false unless signature
+      return false unless signature.bytesize == 65
       hash = bitcoin_signed_message_hash(message)
       pubkey = OpenSSL_EC.recover_compact(hash, signature)
       pubkey_to_address(pubkey) == address if pubkey
