@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    bitcoin-ruby (0.0.6)
+    bitcoin-ruby (0.0.7)
 
 GEM
   remote: http://rubygems.org/
