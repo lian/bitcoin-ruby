@@ -64,7 +64,10 @@ module Bitcoin
         return unless @h.respond_to?(:on_headers)
         buf = StringIO.new(payload)
         count = Protocol.unpack_var_int_from_io(buf)
-        headers = count.times.map{ b = Block.new; b.parse_data_from_io(buf, header_only=true); b }
+        headers = count.times.map{
+          break if buf.eof?
+          b = Block.new; b.parse_data_from_io(buf, header_only=true); b
+        }
         @h.on_headers(headers)
       end
 

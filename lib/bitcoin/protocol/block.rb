@@ -86,7 +86,10 @@ module Bitcoin
         @tx_count = tx_size
         return buf if header_only
 
-        tx_size.times{  break if payload == true
+        tx_size.times{
+          break if payload == true
+          return buf if buf.eof?
+
           t = Tx.new(nil)
           payload = t.parse_data_from_io(buf)
           @tx << t

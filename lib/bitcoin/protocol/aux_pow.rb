@@ -32,30 +32,9 @@ module Bitcoin
       end
 
       def parse_data(data)
-        @tx = P::Tx.new(nil)
-        payload = @tx.parse_data(data)
-        @block_hash, payload = payload.unpack("a32a*")
-
-        branch_count, payload = P.unpack_var_int(payload)
-        @branch = []
-        branch_count.times {
-          b, payload = payload.unpack("a32a*")
-          @branch << b
-        }
-        @mrkl_index, payload = payload.unpack("Ia*")
-
-        @aux_branch = []
-        aux_branch_count, payload = P.unpack_var_int(payload)
-        aux_branch_count.times {
-          b, payload = payload.unpack("a32a*")
-          @aux_branch << b
-        }
-
-        @aux_index, payload = payload.unpack("Ia*")
-        block, payload = payload.unpack("a80a*")
-        @parent_block = P::Block.new(block)
-
-        payload
+        buf = StringIO.new(data)
+        parse_data_from_io(buf)
+        buf.eof? ? '' : buf.read
       end
 
       def parse_data_from_io(data)
@@ -65,12 +44,18 @@ module Bitcoin
         @block_hash = data.read(32)
         branch_count = P.unpack_var_int_from_io(data)
         @branch = []
-        branch_count.times{ @branch << data.read(32) }
+        branch_count.times{
+          break if data.eof?
+          @branch << data.read(32)
+        }
         @mrkl_index = data.read(4).unpack("I")[0]
 
         @aux_branch = []
         aux_branch_count = P.unpack_var_int_from_io(data)
-        aux_branch_count.times{ @aux_branch << data.read(32) }
+        aux_branch_count.times{
+          break if data.eof?
+          @aux_branch << data.read(32)
+        }
 
         @aux_index = data.read(4).unpack("I")[0]
         block = data.read(80)
