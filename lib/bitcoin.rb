@@ -322,17 +322,14 @@ module Bitcoin
     end
 
     def verify_message(address, signature, message)
-      hash = bitcoin_signed_message_hash(message)
       signature = signature.unpack("m0")[0] rescue nil # decode base64
-      raise "invalid address"           unless valid_address?(address)
-      raise "malformed base64 encoding" unless signature
-      raise "malformed signature"       unless signature.bytesize == 65
+      return unless valid_address?(address)
+      return unless signature
+      return unless signature.bytesize == 65
+      hash = bitcoin_signed_message_hash(message)
       pubkey = OpenSSL_EC.recover_compact(hash, signature)
       pubkey_to_address(pubkey) == address if pubkey
-    rescue => ex
-      p [ex.message, ex.backtrace]; false
     end
-
 
     # block count when the next retarget will take place.
     def block_next_retarget(block_height)
