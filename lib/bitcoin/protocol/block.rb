@@ -134,13 +134,13 @@ module Bitcoin
       end
 
       # convert to ruby hash (see also #from_hash)
-      def to_hash
+      def to_hash(options = {})
         h = {
           'hash' => @hash, 'ver' => @ver,
           'prev_block' => @prev_block_hash.reverse_hth, 'mrkl_root' => @mrkl_root.reverse_hth,
           'time' => @time, 'bits' => @bits, 'nonce' => @nonce,
           'n_tx' => @tx.size, 'size' => (@payload||to_payload).bytesize,
-          'tx' => @tx.map{|i| i.to_hash },
+          'tx' => @tx.map{|i| i.to_hash(options) },
           'mrkl_tree' => Bitcoin.hash_mrkl_tree( @tx.map{|i| i.hash } )
         }
         h['aux_pow'] = @aux_pow.to_hash  if @aux_pow
@@ -182,7 +182,7 @@ module Bitcoin
       # convert to json representation as seen in the block explorer.
       # (see also #from_json)
       def to_json(options = {:space => ''}, *a)
-        JSON.pretty_generate( to_hash, options )
+        JSON.pretty_generate( to_hash(options), options )
       end
 
       # write json representation to a file
