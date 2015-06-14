@@ -557,6 +557,7 @@ module Bitcoin
         "dnsseed.bluematt.me",
         "dnsseed.bitcoin.dashjr.org",
         "bitseed.xf2.org",
+        "dnsseed.webbtc.com",
       ],
       genesis_hash: "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
       proof_of_work_limit: 0x1d00ffff,
@@ -566,6 +567,7 @@ module Bitcoin
         'mining.bitcoin.cz',
         'blockchain.info',
         'blockexplorer.com',
+        'webbtc.com',
       ],
       checkpoints: {
          11111 => "0000000069e244f73d78e8fd29ba2fd2ed618bd6fa2ee92559f542fdb26e7c1d",
@@ -617,7 +619,9 @@ module Bitcoin
         "testnet-seed.bitcoin.schildbach.de",
         "testnet-seed.bitcoin.petertodd.org",
         "testnet-seed.bluematt.me",
+        "dnsseed.test.webbtc.com",
       ],
+      known_nodes: ["test.webbtc.com"],
       checkpoints: {
         # 542 contains invalid transaction
         542 => "0000000083c1f82cf72c6724f7a317325806384b06408bce7a4327f418dfd5ad",
@@ -811,11 +815,14 @@ module Bitcoin
       protocol_version: 35000,
       min_tx_fee: 50_000,
       per_dust_fee: true,
-      dns_seeds: [],
+      dns_seeds: [
+        "nmc.seed.quisquis.de",
+        "dnsseed.namecoin.webbtc.com",
+      ],
       genesis_hash: "000000000062b72c5e2ceb45fbc8587e807c155b0da735e6483dfba2f0a9c770",
       known_nodes: [
         "bitcoin.tunl.in",
-        "webbtc.com",
+        "namecoin.webbtc.com",
         "178.32.31.41",
         "78.47.86.43",
         "69.164.206.88",
@@ -833,11 +840,15 @@ module Bitcoin
   NETWORKS[:namecoin_testnet] = NETWORKS[:namecoin].merge({
       magic_head: "\xFA\xBF\xB5\xFE",
       default_port: 18334,
-      genesis_hash: "00000001f8ab0d14bceaeb50d163b0bef15aecf62b87bd5f5c864d37f201db97",
-      known_nodes: ["178.32.31.41"],
-      checkpoints: {
-        0 => "000000000062b72c5e2ceb45fbc8587e807c155b0da735e6483dfba2f0a9c770",
-      }
+      genesis_hash: "00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008",
+      dns_seeds: [
+        "dnsseed.test.namecoin.webbtc.com",
+      ],
+      known_nodes: [
+        "test.namecoin.webbtc.com",
+        "nmctest.net",
+        "192.99.247.234"],
+      checkpoints: { }
     })
 
 end
