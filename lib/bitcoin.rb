@@ -851,4 +851,15 @@ module Bitcoin
       checkpoints: { }
     })
 
+  NETWORKS[:namecoin_regtest] = NETWORKS[:namecoin_testnet].merge({
+      magic_head: "\xFA\xBF\xB5\xDA",
+      default_port: 18445,
+      genesis_hash: "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206",
+      dns_seeds: [], known_nodes: [],
+      proof_of_work_limit: 0x207fffff,
+      checkpoints: { },
+      address_versions: { pubkey_hash: "6f", script_hash: "c4" },
+      privkey_version: "ef",
+    })
+
 end
