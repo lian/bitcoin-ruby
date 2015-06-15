@@ -219,7 +219,7 @@ module Bitcoin
       def sig_hash_and_all_keys_exist?(inc, sig_script)
         return false unless @sig_hash && inc.has_keys?
         script = Bitcoin::Script.new(sig_script)
-        return true if script.is_hash160? || script.is_pubkey?
+        return true if script.is_hash160? || script.is_pubkey? || (Bitcoin.namecoin? && script.is_namecoin?)
         if script.is_multisig?
           return inc.has_multiple_keys? && inc.key.size >= script.get_signatures_required
         end
