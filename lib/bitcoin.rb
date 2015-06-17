@@ -552,6 +552,7 @@ module Bitcoin
       free_tx_bytes: 1_000,
       dust: CENT,
       per_dust_fee: false,
+      bip34_height: 227931,
       dns_seeds: [
         "seed.bitcoin.sipa.be",
         "dnsseed.bluematt.me",
@@ -595,6 +596,7 @@ module Bitcoin
       extended_privkey_version: "04358394",
       extended_pubkey_version: "043587cf",
       default_port: 18333,
+      bip34_height: 21111,
       dns_seeds: [ ],
       genesis_hash: "00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008",
       proof_of_work_limit: 0x1d07fff8,
@@ -607,6 +609,7 @@ module Bitcoin
       default_port: 18444,
       genesis_hash: "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206",
       proof_of_work_limit: 0x207fffff,
+      bip34_height: 0,
     })
 
   NETWORKS[:testnet3] = NETWORKS[:testnet].merge({
