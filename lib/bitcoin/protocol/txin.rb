@@ -71,6 +71,10 @@ module Bitcoin
         @sequence = buf.read(4)
       end
 
+      def parsed_script
+        @parsed_script ||= Bitcoin::Script.new(script_sig)
+      end
+
       def to_payload(script=@script_sig, sequence=@sequence)
         [@prev_out_hash, @prev_out_index].pack("a32V") << Protocol.pack_var_int(script.bytesize) << script << (sequence || DEFAULT_SEQUENCE)
       end
