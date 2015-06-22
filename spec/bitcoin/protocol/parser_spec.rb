@@ -37,7 +37,7 @@ describe 'Bitcoin::Protocol::Parser' do
   end
 
   it 'should call error handler for unknown command' do
-    @handler.expect(:on_error, nil, [:unknown_packet, ["foo", "bar"]])
+    @handler.expect(:on_error, nil, [:unknown_packet, ["foo", "626172"]])
     Parser.new( @handler ).process_pkt('foo', "bar").should == nil
   end
 
