@@ -101,12 +101,7 @@ module Bitcoin
     #  key1 = Bitcoin::Key.generate
     #  sig = key1.sign("some data")
     def sign(data)
-      sig = @key.dsa_sign_asn1(data)
-      if Script::is_low_der_signature?(sig)
-        sig
-      else
-        Bitcoin::OpenSSL_EC.signature_to_low_s(sig)
-      end
+      Bitcoin.sign_data(key, data)
     end
 
     # Verify signature +sig+ for +data+.
