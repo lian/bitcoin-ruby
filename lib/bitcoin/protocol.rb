@@ -161,7 +161,7 @@ module Bitcoin
     DEFAULT_STOP_HASH = "00"*32
 
     def self.locator_payload(version, locator_hashes, stop_hash)
-      payload = [
+      [
         [version].pack("V"),
         pack_var_int(locator_hashes.size),
         locator_hashes.map{|l| l.htb_reverse }.join,
