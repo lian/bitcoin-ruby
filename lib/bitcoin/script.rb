@@ -612,7 +612,7 @@ class Bitcoin::Script
       end
     end
     true
-  rescue => ex
+  rescue
     # catch parsing errors
     false
   end
