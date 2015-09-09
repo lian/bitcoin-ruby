@@ -4,7 +4,7 @@ PATH
     bitcoin-ruby (0.0.8)
 
 GEM
-  remote: http://rubygems.org/
+  remote: https://rubygems.org/
   specs:
     bacon (1.2.0)
     eventmachine (1.0.7)
@@ -31,4 +31,4 @@ DEPENDENCIES
   scrypt
 
 BUNDLED WITH
-   1.10.5
+   1.10.6
