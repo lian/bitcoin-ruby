@@ -14,7 +14,7 @@ module Bitcoin
       # p2sh redeem script (optional, not included in the serialized binary format)
       attr_accessor :redeem_script
 
-      def initialize *args
+      def initialize(*args)
         if args.size == 2
           @value, @pk_script_length, @pk_script = args[0], args[1].bytesize, args[1]
         else
@@ -66,7 +66,7 @@ module Bitcoin
       end
 
       def self.from_hash(output)
-        amount = output['value'] ? output['value'].gsub('.','').to_i : output['amount']
+        amount = output['value'] ? output['value'].to_s.gsub('.','').to_i : output['amount']
         script = Script.binary_from_string(output['scriptPubKey'] || output['script'])
         new(amount, script)
       end

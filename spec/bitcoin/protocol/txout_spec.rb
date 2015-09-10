@@ -44,5 +44,13 @@ describe 'TxOut' do
       txout.pk_script_length.should == @script.bytesize
     end
 
+    it "hash['value'] can be an integer" do
+      @hash["value"] = 1234
+      txout = TxOut.from_hash(@hash)
+      txout.value.should            == 1234
+      txout.pk_script               == @script
+      txout.pk_script_length.should == @script.bytesize
+    end
+
   end
 end
