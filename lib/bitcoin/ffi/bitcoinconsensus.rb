@@ -2,8 +2,9 @@
 
 require 'ffi'
 
-# Wraps bitcoinconsensus.so (https://github.com/bitcoin/bitcoin)
-# commit: 90c71548c795787b008bc337cb9332f75d1bccdb
+# binding for src/.libs/bitcoinconsensus.so (https://github.com/bitcoin/bitcoin)
+# tag: v0.11.0
+# commit: d26f951802c762de04fb68e1a112d611929920ba
 
 module Bitcoin
   module BitcoinConsensus

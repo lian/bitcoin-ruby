@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    bitcoin-ruby (0.0.7)
+    bitcoin-ruby (0.0.8)
 
 GEM
   remote: http://rubygems.org/
@@ -31,4 +31,4 @@ DEPENDENCIES
   scrypt
 
 BUNDLED WITH
-   1.10.2
+   1.10.5

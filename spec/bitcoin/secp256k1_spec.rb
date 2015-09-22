@@ -15,6 +15,14 @@ describe 'libsecp256k1' do
     ["\x04"].include?(pub[0]).should == true
   end
 
+  it 'generate key' do
+    key = Bitcoin::Secp256k1.generate_key(compressed = true)
+    key.compressed.should == true
+
+    key = Bitcoin::Secp256k1.generate_key(compressed = false)
+    key.compressed.should == false
+  end
+
   it 'sign and verify' do
     priv, pub = Bitcoin::Secp256k1.generate_key_pair
     signature = Bitcoin::Secp256k1.sign("derp", priv)
