@@ -2,6 +2,17 @@
 
 begin
   require 'log4r'
+  # monkey-patch Log4r to accept level names as symbols
+  class Log4r::Logger
+    def level= l = 0
+      _level = l.is_a?(Fixnum) ? l : Log4r::LNAMES.index(l.to_s.upcase)
+      Log4r::Log4rTools.validate_level(_level)
+      @level = _level
+      LoggerFactory.define_methods(self)
+      Log4r::Logger.log_internal {"Logger '#{@fullname}' set to #{LNAMES[@level]}"}
+      @level
+    end
+  end
 rescue LoadError
 end
 
