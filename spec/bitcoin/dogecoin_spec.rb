@@ -139,19 +139,19 @@ describe 'Bitcoin::Dogecoin' do
     block = P::Block.new(data)
     aux_pow = block.aux_pow
     aux_pow.nil?.should == false
-    aux_pow.mrkl_index.should == 0
+    aux_pow.coinbase_index.should == 0
 
-    parent_block_merkle_root = Bitcoin.mrkl_branch_root(aux_pow.branch.map(&:reverse_hth), aux_pow.tx.hash, aux_pow.mrkl_index)
+    parent_block_merkle_root = Bitcoin.mrkl_branch_root(aux_pow.coinbase_branch, aux_pow.coinbase_tx.hash, aux_pow.coinbase_index)
     parent_block_merkle_root.should == aux_pow.parent_block.mrkl_root.reverse.unpack("H*")[0]
 
     # Find the merged mining header in the coinbase input script
     merged_mining_header = "\xfa\xbemm"
-    script = aux_pow.tx.in[0].script
+    script = aux_pow.coinbase_tx.in[0].script
     header_idx = script.index(merged_mining_header)
 
     header_idx.should == 4
     
-    chain_merkle_root = Bitcoin.mrkl_branch_root(aux_pow.aux_branch.map(&:reverse_hth), block_hash, aux_pow.aux_index)
+    chain_merkle_root = Bitcoin.mrkl_branch_root(aux_pow.chain_branch, block_hash, aux_pow.chain_index)
     
     # Drop everything up to the merged mining data
     script = script.slice(header_idx + merged_mining_header.length, chain_merkle_root.length / 2 + 8)
@@ -160,7 +160,7 @@ describe 'Bitcoin::Dogecoin' do
     chain_merkle_root.should == tx_root_hash
 
     merkle_branch_size = script.slice(chain_merkle_root.length / 2, 4).unpack("V")[0]
-    merkle_branch_size.should == (1 << aux_pow.aux_branch.length)
+    merkle_branch_size.should == (1 << aux_pow.chain_branch.length)
 
     # Choose a pseudo-random slot in the chain merkle tree
     # but have it be fixed for a size/nonce/chain combination.
@@ -170,7 +170,7 @@ describe 'Bitcoin::Dogecoin' do
     rand += Bitcoin.network[:auxpow_chain_id]
     rand = rand * 1103515245 + 12345
 
-    aux_pow.aux_index.should == (rand % merkle_branch_size)
+    aux_pow.chain_index.should == (rand % merkle_branch_size)
   end
 
 end
