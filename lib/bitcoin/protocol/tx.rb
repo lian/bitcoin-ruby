@@ -253,7 +253,7 @@ module Bitcoin
       end
 
       # parse ruby hash (see also #to_hash)
-      def self.from_hash(h)
+      def self.from_hash(h, do_raise=true)
         tx = new(nil)
         tx.ver, tx.lock_time = (h['ver'] || h['version']), h['lock_time']
         ins  = h['in']  || h['inputs']
@@ -261,6 +261,9 @@ module Bitcoin
         ins .each{|input|   tx.add_in  TxIn.from_hash(input)   }
         outs.each{|output|  tx.add_out TxOut.from_hash(output) }
         tx.instance_eval{ @hash = hash_from_payload(@payload = to_payload) }
+        unless h['hash'] == tx.hash
+          raise "Tx hash mismatch! Claimed: #{h['hash']}, Actual: #{tx.hash}" if do_raise
+        end
         tx
       end
 

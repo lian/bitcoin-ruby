@@ -128,6 +128,7 @@ describe 'Bitcoin::Protocol::Block' do
       block = Block.from_json(fixtures_file('rawblock-0.json'))
       h = block.to_hash
       h['tx'][0]['ver'] = 2
+      h['tx'][0]['hash'] = "5ea04451af738d113f0ae8559225b7f893f186f099d88c72230a5e19c0bb830d"
       -> { Block.from_hash(h) }.should.raise(Exception)
         .message.should.include?("Block merkle root mismatch!")
     end

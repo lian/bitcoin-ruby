@@ -201,7 +201,7 @@ module Bitcoin
             raise "Block hash mismatch! Claimed: #{h['hash']}, Actual: #{@hash}" if do_raise
           end
           @aux_pow = AuxPow.from_hash(h['aux_pow'])  if h['aux_pow']
-          h['tx'].each{|tx| @tx << Tx.from_hash(tx) }
+          h['tx'].each{|tx| @tx << Tx.from_hash(tx, do_raise) }
           if h['tx'].any?
             (raise "Block merkle root mismatch! Block: #{h['hash']}"  unless verify_mrkl_root) if do_raise
           end

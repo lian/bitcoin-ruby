@@ -59,7 +59,7 @@ describe 'Tx' do
     script.chunks[0].bitcoin_pushdata = Bitcoin::Script::OP_PUSHDATA2
     script.chunks[0].bitcoin_pushdata_length = script.chunks[0].bytesize
     new_tx['in'][0]['scriptSig'] = script.to_string
-    new_tx = Bitcoin::P::Tx.from_hash(new_tx)
+    new_tx = Bitcoin::P::Tx.from_hash(new_tx, false)
 
     new_tx.hash.should != tx.hash
     new_tx.normalized_hash.size.should == 64
@@ -84,6 +84,10 @@ describe 'Tx' do
     tx.to_payload.should      == @payload[0]
     tx.to_hash.should == orig_tx.to_hash
     Tx.binary_from_hash( orig_tx.to_hash ).should == @payload[0]
+
+    h = orig_tx.to_hash.merge("ver" => 123)
+    -> { tx = Tx.from_hash(h) }.should.raise(Exception)
+      .message.should == "Tx hash mismatch! Claimed: 6e9dd16625b62cfcd4bf02edb89ca1f5a8c30c4b1601507090fb28e59f2d02b4, Actual: 395cd28c334ac84ed125ec5ccd5bc29eadcc96b79c337d0a87a19df64ea3b548"
   end
 
   it 'Tx.binary_from_hash' do
