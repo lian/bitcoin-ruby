@@ -321,9 +321,13 @@ module Bitcoin
     end
 
     def bitcoin_signed_message_hash(message)
-      # TODO: this will fail horribly on messages with len > 255. It's a cheap implementation of Bitcoin's CDataStream.
-      data = "\x18Bitcoin Signed Message:\n" + [message.bytesize].pack("C") + message
-      Digest::SHA256.digest(Digest::SHA256.digest(data))
+      message = message.dup.force_encoding('binary')
+
+      magic = "Bitcoin Signed Message:\n"
+      buf = Protocol.pack_var_int(magic.bytesize) + magic
+      buf << Protocol.pack_var_int(message.bytesize) + message
+
+      Digest::SHA256.digest(Digest::SHA256.digest(buf))
     end
 
     def sign_message(private_key_hex, public_key_hex, message)

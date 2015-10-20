@@ -447,6 +447,10 @@ describe 'Bitcoin Address/Hash160/PubKey' do
           Bitcoin.verify_message(s['address'], s['signature'], s['message']).should == true
         }
       }
+
+      Bitcoin.network = :testnet3
+      Bitcoin.verify_message("mwPVMbZQgkpwJJt2YP3sLSgbEBQw3FWZSc", "H5GER0Nz+L7TPZMQzXtv0hnLSsyfPok9lkdHIv01vksREpEpOhTPTonU1xvyPAOIIKhU3++Ol+LaWKWmsfyxDXk=", "A"*500).should == true
+      Bitcoin.network = :bitcoin
     end
   rescue LoadError
   end
