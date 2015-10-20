@@ -103,6 +103,17 @@ describe "Bitcoin::Builder" do
     tx1.in[0].should == tx2.in[0]
   end
 
+  it "should provide tx#output shortcut" do
+    tx1 = build_tx {|t| t.output(123, @keys[1].addr) }
+    tx1.should == build_tx do |t|
+      t.output {|o| o.value 123; o.to @keys[1].addr }
+    end
+
+    tx2 = build_tx {|t| t.output(123, @keys[1].pub, :pubkey) }
+    tx2.should == build_tx do |t|
+      t.output {|o| o.value 123; o.to @keys[1].pub, :pubkey }
+    end
+  end
 
   it "should provide txout#to shortcut" do
     tx1 = build_tx do |t|

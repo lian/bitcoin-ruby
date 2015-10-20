@@ -154,9 +154,11 @@ module Bitcoin
       end
 
       # add an output to the transaction (see TxOutBuilder).
-      def output
+      def output value = nil, recipient = nil, type = :address
         c = TxOutBuilder.new
-        yield c
+        c.value(value)  if value
+        c.to(recipient, type)  if recipient
+        yield c  if block_given?
         @outs << c
       end
 
@@ -425,6 +427,9 @@ module Bitcoin
     end
 
     # Create a Bitcoin::Protocol::TxOut used by TxBuilder#output.
+    #
+    #  t.output 12345, address
+    #  t.output 12345, p2sh_address, :script_hash
     #
     #  t.output {|o| o.value 12345; o.to address }
     #
