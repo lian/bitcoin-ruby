@@ -431,6 +431,13 @@ describe 'Bitcoin Address/Hash160/PubKey' do
       Bitcoin::OpenSSL_EC.der_to_private_key(der).should == "a29fe0f28b2936dbc89f889f74cd1f0662d18a873ac15d6cd417b808db1ccd0a"
     end
 
+    it 'fails to sign text messages over 255 in length.' do
+      msg = (0...256).map { (65 + rand(26)).chr }.join
+      privkey = "12b004fff7f4b69ef8650e767f18f11ede158148b425660723b9f9a66e61f747"
+      key = Bitcoin.open_key(privkey)
+      lambda { Bitcoin.sign_message(key.private_key_hex, key.public_key_hex, msg) }.should.raise(ArgumentError)
+    end
+
     it 'sign and verify text messages (signmessage/verifymessage)' do
       [
         ["1QFqqMUD55ZV3PJEJZtaKCsQmjLT6JkjvJ", "12b004fff7f4b69ef8650e767f18f11ede158148b425660723b9f9a66e61f747",
@@ -442,9 +449,11 @@ describe 'Bitcoin Address/Hash160/PubKey' do
         16.times.each { |n|
         #10_000.times.all?{|n|
         #  puts 'RAM USAGE: ' + `pmap #{Process.pid} | tail -1`[10,40].strip if (n % 1_000) == 0
-          s = Bitcoin.sign_message(key.private_key_hex, key.public_key_hex, "Very secret message %d: 11" % n)
-          Bitcoin.verify_message(s['address'], 'invalid-signature', s['message']).should == false
-          Bitcoin.verify_message(s['address'], s['signature'], s['message']).should == true
+          ["Very secret message %d: 11" % n, "Very UTF-8 message -- £ ¤ ¥ ¦ § ¨ © 僇 僈 僉"].each do |msg|
+            s = Bitcoin.sign_message(key.private_key_hex, key.public_key_hex, msg)
+            Bitcoin.verify_message(s['address'], 'invalid-signature', s['message']).should == false
+            Bitcoin.verify_message(s['address'], s['signature'], s['message']).should == true
+          end
         }
       }
     end
