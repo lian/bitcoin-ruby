@@ -176,6 +176,7 @@ module Bitcoin
 
       def parse_error *err
         @stats['total_errors'] += 1
+        return unless @h.respond_to?(:on_error)
         @h.on_error *err
       end
 
