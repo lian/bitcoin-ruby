@@ -19,6 +19,7 @@ module Bitcoin
     autoload :Block,   'bitcoin/protocol/block'
     autoload :Addr,    'bitcoin/protocol/address'
     autoload :Alert,   'bitcoin/protocol/alert'
+    autoload :Reject,  'bitcoin/protocol/reject'
     autoload :Version, 'bitcoin/protocol/version'
     autoload :AuxPow,  'bitcoin/protocol/aux_pow'
 

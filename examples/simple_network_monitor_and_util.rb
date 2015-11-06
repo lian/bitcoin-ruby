@@ -9,6 +9,14 @@ class Bitcoin::Protocol::Parser; def log; stub=Object.new; def stub.method_missi
 module SimpleNode
   class Connection < EM::Connection
 
+    def on_ping(nonce)
+      send_data(Bitcoin::Protocol.pong_pkt(nonce)) if nonce
+    end
+
+    def on_reject(reject)
+      log.info { "reject #{reject}" }
+    end
+
     def on_tx(tx)
       log.info { "received transaction: #{tx.hash}" }
 

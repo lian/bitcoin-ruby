@@ -101,6 +101,7 @@ module Bitcoin
         when 'getheaders';  @h.on_getheaders(*parse_getblocks(payload))  if @h.respond_to?(:on_getheaders)
         when 'mempool';  handle_mempool_request(payload)
         when 'notfound'; handle_notfound_reply(payload)
+        when 'reject'; handle_reject(payload)
         else
           p ['unknown-packet', command, payload]
         end
@@ -114,6 +115,11 @@ module Bitcoin
       def parse_alert(payload)
         return unless @h.respond_to?(:on_alert)
         @h.on_alert Bitcoin::Protocol::Alert.parse(payload)
+      end
+
+      def handle_reject(payload)
+        return unless @h.respond_to?(:on_reject)
+        @h.on_reject Bitcoin::Protocol::Reject.parse(payload)
       end
 
       # https://en.bitcoin.it/wiki/BIP_0035
