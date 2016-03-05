@@ -463,7 +463,7 @@ module Bitcoin
     #    o.script {|s| s.recipient address }
     #  end
     #
-    #  t.output {|o| o.to "deadbeef", OP_RETURN }
+    #  t.output {|o| o.to "deadbeef", :op_return }
     class TxOutBuilder
       attr_reader :txout
 
