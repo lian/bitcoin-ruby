@@ -36,7 +36,7 @@ We assume you already have a ruby 1.9 or 2.0 compatible interpreter and rubygems
 
 if you want to have it available system-wide, just build the gem and install it:
 
- gem build bitcoin-ruby.gemspec && gem install bitcoin-ruby-0.0.5.gem
+ gem build bitcoin-ruby.gemspec && gem install bitcoin-ruby-0.0.8.gem
 
 Note that some aspects of the library (such as networking, storage, etc.) need
 additional dependencies which are not specified in the gemspec. The core requirements are
