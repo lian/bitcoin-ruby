@@ -323,7 +323,7 @@ module Bitcoin
     def bitcoin_signed_message_hash(message)
       message = message.dup.force_encoding('binary')
 
-      magic = "Bitcoin Signed Message:\n"
+      magic = Bitcoin.network[:message_magic]
       buf = Protocol.pack_var_int(magic.bytesize) + magic
       buf << Protocol.pack_var_int(message.bytesize) + message
 
@@ -548,6 +548,7 @@ module Bitcoin
     bitcoin: {
       project: :bitcoin,
       magic_head: "\xF9\xBE\xB4\xD9",
+      message_magic: "Bitcoin Signed Message:\n",
       address_version: "00",
       p2sh_version: "05",
       privkey_version: "80",
@@ -652,6 +653,7 @@ module Bitcoin
   NETWORKS[:litecoin] = NETWORKS[:bitcoin].merge({
       project: :litecoin,
       magic_head: "\xfb\xc0\xb6\xdb",
+      message_magic: "Litecoin Signed Message:\n",
       address_version: "30",
       p2sh_version: "05",
       privkey_version: "b0",
@@ -724,6 +726,7 @@ module Bitcoin
   NETWORKS[:dogecoin] = NETWORKS[:litecoin].merge({
       project: :dogecoin,
       magic_head: "\xc0\xc0\xc0\xc0",
+      message_magic: "Dogecoin Signed Message:\n",
       address_version: "1e",
       p2sh_version: "16",
       privkey_version: "9e",
