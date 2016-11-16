@@ -540,7 +540,7 @@ class Bitcoin::Script
 
   # check if script is in one of the recognized standard formats
   def is_standard?
-    is_pubkey? || is_hash160? || is_multisig? || is_p2sh?  || is_op_return?
+    is_pubkey? || is_hash160? || is_multisig? || is_p2sh?  || is_op_return? || is_witness_v0_keyhash? || is_witness_v0_scripthash?
   end
 
   # is this a pubkey script
@@ -567,6 +567,16 @@ class Bitcoin::Script
   # is this an op_return script
   def is_op_return?
     @chunks[0] == OP_RETURN && @chunks.size <= 2
+  end
+
+  # is this a witness pubkey script
+  def is_witness_v0_keyhash?
+    @chunks.length == 2 &&@chunks[0] == 0 && @chunks[1].bytesize == 20
+  end
+
+  # is this a witness script hash
+  def is_witness_v0_scripthash?
+    @chunks.length == 2 &&@chunks[0] == 0 && @chunks[1].bytesize == 32
   end
 
   # Verify the script is only pushing data onto the stack
@@ -619,12 +629,14 @@ class Bitcoin::Script
 
   # get type of this tx
   def type
-    if is_hash160?;     :hash160
-    elsif is_pubkey?;   :pubkey
-    elsif is_multisig?; :multisig
-    elsif is_p2sh?;     :p2sh
-    elsif is_op_return?;:op_return
-    else;               :unknown
+    if is_hash160?;                 :hash160
+    elsif is_pubkey?;               :pubkey
+    elsif is_multisig?;             :multisig
+    elsif is_p2sh?;                 :p2sh
+    elsif is_op_return?;            :op_return
+    elsif is_witness_v0_keyhash?;   :witness_v0_keyhash
+    elsif is_witness_v0_scripthash?;:witness_v0_scripthash
+    else;                           :unknown
     end
   end
 
