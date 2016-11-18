@@ -10,6 +10,7 @@ describe 'Tx' do
     fixtures_file('rawtx-01.bin'),
     fixtures_file('rawtx-02.bin'),
     fixtures_file('rawtx-03.bin'),
+    fixtures_file('rawtx-p2wpkh.bin'),
   ]
 
   @json = [
@@ -42,11 +43,31 @@ describe 'Tx' do
     tx.hash.size.should == 64
   end
 
+  it '#parse_witness_data' do
+    tx = Tx.new( nil )
+    tx.parse_witness_data(@payload[3]).should == true
+    tx.hash.size.should == 64
+
+    tx = Tx.new( nil )
+    tx.parse_witness_data( @payload[3] + "AAAA" ).should == "AAAA"
+    tx.hash.size.should == 64
+  end
+
   it '#hash' do
     tx = Tx.new( @payload[0] )
     tx.hash.size.should == 64
     tx.hash.should == "6e9dd16625b62cfcd4bf02edb89ca1f5a8c30c4b1601507090fb28e59f2d02b4"
     tx.binary_hash.should == "\xB4\x02-\x9F\xE5(\xFB\x90pP\x01\x16K\f\xC3\xA8\xF5\xA1\x9C\xB8\xED\x02\xBF\xD4\xFC,\xB6%f\xD1\x9Dn"
+
+    tx = Tx.new(@payload[3])
+    tx.hash.size.should == 64
+    tx.hash.should == "f22f5168cf0bc55a31003b0fc532152da551e1ec4289c4fd92e7ec512c6e87a0"
+  end
+
+  it '#witness_hash' do
+    tx = Tx.new(@payload[3])
+    tx.witness_hash.size.should == 64
+    tx.witness_hash.should == "c9609ed4d7e60ebcf4cce2854568b54a855a12b5bda15433ca96e72cd445a5cf"
   end
 
   it '#normalized_hash' do
@@ -72,8 +93,18 @@ describe 'Tx' do
     tx.to_payload.should      == @payload[0]
   end
 
+  it '#to_witness_payload' do
+    tx = Tx.new( @payload[3] )
+    tx.to_witness_payload.size.should == @payload[3].size
+    tx.to_witness_payload.should      == @payload[3]
+  end
+
   it '#to_hash' do
     tx = Tx.new( @payload[0] )
+    tx.to_hash.keys.should == ["hash", "ver", "vin_sz", "vout_sz", "lock_time", "size", "in", "out"]
+
+    # witness tx
+    tx = Tx.new( @payload[3] )
     tx.to_hash.keys.should == ["hash", "ver", "vin_sz", "vout_sz", "lock_time", "size", "in", "out"]
   end
 
