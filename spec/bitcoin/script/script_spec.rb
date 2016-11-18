@@ -393,9 +393,6 @@ describe 'Bitcoin::Script' do
         Script.from_string("OP_HASH160 #{hash160} OP_EQUAL").raw
     end
 
-    it "should generate p2wpkh script" do
-
-    end
   end
 
   describe "generate script sigs" do
