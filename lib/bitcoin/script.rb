@@ -656,6 +656,7 @@ class Bitcoin::Script
     return @chunks[2..-3][0].unpack("H*")[0]  if is_hash160?
     return @chunks[-2].unpack("H*")[0]        if is_p2sh?
     return Bitcoin.hash160(get_pubkey)        if is_pubkey?
+    return @chunks[1].unpack("H*")[0]         if is_witness_v0_keyhash?
   end
 
   # get the hash160 address for this hash160 script

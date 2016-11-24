@@ -146,6 +146,7 @@ describe 'Bitcoin::Script' do
         "17977bca1b6287a5e6559c57ef4b6525e9d7ded6"
       Script.from_string("OP_DUP OP_HASH160 0 OP_EQUALVERIFY OP_CHECKSIG")
         .get_hash160.should == nil
+      Script.new(SCRIPT[7]).get_hash160.should == "1e205151c90c16475363d11b7b8c235cf6c7d695"
     end
 
     it "#get_hash160_address" do
