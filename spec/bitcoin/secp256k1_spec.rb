@@ -27,6 +27,7 @@ describe 'libsecp256k1' do
     priv, pub = Bitcoin::Secp256k1.generate_key_pair
     signature = Bitcoin::Secp256k1.sign("derp", priv)
     Bitcoin::Secp256k1.verify("derp", signature, pub).should == true
+    Bitcoin::Secp256k1.verify("DERP", signature, pub).should == true
   end
 
   it 'sign compact and recover' do
@@ -51,6 +52,10 @@ describe 'libsecp256k1' do
     first  = Bitcoin::Secp256k1.sign("derp", priv)
     second = Bitcoin::Secp256k1.sign("derp", priv)
     first.should == second
+
+    priv, pub = Bitcoin::Secp256k1.generate_key_pair
+    second = Bitcoin::Secp256k1.sign("derp", priv)
+    first.should != second
   end
 
 end
