@@ -486,6 +486,13 @@ describe 'Tx' do
     prev_tx.hash.should == "52250a162c7d03d2e1fbc5ebd1801a88612463314b55102171c5b5d817d2d7b2"
     #File.open("rawtx-#{prev_tx.hash}.json",'wb'){|f| f.print prev_tx.to_json }
   end
+
+  it '#signature_hash_for_input' do
+    # P2WPKH https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#Native_P2WPKH
+    tx = Tx.new('0100000002fff7f7881a8099afa6940d42d1e7f6362bec38171ea3edf433541db4e4ad969f0000000000eeffffffef51e1b804cc89d182d279655c3aa89e815b1b309fe287d9b2b55d57b90ec68a0100000000ffffffff02202cb206000000001976a9148280b37df378db99f66f85c95a783a76ac7a6d5988ac9093510d000000001976a9143bde42dbee7e4dbe6a21b2d50ce2f0167faa815988ac11000000'.htb)
+    signature_hash = tx.signature_hash_for_input(1, '00141d0f172a0ecb48aee1be1f2687d2963ae33f71a1'.htb, Tx::SIGHASH_TYPE[:all], 600000000)
+    signature_hash.bth.should == 'c37af31116d1b27caf68aae9e3ac82f1477929014d5b917657d0eb49478cb670'
+  end
   
   it "#legacy_sigops_count" do
     Tx.new(@payload[0]).legacy_sigops_count.should == 2
