@@ -262,7 +262,18 @@ module Bitcoin
         hash_outputs = Digest::SHA256.digest(Digest::SHA256.digest(@out.map{|o|o.to_payload}.join))
 
         case (hash_type & 0x1f)
-          when SIGHASH_TYPE[:single], SIGHASH_TYPE[:anyonecanpay]
+          when SIGHASH_TYPE[:anyonecanpay]
+            hash_prevouts = "\x00".ljust(32, "\x00")
+            hash_sequence = "\x00".ljust(32, "\x00")
+            hash_outputs = "\x00".ljust(32, "\x00")
+          when SIGHASH_TYPE[:single]
+            if input_idx >= @out.size
+              hash_outputs = "\x00".ljust(32, "\x00")
+            else
+              hash_outputs = "\x00".ljust(32, "\x00")
+            end
+            hash_sequence = "\x00".ljust(32, "\x00")
+          when SIGHASH_TYPE[:none]
             hash_sequence = "\x00".ljust(32, "\x00")
             hash_outputs = "\x00".ljust(32, "\x00")
         end
@@ -337,7 +348,11 @@ module Bitcoin
           'hash' => @hash, 'ver' => @ver, # 'nid' => normalized_hash,
           'vin_sz' => @in.size, 'vout_sz' => @out.size,
           'lock_time' => @lock_time, 'size' => (@payload ||= to_payload).bytesize,
-          'in'  =>  @in.map{|i| i.to_hash(options) },
+          'in'  =>  @in.map.with_index{|i, index|
+            h = i.to_hash(options)
+            h.merge!('witness' => @witness.tx_in_wit[index].stack) if @witness.tx_in_wit[index]
+            h
+          },
           'out' => @out.map{|o| o.to_hash(options) }
         }
         h['nid'] = normalized_hash  if options[:with_nid]
@@ -361,7 +376,10 @@ module Bitcoin
         tx.ver, tx.lock_time = (h['ver'] || h['version']), h['lock_time']
         ins  = h['in']  || h['inputs']
         outs = h['out'] || h['outputs']
-        ins .each{|input|   tx.add_in  TxIn.from_hash(input)   }
+        ins .each{|input|
+          tx.add_in(TxIn.from_hash(input))
+          tx.witness.add_witness(TxInWitness.from_hash(input['witness'])) if input['witness']
+        }
         outs.each{|output|  tx.add_out TxOut.from_hash(output) }
         tx.instance_eval{ @hash = hash_from_payload(@payload = to_payload) }
         if h['hash'] && (h['hash'] != tx.hash)
@@ -371,7 +389,10 @@ module Bitcoin
       end
 
       # convert ruby hash to raw binary
-      def self.binary_from_hash(h); from_hash(h).to_payload; end
+      def self.binary_from_hash(h)
+        tx = from_hash(h)
+        tx.witness.empty? ? tx.to_payload : tx.to_witness_payload
+      end
 
       # parse json representation
       def self.from_json(json_string); from_hash( JSON.load(json_string) ); end
