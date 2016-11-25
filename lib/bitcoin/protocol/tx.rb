@@ -185,8 +185,7 @@ module Bitcoin
 
       # generate a signature hash for input +input_idx+.
       # either pass the +outpoint_tx+ or the +script_pubkey+ directly.
-      # if use +script_pubkey+, provide input bitcoin amount which needs generating segwit sighash.
-      def signature_hash_for_input(input_idx, subscript, hash_type=nil, prev_out_value = 0)
+      def signature_hash_for_input(input_idx, subscript, hash_type=nil)
         # https://github.com/bitcoin/bitcoin/blob/e071a3f6c06f41068ad17134189a4ac3073ef76b/script.cpp#L834
         # http://code.google.com/p/bitcoinj/source/browse/trunk/src/com/google/bitcoin/core/Script.java#318
         # https://en.bitcoin.it/wiki/OP_CHECKSIG#How_it_works
@@ -204,16 +203,9 @@ module Bitcoin
 
         hash_type ||= SIGHASH_TYPE[:all]
 
-        witness = false
-        witness_script = nil
         pin  = @in.map.with_index{|input,idx|
           if idx == input_idx
-            if subscript.respond_to?(:out) # legacy api (outpoint_tx)
-              prev_out_value = subscript.out[input.prev_out_index].value
-              subscript = subscript.out[ input.prev_out_index ].script
-            end
-            witness_script = Bitcoin::Script.new(subscript)
-            witness = witness_script.is_witness_v0_keyhash? || witness_script.is_witness_v0_scripthash?
+            subscript = subscript.out[ input.prev_out_index ].script if subscript.respond_to?(:out) # legacy api (outpoint_tx)
             input.to_payload(subscript)
           else
             case (hash_type & 0x1f)
@@ -241,18 +233,43 @@ module Bitcoin
           in_size, pin = Protocol.pack_var_int(1), [ pin[input_idx] ]
         end
 
-        if witness
-          hash_prevouts = Digest::SHA256.digest(Digest::SHA256.digest(@in.map{|i| [i.prev_out_hash, i.prev_out_index].pack("a32V")}.join))
-          hash_sequence = Digest::SHA256.digest(Digest::SHA256.digest(@in.map{|i|i.sequence}.join))
-          outpoint = [@in[input_idx].prev_out_hash, @in[input_idx].prev_out_index].pack("a32V")
-          script_code = "1976a914#{witness_script.get_hash160}88ac".htb
-          amount = [prev_out_value].pack("Q")
-          nsequence = @in[input_idx].sequence
-          hash_outputs = Digest::SHA256.digest(Digest::SHA256.digest(@out.map{|o|o.to_payload}.join))
-          buf = [ [@ver].pack("V"), hash_prevouts, hash_sequence, outpoint, script_code, amount, nsequence, hash_outputs, [@lock_time, hash_type].pack("VV")].join
-        else
-          buf = [ [@ver].pack("V"), in_size, pin, out_size, pout, [@lock_time, hash_type].pack("VV") ].join
+        buf = [ [@ver].pack("V"), in_size, pin, out_size, pout, [@lock_time, hash_type].pack("VV") ].join
+        Digest::SHA256.digest( Digest::SHA256.digest( buf ) )
+      end
+
+      # generate a witness signature hash for input +input_idx+.
+      # https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
+      def signature_hash_for_witness_input(input_idx, script_pubkey, prev_out_value, hash_type=nil, witness_script = nil)
+        return "\x01".ljust(32, "\x00") if input_idx >= @in.size # ERROR: SignatureHash() : input_idx=%d out of range
+
+        hash_type ||= SIGHASH_TYPE[:all]
+
+        script = Bitcoin::Script.new(script_pubkey)
+        raise "ScriptPubkey does not contain witness program." unless script.is_witness?
+
+        hash_prevouts = Digest::SHA256.digest(Digest::SHA256.digest(@in.map{|i| [i.prev_out_hash, i.prev_out_index].pack("a32V")}.join))
+        hash_sequence = Digest::SHA256.digest(Digest::SHA256.digest(@in.map{|i|i.sequence}.join))
+        outpoint = [@in[input_idx].prev_out_hash, @in[input_idx].prev_out_index].pack("a32V")
+        amount = [prev_out_value].pack("Q")
+        nsequence = @in[input_idx].sequence
+
+        script_code = [["1976a914", script.get_hash160, "88ac"].join].pack("H*") if script.is_witness_v0_keyhash?
+        if script.is_witness_v0_scripthash?
+          raise "witness script does not match script pubkey" if Bitcoin::Script.to_witness_p2sh_script(Digest::SHA256.digest(witness_script).bth) != script_pubkey
+          script_code = Bitcoin::Script.pack_pushdata(witness_script)
         end
+
+        hash_outputs = Digest::SHA256.digest(Digest::SHA256.digest(@out.map{|o|o.to_payload}.join))
+
+        case (hash_type & 0x1f)
+          when SIGHASH_TYPE[:single], SIGHASH_TYPE[:anyonecanpay]
+            hash_sequence = "\x00".ljust(32, "\x00")
+            hash_outputs = "\x00".ljust(32, "\x00")
+        end
+
+        buf = [ [@ver].pack("V"), hash_prevouts, hash_sequence, outpoint,
+                script_code, amount, nsequence, hash_outputs, [@lock_time, hash_type].pack("VV")].join
+
         Digest::SHA256.digest( Digest::SHA256.digest( buf ) )
       end
 
