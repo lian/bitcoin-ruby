@@ -119,6 +119,14 @@ describe 'Tx' do
     h = orig_tx.to_hash.merge("ver" => 123)
     -> { tx = Tx.from_hash(h) }.should.raise(Exception)
       .message.should == "Tx hash mismatch! Claimed: 6e9dd16625b62cfcd4bf02edb89ca1f5a8c30c4b1601507090fb28e59f2d02b4, Actual: 395cd28c334ac84ed125ec5ccd5bc29eadcc96b79c337d0a87a19df64ea3b548"
+
+    # witness tx(P2WPKH)
+    orig_tx = Tx.new( @payload[3] )
+    tx = Tx.from_hash( orig_tx.to_hash )
+    tx.to_witness_payload.size.should == @payload[3].size
+    tx.to_witness_payload.should == @payload[3]
+    tx.to_hash == orig_tx.to_hash
+    Tx.binary_from_hash( orig_tx.to_hash ).should == @payload[3]
   end
 
   it 'Tx.binary_from_hash' do

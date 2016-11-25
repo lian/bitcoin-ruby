@@ -26,6 +26,12 @@ module Bitcoin
         script_witness.stack
       end
 
+      def self.from_hash(witnesses)
+        w = TxInWitness.new
+        witnesses.each{|item|w.add_stack(item)}
+        w
+      end
+
     end
 
   end
