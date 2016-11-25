@@ -25,12 +25,12 @@ module Bitcoin
         payload
       end
 
-      def length
+      def size
         tx_in_wit.length
       end
 
       def empty?
-        length == 0
+        size == 0
       end
 
     end
