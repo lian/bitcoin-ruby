@@ -16,7 +16,8 @@ describe 'Tx' do
   @json = [
     fixtures_file('rawtx-01.json'),
     fixtures_file('rawtx-02.json'),
-    fixtures_file('rawtx-03.json')
+    fixtures_file('rawtx-03.json'),
+    fixtures_file('rawtx-p2wpkh.json')
   ]
 
 
@@ -126,13 +127,16 @@ describe 'Tx' do
     tx.to_witness_payload.size.should == @payload[3].size
     tx.to_witness_payload.should == @payload[3]
     tx.to_hash == orig_tx.to_hash
-    Tx.binary_from_hash( orig_tx.to_hash ).should == @payload[3]
   end
 
   it 'Tx.binary_from_hash' do
     orig_tx = Tx.new( @payload[0] )
     Tx.binary_from_hash( orig_tx.to_hash ).size.should == @payload[0].size
     Tx.binary_from_hash( orig_tx.to_hash ).should == @payload[0]
+
+    orig_tx = Tx.new( @payload[3] )
+    Tx.binary_from_hash( orig_tx.to_hash ).size.should == @payload[3].size
+    Tx.binary_from_hash( orig_tx.to_hash ).should == @payload[3]
   end
 
   it '#to_json' do
@@ -147,6 +151,9 @@ describe 'Tx' do
 
     tx = Tx.new( fixtures_file('rawtx-2f4a2717ec8c9f077a87dde6cbe0274d5238793a3f3f492b63c744837285e58a.bin') )
     tx.to_json.should == fixtures_file('rawtx-2f4a2717ec8c9f077a87dde6cbe0274d5238793a3f3f492b63c744837285e58a.json')
+
+    tx = Tx.new(@payload[3])
+    tx.to_json.should == @json[3]
   end
 
   it 'Tx.from_json' do
@@ -172,6 +179,11 @@ describe 'Tx' do
     Tx.from_json(fixtures_file('rawtx-02-toshi.json')).to_payload.should == Tx.from_json(fixtures_file('rawtx-02.json')).to_payload
     Tx.from_json(fixtures_file('rawtx-03-toshi.json')).to_payload.should == Tx.from_json(fixtures_file('rawtx-03.json')).to_payload
     Tx.from_json(fixtures_file('coinbase-toshi.json')).to_payload.should == Tx.from_json(fixtures_file('coinbase.json')).to_payload
+
+    # witness tx
+    tx = Tx.from_json(json_string = fixtures_file('rawtx-p2wpkh.json'))
+    tx.to_witness_payload.should == @payload[3]
+    tx.to_json == json_string
   end
 
   it 'Tx.binary_from_json' do
