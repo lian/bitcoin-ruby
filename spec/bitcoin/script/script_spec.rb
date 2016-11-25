@@ -379,13 +379,13 @@ describe 'Bitcoin::Script' do
 
     it "to_witness_hash160_script" do
       hash160 = Bitcoin.hash160('025476c2e83188368da1ff3e292e7acafcdb3566bb0ad253f62fc70f07aeee6357')
-      Script.to_witness_hash160_script(hash160).should == Script.from_string("0 #{hash160}").raw
+      Script.to_witness_hash160_script(hash160).should == Script.new("00141d0f172a0ecb48aee1be1f2687d2963ae33f71a1".htb).raw
     end
 
     it "should generate p2wsh script" do
       witness_script = '21026dccc749adc2a9d0d89497ac511f760f45c47dc5ed9cf352a58ac706453880aeadab210255a9626aebf5e29c0e6538428ba0d1dcf6ca98ffdf086aa8ced5e0d0215ea465ac'
       sha256 = Bitcoin.sha256(witness_script)
-      Script.to_witness_p2sh_script(sha256).should == Script.from_string("0 #{sha256}").raw
+      Script.to_witness_p2sh_script(sha256).should == Script.new("00205d1b56b63d714eebe542309525f484b7e9d6f686b3781b6f61ef925d66d6f6a0".htb).raw
     end
 
     it "should generate op_return script" do
