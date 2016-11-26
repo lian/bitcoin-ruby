@@ -576,12 +576,12 @@ class Bitcoin::Script
 
   # is this a witness pubkey script
   def is_witness_v0_keyhash?
-    @chunks.length == 2 &&@chunks[0] == 0 && @chunks[1].bytesize == 20
+    @chunks.length == 2 &&@chunks[0] == 0 && @chunks[1].is_a?(String) && @chunks[1].bytesize == 20
   end
 
   # is this a witness script hash
   def is_witness_v0_scripthash?
-    @chunks.length == 2 &&@chunks[0] == 0 && @chunks[1].bytesize == 32
+    @chunks.length == 2 &&@chunks[0] == 0 && @chunks[1].is_a?(String) && @chunks[1].bytesize == 32
   end
 
   # Verify the script is only pushing data onto the stack
