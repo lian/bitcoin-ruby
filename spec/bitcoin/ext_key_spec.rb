@@ -42,6 +42,10 @@ describe Bitcoin::ExtKey do
       key.priv_key.priv.should == '3c6cb8d0f6a264c91ea8b5030fadaa8e538b020f0a387421a12de9319dc93368'
       key.to_base58.should == 'xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs'
       key.ext_pubkey.to_base58.should == 'xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ'
+
+      # pubkey derivation
+      ext_pubkey = @master_key.derive(2**31).ext_pubkey.derive(1)
+      ext_pubkey.to_base58.should == 'xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ'
     end
 
     it 'Chain m/0H/1/2H' do

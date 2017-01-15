@@ -123,6 +123,22 @@ module Bitcoin
       hex = h + Bitcoin.checksum(h)
       Bitcoin.encode_base58(hex)
     end
+
+    # derive child key
+    def derive(number)
+      new_key = ExtPubkey.new(self)
+      new_key.depth = depth + 1
+      new_key.number = number
+      raise 'hardened key is not support' if number > (2**31 -1)
+      data = to_hex.htb << [number].pack('N')
+      l = Bitcoin.hmac_sha512(chain_code, data)
+      left = OpenSSL::BN.from_hex(l[0..31].bth)
+      raise 'invalid key' if left.to_i >= CURVE_ORDER
+      new_key.pub_key = bitcoin_elliptic_curve.group.generator.mul(left).ec_add(pub_key)
+      new_key.chain_code = l[32..-1]
+      new_key.fingerprint = Bitcoin.hash160(new_key.to_hex).slice(0..7)
+      new_key
+    end
   end
 
 end
