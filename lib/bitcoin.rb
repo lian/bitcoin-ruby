@@ -15,6 +15,7 @@ module Bitcoin
   autoload :VERSION,    'bitcoin/version'
   autoload :Logger,     'bitcoin/logger'
   autoload :Key,        'bitcoin/key'
+  autoload :ExtKey,     'bitcoin/ext_key'
   autoload :Builder,    'bitcoin/builder'
 
   autoload :Dogecoin,   'bitcoin/dogecoin'
