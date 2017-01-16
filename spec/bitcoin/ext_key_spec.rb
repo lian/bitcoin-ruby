@@ -140,4 +140,43 @@ describe Bitcoin::ExtKey do
     end
 
   end
+
+  describe 'import from base58 address' do
+
+    it 'import private key' do
+      # normal key
+      key = Bitcoin::ExtKey.from_base58('xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs')
+      key.depth.should == 2
+      key.number.should == 1
+      key.chain_code.bth.should == '2a7857631386ba23dacac34180dd1983734e444fdbf774041578e9b6adb37c19'
+      key.priv_key.priv.should == '3c6cb8d0f6a264c91ea8b5030fadaa8e538b020f0a387421a12de9319dc93368'
+      key.ext_pubkey.to_base58.should == 'xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ'
+
+      # hardended key
+      key = Bitcoin::ExtKey.from_base58('xprv9z4pot5VBttmtdRTWfWQmoH1taj2axGVzFqSb8C9xaxKymcFzXBDptWmT7FwuEzG3ryjH4ktypQSAewRiNMjANTtpgP4mLTj34bhnZX7UiM')
+      key.depth.should == 3
+      key.number.should == 2**31 + 2
+      key.fingerprint.should == 'ee7ab90c'
+      key.chain_code.bth.should == '04466b9cc8e161e966409ca52986c584f07e9dc81f735db683c3ff6ec7b1503f'
+      key.priv_key.priv.should == 'cbce0d719ecf7431d88e6a89fa1483e02e35092af60c042b1df2ff59fa424dca'
+      key.to_base58.should == 'xprv9z4pot5VBttmtdRTWfWQmoH1taj2axGVzFqSb8C9xaxKymcFzXBDptWmT7FwuEzG3ryjH4ktypQSAewRiNMjANTtpgP4mLTj34bhnZX7UiM'
+      key.ext_pubkey.to_base58.should == 'xpub6D4BDPcP2GT577Vvch3R8wDkScZWzQzMMUm3PWbmWvVJrZwQY4VUNgqFJPMM3No2dFDFGTsxxpG5uJh7n7epu4trkrX7x7DogT5Uv6fcLW5'
+    end
+
+    it 'import public key' do
+      # normal key
+      key = Bitcoin::ExtPubkey.from_base58('xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ')
+      key.depth.should == 2
+      key.number.should == 1
+      key.chain_code.bth.should == '2a7857631386ba23dacac34180dd1983734e444fdbf774041578e9b6adb37c19'
+      key.to_base58.should == 'xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ'
+
+      # hardended key
+      key = Bitcoin::ExtPubkey.from_base58('xpub6D4BDPcP2GT577Vvch3R8wDkScZWzQzMMUm3PWbmWvVJrZwQY4VUNgqFJPMM3No2dFDFGTsxxpG5uJh7n7epu4trkrX7x7DogT5Uv6fcLW5')
+      key.depth.should == 3
+      key.number.should == 2**31 + 2
+      key.fingerprint.should == 'ee7ab90c'
+      key.chain_code.bth.should == '04466b9cc8e161e966409ca52986c584f07e9dc81f735db683c3ff6ec7b1503f'
+    end
+  end
 end
