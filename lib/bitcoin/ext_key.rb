@@ -16,16 +16,13 @@ module Bitcoin
     attr_accessor :number
     attr_accessor :chain_code
     attr_accessor :priv_key
-    attr_reader :parent
-
-    def initialize(parent = nil)
-      @parent = parent
-    end
+    attr_accessor :parent_fingerprint
 
     # generate master key from seed.
     def self.generate_master(seed)
       key = ExtKey.new
       key.depth = key.number = 0
+      key.parent_fingerprint = '00000000'
       l = Bitcoin.hmac_sha512('Bitcoin seed', seed)
       left = OpenSSL::BN.from_hex(l[0..31].bth).to_i
       raise 'invalid key' if left >= CURVE_ORDER || left == 0
@@ -36,18 +33,14 @@ module Bitcoin
 
     # get ExtPubkey from priv_key
     def ext_pubkey
-      k = parent ? ExtPubkey.new(parent.ext_pubkey) : ExtPubkey.new
+      k = ExtPubkey.new
       k.depth = depth
       k.number = number
+      k.parent_fingerprint = parent_fingerprint
       k.chain_code = chain_code
       key = Bitcoin::Key.new(nil, priv_key.pub, compressed: true)
       k.pub_key = key.key.public_key
       k
-    end
-
-    # get parent's fingerprint
-    def parent_fingerprint
-      parent ? parent.fingerprint : '00000000'
     end
 
     # serialize extended private key
@@ -89,9 +82,10 @@ module Bitcoin
 
     # derive new key
     def derive(number)
-      new_key = ExtKey.new(self)
+      new_key = ExtKey.new
       new_key.depth = depth + 1
       new_key.number = number
+      new_key.parent_fingerprint = fingerprint
       if number > (2**31 -1)
         data = [0x00].pack('C') << priv_key.priv.htb << [number].pack('N')
       else
@@ -107,6 +101,20 @@ module Bitcoin
       new_key
     end
 
+    # import private key from Base58 private key address
+    def self.from_base58(address)
+      data = StringIO.new(Bitcoin.decode_base58(address).htb)
+      key = ExtKey.new
+      data.read(4).bth # version
+      key.depth = data.read(1).unpack('C').first
+      key.parent_fingerprint = data.read(4).bth
+      key.number = data.read(4).unpack('N').first
+      key.chain_code = data.read(32)
+      data.read(1) # 0x00
+      key.priv_key = Bitcoin::Key.new(data.read(32).bth)
+      key
+    end
+
   end
 
   # BIP-32 Extended public key
@@ -115,16 +123,7 @@ module Bitcoin
     attr_accessor :number
     attr_accessor :chain_code
     attr_accessor :pub_key
-    attr_reader :parent
-
-    def initialize(parent = nil)
-      @parent = parent
-    end
-
-    # get parent's fingerprint
-    def parent_fingerprint
-      parent ? parent.fingerprint : '00000000'
-    end
+    attr_accessor :parent_fingerprint
 
     # serialize extended pubkey
     def to_payload
@@ -161,9 +160,10 @@ module Bitcoin
 
     # derive child key
     def derive(number)
-      new_key = ExtPubkey.new(self)
+      new_key = ExtPubkey.new
       new_key.depth = depth + 1
       new_key.number = number
+      new_key.parent_fingerprint = fingerprint
       raise 'hardened key is not support' if number > (2**31 -1)
       data = pub.htb << [number].pack('N')
       l = Bitcoin.hmac_sha512(chain_code, data)
@@ -172,6 +172,19 @@ module Bitcoin
       new_key.pub_key = bitcoin_elliptic_curve.group.generator.mul(left).ec_add(pub_key)
       new_key.chain_code = l[32..-1]
       new_key
+    end
+
+    # import private key from Base58 private key address
+    def self.from_base58(address)
+      data = StringIO.new(Bitcoin.decode_base58(address).htb)
+      key = ExtPubkey.new
+      data.read(4).bth # version
+      key.depth = data.read(1).unpack('C').first
+      key.parent_fingerprint = data.read(4).bth
+      key.number = data.read(4).unpack('N').first
+      key.chain_code = data.read(32)
+      key.pub_key = OpenSSL::PKey::EC::Point.from_hex(bitcoin_elliptic_curve.group, data.read(33).bth)
+      key
     end
   end
 
