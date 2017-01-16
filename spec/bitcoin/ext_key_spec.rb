@@ -20,8 +20,13 @@ describe Bitcoin::ExtKey do
       @master_key.number.should == 0
       @master_key.fingerprint.should == '3442193e'
       @master_key.chain_code.bth.should == '873dff81c02f525623fd1fe5167eac3a55a049de3d314bb42ee227ffed37d508'
+      @master_key.priv.should == 'e8f32e723decf4051aefac8e2c93c9c5b214313817cdb01a1494b917c8436b35'
+      @master_key.addr.should == '15mKKb2eos1hWa6tisdPwwDC1a5J1y9nma'
+      @master_key.pub.should == '0339a36013301597daef41fbe593a02cc513d0b55527ec2df1050e2e8ff49c85c2'
       @master_key.to_base58.should == 'xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi'
       @master_key.ext_pubkey.to_base58.should == 'xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8'
+      @master_key.ext_pubkey.pub.should == '0339a36013301597daef41fbe593a02cc513d0b55527ec2df1050e2e8ff49c85c2'
+      @master_key.ext_pubkey.addr.should == '15mKKb2eos1hWa6tisdPwwDC1a5J1y9nma'
     end
 
     it 'Chain m/0H' do
