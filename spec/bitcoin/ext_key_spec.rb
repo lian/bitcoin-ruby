@@ -79,4 +79,60 @@ describe Bitcoin::ExtKey do
     end
   end
 
+  describe 'Test Vector 2' do
+    before do
+      Bitcoin.network = :bitcoin
+      @master_key = Bitcoin::ExtKey.generate_master('fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542'.htb)
+    end
+
+    it 'Chain m' do
+      @master_key.depth.should == 0
+      @master_key.number.should == 0
+      @master_key.to_base58.should == 'xprv9s21ZrQH143K31xYSDQpPDxsXRTUcvj2iNHm5NUtrGiGG5e2DtALGdso3pGz6ssrdK4PFmM8NSpSBHNqPqm55Qn3LqFtT2emdEXVYsCzC2U'
+      @master_key.ext_pubkey.to_base58.should == 'xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB'
+    end
+
+    it 'Chain m/0' do
+      key = @master_key.derive(0)
+      key.depth.should == 1
+      key.number.should == 0
+      key.to_base58.should == 'xprv9vHkqa6EV4sPZHYqZznhT2NPtPCjKuDKGY38FBWLvgaDx45zo9WQRUT3dKYnjwih2yJD9mkrocEZXo1ex8G81dwSM1fwqWpWkeS3v86pgKt'
+      key.ext_pubkey.to_base58.should == 'xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH'
+    end
+
+    it 'Chain m/0/2147483647H' do
+      key = @master_key.derive(0).derive(2**31 + 2147483647)
+      key.depth.should == 2
+      key.number.should == 2**31 + 2147483647
+      key.to_base58.should == 'xprv9wSp6B7kry3Vj9m1zSnLvN3xH8RdsPP1Mh7fAaR7aRLcQMKTR2vidYEeEg2mUCTAwCd6vnxVrcjfy2kRgVsFawNzmjuHc2YmYRmagcEPdU9'
+      key.ext_pubkey.to_base58.should == 'xpub6ASAVgeehLbnwdqV6UKMHVzgqAG8Gr6riv3Fxxpj8ksbH9ebxaEyBLZ85ySDhKiLDBrQSARLq1uNRts8RuJiHjaDMBU4Zn9h8LZNnBC5y4a'
+    end
+
+    it 'Chain m/0/2147483647H/1' do
+      key = @master_key.derive(0).derive(2**31 + 2147483647).derive(1)
+      key.depth.should == 3
+      key.number.should == 1
+      key.to_base58.should == 'xprv9zFnWC6h2cLgpmSA46vutJzBcfJ8yaJGg8cX1e5StJh45BBciYTRXSd25UEPVuesF9yog62tGAQtHjXajPPdbRCHuWS6T8XA2ECKADdw4Ef'
+      key.ext_pubkey.to_base58.should == 'xpub6DF8uhdarytz3FWdA8TvFSvvAh8dP3283MY7p2V4SeE2wyWmG5mg5EwVvmdMVCQcoNJxGoWaU9DCWh89LojfZ537wTfunKau47EL2dhHKon'
+    end
+
+    it 'Chain m/0/2147483647H/1/2147483646H' do
+      key = @master_key.derive(0).derive(2**31 + 2147483647).derive(1).derive(2**31 + 2147483646)
+      key.depth.should == 4
+      key.number.should == 2**31 + 2147483646
+      key.to_base58.should == 'xprvA1RpRA33e1JQ7ifknakTFpgNXPmW2YvmhqLQYMmrj4xJXXWYpDPS3xz7iAxn8L39njGVyuoseXzU6rcxFLJ8HFsTjSyQbLYnMpCqE2VbFWc'
+      key.ext_pubkey.to_base58.should == 'xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL'
+    end
+
+    it 'Chain m/0/2147483647H/1/2147483646H/2' do
+      key = @master_key.derive(0).derive(2**31 + 2147483647).derive(1).derive(2**31 + 2147483646).derive(2)
+      key.depth.should == 5
+      key.number.should == 2
+      key.to_base58.should == 'xprvA2nrNbFZABcdryreWet9Ea4LvTJcGsqrMzxHx98MMrotbir7yrKCEXw7nadnHM8Dq38EGfSh6dqA9QWTyefMLEcBYJUuekgW4BYPJcr9E7j'
+      key.ext_pubkey.to_base58.should == 'xpub6FnCn6nSzZAw5Tw7cgR9bi15UV96gLZhjDstkXXxvCLsUXBGXPdSnLFbdpq8p9HmGsApME5hQTZ3emM2rnY5agb9rXpVGyy3bdW6EEgAtqt'
+      ext_pubkey = @master_key.derive(0).derive(2**31 + 2147483647).derive(1).derive(2**31 + 2147483646).ext_pubkey.derive(2)
+      ext_pubkey.to_base58.should == 'xpub6FnCn6nSzZAw5Tw7cgR9bi15UV96gLZhjDstkXXxvCLsUXBGXPdSnLFbdpq8p9HmGsApME5hQTZ3emM2rnY5agb9rXpVGyy3bdW6EEgAtqt'
+    end
+
+  end
 end
