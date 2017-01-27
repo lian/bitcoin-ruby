@@ -56,6 +56,13 @@ module Bitcoin
         @h.on_headers(headers)
       end
 
+      def parse_mrkle_block(payload)
+        return unless @h.respond_to?(:on_mrkle_block)
+        b = Block.new
+        b.parse_data_from_io(payload, header_only= :filtered)
+        @h.on_mrkle_block(b)
+      end
+
       def parse_getblocks(payload)
         version, payload = payload.unpack('Va*')
         count,   payload = Protocol.unpack_var_int(payload)
@@ -86,6 +93,7 @@ module Bitcoin
         when 'getheaders';  @h.on_getheaders(*parse_getblocks(payload))  if @h.respond_to?(:on_getheaders)
         when 'mempool';  handle_mempool_request(payload)
         when 'notfound'; handle_notfound_reply(payload)
+        when 'merkleblock'; parse_mrkle_block(payload)
         when 'reject'; handle_reject(payload)
         else
           parse_error :unknown_packet, [command, payload.hth]
