@@ -42,6 +42,8 @@ module Bitcoin
       # AuxPow linking the block to a merge-mined chain
       attr_accessor :aux_pow
 
+      attr_reader :partial_merkle_tree
+
       alias :transactions :tx
 
       # compare to another block
@@ -82,6 +84,24 @@ module Bitcoin
 
         return buf if buf.eof?
 
+        if header_only == :filtered
+          @tx_count = buf.read(4).unpack("V")[0]
+
+          nhashes = Protocol.unpack_var_int_from_io(buf)
+          hashes = []
+          nhashes.times do
+            hashes << buf.read(256 / 8)
+          end
+
+          nflags = Protocol.unpack_var_int_from_io(buf)
+          flags = buf.read(nflags)
+
+          @partial_merkle_tree = PartialMerkleTree.new(@tx_count, hashes, flags)
+          @partial_merkle_tree.set_value
+
+          return buf
+        end
+
         tx_size = Protocol.unpack_var_int_from_io(buf)
         @tx_count = tx_size
         return buf if header_only
@@ -109,12 +129,28 @@ module Bitcoin
       end
 
       def recalc_mrkl_root
-        @mrkl_root = Bitcoin.hash_mrkl_tree( @tx.map(&:hash) ).last.htb_reverse
+        @mrkl_root = if partial_merkle_tree
+          partial_merkle_tree.root.value.htb_reverse
+        else
+          Bitcoin.hash_mrkl_tree( @tx.map(&:hash) ).last.htb_reverse
+        end
       end
 
       # verify mrkl tree
       def verify_mrkl_root
-        @mrkl_root.reverse_hth == Bitcoin.hash_mrkl_tree( @tx.map(&:hash) ).last
+        if partial_merkle_tree
+          partial_merkle_tree.valid_tree?(@mrkl_root.reverse_hth)
+        else
+          @mrkl_root.reverse_hth == Bitcoin.hash_mrkl_tree( @tx.map(&:hash) ).last
+        end
+      end
+
+      def tx_hashes
+        if partial_merkle_tree
+          partial_merkle_tree.tx_hashes
+        else
+          @tx.map(&:hash)
+        end
       end
 
       # get the block header info
