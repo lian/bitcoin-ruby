@@ -714,5 +714,41 @@ describe 'Tx' do
     end
 
   end
+
+  it 'lexicographical_sort' do
+    #
+    tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-0a6a357e2f7796444e02638749d9611c008b253fb55f5dc88b739b230ed0c4c3.json'))
+    tx.hash.should == '0a6a357e2f7796444e02638749d9611c008b253fb55f5dc88b739b230ed0c4c3'
+    tx.lexicographical_sort
+    tx.in[0].previous_output.should == '0e53ec5dfb2cb8a71fec32dc9a634a35b7e24799295ddd5278217822e0b31f57'
+    tx.in[1].previous_output.should == '26aa6e6d8b9e49bb0630aac301db6757c02e3619feb4ee0eea81eb1672947024'
+    tx.in[2].previous_output.should == '28e0fdd185542f2c6ea19030b0796051e7772b6026dd5ddccd7a2f93b73e6fc2'
+    tx.in[3].previous_output.should == '381de9b9ae1a94d9c17f6a08ef9d341a5ce29e2e60c36a52d333ff6203e58d5d'
+    tx.in[4].previous_output.should == '3b8b2f8efceb60ba78ca8bba206a137f14cb5ea4035e761ee204302d46b98de2'
+    tx.in[5].previous_output.should == '402b2c02411720bf409eff60d05adad684f135838962823f3614cc657dd7bc0a'
+    tx.in[6].previous_output.should == '54ffff182965ed0957dba1239c27164ace5a73c9b62a660c74b7b7f15ff61e7a'
+    tx.in[7].previous_output.should == '643e5f4e66373a57251fb173151e838ccd27d279aca882997e005016bb53d5aa'
+    tx.in[8].previous_output.should == '6c1d56f31b2de4bfc6aaea28396b333102b1f600da9c6d6149e96ca43f1102b1'
+    tx.in[9].previous_output.should == '7a1de137cbafb5c70405455c49c5104ca3057a1f1243e6563bb9245c9c88c191'
+    tx.in[10].previous_output.should == '7d037ceb2ee0dc03e82f17be7935d238b35d1deabf953a892a4507bfbeeb3ba4'
+    tx.in[11].previous_output.should == 'a5e899dddb28776ea9ddac0a502316d53a4a3fca607c72f66c470e0412e34086'
+    tx.in[12].previous_output.should == 'b4112b8f900a7ca0c8b0e7c4dfad35c6be5f6be46b3458974988e1cdb2fa61b8'
+    tx.in[13].previous_output.should == 'bafd65e3c7f3f9fdfdc1ddb026131b278c3be1af90a4a6ffa78c4658f9ec0c85'
+    tx.in[14].previous_output.should == 'de0411a1e97484a2804ff1dbde260ac19de841bebad1880c782941aca883b4e9'
+    tx.in[15].previous_output.should == 'f0a130a84912d03c1d284974f563c5949ac13f8342b8112edff52971599e6a45'
+    tx.in[16].previous_output.should == 'f320832a9d2e2452af63154bc687493484a0e7745ebd3aaf9ca19eb80834ad60'
+    tx.out[0].value.should == 400057456
+    tx.out[1].value.should == 40000000000
+
+    tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-28204cad1d7fc1d199e8ef4fa22f182de6258a3eaafe1bbe56ebdcacd3069a5f.json'))
+    tx.hash.should == '28204cad1d7fc1d199e8ef4fa22f182de6258a3eaafe1bbe56ebdcacd3069a5f'
+    tx.lexicographical_sort
+    tx.in[0].previous_output.should == '35288d269cee1941eaebb2ea85e32b42cdb2b04284a56d8b14dcc3f5c65d6055'
+    tx.in[0].prev_out_index.should == 0
+    tx.in[1].previous_output.should == '35288d269cee1941eaebb2ea85e32b42cdb2b04284a56d8b14dcc3f5c65d6055'
+    tx.in[1].prev_out_index.should == 1
+    tx.out[0].value.should == 100000000
+    tx.out[1].value.should == 2400000000
+  end
   
 end
