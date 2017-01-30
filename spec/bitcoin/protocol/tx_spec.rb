@@ -716,10 +716,9 @@ describe 'Tx' do
   end
 
   it 'lexicographical_sort' do
-    #
     tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-0a6a357e2f7796444e02638749d9611c008b253fb55f5dc88b739b230ed0c4c3.json'))
     tx.hash.should == '0a6a357e2f7796444e02638749d9611c008b253fb55f5dc88b739b230ed0c4c3'
-    tx.lexicographical_sort
+    tx.lexicographical_sort!
     tx.in[0].previous_output.should == '0e53ec5dfb2cb8a71fec32dc9a634a35b7e24799295ddd5278217822e0b31f57'
     tx.in[1].previous_output.should == '26aa6e6d8b9e49bb0630aac301db6757c02e3619feb4ee0eea81eb1672947024'
     tx.in[2].previous_output.should == '28e0fdd185542f2c6ea19030b0796051e7772b6026dd5ddccd7a2f93b73e6fc2'
@@ -742,13 +741,22 @@ describe 'Tx' do
 
     tx = Bitcoin::P::Tx.from_json(fixtures_file('tx-28204cad1d7fc1d199e8ef4fa22f182de6258a3eaafe1bbe56ebdcacd3069a5f.json'))
     tx.hash.should == '28204cad1d7fc1d199e8ef4fa22f182de6258a3eaafe1bbe56ebdcacd3069a5f'
-    tx.lexicographical_sort
+    tx.lexicographical_sort!
     tx.in[0].previous_output.should == '35288d269cee1941eaebb2ea85e32b42cdb2b04284a56d8b14dcc3f5c65d6055'
     tx.in[0].prev_out_index.should == 0
     tx.in[1].previous_output.should == '35288d269cee1941eaebb2ea85e32b42cdb2b04284a56d8b14dcc3f5c65d6055'
     tx.in[1].prev_out_index.should == 1
     tx.out[0].value.should == 100000000
     tx.out[1].value.should == 2400000000
+
+    tx = Bitcoin::P::Tx.new
+    tx.add_out(Bitcoin::P::TxOut.new(500, 'bbbbbbbb'.htb))
+    tx.add_out(Bitcoin::P::TxOut.new(500, 'aaaaaaaa'.htb))
+    tx.add_out(Bitcoin::P::TxOut.new(500, 'cccccccc'.htb))
+    tx.lexicographical_sort!
+    tx.out[0].pk_script.bth.should == 'aaaaaaaa'
+    tx.out[1].pk_script.bth.should == 'bbbbbbbb'
+    tx.out[2].pk_script.bth.should == 'cccccccc'
   end
   
 end
