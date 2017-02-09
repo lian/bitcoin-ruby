@@ -6,7 +6,7 @@ module Bitcoin
     MAX_FILTER_SIZE = 36000
     MAX_HASH_FUNCS = 50
 
-    attr_reader :filter
+    attr_reader :filter, :nfunc
 
     def initialize(elements, fp_rate, tweak)
       init_filter(elements, fp_rate)
