@@ -277,6 +277,8 @@ module OpenSSL_EC
   end
 
   def self.sign_compact(hash, private_key, public_key_hex = nil, pubkey_compressed = nil)
+    msg32 = FFI::MemoryPointer.new(:uchar, 32).put_bytes(0, hash)
+
     private_key = [private_key].pack("H*") if private_key.bytesize >= 64
     private_key_hex = private_key.unpack("H*")[0]
 
@@ -295,7 +297,7 @@ module OpenSSL_EC
     EC_KEY_set_private_key(eckey, priv_key)
     EC_KEY_set_public_key(eckey, pub_key)
 
-    signature = ECDSA_do_sign(hash, hash.bytesize, eckey)
+    signature = ECDSA_do_sign(msg32, msg32.size, eckey)
 
     BN_free(order)
     BN_CTX_free(ctx)
@@ -309,7 +311,7 @@ module OpenSSL_EC
     if signature.get_array_of_pointer(0, 2).all?{|i| BN_num_bits(i) <= 256 }
       4.times{|i|
         head = [ 27 + i + (pubkey_compressed ? 4 : 0) ].pack("C")
-        if public_key_hex == recover_public_key_from_signature(hash, [head, r, s].join, i, pubkey_compressed)
+        if public_key_hex == recover_public_key_from_signature(msg32.read_string(32), [head, r, s].join, i, pubkey_compressed)
           rec_id = i; break
         end
       }
@@ -322,14 +324,13 @@ module OpenSSL_EC
 
   def self.recover_compact(hash, signature)
     return false if signature.bytesize != 65
-    #i = signature.unpack("C")[0] - 27
-    #pubkey = recover_public_key_from_signature(hash, signature, (i & ~4), i >= 4)
+    msg32 = FFI::MemoryPointer.new(:uchar, 32).put_bytes(0, hash)
 
     version = signature.unpack('C')[0]
     return false if version < 27 or version > 34
 
     compressed = (version >= 31) ? (version -= 4; true) : false
-    pubkey = recover_public_key_from_signature(hash, signature, version-27, compressed)
+    pubkey = recover_public_key_from_signature(msg32.read_string(32), signature, version-27, compressed)
   end
 
   # lifted from https://github.com/GemHQ/money-tree
