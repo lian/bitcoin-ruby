@@ -256,7 +256,8 @@ module Bitcoin
         script_code = [["1976a914", script.get_hash160, "88ac"].join].pack("H*") if script.is_witness_v0_keyhash?
         if script.is_witness_v0_scripthash?
           raise "witness script does not match script pubkey" if Bitcoin::Script.to_witness_p2sh_script(Digest::SHA256.digest(witness_script).bth) != script_pubkey
-          script_code = Bitcoin::Script.pack_pushdata(witness_script)
+          script_code = Bitcoin::Protocol.pack_var_int(witness_script.bytesize)
+          script_code << witness_script
         end
 
         hash_outputs = Digest::SHA256.digest(Digest::SHA256.digest(@out.map{|o|o.to_payload}.join))
