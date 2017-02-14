@@ -6,7 +6,12 @@ module Bitcoin
     MAX_FILTER_SIZE = 36000
     MAX_HASH_FUNCS = 50
 
-    attr_reader :filter, :nfunc
+    # flags for filterload message
+    BLOOM_UPDATE_NONE = 0
+    BLOOM_UPDATE_ALL = 1
+    BLOOM_UPDATE_P2PUBKEY_ONLY = 2
+
+    attr_reader :filter, :nfunc, :tweak
 
     def initialize(elements, fp_rate, tweak)
       init_filter(elements, fp_rate)
@@ -27,6 +32,14 @@ module Bitcoin
         i = idx / 8
         @filter[i].ord & BIT_MASK[idx % 8] != 0
       end
+    end
+
+    def add_address(address)
+      add_data(Bitcoin.hash160_from_address(address).htb)
+    end
+
+    def add_outpoint(prev_tx_hash, prev_output)
+      add_data(prev_tx_hash.htb_reverse + [prev_output].pack('V'))
     end
 
     private
