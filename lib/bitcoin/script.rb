@@ -297,6 +297,17 @@ class Bitcoin::Script
     to_binary(buf)
   end
 
+  # Returns a script that deleted the script before the index specified by separator_index.
+  def subscript_codeseparator(separator_index)
+    buf = []
+    process_separator_index = 0
+    (chunks || @chunks).each{|chunk|
+      buf << chunk if process_separator_index == separator_index
+      process_separator_index += 1 if chunk == OP_CODESEPARATOR and process_separator_index < separator_index
+    }
+    to_binary(buf)
+  end
+
   # Adds opcode (OP_0, OP_1, ... OP_CHECKSIG etc.)
   # Returns self.
   def append_opcode(opcode)

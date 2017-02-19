@@ -5,7 +5,6 @@ module Bitcoin
 
     class TxWitness
 
-      #
       attr_reader :tx_in_wit
 
       def initialize
@@ -16,6 +15,11 @@ module Bitcoin
       # @param[Bitcoin::Protocol::TxInWitness] tx_in_wit witness object
       def add_witness(tx_in_wit)
         (@tx_in_wit ||= []) << tx_in_wit
+      end
+
+      # add empty witness
+      def add_empty_witness
+        add_witness(TxInWitness.new)
       end
 
       # output witness in raw binary format
