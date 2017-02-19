@@ -239,12 +239,12 @@ module Bitcoin
 
       # generate a witness signature hash for input +input_idx+.
       # https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
-      def signature_hash_for_witness_input(input_idx, script_pubkey, prev_out_value, hash_type=nil, witness_script = nil)
+      def signature_hash_for_witness_input(input_idx, witness_program, prev_out_value, witness_script = nil, hash_type=nil, skip_separator_index = 0)
         return "\x01".ljust(32, "\x00") if input_idx >= @in.size # ERROR: SignatureHash() : input_idx=%d out of range
 
         hash_type ||= SIGHASH_TYPE[:all]
 
-        script = Bitcoin::Script.new(script_pubkey)
+        script = Bitcoin::Script.new(witness_program)
         raise "ScriptPubkey does not contain witness program." unless script.is_witness?
 
         hash_prevouts = Digest::SHA256.digest(Digest::SHA256.digest(@in.map{|i| [i.prev_out_hash, i.prev_out_index].pack("a32V")}.join))
@@ -253,30 +253,27 @@ module Bitcoin
         amount = [prev_out_value].pack("Q")
         nsequence = @in[input_idx].sequence
 
-        script_code = [["1976a914", script.get_hash160, "88ac"].join].pack("H*") if script.is_witness_v0_keyhash?
-        if script.is_witness_v0_scripthash?
-          raise "witness script does not match script pubkey" if Bitcoin::Script.to_witness_p2sh_script(Digest::SHA256.digest(witness_script).bth) != script_pubkey
-          script_code = Bitcoin::Protocol.pack_var_int(witness_script.bytesize)
-          script_code << witness_script
+        if script.is_witness_v0_keyhash?
+          script_code = [["1976a914", script.get_hash160, "88ac"].join].pack("H*")
+        elsif script.is_witness_v0_scripthash?
+          raise "witness script does not match script pubkey" if Bitcoin::Script.to_witness_p2sh_script(Digest::SHA256.digest(witness_script).bth) != witness_program
+          script = skip_separator_index > 0 ? Bitcoin::Script.new(witness_script).subscript_codeseparator(skip_separator_index) : witness_script
+          script_code = Bitcoin::Protocol.pack_var_int(script.bytesize)
+          script_code << script
         end
 
         hash_outputs = Digest::SHA256.digest(Digest::SHA256.digest(@out.map{|o|o.to_payload}.join))
 
         case (hash_type & 0x1f)
-          when SIGHASH_TYPE[:anyonecanpay]
-            hash_prevouts = "\x00".ljust(32, "\x00")
-            hash_sequence = "\x00".ljust(32, "\x00")
-            hash_outputs = "\x00".ljust(32, "\x00")
           when SIGHASH_TYPE[:single]
-            if input_idx >= @out.size
-              hash_outputs = "\x00".ljust(32, "\x00")
-            else
-              hash_outputs = "\x00".ljust(32, "\x00")
-            end
+            hash_outputs = input_idx >= @out.size ? "\x00".ljust(32, "\x00") : Digest::SHA256.digest(Digest::SHA256.digest(@out[input_idx].to_payload))
             hash_sequence = "\x00".ljust(32, "\x00")
           when SIGHASH_TYPE[:none]
-            hash_sequence = "\x00".ljust(32, "\x00")
-            hash_outputs = "\x00".ljust(32, "\x00")
+            hash_sequence = hash_outputs = "\x00".ljust(32, "\x00")
+        end
+
+        if (hash_type & SIGHASH_TYPE[:anyonecanpay]) != 0
+          hash_prevouts = hash_sequence ="\x00".ljust(32, "\x00")
         end
 
         buf = [ [@ver].pack("V"), hash_prevouts, hash_sequence, outpoint,

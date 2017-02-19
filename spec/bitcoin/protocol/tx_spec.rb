@@ -517,7 +517,7 @@ describe 'Tx' do
     tx = Tx.new('0100000002fe3dc9208094f3ffd12645477b3dc56f60ec4fa8e6f5d67c565d1c6b9216b36e0000000000ffffffff0815cf020f013ed6cf91d29f4202e8a58726b1ac6c79da47c23d1bee0a6925f80000000000ffffffff0100f2052a010000001976a914a30741f8145e5acadf23f751864167f32e0963f788ac00000000'.htb)
     script_pubkey = '00205d1b56b63d714eebe542309525f484b7e9d6f686b3781b6f61ef925d66d6f6a0'
     witness_script = '21026dccc749adc2a9d0d89497ac511f760f45c47dc5ed9cf352a58ac706453880aeadab210255a9626aebf5e29c0e6538428ba0d1dcf6ca98ffdf086aa8ced5e0d0215ea465ac'
-    signature_hash = tx.signature_hash_for_witness_input(1, script_pubkey.htb, 4900000000, Tx::SIGHASH_TYPE[:single], witness_script.htb)
+    signature_hash = tx.signature_hash_for_witness_input(1, script_pubkey.htb, 4900000000, witness_script.htb, Tx::SIGHASH_TYPE[:single])
     signature_hash.bth.should == '82dde6e4f1e94d02c2b7ad03d2115d691f48d064e9d52f58194a6637e4194391'
 
     # P2WSH with invalid witness script
@@ -525,7 +525,7 @@ describe 'Tx' do
     script_pubkey = '00205d1b56b63d714eebe542309525f484b7e9d6f686b3781b6f61ef925d66d6f6a0'
     witness_script = 'AAA'
     proc{
-      tx.signature_hash_for_witness_input(1, script_pubkey.htb, 4900000000, nil, witness_script.htb)
+      tx.signature_hash_for_witness_input(1, script_pubkey.htb, 4900000000, witness_script.htb)
     }.should.raise Exception
   end
   
