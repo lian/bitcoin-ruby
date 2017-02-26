@@ -705,6 +705,12 @@ class Bitcoin::Script
     cast_to_string(@chunks[1]).unpack("H*")[0]  if @chunks[1]
   end
 
+  # get P2WSH script hash
+  def get_p2wsh_script_hash
+    return nil unless is_witness_v0_scripthash?
+    @chunks[1].unpack("H*").first
+  end
+
   # get all addresses this script corresponds to (if possible)
   def get_addresses
     return [get_pubkey_address]    if is_pubkey?
