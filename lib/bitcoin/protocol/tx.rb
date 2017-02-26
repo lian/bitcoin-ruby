@@ -256,7 +256,7 @@ module Bitcoin
         if script.is_witness_v0_keyhash?
           script_code = [["1976a914", script.get_hash160, "88ac"].join].pack("H*")
         elsif script.is_witness_v0_scripthash?
-          raise "witness script does not match script pubkey" if Bitcoin::Script.to_witness_p2sh_script(Digest::SHA256.digest(witness_script).bth) != witness_program
+          raise "witness script does not match script pubkey" unless Bitcoin::Script.to_witness_p2sh_script(Digest::SHA256.digest(witness_script).bth) == witness_program
           script = skip_separator_index > 0 ? Bitcoin::Script.new(witness_script).subscript_codeseparator(skip_separator_index) : witness_script
           script_code = Bitcoin::Protocol.pack_var_int(script.bytesize)
           script_code << script
@@ -308,6 +308,58 @@ module Bitcoin
         return false if opts[:verify_minimaldata] && !@scripts[in_idx].pushes_are_canonical?
         sig_valid = @scripts[in_idx].run(block_timestamp, opts) do |pubkey,sig,hash_type,subscript|
           hash = signature_hash_for_input(in_idx, subscript, hash_type)
+          Bitcoin.verify_signature( hash, sig, pubkey.unpack("H*")[0] )
+        end
+        # BIP62 rule #6
+        return false if opts[:verify_cleanstack] && !@scripts[in_idx].stack.empty?
+
+        return sig_valid
+      end
+
+      # verify witness input signature +in_idx+ against the corresponding
+      # output in +outpoint_tx+
+      # outpoint
+      #
+      # options are: verify_sigpushonly, verify_minimaldata, verify_cleanstack, verify_dersig, verify_low_s, verify_strictenc
+      def verify_witness_input_signature(in_idx, outpoint_tx_or_script, prev_out_amount, block_timestamp=Time.now.to_i, opts={})
+        if @enable_bitcoinconsensus
+          return bitcoinconsensus_verify_script(in_idx, outpoint_tx_or_script, block_timestamp, opts)
+        end
+
+        outpoint_idx  = @in[in_idx].prev_out_index
+        script_sig    = ''
+
+        # If given an entire previous transaction, take the script from it
+        script_pubkey = if outpoint_tx_or_script.respond_to?(:out)
+          Bitcoin::Script.new(outpoint_tx_or_script.out[outpoint_idx].pk_script)
+        else
+          # Otherwise, it's already a script.
+          Bitcoin::Script.new(outpoint_tx_or_script)
+        end
+
+        return false unless script_pubkey.is_witness?
+
+        witness.tx_in_wit[in_idx].stack.each{|s|script_sig << Bitcoin::Script.pack_pushdata(s.htb)}
+        code_separator_index = 0
+
+        if script_pubkey.is_witness_v0_keyhash?
+          @scripts[in_idx] = Bitcoin::Script.new(script_sig, Bitcoin::Script.to_hash160_script(script_pubkey.get_hash160))
+        elsif script_pubkey.is_witness_v0_scripthash?
+          witness_hex = witness.tx_in_wit[in_idx].stack.last
+          witness_script = Bitcoin::Script.new(witness_hex.htb)
+          return false unless Bitcoin.sha256(witness_hex) == script_pubkey.get_p2wsh_script_hash
+          @scripts[in_idx] = Bitcoin::Script.new(script_sig, Bitcoin::Script.to_p2sh_script(Bitcoin.hash160(witness_hex)))
+        end
+
+        return false if opts[:verify_sigpushonly] && !@scripts[in_idx].is_push_only?(script_sig)
+        return false if opts[:verify_minimaldata] && !@scripts[in_idx].pushes_are_canonical?
+        sig_valid = @scripts[in_idx].run(block_timestamp, opts) do |pubkey,sig,hash_type,subscript|
+          if script_pubkey.is_witness_v0_keyhash?
+            hash = signature_hash_for_witness_input(in_idx, script_pubkey.to_payload, prev_out_amount, nil, hash_type)
+          elsif script_pubkey.is_witness_v0_scripthash?
+            hash = signature_hash_for_witness_input(in_idx, script_pubkey.to_payload, prev_out_amount, witness_hex.htb, hash_type, code_separator_index)
+            code_separator_index += 1 if witness_script.chunks.select{|c|c == Bitcoin::Script::OP_CODESEPARATOR}.length > code_separator_index
+          end
           Bitcoin.verify_signature( hash, sig, pubkey.unpack("H*")[0] )
         end
         # BIP62 rule #6
