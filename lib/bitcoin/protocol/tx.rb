@@ -258,8 +258,7 @@ module Bitcoin
         elsif script.is_witness_v0_scripthash?
           raise "witness script does not match script pubkey" unless Bitcoin::Script.to_witness_p2sh_script(Digest::SHA256.digest(witness_script).bth) == witness_program
           script = skip_separator_index > 0 ? Bitcoin::Script.new(witness_script).subscript_codeseparator(skip_separator_index) : witness_script
-          script_code = Bitcoin::Protocol.pack_var_int(script.bytesize)
-          script_code << script
+          script_code = Bitcoin::Protocol.pack_var_string(script)
         end
 
         hash_outputs = Digest::SHA256.digest(Digest::SHA256.digest(@out.map{|o|o.to_payload}.join))
@@ -337,18 +336,23 @@ module Bitcoin
           Bitcoin::Script.new(outpoint_tx_or_script)
         end
 
-        return false unless script_pubkey.is_witness?
+        if script_pubkey.is_p2sh?
+          redeem_script = Bitcoin::Script.new(@in[in_idx].script_sig).get_pubkey
+          script_pubkey = Bitcoin::Script.new(redeem_script.htb) if Bitcoin.hash160(redeem_script) == script_pubkey.get_hash160 # P2SH-P2WPKH or P2SH-P2WSH
+        end
 
         witness.tx_in_wit[in_idx].stack.each{|s|script_sig << Bitcoin::Script.pack_pushdata(s.htb)}
         code_separator_index = 0
 
-        if script_pubkey.is_witness_v0_keyhash?
+        if script_pubkey.is_witness_v0_keyhash? # P2WPKH
           @scripts[in_idx] = Bitcoin::Script.new(script_sig, Bitcoin::Script.to_hash160_script(script_pubkey.get_hash160))
-        elsif script_pubkey.is_witness_v0_scripthash?
+        elsif script_pubkey.is_witness_v0_scripthash? # P2WSH
           witness_hex = witness.tx_in_wit[in_idx].stack.last
           witness_script = Bitcoin::Script.new(witness_hex.htb)
-          return false unless Bitcoin.sha256(witness_hex) == script_pubkey.get_p2wsh_script_hash
+          return false unless Bitcoin.sha256(witness_hex) == script_pubkey.get_hash160
           @scripts[in_idx] = Bitcoin::Script.new(script_sig, Bitcoin::Script.to_p2sh_script(Bitcoin.hash160(witness_hex)))
+        else
+          return false
         end
 
         return false if opts[:verify_sigpushonly] && !@scripts[in_idx].is_push_only?(script_sig)
@@ -358,7 +362,7 @@ module Bitcoin
             hash = signature_hash_for_witness_input(in_idx, script_pubkey.to_payload, prev_out_amount, nil, hash_type)
           elsif script_pubkey.is_witness_v0_scripthash?
             hash = signature_hash_for_witness_input(in_idx, script_pubkey.to_payload, prev_out_amount, witness_hex.htb, hash_type, code_separator_index)
-            code_separator_index += 1 if witness_script.chunks.select{|c|c == Bitcoin::Script::OP_CODESEPARATOR}.length > code_separator_index
+            code_separator_index += 1 if witness_script.codeseparator_count > code_separator_index
           end
           Bitcoin.verify_signature( hash, sig, pubkey.unpack("H*")[0] )
         end

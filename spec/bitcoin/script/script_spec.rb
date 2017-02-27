@@ -213,11 +213,6 @@ describe 'Bitcoin::Script' do
       Script.from_string("OP_RETURN deadbeef").get_op_return_data.should == "deadbeef"
       Script.from_string("OP_RETURN OP_CHECKSIG").get_op_return_data.should == "ac00"
     end
-
-    it '#get_p2wsh_script_hash' do
-      Script.new('00205d1b56b63d714eebe542309525f484b7e9d6f686b3781b6f61ef925d66d6f6a0'.htb).get_p2wsh_script_hash.should == '5d1b56b63d714eebe542309525f484b7e9d6f686b3781b6f61ef925d66d6f6a0'
-    end
-
   end
 
   describe "determine type" do

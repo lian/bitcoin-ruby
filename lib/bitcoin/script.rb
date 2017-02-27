@@ -673,6 +673,7 @@ class Bitcoin::Script
     return @chunks[-2].unpack("H*")[0]        if is_p2sh?
     return Bitcoin.hash160(get_pubkey)        if is_pubkey?
     return @chunks[1].unpack("H*")[0]         if is_witness_v0_keyhash?
+    return @chunks[1].unpack("H*")[0]         if is_witness_v0_scripthash?
   end
 
   # get the hash160 address for this hash160 script
@@ -703,12 +704,6 @@ class Bitcoin::Script
   def get_op_return_data
     return nil  unless is_op_return?
     cast_to_string(@chunks[1]).unpack("H*")[0]  if @chunks[1]
-  end
-
-  # get P2WSH script hash
-  def get_p2wsh_script_hash
-    return nil unless is_witness_v0_scripthash?
-    @chunks[1].unpack("H*").first
   end
 
   # get all addresses this script corresponds to (if possible)
@@ -881,6 +876,10 @@ class Bitcoin::Script
   def get_keys_provided
     return false  unless is_multisig?
     @chunks[-2] - 80
+  end
+
+  def codeseparator_count
+    @chunks.select{|c|c == Bitcoin::Script::OP_CODESEPARATOR}.length
   end
 
   # This matches CScript::GetSigOpCount(bool fAccurate)
