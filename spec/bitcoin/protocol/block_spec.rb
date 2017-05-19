@@ -20,6 +20,8 @@ describe 'Bitcoin::Protocol::Block' do
       # block 26478:  000000000214a3f06ee99a033a7f2252762d6a18d27c3cd8c8fe2278190da9f3
       'testnet-26478' => fixtures_file('rawblock-testnet-26478.bin'),
       'testnet-265322' => fixtures_file('rawblock-testnet-265322.bin'),
+      # block 100005: 000000000000dab0130bbcc991d3d7ae6b81aa6f50a798888dfe62337458dc45
+      'filtered-0' => fixtures_file('filteredblock-0.bin'),
     }
   end
 
@@ -52,6 +54,10 @@ describe 'Bitcoin::Protocol::Block' do
     @block.tx.size.should == 1
     @block.tx[0].is_a?(Tx).should == true
     @block.tx[0].hash.should == "0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098"
+  end
+
+  it "#tx_hashes" do
+    @block.tx_hashes.should == ["0e3e2357e806b6cdb1f70b54c3a3a17b6714ee1f0e68bebb44a74b1efd512098"]
   end
 
   it '#to_hash' do
@@ -133,6 +139,21 @@ describe 'Bitcoin::Protocol::Block' do
         .message.should.include?("Block merkle root mismatch!")
     end
 
+  end
+
+  #
+  # following test cases are borrowed from
+  # https://github.com/bitcoinj/bitcoinj/blob/master/core/src/test/java/org/bitcoinj/core/FilteredBlockAndPartialMerkleTreeTests.java
+  #
+  it "filtered block parsing" do
+    block = Block.new
+    proc {
+      block.parse_data_from_io(@blocks['filtered-0'], :filtered)
+    }.should.not.raise Exception
+
+    block.verify_mrkl_root.should == true
+    block.hash.should == '000000000000dab0130bbcc991d3d7ae6b81aa6f50a798888dfe62337458dc45'
+    block.tx_hashes.should == ['63194f18be0af63f2c6bc9dc0f777cbefed3d9415c4af83f3ee3a3d669c00cb5']
   end
 
   it '#header_to_json' do

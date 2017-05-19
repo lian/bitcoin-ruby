@@ -16,6 +16,7 @@ module Bitcoin
   autoload :Logger,     'bitcoin/logger'
   autoload :Key,        'bitcoin/key'
   autoload :Builder,    'bitcoin/builder'
+  autoload :BloomFilter,'bitcoin/bloom_filter'
 
   autoload :Dogecoin,   'bitcoin/dogecoin'
   autoload :Litecoin,   'bitcoin/litecoin'

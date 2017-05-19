@@ -6,6 +6,7 @@ module Bitcoin
     # https://en.bitcoin.it/wiki/Protocol_specification#version
     class Version
       # services bit constants
+      NODE_NONE = 0
       NODE_NETWORK = (1 << 0)
 
       attr_reader :fields
