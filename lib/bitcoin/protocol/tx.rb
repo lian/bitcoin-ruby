@@ -367,6 +367,14 @@ module Bitcoin
       end
       alias :nhash :normalized_hash
 
+
+      # sort transaction inputs and outputs under BIP 69
+      # https://github.com/bitcoin/bips/blob/master/bip-0069.mediawiki
+      def lexicographical_sort!
+        inputs.sort_by!{|i| [i.previous_output, i.prev_out_index]}
+        outputs.sort_by!{|o| [o.amount, o.pk_script.bth]}
+      end
+
     end
   end
 end
