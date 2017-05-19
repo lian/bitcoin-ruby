@@ -69,13 +69,15 @@ module Bitcoin
     end
 
     def pub_compressed
-      @key.public_key.group.point_conversion_form = :compressed
-      @key.public_key.to_hex.rjust(66, '0')
+      public_key = @key.public_key
+      public_key.group.point_conversion_form = :compressed
+      public_key.to_hex.rjust(66, '0')
     end
 
     def pub_uncompressed
-      @key.public_key.group.point_conversion_form = :uncompressed
-      @key.public_key.to_hex.rjust(130, '0')
+      public_key = @key.public_key
+      public_key.group.point_conversion_form = :uncompressed
+      public_key.to_hex.rjust(130, '0')
     end
 
     def compressed
