@@ -2,8 +2,6 @@
 
 require_relative 'spec_helper'
 
-include Bitcoin::Util
-
 # BIP-32 test
 # https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#Test_Vectors
 describe Bitcoin::ExtKey do
