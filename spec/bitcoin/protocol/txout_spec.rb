@@ -23,5 +23,34 @@ describe 'TxOut' do
     (o1 == nil).should == false
   end
 
-end
+  describe ".from_hash" do
+    before do
+      @hash = {
+        "spent"    => false,
+        "tx_index" => 101431844,
+        "type"     => 0,
+        "addr"     => "1Az1Sh9Tai6gFfEzFczhHY27WiQ99ZZURtA",
+        "value"    => "1234",
+        "n"        => 0,
+        "script"   => "d6c66cd822a22d7da0ce388589bb161d8667e40e5279f20fd2"
+      }
+      @script = Bitcoin::Script.binary_from_string(@hash["script"])
+    end
 
+    it "creates a new TxOut from the hash" do
+      txout = TxOut.from_hash(@hash)
+      txout.value.should            == 1234
+      txout.pk_script               == @script
+      txout.pk_script_length.should == @script.bytesize
+    end
+
+    it "hash['value'] can be an integer" do
+      @hash["value"] = 1234
+      txout = TxOut.from_hash(@hash)
+      txout.value.should            == 1234
+      txout.pk_script               == @script
+      txout.pk_script_length.should == @script.bytesize
+    end
+
+  end
+end
