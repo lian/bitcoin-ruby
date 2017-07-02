@@ -45,12 +45,10 @@ describe 'Tx' do
   end
 
   it '#parse_witness_data' do
-    tx = Tx.new( nil )
-    tx.parse_witness_data(@payload[3]).should == true
+    tx = Tx.new( @payload[3] )
     tx.hash.size.should == 64
 
-    tx = Tx.new( nil )
-    tx.parse_witness_data( @payload[3] + "AAAA" ).should == "AAAA"
+    tx = Tx.new( @payload[3] + "AAAA" )
     tx.hash.size.should == 64
   end
 

@@ -21,11 +21,7 @@ module Bitcoin
       # output script in raw binary format
       def to_payload
         payload = Bitcoin::Protocol.pack_var_int(stack.size)
-        stack.each{|e|
-          payload << Bitcoin::Protocol.pack_var_int(e.htb.bytesize)
-          payload << e.htb
-        }
-        payload
+        payload << stack.map{|e| Bitcoin::Protocol.pack_var_int(e.bytesize) << e }.join
       end
 
     end
