@@ -7,6 +7,9 @@ module Bitcoin
 
     class Tx
 
+      MARKER = 0
+      FLAG = 1
+
       # transaction hash
       attr_reader :hash
 
@@ -28,8 +31,8 @@ module Bitcoin
       # parsed / evaluated input scripts cached for later use
       attr_reader :scripts
 
-      # witness (TxWitness)
-      attr_reader :witness
+      attr_accessor :marker
+      attr_accessor :flag
 
       alias :inputs  :in
       alias :outputs :out
@@ -46,7 +49,7 @@ module Bitcoin
 
       # create tx from raw binary +data+
       def initialize(data=nil)
-        @ver, @lock_time, @in, @out, @scripts, @witness = 1, 0, [], [], [], TxWitness.new
+        @ver, @lock_time, @in, @out, @scripts = 1, 0, [], [], []
         @enable_bitcoinconsensus = !!ENV['USE_BITCOINCONSENSUS']
         if data
           begin
@@ -137,20 +140,17 @@ module Bitcoin
           @out << Bitcoin::Protocol::TxOut.from_io(buf)
         }
 
-        @witness = Bitcoin::Protocol::TxWitness.new
-        in_size.times{
-          witness_count = Bitcoin::Protocol.unpack_var_int_from_io(buf)
-          in_witness = Bitcoin::Protocol::TxInWitness.new
-          witness_count.times{
-            length = Bitcoin::Protocol.unpack_var_int_from_io(buf)
-            in_witness.add_stack(buf.read(length).unpack("H*").first)
-          }
-          @witness.add_witness(in_witness)
-        }
+        in_size.times do |i|
+          witness_count = Protocol.unpack_var_int_from_io(buf)
+          witness_count.times do
+            size = Protocol.unpack_var_int_from_io(buf)
+            @in[i].script_witness.stack << buf.read(size)
+          end
+        end
 
         @lock_time = buf.read(4).unpack("V").first
 
-        @hash = hash_from_payload(to_payload)
+        @hash = hash_from_payload(to_old_payload)
 
         if buf.eof?
           true
@@ -163,6 +163,10 @@ module Bitcoin
 
       # output transaction in raw binary format
       def to_payload
+        witness? ? to_witness_payload : to_old_payload
+      end
+
+      def to_old_payload
         pin = ""
         @in.each{|input| pin << input.to_payload }
         pout = ""
@@ -173,12 +177,19 @@ module Bitcoin
 
       # output transaction in raw binary format with witness
       def to_witness_payload
-        pin = ""
-        @in.each{|input| pin << input.to_payload }
-        pout = ""
-        @out.each{|output| pout << output.to_payload }
-        [@ver].pack("V") << [0].pack("c") << [1].pack("c") << Bitcoin::Protocol.pack_var_int(@in.size) << pin <<
-            Bitcoin::Protocol.pack_var_int(@out.size) << pout << @witness.to_payload << [@lock_time].pack("V")
+        buf = [@ver, MARKER, FLAG].pack('Vcc')
+        buf << Protocol.pack_var_int(@in.length) << @in.map(&:to_payload).join
+        buf << Protocol.pack_var_int(@out.length) << @out.map(&:to_payload).join
+        buf << witness_payload << [@lock_time].pack('V')
+        buf
+      end
+
+      def witness_payload
+        @in.map { |i| i.script_witness.to_payload }.join
+      end
+
+      def witness?
+        !@in.find { |i| !i.script_witness.empty? }.nil?
       end
 
       SIGHASH_TYPE = { all: 1, none: 2, single: 3, anyonecanpay: 128 }
@@ -341,13 +352,13 @@ module Bitcoin
           script_pubkey = Bitcoin::Script.new(redeem_script.htb) if Bitcoin.hash160(redeem_script) == script_pubkey.get_hash160 # P2SH-P2WPKH or P2SH-P2WSH
         end
 
-        witness.tx_in_wit[in_idx].stack.each{|s|script_sig << Bitcoin::Script.pack_pushdata(s.htb)}
+        @in[in_idx].script_witness.stack.each{|s|script_sig << Bitcoin::Script.pack_pushdata(s)}
         code_separator_index = 0
 
         if script_pubkey.is_witness_v0_keyhash? # P2WPKH
           @scripts[in_idx] = Bitcoin::Script.new(script_sig, Bitcoin::Script.to_hash160_script(script_pubkey.get_hash160))
         elsif script_pubkey.is_witness_v0_scripthash? # P2WSH
-          witness_hex = witness.tx_in_wit[in_idx].stack.last
+          witness_hex = @in[in_idx].script_witness.stack.last.bth
           witness_script = Bitcoin::Script.new(witness_hex.htb)
           return false unless Bitcoin.sha256(witness_hex) == script_pubkey.get_hash160
           @scripts[in_idx] = Bitcoin::Script.new(script_sig, Bitcoin::Script.to_p2sh_script(Bitcoin.hash160(witness_hex)))
@@ -397,16 +408,12 @@ module Bitcoin
 
       # convert to ruby hash (see also #from_hash)
       def to_hash(options = {})
-        @hash ||= hash_from_payload(to_payload)
+        @hash ||= hash_from_payload(to_old_payload)
         h = {
           'hash' => @hash, 'ver' => @ver, # 'nid' => normalized_hash,
           'vin_sz' => @in.size, 'vout_sz' => @out.size,
-          'lock_time' => @lock_time, 'size' => (@payload ||= to_payload).bytesize,
-          'in'  =>  @in.map.with_index{|i, index|
-            h = i.to_hash(options)
-            h.merge!('witness' => @witness.tx_in_wit[index].stack) if @witness.tx_in_wit[index]
-            h
-          },
+          'lock_time' => @lock_time, 'size' => (@payload ||= to_old_payload).bytesize,
+          'in'  =>  @in.map{|i|i.to_hash(options)},
           'out' => @out.map{|o| o.to_hash(options) }
         }
         h['nid'] = normalized_hash  if options[:with_nid]
@@ -432,10 +439,9 @@ module Bitcoin
         outs = h['out'] || h['outputs']
         ins .each{|input|
           tx.add_in(TxIn.from_hash(input))
-          tx.witness.add_witness(TxInWitness.from_hash(input['witness'])) if input['witness']
         }
         outs.each{|output|  tx.add_out TxOut.from_hash(output) }
-        tx.instance_eval{ @hash = hash_from_payload(@payload = to_payload) }
+        tx.instance_eval{ @hash = hash_from_payload(@payload = to_old_payload) }
         if h['hash'] && (h['hash'] != tx.hash)
           raise "Tx hash mismatch! Claimed: #{h['hash']}, Actual: #{tx.hash}" if do_raise
         end
@@ -445,7 +451,7 @@ module Bitcoin
       # convert ruby hash to raw binary
       def self.binary_from_hash(h)
         tx = from_hash(h)
-        tx.witness.empty? ? tx.to_payload : tx.to_witness_payload
+        tx.to_payload
       end
 
       # parse json representation
