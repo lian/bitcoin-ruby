@@ -91,16 +91,7 @@ module Bitcoin
           return buf if buf.eof?
 
           t = Tx.new(nil)
-          p = buf.pos
-          buf.read(4)
-          marker = buf.read(1).unpack("c").first
-          buf.pos = p
-          if marker.zero? # for segwit tx format
-            payload = t.parse_witness_data_from_io(buf)
-          else
-            payload = t.parse_data_from_io(buf)
-          end
-
+          payload = t.parse_data_from_io(buf)
           @tx << t
         }
 

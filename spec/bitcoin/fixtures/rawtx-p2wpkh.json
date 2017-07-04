@@ -4,7 +4,7 @@
   "vin_sz":1,
   "vout_sz":11,
   "lock_time":0,
-  "size":101,
+  "size":501,
   "in":[
     {
       "prev_out":{
