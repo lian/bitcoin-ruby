@@ -202,7 +202,7 @@ module Bitcoin
         end
 
         # run our tx through an encode/decode cycle to make sure that the binary format is sane
-        raise "Payload Error"  unless P::Tx.new(@tx.to_payload).to_payload == @tx.to_payload
+        raise "Payload Error"  unless P::Tx.new(@tx.to_witness_payload).to_payload == @tx.to_payload
         @tx.instance_eval do
           @payload = to_payload
           @hash = hash_from_payload(@payload)

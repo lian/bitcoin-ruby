@@ -51,13 +51,7 @@ module Bitcoin
       def initialize(data=nil)
         @ver, @lock_time, @in, @out, @scripts = 1, 0, [], [], []
         @enable_bitcoinconsensus = !!ENV['USE_BITCOINCONSENSUS']
-        if data
-          begin
-            parse_witness_data_from_io(data) unless parse_data_from_io(data).is_a?(TrueClass)
-          rescue Exception
-            parse_witness_data_from_io(data)
-          end
-        end
+        parse_data_from_io(data) if data
       end
 
       # generate the tx hash for given +payload+ in hex format
@@ -75,13 +69,22 @@ module Bitcoin
       # parse raw binary data
       def parse_data_from_io(data)
         buf = data.is_a?(String) ? StringIO.new(data) : data
-        payload_start = buf.pos
 
         @ver = buf.read(4).unpack("V")[0]
 
         return false if buf.eof?
 
         in_size = Protocol.unpack_var_int_from_io(buf)
+
+        # segwit serialization format is defined by https://github.com/bitcoin/bips/blob/master/bip-0144.mediawiki
+        witness = false
+        if in_size.zero?
+          @marker = 0
+          @flag = buf.read(1).unpack('c').first
+          in_size = Protocol.unpack_var_int_from_io(buf)
+          witness = true
+        end
+
         @in = []
         in_size.times{
           break if buf.eof?
@@ -99,56 +102,17 @@ module Bitcoin
 
         return false if buf.eof?
 
-        @lock_time = buf.read(4).unpack("V")[0]
-
-        payload_end = buf.pos;
-        buf.seek(payload_start)
-        @payload = buf.read( payload_end-payload_start )
-        @hash = hash_from_payload(@payload)
-
-        if buf.eof?
-          true
-        else
-          data.is_a?(StringIO) ? buf : buf.read
-        end
-      end
-
-      alias :parse_data  :parse_data_from_io
-
-      # parse witness raw binary data
-      # serialization format is defined by https://github.com/bitcoin/bips/blob/master/bip-0144.mediawiki
-      def parse_witness_data_from_io(data)
-        buf = data.is_a?(String) ? StringIO.new(data) : data
-
-        @ver = buf.read(4).unpack("V").first
-
-        @marker = buf.read(1).unpack("c").first
-
-        @flag = buf.read(1).unpack("c").first
-
-        in_size = Bitcoin::Protocol.unpack_var_int_from_io(buf)
-        @in = []
-        in_size.times{
-          break if buf.eof?
-          @in << Bitcoin::Protocol::TxIn.from_io(buf)
-        }
-
-        out_size = Bitcoin::Protocol.unpack_var_int_from_io(buf)
-        @out = []
-        out_size.times{
-          break if buf.eof?
-          @out << Bitcoin::Protocol::TxOut.from_io(buf)
-        }
-
-        in_size.times do |i|
-          witness_count = Protocol.unpack_var_int_from_io(buf)
-          witness_count.times do
-            size = Protocol.unpack_var_int_from_io(buf)
-            @in[i].script_witness.stack << buf.read(size)
+        if witness
+          in_size.times do |i|
+            witness_count = Protocol.unpack_var_int_from_io(buf)
+            witness_count.times do
+              size = Protocol.unpack_var_int_from_io(buf)
+              @in[i].script_witness.stack << buf.read(size)
+            end
           end
         end
 
-        @lock_time = buf.read(4).unpack("V").first
+        @lock_time = buf.read(4).unpack("V")[0]
 
         @hash = hash_from_payload(to_old_payload)
 
@@ -159,7 +123,7 @@ module Bitcoin
         end
       end
 
-      alias :parse_witness_data  :parse_witness_data_from_io
+      alias :parse_data  :parse_data_from_io
 
       # output transaction in raw binary format
       def to_payload
@@ -412,7 +376,7 @@ module Bitcoin
         h = {
           'hash' => @hash, 'ver' => @ver, # 'nid' => normalized_hash,
           'vin_sz' => @in.size, 'vout_sz' => @out.size,
-          'lock_time' => @lock_time, 'size' => (@payload ||= to_old_payload).bytesize,
+          'lock_time' => @lock_time, 'size' => (@payload ||= to_payload).bytesize,
           'in'  =>  @in.map{|i|i.to_hash(options)},
           'out' => @out.map{|o| o.to_hash(options) }
         }
