@@ -23,8 +23,10 @@ task :bacon do
   require 'matrix'
 
   specs = PROJECT_SPECS
-  #specs.delete_if{|i| File.basename(i) == 'storage_spec.rb' } # skip for now
-  specs.delete_if{|i| ['secp256k1_spec.rb', 'bip143_spec.rb'].include?(File.basename(i))} # skip for now
+  unless ENV["SECP256K1_LIB_PATH"]
+    # skip when missing secp256k1 shared lib
+    specs.delete_if{|i| ['secp256k1_spec.rb', 'bip143_spec.rb'].include?(File.basename(i))}
+  end
 
   # E.g. SPEC=specs/bitcoin/script/ to run script-related specs only.
   if spec_mask = ENV["SPEC"]
