@@ -20,6 +20,8 @@ describe 'Bitcoin::Protocol::Block' do
       # block 26478:  000000000214a3f06ee99a033a7f2252762d6a18d27c3cd8c8fe2278190da9f3
       'testnet-26478' => fixtures_file('rawblock-testnet-26478.bin'),
       'testnet-265322' => fixtures_file('rawblock-testnet-265322.bin'),
+      # block 1151351: 000000000000031525003c4e061fd2e5ce5f4fda6121a836e66f70ec2df621de
+      'testnet-1151351' => fixtures_file('rawblock-testnet-1151351.bin')
     }
   end
 
@@ -42,6 +44,10 @@ describe 'Bitcoin::Protocol::Block' do
     block.parse_data(@blocks['0'] + "AAAA").should == "AAAA"
     block.header_info[7].should == 215
     block.to_payload.should == @blocks['0']
+
+    # parse block which includes segwit tx
+    block = Block.new(@blocks['testnet-1151351'])
+    block.mrkl_root.should == 'e4bbfc681f2bf0ed5fe13a01f5f82bd1844d406fe793a7ec590151f4ea4060d5'.htb.reverse
   end
 
   it '#hash' do

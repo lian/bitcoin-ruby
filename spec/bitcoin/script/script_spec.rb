@@ -13,7 +13,9 @@ describe 'Bitcoin::Script' do
     "524104573b6e9f3a714440048a7b87d606bcbf9e45b8586e70a67a3665ea720c095658471a523e5d923f3f3e015626e7c900bd08560ddffeb17d33c5b52c96edb875954104039c2f4e413a26901e67ad4adbb6a4759af87bc16c7120459ecc9482fed3dd4a4502947f7b4c7782dcadc2bed513ed14d5e770452b97ae246ac2030f13b80a5141048b0f9d04e495c3c754f8c3c109196d713d0778882ef098f785570ee6043f8c192d8f84df43ebafbcc168f5d95a074dc4010b62c003e560abc163c312966b74b653ae", # multisig 2 of 3
     "5141040ee607b584b36e995f2e96dec35457dbb40845d0ce0782c84002134e816a6b8cbc65e9eed047ae05e10760e4113f690fd49ad73b86b04a1d7813d843f8690ace4104220a78f5f6741bb0739675c2cc200643516b02cfdfda5cba21edeaa62c0f954936b30dfd956e3e99af0a8e7665cff6ac5b429c54c418184c81fbcd4bde4088f552ae", # multisig 1 of 2
     "a9149471864495192e39f5f74574b6c8c513588a820487", # p2sh
-    "6a04deadbeef" # OP_RETURN deadbeef
+    "6a04deadbeef", # OP_RETURN deadbeef
+    "00141e205151c90c16475363d11b7b8c235cf6c7d695", # p2wpkh
+    "00205d1b56b63d714eebe542309525f484b7e9d6f686b3781b6f61ef925d66d6f6a0" # p2wsh
   ].map{|s|[s].pack("H*")}
   PUBKEYS = [
     "04fb0123fe2c399981bc77d522e2ae3268d2ab15e9a84ae49338a4b1db3886a1ea04cdab955d81e9fa1fcb0c062cb9a5af1ad5dd5064f4afcca322402b07030ec2",
@@ -144,6 +146,7 @@ describe 'Bitcoin::Script' do
         "17977bca1b6287a5e6559c57ef4b6525e9d7ded6"
       Script.from_string("OP_DUP OP_HASH160 0 OP_EQUALVERIFY OP_CHECKSIG")
         .get_hash160.should == nil
+      Script.new(SCRIPT[7]).get_hash160.should == "1e205151c90c16475363d11b7b8c235cf6c7d695"
     end
 
     it "#get_hash160_address" do
@@ -210,7 +213,6 @@ describe 'Bitcoin::Script' do
       Script.from_string("OP_RETURN deadbeef").get_op_return_data.should == "deadbeef"
       Script.from_string("OP_RETURN OP_CHECKSIG").get_op_return_data.should == "ac00"
     end
-
   end
 
   describe "determine type" do
@@ -223,6 +225,8 @@ describe 'Bitcoin::Script' do
       Script.new(SCRIPT[4]).is_standard?.should == true
       Script.new(SCRIPT[5]).is_standard?.should == true
       Script.new(SCRIPT[6]).is_standard?.should == true
+      Script.new(SCRIPT[7]).is_standard?.should == true
+      Script.new(SCRIPT[8]).is_standard?.should == true
     end
 
     it '#is_pubkey?' do
@@ -233,6 +237,8 @@ describe 'Bitcoin::Script' do
       Script.new(SCRIPT[4]).is_send_to_ip?.should == false
       Script.new(SCRIPT[5]).is_pubkey?.should == false
       Script.new(SCRIPT[6]).is_pubkey?.should == false
+      Script.new(SCRIPT[7]).is_pubkey?.should == false
+      Script.new(SCRIPT[8]).is_pubkey?.should == false
       Script.from_string("0 OP_CHECKSIG").is_pubkey?.should == false # testnet aba0441c4c9933dcd7db789c39053739ec435ab742ed2c23c05f22f1488c0bfd
     end
 
@@ -244,6 +250,8 @@ describe 'Bitcoin::Script' do
         .is_hash160?.should == false
       Script.new(SCRIPT[5]).is_hash160?.should == false
       Script.new(SCRIPT[6]).is_hash160?.should == false
+      Script.new(SCRIPT[7]).is_hash160?.should == false
+      Script.new(SCRIPT[8]).is_hash160?.should == false
     end
 
     it "#is_multisig?" do
@@ -251,6 +259,8 @@ describe 'Bitcoin::Script' do
       Script.new(SCRIPT[4]).is_multisig?.should == true
       Script.new(SCRIPT[0]).is_multisig?.should == false
       Script.new(SCRIPT[6]).is_multisig?.should == false
+      Script.new(SCRIPT[7]).is_multisig?.should == false
+      Script.new(SCRIPT[8]).is_multisig?.should == false
       Script.new("OP_DUP OP_DROP 2 #{PUBKEYS[0..2].join(' ')} 3 OP_CHECKMULTISIG")
         .is_multisig?.should == false
       Script.new("OP_DROP OP_CHECKMULTISIG").is_multisig?.should == false
@@ -265,6 +275,8 @@ describe 'Bitcoin::Script' do
       Script.new(SCRIPT[4]).is_p2sh?.should == false
       Script.new(SCRIPT[5]).is_p2sh?.should == true
       Script.new(SCRIPT[6]).is_p2sh?.should == false
+      Script.new(SCRIPT[7]).is_p2sh?.should == false
+      Script.new(SCRIPT[8]).is_p2sh?.should == false
       Script.from_string("OP_DUP OP_HASH160 b689ebc262f50297139e7d16c4f8909e14ed4322 OP_EQUALVERIFY OP_CHECKSIGVERIFY OP_HASH160 1b6246121883816fc0637e4aa280aca1df219b1a OP_EQUAL")
         .is_p2sh?.should == false
     end
@@ -277,9 +289,35 @@ describe 'Bitcoin::Script' do
       Script.new(SCRIPT[4]).is_op_return?.should == false
       Script.new(SCRIPT[5]).is_op_return?.should == false
       Script.new(SCRIPT[6]).is_op_return?.should == true
+      Script.new(SCRIPT[7]).is_op_return?.should == false
+      Script.new(SCRIPT[8]).is_op_return?.should == false
       Script.from_string("OP_RETURN dead beef").is_op_return?.should == false
       Script.from_string("OP_RETURN deadbeef").is_op_return?.should == true
       Script.from_string("OP_RETURN OP_CHECKSIG").is_op_return?.should == true
+    end
+
+    it '#is_witness_v0_keyhash?' do
+      Script.new(SCRIPT[0]).is_witness_v0_keyhash?.should == false
+      Script.new(SCRIPT[1]).is_witness_v0_keyhash?.should == false
+      Script.new(SCRIPT[2]).is_witness_v0_keyhash?.should == false
+      Script.new(SCRIPT[3]).is_witness_v0_keyhash?.should == false
+      Script.new(SCRIPT[4]).is_witness_v0_keyhash?.should == false
+      Script.new(SCRIPT[5]).is_witness_v0_keyhash?.should == false
+      Script.new(SCRIPT[6]).is_witness_v0_keyhash?.should == false
+      Script.new(SCRIPT[7]).is_witness_v0_keyhash?.should == true
+      Script.new(SCRIPT[8]).is_witness_v0_keyhash?.should == false
+    end
+
+    it '#is_witness_v0_scripthash?' do
+      Script.new(SCRIPT[0]).is_witness_v0_scripthash?.should == false
+      Script.new(SCRIPT[1]).is_witness_v0_scripthash?.should == false
+      Script.new(SCRIPT[2]).is_witness_v0_scripthash?.should == false
+      Script.new(SCRIPT[3]).is_witness_v0_scripthash?.should == false
+      Script.new(SCRIPT[4]).is_witness_v0_scripthash?.should == false
+      Script.new(SCRIPT[5]).is_witness_v0_scripthash?.should == false
+      Script.new(SCRIPT[6]).is_witness_v0_scripthash?.should == false
+      Script.new(SCRIPT[7]).is_witness_v0_scripthash?.should == false
+      Script.new(SCRIPT[8]).is_witness_v0_scripthash?.should == true
     end
 
     it "#type" do
@@ -290,6 +328,8 @@ describe 'Bitcoin::Script' do
       Script.new(SCRIPT[4]).type.should == :multisig
       Script.new(SCRIPT[5]).type.should == :p2sh
       Script.new(SCRIPT[6]).type.should == :op_return
+      Script.new(SCRIPT[7]).type.should == :witness_v0_keyhash
+      Script.new(SCRIPT[8]).type.should == :witness_v0_scripthash
       Script.from_string("OP_RETURN OP_CHECKSIG").type.should == :op_return
       Script.from_string("OP_RETURN dead beef").type.should == :unknown
     end
@@ -334,6 +374,17 @@ describe 'Bitcoin::Script' do
       hash160 = Bitcoin.hash160_from_address address
       Script.to_p2sh_script(hash160).should ==
         Script.from_string("OP_HASH160 #{hash160} OP_EQUAL").raw
+    end
+
+    it "to_witness_hash160_script" do
+      hash160 = Bitcoin.hash160('025476c2e83188368da1ff3e292e7acafcdb3566bb0ad253f62fc70f07aeee6357')
+      Script.to_witness_hash160_script(hash160).should == Script.new("00141d0f172a0ecb48aee1be1f2687d2963ae33f71a1".htb).raw
+    end
+
+    it "should generate p2wsh script" do
+      witness_script = '21026dccc749adc2a9d0d89497ac511f760f45c47dc5ed9cf352a58ac706453880aeadab210255a9626aebf5e29c0e6538428ba0d1dcf6ca98ffdf086aa8ced5e0d0215ea465ac'
+      sha256 = Bitcoin.sha256(witness_script)
+      Script.to_witness_p2sh_script(sha256).should == Script.new("00205d1b56b63d714eebe542309525f484b7e9d6f686b3781b6f61ef925d66d6f6a0".htb).raw
     end
 
     it "should generate op_return script" do

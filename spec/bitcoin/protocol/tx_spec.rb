@@ -10,12 +10,14 @@ describe 'Tx' do
     fixtures_file('rawtx-01.bin'),
     fixtures_file('rawtx-02.bin'),
     fixtures_file('rawtx-03.bin'),
+    fixtures_file('rawtx-p2wpkh.bin'),
   ]
 
   @json = [
     fixtures_file('rawtx-01.json'),
     fixtures_file('rawtx-02.json'),
-    fixtures_file('rawtx-03.json')
+    fixtures_file('rawtx-03.json'),
+    fixtures_file('rawtx-p2wpkh.json')
   ]
 
 
@@ -42,11 +44,29 @@ describe 'Tx' do
     tx.hash.size.should == 64
   end
 
+  it '#parse_witness_data' do
+    tx = Tx.new( @payload[3] )
+    tx.hash.size.should == 64
+
+    tx = Tx.new( @payload[3] + "AAAA" )
+    tx.hash.size.should == 64
+  end
+
   it '#hash' do
     tx = Tx.new( @payload[0] )
     tx.hash.size.should == 64
     tx.hash.should == "6e9dd16625b62cfcd4bf02edb89ca1f5a8c30c4b1601507090fb28e59f2d02b4"
     tx.binary_hash.should == "\xB4\x02-\x9F\xE5(\xFB\x90pP\x01\x16K\f\xC3\xA8\xF5\xA1\x9C\xB8\xED\x02\xBF\xD4\xFC,\xB6%f\xD1\x9Dn"
+
+    tx = Tx.new(@payload[3])
+    tx.hash.size.should == 64
+    tx.hash.should == "f22f5168cf0bc55a31003b0fc532152da551e1ec4289c4fd92e7ec512c6e87a0"
+  end
+
+  it '#witness_hash' do
+    tx = Tx.new(@payload[3])
+    tx.witness_hash.size.should == 64
+    tx.witness_hash.should == "c9609ed4d7e60ebcf4cce2854568b54a855a12b5bda15433ca96e72cd445a5cf"
   end
 
   it '#normalized_hash' do
@@ -72,8 +92,18 @@ describe 'Tx' do
     tx.to_payload.should      == @payload[0]
   end
 
+  it '#to_witness_payload' do
+    tx = Tx.new( @payload[3] )
+    tx.to_witness_payload.size.should == @payload[3].size
+    tx.to_witness_payload.should      == @payload[3]
+  end
+
   it '#to_hash' do
     tx = Tx.new( @payload[0] )
+    tx.to_hash.keys.should == ["hash", "ver", "vin_sz", "vout_sz", "lock_time", "size", "in", "out"]
+
+    # witness tx
+    tx = Tx.new( @payload[3] )
     tx.to_hash.keys.should == ["hash", "ver", "vin_sz", "vout_sz", "lock_time", "size", "in", "out"]
   end
 
@@ -88,12 +118,23 @@ describe 'Tx' do
     h = orig_tx.to_hash.merge("ver" => 123)
     -> { tx = Tx.from_hash(h) }.should.raise(Exception)
       .message.should == "Tx hash mismatch! Claimed: 6e9dd16625b62cfcd4bf02edb89ca1f5a8c30c4b1601507090fb28e59f2d02b4, Actual: 395cd28c334ac84ed125ec5ccd5bc29eadcc96b79c337d0a87a19df64ea3b548"
+
+    # witness tx(P2WPKH)
+    orig_tx = Tx.new( @payload[3] )
+    tx = Tx.from_hash( orig_tx.to_hash )
+    tx.to_witness_payload.size.should == @payload[3].size
+    tx.to_witness_payload.should == @payload[3]
+    tx.to_hash == orig_tx.to_hash
   end
 
   it 'Tx.binary_from_hash' do
     orig_tx = Tx.new( @payload[0] )
     Tx.binary_from_hash( orig_tx.to_hash ).size.should == @payload[0].size
     Tx.binary_from_hash( orig_tx.to_hash ).should == @payload[0]
+
+    orig_tx = Tx.new( @payload[3] )
+    Tx.binary_from_hash( orig_tx.to_hash ).size.should == @payload[3].size
+    Tx.binary_from_hash( orig_tx.to_hash ).should == @payload[3]
   end
 
   it '#to_json' do
@@ -108,6 +149,9 @@ describe 'Tx' do
 
     tx = Tx.new( fixtures_file('rawtx-2f4a2717ec8c9f077a87dde6cbe0274d5238793a3f3f492b63c744837285e58a.bin') )
     tx.to_json.should == fixtures_file('rawtx-2f4a2717ec8c9f077a87dde6cbe0274d5238793a3f3f492b63c744837285e58a.json')
+
+    tx = Tx.new(@payload[3])
+    tx.to_json.should == @json[3]
   end
 
   it 'Tx.from_json' do
@@ -133,6 +177,11 @@ describe 'Tx' do
     Tx.from_json(fixtures_file('rawtx-02-toshi.json')).to_payload.should == Tx.from_json(fixtures_file('rawtx-02.json')).to_payload
     Tx.from_json(fixtures_file('rawtx-03-toshi.json')).to_payload.should == Tx.from_json(fixtures_file('rawtx-03.json')).to_payload
     Tx.from_json(fixtures_file('coinbase-toshi.json')).to_payload.should == Tx.from_json(fixtures_file('coinbase.json')).to_payload
+
+    # witness tx
+    tx = Tx.from_json(json_string = fixtures_file('rawtx-p2wpkh.json'))
+    tx.to_witness_payload.should == @payload[3]
+    tx.to_json == json_string
   end
 
   it 'Tx.binary_from_json' do
@@ -396,6 +445,24 @@ describe 'Tx' do
     tx.verify_input_signature(0, outpoint_tx).should == true
   end
 
+  it '#verify_witness_input_signature' do
+    #P2WPKH
+    tx = Tx.new('01000000000102fff7f7881a8099afa6940d42d1e7f6362bec38171ea3edf433541db4e4ad969f00000000494830450221008b9d1dc26ba6a9cb62127b02742fa9d754cd3bebf337f7a55d114c8e5cdd30be022040529b194ba3f9281a99f2b1c0a19c0489bc22ede944ccf4ecbab4cc618ef3ed01eeffffffef51e1b804cc89d182d279655c3aa89e815b1b309fe287d9b2b55d57b90ec68a0100000000ffffffff02202cb206000000001976a9148280b37df378db99f66f85c95a783a76ac7a6d5988ac9093510d000000001976a9143bde42dbee7e4dbe6a21b2d50ce2f0167faa815988ac000247304402203609e17b84f6a7d30c80bfa610b5b4542f32a8a0d5447a12fb1366d7f01cc44a0220573a954c4518331561406f90300e8f3358f51928d43c212a8caed02de67eebee0121025476c2e83188368da1ff3e292e7acafcdb3566bb0ad253f62fc70f07aeee635711000000'.htb)
+    tx.verify_witness_input_signature(1, '00141d0f172a0ecb48aee1be1f2687d2963ae33f71a1'.htb, 600000000).should == true
+
+    # P2WSH
+    tx = Tx.new('01000000000102fe3dc9208094f3ffd12645477b3dc56f60ec4fa8e6f5d67c565d1c6b9216b36e000000004847304402200af4e47c9b9629dbecc21f73af989bdaa911f7e6f6c2e9394588a3aa68f81e9902204f3fcf6ade7e5abb1295b6774c8e0abd94ae62217367096bc02ee5e435b67da201ffffffff0815cf020f013ed6cf91d29f4202e8a58726b1ac6c79da47c23d1bee0a6925f80000000000ffffffff0100f2052a010000001976a914a30741f8145e5acadf23f751864167f32e0963f788ac000347304402200de66acf4527789bfda55fc5459e214fa6083f936b430a762c629656216805ac0220396f550692cd347171cbc1ef1f51e15282e837bb2b30860dc77c8f78bc8501e503473044022027dc95ad6b740fe5129e7e62a75dd00f291a2aeb1200b84b09d9e3789406b6c002201a9ecd315dd6a0e632ab20bbb98948bc0c6fb204f2c286963bb48517a7058e27034721026dccc749adc2a9d0d89497ac511f760f45c47dc5ed9cf352a58ac706453880aeadab210255a9626aebf5e29c0e6538428ba0d1dcf6ca98ffdf086aa8ced5e0d0215ea465ac00000000'.htb)
+    tx.verify_witness_input_signature(1, '00205d1b56b63d714eebe542309525f484b7e9d6f686b3781b6f61ef925d66d6f6a0'.htb, 4900000000).should == true
+
+    # P2SH-P2WPKH
+    tx = Bitcoin::P::Tx.new('01000000000101db6b1b20aa0fd7b23880be2ecbd4a98130974cf4748fb66092ac4d3ceb1a5477010000001716001479091972186c449eb1ded22b78e40d009bdf0089feffffff02b8b4eb0b000000001976a914a457b684d7f0d539a46a45bbc043f35b59d0d96388ac0008af2f000000001976a914fd270b1ee6abcaea97fea7ad0402e8bd8ad6d77c88ac02473044022047ac8e878352d3ebbde1c94ce3a10d057c24175747116f8288e5d794d12d482f0220217f36a485cae903c713331d877c1f64677e3622ad4010726870540656fe9dcb012103ad1d8e89212f0b92c74d23bb710c00662ad1470198ac48c43f7d6f93a2a2687392040000'.htb)
+    tx.verify_witness_input_signature(0, 'a9144733f37cf4db86fbc2efed2500b4f4e49f31202387'.htb, 1000000000).should == true
+
+    # P2SH-P2WSH
+    tx = Bitcoin::P::Tx.new('0100000000010136641869ca081e70f394c6948e8af409e18b619df2ed74aa106c1ca29787b96e0100000023220020a16b5755f7f6f96dbd65f5f0d6ab9418b89af4b1f14a1bb8a09062c35f0dcb54ffffffff0200e9a435000000001976a914389ffce9cd9ae88dcc0631e88a821ffdbe9bfe2688acc0832f05000000001976a9147480a33f950689af511e6e84c138dbbd3c3ee41588ac080047304402206ac44d672dac41f9b00e28f4df20c52eeb087207e8d758d76d92c6fab3b73e2b0220367750dbbe19290069cba53d096f44530e4f98acaa594810388cf7409a1870ce01473044022068c7946a43232757cbdf9176f009a928e1cd9a1a8c212f15c1e11ac9f2925d9002205b75f937ff2f9f3c1246e547e54f62e027f64eefa2695578cc6432cdabce271502473044022059ebf56d98010a932cf8ecfec54c48e6139ed6adb0728c09cbe1e4fa0915302e022007cd986c8fa870ff5d2b3a89139c9fe7e499259875357e20fcbb15571c76795403483045022100fbefd94bd0a488d50b79102b5dad4ab6ced30c4069f1eaa69a4b5a763414067e02203156c6a5c9cf88f91265f5a942e96213afae16d83321c8b31bb342142a14d16381483045022100a5263ea0553ba89221984bd7f0b13613db16e7a70c549a86de0cc0444141a407022005c360ef0ae5a5d4f9f2f87a56c1546cc8268cab08c73501d6b3be2e1e1a8a08824730440220525406a1482936d5a21888260dc165497a90a15669636d8edca6b9fe490d309c022032af0c646a34a44d1f4576bf6a4a74b67940f8faa84c7df9abe12a01a11e2b4783cf56210307b8ae49ac90a048e9b53357a2354b3334e9c8bee813ecb98e99a7e07e8c3ba32103b28f0c28bfab54554ae8c658ac5c3e0ce6e79ad336331f78c428dd43eea8449b21034b8113d703413d57761b8b9781957b8c0ac1dfe69f492580ca4195f50376ba4a21033400f6afecb833092a9a21cfdf1ed1376e58c5d1f47de74683123987e967a8f42103a6d48b1131e94ba04d9737d61acdaa1322008af9602b3b14862c07a1789aac162102d8b661b0b3302ee2f162b09e07a55ad5dfbe673a9f01d9f0c19617681024306b56ae00000000'.htb)
+    tx.verify_witness_input_signature(0, 'a9149993a429037b5d912407a71c252019287b8d27a587'.htb, 987654321).should == true
+  end
+
   it '#sign_input_signature' do
     prev_tx = Tx.new( fixtures_file('rawtx-2f4a2717ec8c9f077a87dde6cbe0274d5238793a3f3f492b63c744837285e58a.bin') )
     prev_tx.hash.should == "2f4a2717ec8c9f077a87dde6cbe0274d5238793a3f3f492b63c744837285e58a"
@@ -454,6 +521,28 @@ describe 'Tx' do
     prev_tx = Tx.new( fixtures_file('rawtx-52250a162c7d03d2e1fbc5ebd1801a88612463314b55102171c5b5d817d2d7b2.bin') )
     prev_tx.hash.should == "52250a162c7d03d2e1fbc5ebd1801a88612463314b55102171c5b5d817d2d7b2"
     #File.open("rawtx-#{prev_tx.hash}.json",'wb'){|f| f.print prev_tx.to_json }
+  end
+
+  it '#signature_hash_for_witness_input' do
+    # P2WPKH https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#Native_P2WPKH
+    tx = Tx.new('0100000002fff7f7881a8099afa6940d42d1e7f6362bec38171ea3edf433541db4e4ad969f0000000000eeffffffef51e1b804cc89d182d279655c3aa89e815b1b309fe287d9b2b55d57b90ec68a0100000000ffffffff02202cb206000000001976a9148280b37df378db99f66f85c95a783a76ac7a6d5988ac9093510d000000001976a9143bde42dbee7e4dbe6a21b2d50ce2f0167faa815988ac11000000'.htb)
+    signature_hash = tx.signature_hash_for_witness_input(1, '00141d0f172a0ecb48aee1be1f2687d2963ae33f71a1'.htb, 600000000)
+    signature_hash.bth.should == 'c37af31116d1b27caf68aae9e3ac82f1477929014d5b917657d0eb49478cb670'
+
+    # P2WSH https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#Native_P2WSH
+    tx = Tx.new('0100000002fe3dc9208094f3ffd12645477b3dc56f60ec4fa8e6f5d67c565d1c6b9216b36e0000000000ffffffff0815cf020f013ed6cf91d29f4202e8a58726b1ac6c79da47c23d1bee0a6925f80000000000ffffffff0100f2052a010000001976a914a30741f8145e5acadf23f751864167f32e0963f788ac00000000'.htb)
+    script_pubkey = '00205d1b56b63d714eebe542309525f484b7e9d6f686b3781b6f61ef925d66d6f6a0'
+    witness_script = '21026dccc749adc2a9d0d89497ac511f760f45c47dc5ed9cf352a58ac706453880aeadab210255a9626aebf5e29c0e6538428ba0d1dcf6ca98ffdf086aa8ced5e0d0215ea465ac'
+    signature_hash = tx.signature_hash_for_witness_input(1, script_pubkey.htb, 4900000000, witness_script.htb, Tx::SIGHASH_TYPE[:single])
+    signature_hash.bth.should == '82dde6e4f1e94d02c2b7ad03d2115d691f48d064e9d52f58194a6637e4194391'
+
+    # P2WSH with invalid witness script
+    tx = Tx.new('0100000002fe3dc9208094f3ffd12645477b3dc56f60ec4fa8e6f5d67c565d1c6b9216b36e0000000000ffffffff0815cf020f013ed6cf91d29f4202e8a58726b1ac6c79da47c23d1bee0a6925f80000000000ffffffff0100f2052a010000001976a914a30741f8145e5acadf23f751864167f32e0963f788ac00000000'.htb)
+    script_pubkey = '00205d1b56b63d714eebe542309525f484b7e9d6f686b3781b6f61ef925d66d6f6a0'
+    witness_script = 'AAA'
+    proc{
+      tx.signature_hash_for_witness_input(1, script_pubkey.htb, 4900000000, witness_script.htb)
+    }.should.raise Exception
   end
   
   it "#legacy_sigops_count" do

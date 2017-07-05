@@ -20,6 +20,9 @@ module Bitcoin
       # (used when dealing with unsigned or partly signed tx)
       attr_accessor :sig_hash, :sig_address
 
+      # segregated witness
+      attr_accessor :script_witness
+
       alias :script   :script_sig
       alias :script_length  :script_sig_length
 
@@ -36,6 +39,7 @@ module Bitcoin
         @script_sig_length ||= 0
         @script_sig ||= ''
         @sequence ||= DEFAULT_SEQUENCE
+        @script_witness = ScriptWitness.new
       end
 
       # compare to another txout
@@ -87,6 +91,7 @@ module Bitcoin
           t['scriptSig'] = Bitcoin::Script.new(@script_sig).to_string
         end
         t['sequence']  = @sequence.unpack("V")[0] unless @sequence == "\xff\xff\xff\xff"
+        t['witness'] = @script_witness.stack.map{|s|s.bth} unless @script_witness.empty?
         t
       end
 
@@ -98,6 +103,9 @@ module Bitcoin
           txin.script_sig = [ input['coinbase'] ].pack("H*")
         else
           txin.script_sig = Script.binary_from_string(input['scriptSig'] || input['script'])
+        end
+        if input['witness']
+          input['witness'].each {|w| txin.script_witness.stack << w.htb}
         end
         txin.sequence = [ input['sequence'] || 0xffffffff ].pack("V")
         txin

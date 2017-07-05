@@ -202,7 +202,7 @@ module Bitcoin
         end
 
         # run our tx through an encode/decode cycle to make sure that the binary format is sane
-        raise "Payload Error"  unless P::Tx.new(@tx.to_payload).to_payload == @tx.to_payload
+        raise "Payload Error"  unless P::Tx.new(@tx.to_witness_payload).to_payload == @tx.to_payload
         @tx.instance_eval do
           @payload = to_payload
           @hash = hash_from_payload(@payload)
@@ -221,11 +221,11 @@ module Bitcoin
       def sig_hash_and_all_keys_exist?(inc, sig_script)
         return false unless @sig_hash && inc.has_keys?
         script = Bitcoin::Script.new(sig_script)
-        return true if script.is_hash160? || script.is_pubkey? || (Bitcoin.namecoin? && script.is_namecoin?)
+        return true if script.is_hash160? || script.is_pubkey? || script.is_witness_v0_keyhash? || (Bitcoin.namecoin? && script.is_namecoin?)
         if script.is_multisig?
           return inc.has_multiple_keys? && inc.key.size >= script.get_signatures_required
         end
-        raise "Script type must be hash160, pubkey or multisig"
+        raise "Script type must be hash160, pubkey, p2wpkh or multisig"
       end
 
       def add_empty_script_sig_to_input(i)
@@ -269,13 +269,24 @@ module Bitcoin
           sig_script ||= @prev_script
 
           # when a sig_script was found, generate the sig_hash to be signed
-          @sig_hash = @tx.signature_hash_for_input(i, sig_script)  if sig_script
+          if sig_script
+            script = Script.new(sig_script)
+            if script.is_witness_v0_keyhash?
+              @sig_hash = @tx.signature_hash_for_witness_input(i, sig_script, inc.value)
+            else
+              @sig_hash = @tx.signature_hash_for_input(i, sig_script)
+            end
+          end
 
           # when there is a sig_hash and one or more signature_keys were specified
           if sig_hash_and_all_keys_exist?(inc, sig_script)
             # add the script_sig to the txin
-            @tx.in[i].script_sig = get_script_sig(inc)
-
+            if script.is_witness_v0_keyhash? # for p2wpkh
+              @tx.in[i].script_witness.stack << inc.sign(@sig_hash) + [Script::SIGHASH_TYPE[:all]].pack("C")
+              @tx.in[i].script_witness.stack << inc.key.pub.htb
+            else
+              @tx.in[i].script_sig = get_script_sig(inc)
+            end
             # double-check that the script_sig is valid to spend the given prev_script
             raise "Signature error"  if @prev_script && !@tx.verify_input_signature(i, @prev_script)
           elsif inc.has_multiple_keys?
@@ -318,7 +329,7 @@ module Bitcoin
     #
     # If you want to spend a multisig output, just provide an array of keys to #signature_key.
     class TxInBuilder
-      attr_reader :prev_tx, :prev_script, :redeem_script, :key, :coinbase_data
+      attr_reader :prev_tx, :prev_script, :redeem_script, :key, :coinbase_data, :prev_out_value
 
       def initialize
         @txin = P::TxIn.new
@@ -330,7 +341,7 @@ module Bitcoin
       # You can either pass the transaction, or just the tx hash.
       # If you pass only the hash, you need to pass the previous outputs
       # +script+ separately if you want the txin to be signed.
-      def prev_out tx, idx = nil, script = nil
+      def prev_out tx, idx = nil, script = nil, prev_value = nil
         if tx.is_a?(Bitcoin::P::Tx)
           @prev_tx = tx
           @prev_out_hash = tx.binary_hash
@@ -340,6 +351,7 @@ module Bitcoin
         end
         @prev_out_script = script  if script
         @prev_out_index = idx  if idx
+        @prev_out_value = prev_value if prev_value
       end
 
       # Index of the output in the #prev_out transaction.
@@ -351,6 +363,15 @@ module Bitcoin
       # Previous output's +pk_script+. Needed when only the tx hash is specified as #prev_out.
       def prev_out_script script
         @prev_out_script = script
+      end
+
+      # Previous output's +value+. Needed when only spend segwit utxo.
+      def prev_out_value value
+        @prev_out_value = value
+      end
+
+      def value
+        @prev_out_value
       end
 
       # Redeem script for P2SH output. To spend from a P2SH output, you need to provide
@@ -392,6 +413,10 @@ module Bitcoin
 
       def has_keys?
         @key && (has_multiple_keys? ? @key.all?(&:priv) : @key.priv)
+      end
+
+      def is_witness_v0_keyhash?
+        @prev_out_script && Script.new(@prev_out_script).is_witness_v0_keyhash?
       end
 
       def sign(sig_hash)
