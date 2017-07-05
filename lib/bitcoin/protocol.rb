@@ -13,8 +13,6 @@ module Bitcoin
     # BIP 0031, pong message, is enabled for all versions AFTER this one
     BIP0031_VERSION = 60000
 
-    autoload :TxWitness,     'bitcoin/protocol/tx_witness'
-    autoload :TxInWitness,   'bitcoin/protocol/tx_in_witness'
     autoload :ScriptWitness, 'bitcoin/protocol/script_witness'
     autoload :TxIn,          'bitcoin/protocol/txin'
     autoload :TxOut,         'bitcoin/protocol/txout'
