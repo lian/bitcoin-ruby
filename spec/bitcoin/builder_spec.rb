@@ -92,6 +92,18 @@ describe "Bitcoin::Builder" do
     tx2.out[2].value.should == 0
   end
 
+  it "should build transactions with p2wpkh signatures" do
+    key = Bitcoin::Key.new('619c335025c7f4012e556c2a58b2506e30b8511b53ade95ea316fd8c3286feb9')
+    script_pubkey = '00141d0f172a0ecb48aee1be1f2687d2963ae33f71a1'.htb
+    tx = build_tx do |t|
+      t.input do |i|
+        i.prev_out '8ac60eb9575db5b2d987e29f301b5b819ea83a5c6579d282d189cc04b8e151ef', 1, script_pubkey, 600000000
+        i.signature_key key
+      end
+    end
+    tx.verify_witness_input_signature(0, script_pubkey, 600000000).should == true
+  end
+
   it "should allow txin.prev_out as tx or hash" do
     prev_tx = @block.tx[0]
     tx1 = build_tx do |t|
