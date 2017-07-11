@@ -115,6 +115,7 @@ module Bitcoin
         @lock_time = buf.read(4).unpack("V")[0]
 
         @hash = hash_from_payload(to_old_payload)
+        @payload = to_payload
 
         if buf.eof?
           true
@@ -405,7 +406,10 @@ module Bitcoin
           tx.add_in(TxIn.from_hash(input))
         }
         outs.each{|output|  tx.add_out TxOut.from_hash(output) }
-        tx.instance_eval{ @hash = hash_from_payload(@payload = to_old_payload) }
+        tx.instance_eval{
+          @hash = hash_from_payload(to_old_payload)
+          @payload = to_payload
+        }
         if h['hash'] && (h['hash'] != tx.hash)
           raise "Tx hash mismatch! Claimed: #{h['hash']}, Actual: #{tx.hash}" if do_raise
         end
