@@ -71,7 +71,7 @@ Check if an address is valid
  Bitcoin::valid_address?(address) #=> true
 
 
-=== Blocks / Transactions parsing
+=== Blocks/Transactions parsing
 
 Parse a Bitcoin::Protocol::Block
 
