@@ -529,10 +529,11 @@ describe 'Tx' do
         subscript = test_case[1].htb
         input_index = test_case[2].to_i
         hash_type = test_case[3]
+        amount = 0
         expected_sighash = test_case[4].htb_reverse
 
         actual_sighash = transaction.signature_hash_for_input(
-          input_index, subscript, hash_type)
+          input_index, subscript, hash_type, amount, 0)
         actual_sighash.should == expected_sighash
       end
     end

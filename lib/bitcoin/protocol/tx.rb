@@ -156,16 +156,41 @@ module Bitcoin
         !@in.find { |i| !i.script_witness.empty? }.nil?
       end
 
-      SIGHASH_TYPE = { all: 1, none: 2, single: 3, anyonecanpay: 128 }
+      SIGHASH_TYPE = {
+        all: 1,
+        none: 2,
+        single: 3,
+        forkid: 64,
+        anyonecanpay: 128
+      }.freeze
 
       # generate a signature hash for input +input_idx+.
       # either pass the +outpoint_tx+ or the +script_pubkey+ directly.
-      def signature_hash_for_input(input_idx, subscript, hash_type=nil)
+      def signature_hash_for_input(input_idx, subscript, hash_type=nil, prev_out_value=nil, fork_id=nil)
         # https://github.com/bitcoin/bitcoin/blob/e071a3f6c06f41068ad17134189a4ac3073ef76b/script.cpp#L834
         # http://code.google.com/p/bitcoinj/source/browse/trunk/src/com/google/bitcoin/core/Script.java#318
         # https://en.bitcoin.it/wiki/OP_CHECKSIG#How_it_works
         # https://github.com/bitcoin/bitcoin/blob/c2e8c8acd8ae0c94c70b59f55169841ad195bb99/src/script.cpp#L1058
         # https://en.bitcoin.it/wiki/OP_CHECKSIG
+
+        hash_type ||= SIGHASH_TYPE[:all]
+
+        # fork_id is optional and if set, SIGHASH_FORKID flag as defined by the
+        # Bitcoin Cash protocol will be respected.
+        #
+        # https://github.com/Bitcoin-ABC/bitcoin-abc/blob/master/doc/abc/replay-protected-sighash.md
+        if fork_id && (hash_type&SIGHASH_TYPE[:forkid]) != 0
+          raise "SIGHASH_FORKID is enabled, so prev_out_value is required" if prev_out_value.nil?
+
+          # According to the spec, we should modify the sighash by replacing the 24 most significant
+          # bits with the fork ID. However, Bitcoin ABC does not currently implement this since the
+          # fork_id is an implicit 0 and it would make the sighash JSON tests fail. Will leave as a
+          # TODO for now.
+          raise NotImplementedError, "fork_id must be 0" unless fork_id == 0
+
+          script_code = Bitcoin::Protocol.pack_var_string(subscript)
+          return signature_hash_for_input_bip143(input_idx, script_code, prev_out_value, hash_type)
+        end
 
         # Note: BitcoinQT checks if input_idx >= @in.size and returns 1 with an error message.
         # But this check is never actually useful because BitcoinQT would crash 
@@ -175,8 +200,6 @@ module Bitcoin
         # However, if you look at the case SIGHASH_TYPE[:single] below, we must 
         # return 1 because it's possible to have more inputs than outputs and BitcoinQT returns 1 as well.
         return "\x01".ljust(32, "\x00") if input_idx >= @in.size # ERROR: SignatureHash() : input_idx=%d out of range
-
-        hash_type ||= SIGHASH_TYPE[:all]
 
         pin  = @in.map.with_index{|input,idx|
           if idx == input_idx
@@ -228,12 +251,6 @@ module Bitcoin
         script = Bitcoin::Script.new(witness_program)
         raise "ScriptPubkey does not contain witness program." unless script.is_witness?
 
-        hash_prevouts = Digest::SHA256.digest(Digest::SHA256.digest(@in.map{|i| [i.prev_out_hash, i.prev_out_index].pack("a32V")}.join))
-        hash_sequence = Digest::SHA256.digest(Digest::SHA256.digest(@in.map{|i|i.sequence}.join))
-        outpoint = [@in[input_idx].prev_out_hash, @in[input_idx].prev_out_index].pack("a32V")
-        amount = [prev_out_value].pack("Q")
-        nsequence = @in[input_idx].sequence
-
         if script.is_witness_v0_keyhash?
           script_code = [["1976a914", script.get_hash160, "88ac"].join].pack("H*")
         elsif script.is_witness_v0_scripthash?
@@ -241,6 +258,16 @@ module Bitcoin
           script = skip_separator_index > 0 ? Bitcoin::Script.new(witness_script).subscript_codeseparator(skip_separator_index) : witness_script
           script_code = Bitcoin::Protocol.pack_var_string(script)
         end
+
+        signature_hash_for_input_bip143(input_idx, script_code, prev_out_value, hash_type)
+      end
+
+      def signature_hash_for_input_bip143(input_idx, script_code, prev_out_value, hash_type)
+        hash_prevouts = Digest::SHA256.digest(Digest::SHA256.digest(@in.map{|i| [i.prev_out_hash, i.prev_out_index].pack("a32V")}.join))
+        hash_sequence = Digest::SHA256.digest(Digest::SHA256.digest(@in.map{|i|i.sequence}.join))
+        outpoint = [@in[input_idx].prev_out_hash, @in[input_idx].prev_out_index].pack("a32V")
+        amount = [prev_out_value].pack("Q")
+        nsequence = @in[input_idx].sequence
 
         hash_outputs = Digest::SHA256.digest(Digest::SHA256.digest(@out.map{|o|o.to_payload}.join))
 
