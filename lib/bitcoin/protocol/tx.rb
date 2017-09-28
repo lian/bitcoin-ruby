@@ -262,33 +262,6 @@ module Bitcoin
         signature_hash_for_input_bip143(input_idx, script_code, prev_out_value, hash_type)
       end
 
-      def signature_hash_for_input_bip143(input_idx, script_code, prev_out_value, hash_type)
-        hash_prevouts = Digest::SHA256.digest(Digest::SHA256.digest(@in.map{|i| [i.prev_out_hash, i.prev_out_index].pack("a32V")}.join))
-        hash_sequence = Digest::SHA256.digest(Digest::SHA256.digest(@in.map{|i|i.sequence}.join))
-        outpoint = [@in[input_idx].prev_out_hash, @in[input_idx].prev_out_index].pack("a32V")
-        amount = [prev_out_value].pack("Q")
-        nsequence = @in[input_idx].sequence
-
-        hash_outputs = Digest::SHA256.digest(Digest::SHA256.digest(@out.map{|o|o.to_payload}.join))
-
-        case (hash_type & 0x1f)
-          when SIGHASH_TYPE[:single]
-            hash_outputs = input_idx >= @out.size ? "\x00".ljust(32, "\x00") : Digest::SHA256.digest(Digest::SHA256.digest(@out[input_idx].to_payload))
-            hash_sequence = "\x00".ljust(32, "\x00")
-          when SIGHASH_TYPE[:none]
-            hash_sequence = hash_outputs = "\x00".ljust(32, "\x00")
-        end
-
-        if (hash_type & SIGHASH_TYPE[:anyonecanpay]) != 0
-          hash_prevouts = hash_sequence ="\x00".ljust(32, "\x00")
-        end
-
-        buf = [ [@ver].pack("V"), hash_prevouts, hash_sequence, outpoint,
-                script_code, amount, nsequence, hash_outputs, [@lock_time, hash_type].pack("VV")].join
-
-        Digest::SHA256.digest( Digest::SHA256.digest( buf ) )
-      end
-
       # verify input signature +in_idx+ against the corresponding
       # output in +outpoint_tx+
       # outpoint
@@ -560,6 +533,34 @@ module Bitcoin
         outputs.sort_by!{|o| [o.amount, o.pk_script.bth]}
       end
 
+      private
+
+      def signature_hash_for_input_bip143(input_idx, script_code, prev_out_value, hash_type)
+        hash_prevouts = Digest::SHA256.digest(Digest::SHA256.digest(@in.map{|i| [i.prev_out_hash, i.prev_out_index].pack("a32V")}.join))
+        hash_sequence = Digest::SHA256.digest(Digest::SHA256.digest(@in.map{|i|i.sequence}.join))
+        outpoint = [@in[input_idx].prev_out_hash, @in[input_idx].prev_out_index].pack("a32V")
+        amount = [prev_out_value].pack("Q")
+        nsequence = @in[input_idx].sequence
+
+        hash_outputs = Digest::SHA256.digest(Digest::SHA256.digest(@out.map{|o|o.to_payload}.join))
+
+        case (hash_type & 0x1f)
+          when SIGHASH_TYPE[:single]
+            hash_outputs = input_idx >= @out.size ? "\x00".ljust(32, "\x00") : Digest::SHA256.digest(Digest::SHA256.digest(@out[input_idx].to_payload))
+            hash_sequence = "\x00".ljust(32, "\x00")
+          when SIGHASH_TYPE[:none]
+            hash_sequence = hash_outputs = "\x00".ljust(32, "\x00")
+        end
+
+        if (hash_type & SIGHASH_TYPE[:anyonecanpay]) != 0
+          hash_prevouts = hash_sequence ="\x00".ljust(32, "\x00")
+        end
+
+        buf = [ [@ver].pack("V"), hash_prevouts, hash_sequence, outpoint,
+                script_code, amount, nsequence, hash_outputs, [@lock_time, hash_type].pack("VV")].join
+
+        Digest::SHA256.digest( Digest::SHA256.digest( buf ) )
+      end
     end
   end
 end
