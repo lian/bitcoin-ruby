@@ -181,6 +181,12 @@ module Bitcoin
         pin  = @in.map.with_index{|input,idx|
           if idx == input_idx
             subscript = subscript.out[ input.prev_out_index ].script if subscript.respond_to?(:out) # legacy api (outpoint_tx)
+
+            # Remove all instances of OP_CODESEPARATOR from the script.
+            parsed_subscript = Script.new(subscript)
+            parsed_subscript.chunks.delete(Script::OP_CODESEPARATOR)
+            subscript = parsed_subscript.to_binary
+
             input.to_payload(subscript)
           else
             case (hash_type & 0x1f)
