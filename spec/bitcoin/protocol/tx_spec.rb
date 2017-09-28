@@ -463,64 +463,79 @@ describe 'Tx' do
     tx.verify_witness_input_signature(0, 'a9149993a429037b5d912407a71c252019287b8d27a587'.htb, 987654321).should == true
   end
 
-  it '#sign_input_signature' do
-    prev_tx = Tx.new( fixtures_file('rawtx-2f4a2717ec8c9f077a87dde6cbe0274d5238793a3f3f492b63c744837285e58a.bin') )
-    prev_tx.hash.should == "2f4a2717ec8c9f077a87dde6cbe0274d5238793a3f3f492b63c744837285e58a"
+  describe '#signature_hash_for_input' do
+    it 'sighash_all' do
+      prev_tx = Tx.new( fixtures_file('rawtx-2f4a2717ec8c9f077a87dde6cbe0274d5238793a3f3f492b63c744837285e58a.bin') )
+      prev_tx.hash.should == "2f4a2717ec8c9f077a87dde6cbe0274d5238793a3f3f492b63c744837285e58a"
 
-    key = Bitcoin.open_key("56e28a425a7b588973b5db962a09b1aca7bdc4a7268cdd671d03c52a997255dc",
-      pubkey="04324c6ebdcf079db6c9209a6b715b955622561262cde13a8a1df8ae0ef030eaa1552e31f8be90c385e27883a9d82780283d19507d7fa2e1e71a1d11bc3a52caf3")
-    new_tx = Tx.new(nil)
-    new_tx.add_in( TxIn.new(prev_tx.binary_hash, 0, 0) )
-    new_tx.add_out( TxOut.value_to_address(1000000, "1BVJWLTCtjA8wRivvrCiwjNdL6KjdMUCTZ") )
-    signature_hash = new_tx.signature_hash_for_input(0, prev_tx)
-    sig = Bitcoin.sign_data(key, signature_hash)
-    new_tx.in[0].script_sig = Bitcoin::Script.to_pubkey_script_sig(sig, [pubkey].pack("H*"))
+      key = Bitcoin.open_key("56e28a425a7b588973b5db962a09b1aca7bdc4a7268cdd671d03c52a997255dc",
+                             pubkey="04324c6ebdcf079db6c9209a6b715b955622561262cde13a8a1df8ae0ef030eaa1552e31f8be90c385e27883a9d82780283d19507d7fa2e1e71a1d11bc3a52caf3")
+      new_tx = Tx.new(nil)
+      new_tx.add_in( TxIn.new(prev_tx.binary_hash, 0, 0) )
+      new_tx.add_out( TxOut.value_to_address(1000000, "1BVJWLTCtjA8wRivvrCiwjNdL6KjdMUCTZ") )
+      signature_hash = new_tx.signature_hash_for_input(0, prev_tx)
+      sig = Bitcoin.sign_data(key, signature_hash)
+      new_tx.in[0].script_sig = Bitcoin::Script.to_pubkey_script_sig(sig, [pubkey].pack("H*"))
 
-    new_tx = Tx.new( new_tx.to_payload )
-    new_tx.hash.should != nil
-    new_tx.verify_input_signature(0, prev_tx).should == true
-
-
-
-    prev_tx = Tx.new( fixtures_file('rawtx-14be6fff8c6014f7c9493b4a6e4a741699173f39d74431b6b844fcb41ebb9984.bin') )
-    prev_tx.hash.should == "14be6fff8c6014f7c9493b4a6e4a741699173f39d74431b6b844fcb41ebb9984"
-
-    key = Bitcoin.open_key("115ceda6c1e02d41ce65c35a30e82fb325fe3f815898a09e1a5d28bb1cc92c6e",
-            pubkey="0409d103127d26ce93ee41f1b9b1ed4c1c243acf48e31eb5c4d88ad0342ccc010a1a8d838846cf7337f2b44bc73986c0a3cb0568fa93d068b2c8296ce8d47b1545")
-    new_tx = Tx.new(nil)
-    new_tx.add_in( TxIn.new(prev_tx.binary_hash, 0, 0) )
-    pk_script = Bitcoin::Script.to_address_script("1FEYAh1x5jeKQMPPuv3bKnKvbgVAqXvqjW")
-    new_tx.add_out( TxOut.new(1000000, pk_script) )
-    signature_hash = new_tx.signature_hash_for_input(0, prev_tx)
-    sig = Bitcoin.sign_data(key, signature_hash)
-    new_tx.in[0].script_sig = Bitcoin::Script.to_pubkey_script_sig(sig, [pubkey].pack("H*"))
-
-    new_tx = Tx.new( new_tx.to_payload )
-    new_tx.hash.should != nil
-    new_tx.verify_input_signature(0, prev_tx).should == true
+      new_tx = Tx.new( new_tx.to_payload )
+      new_tx.hash.should != nil
+      new_tx.verify_input_signature(0, prev_tx).should == true
 
 
 
-    prev_tx = Tx.new( fixtures_file('rawtx-b5d4e8883533f99e5903ea2cf001a133a322fa6b1370b18a16c57c946a40823d.bin') )
-    prev_tx.hash.should == "b5d4e8883533f99e5903ea2cf001a133a322fa6b1370b18a16c57c946a40823d"
+      prev_tx = Tx.new( fixtures_file('rawtx-14be6fff8c6014f7c9493b4a6e4a741699173f39d74431b6b844fcb41ebb9984.bin') )
+      prev_tx.hash.should == "14be6fff8c6014f7c9493b4a6e4a741699173f39d74431b6b844fcb41ebb9984"
 
-    key = Bitcoin.open_key("56e28a425a7b588973b5db962a09b1aca7bdc4a7268cdd671d03c52a997255dc",
-      pubkey="04324c6ebdcf079db6c9209a6b715b955622561262cde13a8a1df8ae0ef030eaa1552e31f8be90c385e27883a9d82780283d19507d7fa2e1e71a1d11bc3a52caf3")
-    new_tx = Tx.new(nil)
-    new_tx.add_in( TxIn.new(prev_tx.binary_hash, 0, 0) )
-    new_tx.add_out( TxOut.value_to_address(1000000, "14yz7fob6Q16hZu4nXfmv1kRJpSYaFtet5") )
-    signature_hash = new_tx.signature_hash_for_input(0, prev_tx)
-    sig = Bitcoin.sign_data(key, signature_hash)
-    new_tx.in[0].script_sig = Bitcoin::Script.to_pubkey_script_sig(sig, [pubkey].pack("H*"))
+      key = Bitcoin.open_key("115ceda6c1e02d41ce65c35a30e82fb325fe3f815898a09e1a5d28bb1cc92c6e",
+                             pubkey="0409d103127d26ce93ee41f1b9b1ed4c1c243acf48e31eb5c4d88ad0342ccc010a1a8d838846cf7337f2b44bc73986c0a3cb0568fa93d068b2c8296ce8d47b1545")
+      new_tx = Tx.new(nil)
+      new_tx.add_in( TxIn.new(prev_tx.binary_hash, 0, 0) )
+      pk_script = Bitcoin::Script.to_address_script("1FEYAh1x5jeKQMPPuv3bKnKvbgVAqXvqjW")
+      new_tx.add_out( TxOut.new(1000000, pk_script) )
+      signature_hash = new_tx.signature_hash_for_input(0, prev_tx)
+      sig = Bitcoin.sign_data(key, signature_hash)
+      new_tx.in[0].script_sig = Bitcoin::Script.to_pubkey_script_sig(sig, [pubkey].pack("H*"))
 
-    new_tx = Tx.new( new_tx.to_payload )
-    new_tx.hash.should != nil
-    new_tx.verify_input_signature(0, prev_tx).should == true
+      new_tx = Tx.new( new_tx.to_payload )
+      new_tx.hash.should != nil
+      new_tx.verify_input_signature(0, prev_tx).should == true
 
-    #File.open("rawtx-#{new_tx.hash}.bin",'wb'){|f| f.print new_tx.to_payload }
-    prev_tx = Tx.new( fixtures_file('rawtx-52250a162c7d03d2e1fbc5ebd1801a88612463314b55102171c5b5d817d2d7b2.bin') )
-    prev_tx.hash.should == "52250a162c7d03d2e1fbc5ebd1801a88612463314b55102171c5b5d817d2d7b2"
-    #File.open("rawtx-#{prev_tx.hash}.json",'wb'){|f| f.print prev_tx.to_json }
+
+
+      prev_tx = Tx.new( fixtures_file('rawtx-b5d4e8883533f99e5903ea2cf001a133a322fa6b1370b18a16c57c946a40823d.bin') )
+      prev_tx.hash.should == "b5d4e8883533f99e5903ea2cf001a133a322fa6b1370b18a16c57c946a40823d"
+
+      key = Bitcoin.open_key("56e28a425a7b588973b5db962a09b1aca7bdc4a7268cdd671d03c52a997255dc",
+                             pubkey="04324c6ebdcf079db6c9209a6b715b955622561262cde13a8a1df8ae0ef030eaa1552e31f8be90c385e27883a9d82780283d19507d7fa2e1e71a1d11bc3a52caf3")
+      new_tx = Tx.new(nil)
+      new_tx.add_in( TxIn.new(prev_tx.binary_hash, 0, 0) )
+      new_tx.add_out( TxOut.value_to_address(1000000, "14yz7fob6Q16hZu4nXfmv1kRJpSYaFtet5") )
+      signature_hash = new_tx.signature_hash_for_input(0, prev_tx)
+      sig = Bitcoin.sign_data(key, signature_hash)
+      new_tx.in[0].script_sig = Bitcoin::Script.to_pubkey_script_sig(sig, [pubkey].pack("H*"))
+
+      new_tx = Tx.new( new_tx.to_payload )
+      new_tx.hash.should != nil
+      new_tx.verify_input_signature(0, prev_tx).should == true
+    end
+
+    it 'sighash JSON tests' do
+      test_cases = JSON.parse(fixtures_file('sighash.json'))
+      test_cases.each do |test_case|
+        # Single element arrays in tests are comments.
+        next if test_case.length == 1
+
+        transaction = Bitcoin::Protocol::Tx.new(test_case[0].htb)
+        subscript = test_case[1].htb
+        input_index = test_case[2].to_i
+        hash_type = test_case[3]
+        expected_sighash = test_case[4].htb_reverse
+
+        actual_sighash = transaction.signature_hash_for_input(
+          input_index, subscript, hash_type)
+        actual_sighash.should == expected_sighash
+      end
+    end
   end
 
   it '#signature_hash_for_witness_input' do
