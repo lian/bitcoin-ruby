@@ -150,7 +150,13 @@ class Bitcoin::Script
   2.upto(16).each{|i|      OPCODES_PARSE_STRING["#{i}"   ] = OP_2_16[i-2] }
   [1,2,4].each{|i|         OPCODES_PARSE_STRING.delete("OP_PUSHDATA#{i}") }
 
-  SIGHASH_TYPE = { all: 1, none: 2, single: 3, anyonecanpay: 128 }
+  SIGHASH_TYPE = {
+    all: 1,
+    none: 2,
+    single: 3,
+    forkid: 64,
+    anyonecanpay: 128
+  }.freeze
 
   attr_reader :raw, :chunks, :debug, :stack
 
@@ -318,6 +324,19 @@ class Bitcoin::Script
       raise "Opcode should be within [0x00, 0xff]"
     end
     self
+  end
+
+  # Adds the opcode corresponding to the given number. Returns self.
+  def append_number(number)
+    opcode =
+      case number
+      when -1 then OP_1NEGATE
+      when 0 then OP_0
+      when 1 then OP_1
+      when 2..16 then OP_2 + (16 - number)
+      end
+    raise "No opcode for number #{number}" if opcode.nil?
+    append_opcode(opcode)
   end
 
   # Adds binary string as pushdata. Pushdata will be encoded in the most compact form
@@ -1403,7 +1422,7 @@ class Bitcoin::Script
 
     sig, hash_type = parse_sig(signature)
 
-    subscript = sighash_subscript(drop_sigs)
+    subscript = sighash_subscript(drop_sigs, opts)
 
     if check_callback == nil # for tests
       @stack << 1
@@ -1413,7 +1432,14 @@ class Bitcoin::Script
     end
   end
 
-  def sighash_subscript(drop_sigs)
+  def sighash_subscript(drop_sigs, opts = {})
+    if opts[:fork_id]
+      drop_sigs.reject! do |signature|
+        _, hash_type = parse_sig(signature)
+        (hash_type&SIGHASH_TYPE[:forkid]) != 0
+      end
+    end
+
     if inner_p2sh? && @inner_script_code
       ::Bitcoin::Script.new(@inner_script_code).to_binary_without_signatures(drop_sigs)
     else
@@ -1458,7 +1484,7 @@ class Bitcoin::Script
     # Bitcoin-core removes an extra item from the stack
     @stack.pop
 
-    subscript = sighash_subscript(drop_sigs)
+    subscript = sighash_subscript(drop_sigs, opts)
 
     success = true
     while success && n_sigs > 0
@@ -1522,7 +1548,16 @@ class Bitcoin::Script
     return true  if sig.bytesize == 0
     return false if (opts[:verify_dersig] || opts[:verify_low_s] || opts[:verify_strictenc]) and !is_der_signature?(sig)
     return false if opts[:verify_low_s] && !is_low_der_signature?(sig)
-    return false if opts[:verify_strictenc] && !is_defined_hashtype_signature?(sig)
+
+    if opts[:verify_strictenc]
+      return false unless is_defined_hashtype_signature?(sig)
+
+      hash_type = sig.unpack('C*')[-1]
+      uses_forkid = (hash_type&SIGHASH_TYPE[:forkid]) != 0
+      return false if opts[:fork_id] && !uses_forkid
+      return false if !opts[:fork_id] && uses_forkid
+    end
+
     true
   end
 
@@ -1602,7 +1637,7 @@ class Bitcoin::Script
     return false if sig.empty?
 
     s = sig.unpack("C*")
-    hash_type = s[-1] & (~(SIGHASH_TYPE[:anyonecanpay]))
+    hash_type = s[-1] & (~(SIGHASH_TYPE[:anyonecanpay] | SIGHASH_TYPE[:forkid]))
     return false if hash_type < SIGHASH_TYPE[:all]   ||  hash_type > SIGHASH_TYPE[:single] # Non-canonical signature: unknown hashtype byte
 
     true

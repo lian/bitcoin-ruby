@@ -10,6 +10,8 @@ module Bitcoin
       MARKER = 0
       FLAG = 1
 
+      SIGHASH_TYPE = Script::SIGHASH_TYPE
+
       # transaction hash
       attr_reader :hash
 
@@ -59,6 +61,11 @@ module Bitcoin
         Digest::SHA256.digest(Digest::SHA256.digest( payload )).reverse_hth
       end
       alias generate_hash hash_from_payload
+
+      # refresh_hash recalculates the tx hash and sets it on the instance
+      def refresh_hash
+        @hash = generate_hash(to_old_payload)
+      end
 
       # add an input
       def add_in(input); (@in ||= []) << input; end
@@ -155,14 +162,6 @@ module Bitcoin
       def witness?
         !@in.find { |i| !i.script_witness.empty? }.nil?
       end
-
-      SIGHASH_TYPE = {
-        all: 1,
-        none: 2,
-        single: 3,
-        forkid: 64,
-        anyonecanpay: 128
-      }.freeze
 
       # generate a signature hash for input +input_idx+.
       # either pass the +outpoint_tx+ or the +script_pubkey+ directly.
@@ -266,28 +265,40 @@ module Bitcoin
       # output in +outpoint_tx+
       # outpoint
       #
-      # options are: verify_sigpushonly, verify_minimaldata, verify_cleanstack, verify_dersig, verify_low_s, verify_strictenc
+      # options are: verify_sigpushonly, verify_minimaldata, verify_cleanstack, verify_dersig, verify_low_s, verify_strictenc, fork_id
       def verify_input_signature(in_idx, outpoint_tx_or_script, block_timestamp=Time.now.to_i, opts={})
         if @enable_bitcoinconsensus
           return bitcoinconsensus_verify_script(in_idx, outpoint_tx_or_script, block_timestamp, opts)
         end
 
+        # If FORKID is enabled, we also ensure strict encoding.
+        opts[:verify_strictenc] ||= !!opts[:fork_id]
+
         outpoint_idx  = @in[in_idx].prev_out_index
         script_sig    = @in[in_idx].script_sig
-        
-        # If given an entire previous transaction, take the script from it
-        script_pubkey = if outpoint_tx_or_script.respond_to?(:out) 
-          outpoint_tx_or_script.out[outpoint_idx].pk_script
+
+        amount = nil
+        script_pubkey = nil
+        if outpoint_tx_or_script.respond_to?(:out)
+          # If given an entire previous transaction, take the script from it
+          prevout = outpoint_tx_or_script.out[outpoint_idx]
+          amount = prevout.value
+          script_pubkey = prevout.pk_script
         else
+          if opts[:fork_id]
+            raise "verify_input_signature must be called with a previous transaction if " \
+                  "SIGHASH_FORKID is enabled"
+          end
+
           # Otherwise, it's already a script.
-          outpoint_tx_or_script
+          script_pubkey = outpoint_tx_or_script
         end
 
         @scripts[in_idx] = Bitcoin::Script.new(script_sig, script_pubkey)
         return false if opts[:verify_sigpushonly] && !@scripts[in_idx].is_push_only?(script_sig)
         return false if opts[:verify_minimaldata] && !@scripts[in_idx].pushes_are_canonical?
         sig_valid = @scripts[in_idx].run(block_timestamp, opts) do |pubkey,sig,hash_type,subscript|
-          hash = signature_hash_for_input(in_idx, subscript, hash_type)
+          hash = signature_hash_for_input(in_idx, subscript, hash_type, amount, opts[:fork_id])
           Bitcoin.verify_signature( hash, sig, pubkey.unpack("H*")[0] )
         end
         # BIP62 rule #6
