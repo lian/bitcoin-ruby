@@ -7,6 +7,10 @@ module Bitcoin
 
     attr_reader :key
 
+    MIN_PRIV_KEY_MOD_ORDER = 0x01
+    # Order of secp256k1's generator minus 1.
+    MAX_PRIV_KEY_MOD_ORDER = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140
+
     # Generate a new keypair.
     #  Bitcoin::Key.generate
     def self.generate(opts={compressed: true})
@@ -255,6 +259,8 @@ module Bitcoin
 
     # Set +priv+ as the new private key (converting from hex).
     def set_priv(priv)
+      value = priv.to_i(16)
+      raise 'private key is not on curve' unless MIN_PRIV_KEY_MOD_ORDER <= value && value <= MAX_PRIV_KEY_MOD_ORDER
       @key.private_key = OpenSSL::BN.from_hex(priv)
     end
 

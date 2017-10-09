@@ -252,6 +252,13 @@ describe "Bitcoin::Key" do
     k.to_base58.should == "5JBAonQ4iGKFJxENExZghDtAS6YB8BsCw5mwpHSvZvP3Q2UxmT1"
   end
 
+  it "should raise error for private key out of range." do
+    proc{Bitcoin::Key.new('FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141')}.should.raise(Exception)
+    proc{Bitcoin::Key.new('00')}.should.raise(Exception)
+    proc{Bitcoin::Key.new('FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140')}.should.not.raise(Exception)
+    proc{Bitcoin::Key.new('01')}.should.not.raise(Exception)
+  end
+
 end
 
 begin
