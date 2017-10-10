@@ -38,18 +38,22 @@ describe 'Tx' do
     tx.hash.should == nil
     tx.parse_data( @payload[0] ).should == true
     tx.hash.size.should == 64
+    tx.payload.should == @payload[0]
 
     tx = Tx.new( nil )
     tx.parse_data( @payload[0] + "AAAA" ).should == "AAAA"
     tx.hash.size.should == 64
+    tx.payload.should == @payload[0]
   end
 
   it '#parse_witness_data' do
     tx = Tx.new( @payload[3] )
     tx.hash.size.should == 64
+    tx.payload.should == @payload[3]
 
     tx = Tx.new( @payload[3] + "AAAA" )
     tx.hash.size.should == 64
+    tx.payload.should == @payload[3]
   end
 
   it '#hash' do
@@ -110,6 +114,7 @@ describe 'Tx' do
   it 'Tx.from_hash' do
     orig_tx = Tx.new( @payload[0] )
     tx = Tx.from_hash( orig_tx.to_hash )
+    tx.payload.should == @payload[0]
     tx.to_payload.size.should == @payload[0].size
     tx.to_payload.should      == @payload[0]
     tx.to_hash.should == orig_tx.to_hash
@@ -122,6 +127,7 @@ describe 'Tx' do
     # witness tx(P2WPKH)
     orig_tx = Tx.new( @payload[3] )
     tx = Tx.from_hash( orig_tx.to_hash )
+    tx.payload.should == @payload[3]
     tx.to_witness_payload.size.should == @payload[3].size
     tx.to_witness_payload.should == @payload[3]
     tx.to_hash == orig_tx.to_hash
