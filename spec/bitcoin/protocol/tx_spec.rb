@@ -30,6 +30,9 @@ describe 'Tx' do
     proc{
       Tx.new( @payload[0][0..20] )
     }.should.raise Exception
+
+    # Deserializing a new, empty transaction works
+    Tx.new(Tx.new.to_payload)
   end
 
   it '#parse_data' do

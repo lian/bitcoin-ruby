@@ -88,8 +88,15 @@ module Bitcoin
         if in_size.zero?
           @marker = 0
           @flag = buf.read(1).unpack('c').first
-          in_size = Protocol.unpack_var_int_from_io(buf)
-          witness = true
+
+          # marker must be zero and flag must be non-zero to be valid segwit
+          if @marker == 0 && @flag != 0
+            in_size = Protocol.unpack_var_int_from_io(buf)
+            witness = true
+          else
+            # Undo the last read in case this isn't a segwit transaction
+            buf.seek(buf.pos - 1)
+          end
         end
 
         @in = []
