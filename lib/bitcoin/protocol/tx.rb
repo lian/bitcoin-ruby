@@ -81,23 +81,18 @@ module Bitcoin
 
         return false if buf.eof?
 
-        in_size = Protocol.unpack_var_int_from_io(buf)
-
         # segwit serialization format is defined by https://github.com/bitcoin/bips/blob/master/bip-0144.mediawiki
-        witness = false
-        if in_size.zero?
-          @marker = 0
-          @flag = buf.read(1).unpack('c').first
+        # Also note that it is impossible to parse 0 input transactions. Regular transactions with 0 inputs look
+        # like malformed segwit transactions.
+        @marker = buf.read(1).unpack('c').first
+        @flag = buf.read(1).unpack('c').first
 
-          # marker must be zero and flag must be non-zero to be valid segwit
-          if @marker == 0 && @flag != 0
-            in_size = Protocol.unpack_var_int_from_io(buf)
-            witness = true
-          else
-            # Undo the last read in case this isn't a segwit transaction
-            buf.seek(buf.pos - 1)
-          end
-        end
+        witness = @marker == 0 && @flag != 0
+
+        # Non-segwit format does not contain marker or flag fields.
+        buf.seek(buf.pos - 2) unless witness
+
+        in_size = Protocol.unpack_var_int_from_io(buf)
 
         @in = []
         in_size.times{
