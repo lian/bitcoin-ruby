@@ -316,6 +316,9 @@ describe 'Tx' do
 
     tx.verify_input_signature(0, outpoint_tx).should == true
 
+    # Only one test where we provide the TxOut is needed since when providing
+    # the full outpoint_tx the verification logic doesn't change.
+    tx.verify_input_signature(0, outpoint_tx.out[0]).should == true
 
     tx = Tx.from_json( fixtures_file('rawtx-c99c49da4c38af669dea436d3e73780dfdb6c1ecf9958baa52960e8baee30e73.json') )
     tx.hash.should == 'c99c49da4c38af669dea436d3e73780dfdb6c1ecf9958baa52960e8baee30e73'

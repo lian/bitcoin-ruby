@@ -271,12 +271,12 @@ module Bitcoin
 
       # verify input signature +in_idx+ against the corresponding
       # output in +outpoint_tx+
-      # outpoint
+      # outpoint. This arg can also be a Script or TxOut.
       #
       # options are: verify_sigpushonly, verify_minimaldata, verify_cleanstack, verify_dersig, verify_low_s, verify_strictenc, fork_id
-      def verify_input_signature(in_idx, outpoint_tx_or_script, block_timestamp=Time.now.to_i, opts={})
+      def verify_input_signature(in_idx, outpoint_data, block_timestamp=Time.now.to_i, opts={})
         if @enable_bitcoinconsensus
-          return bitcoinconsensus_verify_script(in_idx, outpoint_tx_or_script, block_timestamp, opts)
+          return bitcoinconsensus_verify_script(in_idx, outpoint_data, block_timestamp, opts)
         end
 
         # If FORKID is enabled, we also ensure strict encoding.
@@ -285,21 +285,12 @@ module Bitcoin
         outpoint_idx  = @in[in_idx].prev_out_index
         script_sig    = @in[in_idx].script_sig
 
-        amount = nil
-        script_pubkey = nil
-        if outpoint_tx_or_script.respond_to?(:out)
-          # If given an entire previous transaction, take the script from it
-          prevout = outpoint_tx_or_script.out[outpoint_idx]
-          amount = prevout.value
-          script_pubkey = prevout.pk_script
-        else
-          if opts[:fork_id]
-            raise "verify_input_signature must be called with a previous transaction if " \
-                  "SIGHASH_FORKID is enabled"
-          end
+        amount = amount_from_outpoint_data(outpoint_data, outpoint_idx)
+        script_pubkey = script_pubkey_from_outpoint_data(outpoint_data, outpoint_idx)
 
-          # Otherwise, it's already a script.
-          script_pubkey = outpoint_tx_or_script
+        if opts[:fork_id] && amount.nil?
+          raise "verify_input_signature must be called with a previous transaction or " \
+            "transaction output if SIGHASH_FORKID is enabled"
         end
 
         @scripts[in_idx] = Bitcoin::Script.new(script_sig, script_pubkey)
@@ -317,24 +308,19 @@ module Bitcoin
 
       # verify witness input signature +in_idx+ against the corresponding
       # output in +outpoint_tx+
-      # outpoint
+      # outpoint. This arg can also be a Script or TxOut
       #
       # options are: verify_sigpushonly, verify_minimaldata, verify_cleanstack, verify_dersig, verify_low_s, verify_strictenc
-      def verify_witness_input_signature(in_idx, outpoint_tx_or_script, prev_out_amount, block_timestamp=Time.now.to_i, opts={})
+      def verify_witness_input_signature(in_idx, outpoint_data, prev_out_amount, block_timestamp=Time.now.to_i, opts={})
         if @enable_bitcoinconsensus
-          return bitcoinconsensus_verify_script(in_idx, outpoint_tx_or_script, block_timestamp, opts)
+          return bitcoinconsensus_verify_script(in_idx, outpoint_data, block_timestamp, opts)
         end
 
         outpoint_idx  = @in[in_idx].prev_out_index
         script_sig    = ''
 
-        # If given an entire previous transaction, take the script from it
-        script_pubkey = if outpoint_tx_or_script.respond_to?(:out)
-          Bitcoin::Script.new(outpoint_tx_or_script.out[outpoint_idx].pk_script)
-        else
-          # Otherwise, it's already a script.
-          Bitcoin::Script.new(outpoint_tx_or_script)
-        end
+        script_pubkey = script_pubkey_from_outpoint_data(outpoint_data, outpoint_idx)
+        script_pubkey = Bitcoin::Script.new(script_pubkey)
 
         if script_pubkey.is_p2sh?
           redeem_script = Bitcoin::Script.new(@in[in_idx].script_sig).get_pubkey
@@ -372,17 +358,11 @@ module Bitcoin
         return sig_valid
       end
 
-      def bitcoinconsensus_verify_script(in_idx, outpoint_tx_or_script, block_timestamp=Time.now.to_i, opts={})
+      def bitcoinconsensus_verify_script(in_idx, outpoint_data, block_timestamp=Time.now.to_i, opts={})
         raise "Bitcoin::BitcoinConsensus shared library not found" unless Bitcoin::BitcoinConsensus.lib_available?
 
-        # If given an entire previous transaction, take the script from it
-        script_pubkey = if outpoint_tx_or_script.respond_to?(:out)
-          outpoint_idx  = @in[in_idx].prev_out_index
-          outpoint_tx_or_script.out[outpoint_idx].pk_script
-        else
-          # Otherwise, it's already a script.
-          outpoint_tx_or_script
-        end
+        outpoint_idx  = @in[in_idx].prev_out_index
+        script_pubkey = script_pubkey_from_outpoint_data(outpoint_data, outpoint_idx)
 
         flags  = Bitcoin::BitcoinConsensus::SCRIPT_VERIFY_NONE
         flags |= Bitcoin::BitcoinConsensus::SCRIPT_VERIFY_P2SH        if block_timestamp >= 1333238400
@@ -582,6 +562,30 @@ module Bitcoin
                 script_code, amount, nsequence, hash_outputs, [@lock_time, hash_type].pack("VV")].join
 
         Digest::SHA256.digest( Digest::SHA256.digest( buf ) )
+      end
+
+      def script_pubkey_from_outpoint_data(outpoint_data, outpoint_idx)
+        if outpoint_data.respond_to?(:out)
+          # If given an entire previous transaction, take the script from it
+          outpoint_data.out[outpoint_idx].pk_script
+        elsif outpoint_data.respond_to?(:pk_script)
+          # If given an transaction output, take the script
+          outpoint_data.pk_script
+        else
+          # Otherwise, we assume it's already a script.
+          outpoint_data
+        end
+      end
+
+      def amount_from_outpoint_data(outpoint_data, outpoint_idx)
+        if outpoint_data.respond_to?(:out)
+          # If given an entire previous transaction, take the amount from the
+          # output at the outpoint_idx
+          outpoint_data.out[outpoint_idx].amount
+        elsif outpoint_data.respond_to?(:pk_script)
+          # If given an transaction output, take the amount
+          outpoint_data.amount
+        end
       end
     end
   end
