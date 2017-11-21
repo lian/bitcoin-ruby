@@ -1435,8 +1435,10 @@ class Bitcoin::Script
   def sighash_subscript(drop_sigs, opts = {})
     if opts[:fork_id]
       drop_sigs.reject! do |signature|
-        _, hash_type = parse_sig(signature)
-        (hash_type&SIGHASH_TYPE[:forkid]) != 0
+        if signature && signature.size > 0
+          _, hash_type = parse_sig(signature)
+          (hash_type&SIGHASH_TYPE[:forkid]) != 0
+        end
       end
     end
 
