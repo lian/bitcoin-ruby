@@ -668,7 +668,7 @@ module Bitcoin
       min_relay_tx_fee: 100_000, # 0.001 LTC
       free_tx_bytes: 5_000,
       dust: CENT / 10,
-      per_dust_fee: true,
+      per_dust_fee: false,
       reward_halving: 840_000,
       retarget_time: 302400, # 3.5 days
       dns_seeds: [
