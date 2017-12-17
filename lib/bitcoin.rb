@@ -674,9 +674,9 @@ module Bitcoin
       dns_seeds: [
         "dnsseed.litecointools.com",
         "dnsseed.litecoinpool.org",
-        "dnsseed.ltc.xurious.com",
+        "seed-a.litecoin.loshan.co.uk",
+        "dnsseed.thrasher.io",
         "dnsseed.koin-project.com",
-        "dnsseed.weminemnc.com",
       ],
       genesis_hash: "12a765e31ffd4059bada1e25190f6e98c99d9714d334efa41a195a7e7e04bfe2",
       proof_of_work_limit: 0x1e0fffff,
