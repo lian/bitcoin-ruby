@@ -705,23 +705,23 @@ module Bitcoin
     })
 
   NETWORKS[:litecoin_testnet] = NETWORKS[:litecoin].merge({
-      magic_head: "\xfc\xc1\xb7\xdc",
+      magic_head: "\xfd\xd2\xc8\xf1",
       address_version: "6f",
-      p2sh_version: "c4",
+      p2sh_version: "3a",
       privkey_version: "ef",
       extended_privkey_version: "0436ef7d",
       extended_pubkey_version: "0436f6e1",
-      default_port: 19333,
+      default_port: 19335,
       dns_seeds: [
-        "testnet-seed.litecointools.com",
         "testnet-seed.ltc.xurious.com",
-        "testnet-seed.weminemnc.com",
+        "seed-b.litecoin.loshan.co.uk",
+        "dnsseed-testnet.thrasher.io",
       ],
-      genesis_hash: "f5ae71e26c74beacc88382716aced69cddf3dffff24f384e1808905e0188f68f",
+      genesis_hash: "4966625a4b2851d9fdee139e56211a0d88575f59ed816ff5e6a63deb4e3e29a0",
       alert_pubkeys: ["04302390343f91cc401d56d68b123028bf52e5fca1939df127f63c6467cdf9c8e2c14b61104cf817d0b780da337893ecc4aaff1309e536162dabbdb45200ca2b0a"],
       known_nodes: [],
       checkpoints: {
-        546 => "a0fea99a6897f531600c8ae53367b126824fd6a847b2b2b73817a95b8e27e602",
+        546 => "bf434a4c665307f52a041ee40faa7bf56284c5f3b5d11bf6182aba537961f86c",
       }
     })
 
