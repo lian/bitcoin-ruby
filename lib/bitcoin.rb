@@ -657,7 +657,7 @@ module Bitcoin
       magic_head: "\xfb\xc0\xb6\xdb",
       message_magic: "Litecoin Signed Message:\n",
       address_version: "30",
-      p2sh_version: "05",
+      p2sh_version: "32",
       privkey_version: "b0",
       extended_privkey_version: "019d9cfe",
       extended_pubkey_version: "019da462",
@@ -751,7 +751,7 @@ module Bitcoin
       retarget_time_new: 60, # 1 minute
       target_spacing: 60, # block interval
       dns_seeds: [
-        "seed.dogechain.info", 
+        "seed.dogechain.info",
         "seed.dogecoin.com",
       ],
       genesis_hash: "1a91e3dace36e2be3bf030a65679fe821aa1d6ef92e7c9902eb318182c355691",
@@ -809,7 +809,7 @@ module Bitcoin
       retarget_time_new: 60, # 1 minute
       target_spacing: 60, # block interval
       max_money: 100_000_000_000 * COIN,
-      dns_seeds: [ 
+      dns_seeds: [
         "testdoge-seed.lionservers.de",
       ],
       genesis_hash: "bb0a78264637406b6360aad926284d544d7049f45189db5664f3c4d07350559e",
@@ -817,7 +817,7 @@ module Bitcoin
       alert_pubkeys: [],
       known_nodes: [
         "localhost",
-        "testnets.chain.so", 
+        "testnets.chain.so",
       ],
       checkpoints: {
         546 => "ac537cfeda975e45040e9938d08e40a16e0fbd6388d02d9b4928b8ae0108c626",
