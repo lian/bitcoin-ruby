@@ -677,7 +677,7 @@ describe 'Tx' do
     tx.minimum_block_fee.should == 30_000
     Bitcoin.network = :litecoin # change to litecoin
     tx.minimum_relay_fee.should == 0
-    tx.minimum_block_fee.should == 5_900_000
+    tx.minimum_block_fee.should == 100_000
   end
 
   it "should compare transactions" do
