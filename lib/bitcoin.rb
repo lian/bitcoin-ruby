@@ -658,7 +658,7 @@ module Bitcoin
       magic_head: "\xfb\xc0\xb6\xdb",
       message_magic: "Litecoin Signed Message:\n",
       address_version: "30",
-      p2sh_version: "05",
+      p2sh_version: "32",
       privkey_version: "b0",
       extended_privkey_version: "019d9cfe",
       extended_pubkey_version: "019da462",
@@ -669,15 +669,15 @@ module Bitcoin
       min_relay_tx_fee: 100_000, # 0.001 LTC
       free_tx_bytes: 5_000,
       dust: CENT / 10,
-      per_dust_fee: true,
+      per_dust_fee: false,
       reward_halving: 840_000,
       retarget_time: 302400, # 3.5 days
       dns_seeds: [
         "dnsseed.litecointools.com",
         "dnsseed.litecoinpool.org",
-        "dnsseed.ltc.xurious.com",
+        "seed-a.litecoin.loshan.co.uk",
+        "dnsseed.thrasher.io",
         "dnsseed.koin-project.com",
-        "dnsseed.weminemnc.com",
       ],
       genesis_hash: "12a765e31ffd4059bada1e25190f6e98c99d9714d334efa41a195a7e7e04bfe2",
       proof_of_work_limit: 0x1e0fffff,
@@ -706,23 +706,23 @@ module Bitcoin
     })
 
   NETWORKS[:litecoin_testnet] = NETWORKS[:litecoin].merge({
-      magic_head: "\xfc\xc1\xb7\xdc",
+      magic_head: "\xfd\xd2\xc8\xf1",
       address_version: "6f",
-      p2sh_version: "c4",
+      p2sh_version: "3a",
       privkey_version: "ef",
       extended_privkey_version: "0436ef7d",
       extended_pubkey_version: "0436f6e1",
-      default_port: 19333,
+      default_port: 19335,
       dns_seeds: [
-        "testnet-seed.litecointools.com",
         "testnet-seed.ltc.xurious.com",
-        "testnet-seed.weminemnc.com",
+        "seed-b.litecoin.loshan.co.uk",
+        "dnsseed-testnet.thrasher.io",
       ],
-      genesis_hash: "f5ae71e26c74beacc88382716aced69cddf3dffff24f384e1808905e0188f68f",
+      genesis_hash: "4966625a4b2851d9fdee139e56211a0d88575f59ed816ff5e6a63deb4e3e29a0",
       alert_pubkeys: ["04302390343f91cc401d56d68b123028bf52e5fca1939df127f63c6467cdf9c8e2c14b61104cf817d0b780da337893ecc4aaff1309e536162dabbdb45200ca2b0a"],
       known_nodes: [],
       checkpoints: {
-        546 => "a0fea99a6897f531600c8ae53367b126824fd6a847b2b2b73817a95b8e27e602",
+        546 => "bf434a4c665307f52a041ee40faa7bf56284c5f3b5d11bf6182aba537961f86c",
       }
     })
 
@@ -752,7 +752,7 @@ module Bitcoin
       retarget_time_new: 60, # 1 minute
       target_spacing: 60, # block interval
       dns_seeds: [
-        "seed.dogechain.info", 
+        "seed.dogechain.info",
         "seed.dogecoin.com",
       ],
       genesis_hash: "1a91e3dace36e2be3bf030a65679fe821aa1d6ef92e7c9902eb318182c355691",
@@ -810,7 +810,7 @@ module Bitcoin
       retarget_time_new: 60, # 1 minute
       target_spacing: 60, # block interval
       max_money: 100_000_000_000 * COIN,
-      dns_seeds: [ 
+      dns_seeds: [
         "testdoge-seed.lionservers.de",
       ],
       genesis_hash: "bb0a78264637406b6360aad926284d544d7049f45189db5664f3c4d07350559e",
@@ -818,7 +818,7 @@ module Bitcoin
       alert_pubkeys: [],
       known_nodes: [
         "localhost",
-        "testnets.chain.so", 
+        "testnets.chain.so",
       ],
       checkpoints: {
         546 => "ac537cfeda975e45040e9938d08e40a16e0fbd6388d02d9b4928b8ae0108c626",
