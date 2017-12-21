@@ -237,7 +237,7 @@ module Bitcoin
         @tx.in[i].sig_address = Script.new(@prev_script).get_address  if @prev_script
       end
 
-      def get_script_sig(inc)
+      def get_script_sig(inc, hash_type)
         if inc.has_multiple_keys?
           # multiple keys given, generate signature for each one
           sigs = inc.sign(@sig_hash)
@@ -251,7 +251,7 @@ module Bitcoin
         else
           # only one key given, generate signature and script_sig
           sig = inc.sign(@sig_hash)
-          script_sig = Script.to_signature_pubkey_script(sig, [inc.key.pub].pack("H*"))
+          script_sig = Script.to_signature_pubkey_script(sig, [inc.key.pub].pack("H*"), hash_type)
         end
         return script_sig
       end
@@ -268,13 +268,28 @@ module Bitcoin
           sig_script = inc.instance_eval { @redeem_script }
           sig_script ||= @prev_script
 
+          hash_type = if inc.prev_out_forkid
+            Script::SIGHASH_TYPE[:all] | Script::SIGHASH_TYPE[:forkid]
+          else
+            Script::SIGHASH_TYPE[:all]
+          end
+
           # when a sig_script was found, generate the sig_hash to be signed
           if sig_script
             script = Script.new(sig_script)
             if script.is_witness_v0_keyhash?
               @sig_hash = @tx.signature_hash_for_witness_input(i, sig_script, inc.value)
             else
-              @sig_hash = @tx.signature_hash_for_input(i, sig_script)
+              @sig_hash = if inc.prev_out_forkid
+                @tx.signature_hash_for_input(
+                  i,
+                  sig_script,
+                  hash_type,
+                  inc.value,
+                  inc.prev_out_forkid)
+              else
+                @tx.signature_hash_for_input(i, sig_script)
+              end
             end
           end
 
@@ -285,10 +300,12 @@ module Bitcoin
               @tx.in[i].script_witness.stack << inc.sign(@sig_hash) + [Script::SIGHASH_TYPE[:all]].pack("C")
               @tx.in[i].script_witness.stack << inc.key.pub.htb
             else
-              @tx.in[i].script_sig = get_script_sig(inc)
+              @tx.in[i].script_sig = get_script_sig(inc, hash_type)
             end
             # double-check that the script_sig is valid to spend the given prev_script
-            raise "Signature error"  if @prev_script && !@tx.verify_input_signature(i, @prev_script)
+            if @prev_script && !inc.prev_out_forkid && !@tx.verify_input_signature(i, @prev_script)
+              raise "Signature error"
+            end
           elsif inc.has_multiple_keys?
             raise "Keys missing for multisig signing"
           else
@@ -329,7 +346,7 @@ module Bitcoin
     #
     # If you want to spend a multisig output, just provide an array of keys to #signature_key.
     class TxInBuilder
-      attr_reader :prev_tx, :prev_script, :redeem_script, :key, :coinbase_data, :prev_out_value
+      attr_reader :prev_tx, :prev_script, :redeem_script, :key, :coinbase_data, :prev_out_value, :prev_out_forkid
 
       def initialize
         @txin = P::TxIn.new
@@ -341,7 +358,8 @@ module Bitcoin
       # You can either pass the transaction, or just the tx hash.
       # If you pass only the hash, you need to pass the previous outputs
       # +script+ separately if you want the txin to be signed.
-      def prev_out tx, idx = nil, script = nil, prev_value = nil
+      def prev_out tx, idx = nil, script = nil, prev_value = nil, prev_forkid = nil
+        @prev_out_forkid = prev_forkid
         if tx.is_a?(Bitcoin::P::Tx)
           @prev_tx = tx
           @prev_out_hash = tx.binary_hash
