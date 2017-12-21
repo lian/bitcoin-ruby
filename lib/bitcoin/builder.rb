@@ -274,7 +274,8 @@ module Bitcoin
             if script.is_witness_v0_keyhash?
               @sig_hash = @tx.signature_hash_for_witness_input(i, sig_script, inc.value)
             else
-              @sig_hash = @tx.signature_hash_for_input(i, sig_script)
+              @sig_hash = @tx.signature_hash_for_input(
+                i, sig_script, nil, inc.prev_out_value, inc.prev_out_forkid)
             end
           end
 
@@ -329,7 +330,7 @@ module Bitcoin
     #
     # If you want to spend a multisig output, just provide an array of keys to #signature_key.
     class TxInBuilder
-      attr_reader :prev_tx, :prev_script, :redeem_script, :key, :coinbase_data, :prev_out_value
+      attr_reader :prev_tx, :prev_script, :redeem_script, :key, :coinbase_data, :prev_out_value, :prev_out_forkid
 
       def initialize
         @txin = P::TxIn.new
@@ -341,7 +342,8 @@ module Bitcoin
       # You can either pass the transaction, or just the tx hash.
       # If you pass only the hash, you need to pass the previous outputs
       # +script+ separately if you want the txin to be signed.
-      def prev_out tx, idx = nil, script = nil, prev_value = nil
+      def prev_out tx, idx = nil, script = nil, prev_value = nil, prev_forkid = nil
+        @prev_out_forkid = prev_forkid
         if tx.is_a?(Bitcoin::P::Tx)
           @prev_tx = tx
           @prev_out_hash = tx.binary_hash
