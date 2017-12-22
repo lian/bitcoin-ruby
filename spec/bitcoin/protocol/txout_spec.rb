@@ -23,5 +23,11 @@ describe 'TxOut' do
     (o1 == nil).should == false
   end
 
+  it "should update parsed script cache on script change" do
+    out = TxOut.new(123, "abc")
+    parsed = out.parsed_script
+    out.pk_script = "def"
+    out.parsed_script.should != parsed
+  end
 end
 

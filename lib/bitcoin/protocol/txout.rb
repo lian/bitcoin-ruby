@@ -9,7 +9,7 @@ module Bitcoin
       attr_accessor :value
 
       # pk_script output Script
-      attr_accessor :pk_script, :pk_script_length
+      attr_reader :pk_script, :pk_script_length
 
       # p2sh redeem script (optional, not included in the serialized binary format)
       attr_accessor :redeem_script
@@ -39,6 +39,7 @@ module Bitcoin
 
       # parse raw binary data for transaction output
       def parse_data_from_io(buf)
+        clear_parsed_script_cache
         @value = buf.read(8).unpack("Q")[0]
         @pk_script_length = Protocol.unpack_var_int_from_io(buf)
         @pk_script = buf.read(@pk_script_length)
@@ -48,6 +49,10 @@ module Bitcoin
 
       def parsed_script
         @parsed_script ||= Bitcoin::Script.new(pk_script)
+      end
+
+      def clear_parsed_script_cache
+        remove_instance_variable(:@parsed_script) if defined?(@parsed_script)
       end
 
       def to_payload
@@ -73,6 +78,7 @@ module Bitcoin
 
       # set pk_script and pk_script_length
       def pk_script=(pk_script)
+        clear_parsed_script_cache
         @pk_script_length, @pk_script = pk_script.bytesize, pk_script
       end
 
