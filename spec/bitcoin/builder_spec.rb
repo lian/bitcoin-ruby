@@ -339,4 +339,37 @@ describe "Bitcoin::Builder" do
     tx2.verify_input_signature(0, tx1).should == true
   end
 
+  it "should build and sign bcash transaction" do
+    tx = build_tx do |t|
+      t.input do |i|
+        prev_tx = @block.tx[0]
+        utxo = prev_tx.out[0]
+        i.prev_out prev_tx.hash, 0, utxo.script, utxo.amount, 0
+        i.signature_key @keys[0]
+      end
+
+      t.output do |o|
+        o.value 4999900000
+
+        o.script do |s|
+          s.type :address
+          s.recipient @keys[1].addr
+        end
+      end
+    end
+
+    tx.in[0].prev_out.reverse_hth.should == block.tx[0].hash
+    tx.in[0].prev_out_index.should == 0
+    Bitcoin::Script.new(tx.in[0].script_sig).chunks[1].unpack("H*")[0].should == @keys[0].pub
+    tx.out[0].value.should == 4999900000
+
+    script = Bitcoin::Script.new(tx.out[0].pk_script)
+    script.type.should == :hash160
+    script.get_address.should == @keys[1].addr
+
+    tx.verify_input_signature(0, block.tx[0], Time.now.to_i, {fork_id: 0}).should == true
+    Bitcoin::Script.new(tx.out[0].pk_script).to_string.should ==
+      "OP_DUP OP_HASH160 #{@keys[1].hash160} OP_EQUALVERIFY OP_CHECKSIG"
+  end
+
 end
