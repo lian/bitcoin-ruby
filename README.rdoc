@@ -13,7 +13,7 @@ Some of the main features are:
 
 == Related Projects
 
-* toshi[https://github.com/coinbase/toshi]
+* toshi[https://github.com/toshiapp]
 * bitcoin-ruby-blockchain[http://github.com/mhanne/bitcoin-ruby-blockchain]
 * bitcoin-ruby-node[http://github.com/mhanne/bitcoin-ruby-node]
 * bitcoin-ruby-wallet[http://github.com/mhanne/bitcoin-ruby-wallet]
