@@ -139,7 +139,7 @@ as well as the private key for the address required to sign for it.
  # the number of the output you want to use
  prev_out_index = 0
  
- # fetch the tx from whereever you like and parse it
+ # fetch the tx from wherever you like and parse it
  prev_tx = Bitcoin::P::Tx.from_json(open("http://test.webbtc.com/tx/#{prev_hash}.json"))
  
  # the key needed to sign an input that spends the previous output
