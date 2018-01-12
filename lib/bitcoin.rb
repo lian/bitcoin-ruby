@@ -8,6 +8,7 @@ require 'securerandom'
 
 module Bitcoin
 
+  autoload :Bech32,     'bitcoin/bech32'
   autoload :Connection, 'bitcoin/connection'
   autoload :Protocol,   'bitcoin/protocol'
   autoload :P,          'bitcoin/protocol'
@@ -58,10 +59,7 @@ module Bitcoin
     # check if given +address+ is valid.
     # this means having a correct version byte, length and checksum.
     def valid_address?(address)
-      hex = decode_base58(address) rescue nil
-      return false unless hex && hex.bytesize == 50
-      return false unless [address_version, p2sh_version].include?(hex[0...2])
-      address_checksum?(address)
+      address_type(address) != nil
     end
 
     # check if given +pubkey+ is valid.
@@ -74,17 +72,42 @@ module Bitcoin
 
     # get hash160 for given +address+. returns nil if address is invalid.
     def hash160_from_address(address)
-      return nil  unless valid_address?(address)
-      decode_base58(address)[2...42]
+      case address_type(address)
+      when :witness_v0_keyhash
+        _, witness_program_hex = decode_segwit_address(address)
+        witness_program_hex
+      when :hash160, :p2sh
+        decode_base58(address)[2...42]
+      end
     end
 
     # get type of given +address+.
     def address_type(address)
-      return nil unless valid_address?(address)
-      case decode_base58(address)[0...2]
-      when address_version; :hash160
-      when p2sh_version;    :p2sh
+      segwit_decoded = decode_segwit_address(address)
+      if segwit_decoded
+        witness_version, witness_program_hex = segwit_decoded
+        witness_program = [witness_program_hex].pack("H*")
+
+        if witness_version == 0 && witness_program.bytesize == 20
+          return :witness_v0_keyhash
+        end
+
+        if witness_version == 0 && witness_program.bytesize == 32
+          return :witness_v0_scripthash
+        end
       end
+
+      hex = decode_base58(address) rescue nil
+      if hex && hex.bytesize == 50 && address_checksum?(address)
+        case hex[0...2]
+        when address_version
+          return :hash160
+        when p2sh_version
+          return :p2sh
+        end
+      end
+
+      nil
     end
 
     def sha256(hex)
@@ -111,6 +134,49 @@ module Bitcoin
     def pubkeys_to_p2sh_multisig_address(m, *pubkeys)
       redeem_script = Bitcoin::Script.to_p2sh_multisig_script(m, *pubkeys).last
       return Bitcoin.hash160_to_p2sh_address(Bitcoin.hash160(redeem_script.hth)), redeem_script
+    end
+
+
+    def encode_segwit_address(version, program_hex)
+      hrp = Bitcoin.network[:bech32_hrp]
+      raise "Invalid network" if hrp.nil?
+
+      program = [program_hex].pack("H*")
+
+      return nil if version > 16
+      length = program.size
+      return nil if version == 0 && length != 20 && length != 32
+      return nil if length < 2 || length > 40
+
+      data = [ version ] + Bitcoin::Bech32.convert_bits(program.unpack("C*"), from_bits: 8, to_bits: 5, pad: true)
+
+      address = Bitcoin::Bech32.encode(hrp, data)
+
+      return address.nil? ? nil : address
+    end
+
+    def decode_segwit_address(address)
+      hrp = Bitcoin.network[:bech32_hrp]
+      return nil if hrp.nil?
+
+      actual_hrp, data  = Bitcoin::Bech32.decode(address)
+
+      return nil if actual_hrp.nil?
+      length = data.size
+      return nil if length == 0 || length > 65
+      return nil if hrp != actual_hrp
+      return nil if data[0] > 16
+
+
+      program = Bitcoin::Bech32.convert_bits(data[1..-1], from_bits: 5, to_bits: 8, pad: false)
+      return nil if program.nil?
+
+      length = program.size
+      return nil if length < 2 || length > 40
+      return nil if data[0] == 0 && length != 20 && length != 32
+
+      program_hex = program.pack("C*").unpack("H*").first
+      return [data[0], program_hex]
     end
 
     def int_to_base58(int_val, leading_zero_bytes=0)
@@ -439,7 +505,6 @@ module Bitcoin
 
   extend Util
 
-
   module  BinaryExtensions
     # bin-to-hex
     def bth; unpack("H*")[0]; end
@@ -557,6 +622,7 @@ module Bitcoin
       privkey_version: "80",
       extended_privkey_version: "0488ade4",
       extended_pubkey_version: "0488b21e",
+      bech32_hrp: "bc",
       default_port: 8333,
       protocol_version: 70001,
       coinbase_maturity: 100,
@@ -614,6 +680,7 @@ module Bitcoin
       privkey_version: "ef",
       extended_privkey_version: "04358394",
       extended_pubkey_version: "043587cf",
+      bech32_hrp: "tb",
       default_port: 18333,
       bip34_height: 21111,
       dns_seeds: [ ],
@@ -625,6 +692,7 @@ module Bitcoin
     })
 
   NETWORKS[:regtest] = NETWORKS[:testnet].merge({
+      bech32_hrp: "bcrt",
       default_port: 18444,
       genesis_hash: "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206",
       proof_of_work_limit: 0x207fffff,
@@ -660,6 +728,7 @@ module Bitcoin
       address_version: "30",
       p2sh_version: "32",
       privkey_version: "b0",
+      bech32_hrp: "ltc",
       extended_privkey_version: "019d9cfe",
       extended_pubkey_version: "019da462",
       default_port: 9333,
@@ -710,6 +779,7 @@ module Bitcoin
       address_version: "6f",
       p2sh_version: "3a",
       privkey_version: "ef",
+      bech32_hrp: "tltc",
       extended_privkey_version: "0436ef7d",
       extended_pubkey_version: "0436f6e1",
       default_port: 19335,
@@ -733,6 +803,7 @@ module Bitcoin
       address_version: "1e",
       p2sh_version: "16",
       privkey_version: "9e",
+      bech32_hrp: nil,
       extended_privkey_version: "02fac398",
       extended_pubkey_version: "02facafd",
       default_port: 22556,
@@ -835,6 +906,7 @@ module Bitcoin
       project: :namecoin,
       magic_head: "\xF9\xBE\xB4\xFE",
       address_version: "34",
+      bech32_hrp: nil,
       default_port: 8334,
       protocol_version: 35000,
       min_tx_fee: 50_000,
