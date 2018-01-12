@@ -8,6 +8,7 @@ require 'securerandom'
 
 module Bitcoin
 
+  autoload :Bech32,     'bitcoin/bech32'
   autoload :Connection, 'bitcoin/connection'
   autoload :Protocol,   'bitcoin/protocol'
   autoload :P,          'bitcoin/protocol'
