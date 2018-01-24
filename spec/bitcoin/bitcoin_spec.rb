@@ -90,6 +90,8 @@ describe 'Bitcoin Address/Hash160/PubKey' do
       .should == "00000090c66372823859c935149e2e32d276a1e6"
     Bitcoin.hash160_from_address("1111136sgL8UNSTVL9ize2uGFPxFDGwFp")
       .should == "0000000096d3ad65d030a36e2c23f7fdd5dfcadb"
+    Bitcoin.hash160_from_address("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4")
+      .should == "751e76e8199196d454941c45d1b3a323f1433bd6"
   end
 
   it 'should survive rounds of hash160 <-> address' do
@@ -187,6 +189,9 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     Bitcoin.address_type("3CkxTG25waxsmd13FFgRChPuGYba3ar36B").should == :p2sh
     Bitcoin.address_type("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW").should == :hash160
     Bitcoin.address_type("mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt").should == nil
+    Bitcoin.address_type("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4").should == :witness_v0_keyhash
+    Bitcoin.address_type("bc1qw508d6qejxtdg4y5r3zarvayr0c5xw7kv8f3t4").should == nil
+    Bitcoin.address_type("bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3").should == :witness_v0_scripthash
   end
 
   it 'Bitcoin#checksum' do

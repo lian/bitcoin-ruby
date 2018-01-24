@@ -599,19 +599,19 @@ class Bitcoin::Script
     @chunks[0] == OP_RETURN && @chunks.size <= 2
   end
 
-  # is this a witness script(witness_v0_keyhash or witness_v0_scripthash)
+  # is this a witness script
   def is_witness?
-    is_witness_v0_keyhash? || is_witness_v0_scripthash?
+    @chunks.length == 2 && (0..16).include?(@chunks[0]) && @chunks[1].is_a?(String)
   end
 
   # is this a witness pubkey script
   def is_witness_v0_keyhash?
-    @chunks.length == 2 &&@chunks[0] == 0 && @chunks[1].is_a?(String) && @chunks[1].bytesize == 20
+    is_witness? && @chunks[0] == 0 && @chunks[1].bytesize == 20
   end
 
   # is this a witness script hash
   def is_witness_v0_scripthash?
-    @chunks.length == 2 &&@chunks[0] == 0 && @chunks[1].is_a?(String) && @chunks[1].bytesize == 32
+    is_witness? && @chunks[0] == 0 && @chunks[1].bytesize == 32
   end
 
   # Verify the script is only pushing data onto the stack
@@ -731,6 +731,11 @@ class Bitcoin::Script
     return [get_hash160_address]   if is_hash160?
     return get_multisig_addresses  if is_multisig?
     return [get_p2sh_address]      if is_p2sh?
+
+    if is_witness_v0_keyhash? || is_witness_v0_scripthash?
+      return Bitcoin.encode_segwit_address(0, chunks[1])
+    end
+
     []
   end
 
@@ -762,20 +767,27 @@ class Bitcoin::Script
     [ ["a9",   "14",   p2sh, "87"].join ].pack("H*")
   end
 
+  # generate pay-to-witness output script for given +witness_version+ and
+  # +witness_program+. returns a raw binary script of the form:
+  # <witness_version> <witness_program>
+  def self.to_witness_script(witness_version, witness_program_hex)
+    return nil unless (0..16).include?(witness_version)
+    return nil unless witness_program_hex
+    [witness_version].pack('C') + pack_pushdata(witness_program_hex.htb)
+  end
+
   # generate p2wpkh tx for given +address+. returns a raw binary script of the form:
   # 0 <hash160>
   def self.to_witness_hash160_script(hash160)
     return nil  unless hash160
-    #  witness ver  length  hash160
-    [ ["00",         "14",  hash160].join ].pack("H*")
+    to_witness_script(0, hash160)
   end
 
   # generate p2wsh output script for given +p2sh+ sha256. returns a raw binary script of the form:
   # 0 <p2sh>
   def self.to_witness_p2sh_script(p2sh)
     return nil  unless p2sh
-    #  witness ver  length  sha256
-    [ [ "00",        "20",   p2sh].join].pack("H*")
+    to_witness_script(0, p2sh)
   end
 
   # generate hash160 or p2sh output script, depending on the type of the given +address+.
@@ -785,6 +797,9 @@ class Bitcoin::Script
     case Bitcoin.address_type(address)
     when :hash160; to_hash160_script(hash160)
     when :p2sh;    to_p2sh_script(hash160)
+    when :witness_v0_keyhash, :witness_v0_scripthash
+      witness_version, witness_program = Bitcoin.decode_segwit_address(address)
+      to_witness_script(witness_version, witness_program.bth)
     end
   end
 
