@@ -134,7 +134,7 @@ module Bitcoin
 
         internal_pubkey = FFI::MemoryPointer.new(:uchar, 64)
         result = secp256k1_ec_pubkey_create(context, internal_pubkey, seckey)
-        raise "error creating pubkey" unless result
+        raise "error creating pubkey" unless result == 1
 
         pubkey, pubkey_len = FFI::MemoryPointer.new(:uchar, 65), FFI::MemoryPointer.new(:uint64)
         result = if compressed
@@ -144,7 +144,7 @@ module Bitcoin
           pubkey_len.put_uint64(0, 65)
           secp256k1_ec_pubkey_serialize(context, pubkey, pubkey_len, internal_pubkey, SECP256K1_EC_UNCOMPRESSED)
         end
-        raise "error serialize pubkey" unless result || pubkey_len.read_uint64 > 0
+        raise "error serialize pubkey" unless (result == 1) || pubkey_len.read_uint64 > 0
 
         [ seckey.read_string(32), pubkey.read_string(pubkey_len.read_uint64) ]
       end
@@ -158,7 +158,7 @@ module Bitcoin
     def self.sign(data, priv_key)
       with_context do |context|
         seckey = FFI::MemoryPointer.new(:uchar, priv_key.bytesize).put_bytes(0, priv_key)
-        raise "priv_key invalid" unless secp256k1_ec_seckey_verify(context, seckey)
+        raise "priv_key invalid" unless secp256k1_ec_seckey_verify(context, seckey) == 1
 
         internal_signature = FFI::MemoryPointer.new(:uchar, 64)
         msg32 = FFI::MemoryPointer.new(:uchar, 32).put_bytes(0, data)
@@ -173,7 +173,7 @@ module Bitcoin
 
         signature, signature_len = FFI::MemoryPointer.new(:uchar, 72), FFI::MemoryPointer.new(:uint64).put_uint64(0, 72)
         result = secp256k1_ecdsa_signature_serialize_der(context, signature, signature_len, internal_signature)
-        raise "secp256k1_ecdsa_signature_serialize_der failed" unless result
+        raise "secp256k1_ecdsa_signature_serialize_der failed" unless result == 1
 
         signature.read_string(signature_len.read_uint64)
       end
@@ -186,13 +186,13 @@ module Bitcoin
         pubkey = FFI::MemoryPointer.new(:uchar, pub_key.bytesize).put_bytes(0, pub_key)
         internal_pubkey = FFI::MemoryPointer.new(:uchar, 64)
         result = secp256k1_ec_pubkey_parse(context, internal_pubkey, pubkey, pubkey.size)
-        return false unless result
+        return false unless result == 1
 
         signature = FFI::MemoryPointer.new(:uchar, sig.bytesize).put_bytes(0, sig)
         internal_signature = FFI::MemoryPointer.new(:uchar, 64)
         result = secp256k1_ecdsa_signature_parse_der(context, internal_signature, signature, signature.size)
         #result = ecdsa_signature_parse_der_lax(context, internal_signature, signature, signature.size)
-        return false unless result
+        return false unless result == 1
 
         # libsecp256k1's ECDSA verification requires lower-S signatures, which have not historically been enforced in Bitcoin, so normalize them first.
         secp256k1_ecdsa_signature_normalize(context, internal_signature, internal_signature)
@@ -200,14 +200,14 @@ module Bitcoin
         msg32 = FFI::MemoryPointer.new(:uchar, 32).put_bytes(0, data)
         result = secp256k1_ecdsa_verify(context, internal_signature, msg32, internal_pubkey)
 
-        return result ? true : false
+        return result == 1
       end
     end
 
     def self.sign_compact(message, priv_key, compressed=true)
       with_context do |context|
         seckey = FFI::MemoryPointer.new(:uchar, priv_key.bytesize).put_bytes(0, priv_key)
-        raise "priv_key invalid" unless secp256k1_ec_seckey_verify(context, seckey)
+        raise "priv_key invalid" unless secp256k1_ec_seckey_verify(context, seckey) == 1
 
         msg32 = FFI::MemoryPointer.new(:uchar, 32).put_bytes(0, message)
         internal_recoverable_signature = FFI::MemoryPointer.new(:uchar, 65)
@@ -223,7 +223,7 @@ module Bitcoin
 
         recoverable_signature = FFI::MemoryPointer.new(:uchar, 64)
         result = secp256k1_ecdsa_recoverable_signature_serialize_compact(context, recoverable_signature, rec_id, internal_recoverable_signature)
-        raise "secp256k1_ecdsa_recoverable_signature_serialize_compact failed" unless result
+        raise "secp256k1_ecdsa_recoverable_signature_serialize_compact failed" unless result == 1
         raise "secp256k1_ecdsa_recoverable_signature_serialize_compact failed" unless rec_id.read_int != -1
 
         header = [27 + rec_id.read_int + (compressed ? 4 : 0)].pack("C")
@@ -248,15 +248,15 @@ module Bitcoin
 
         internal_recoverable_signature = FFI::MemoryPointer.new(:uchar, 65)
         result = secp256k1_ecdsa_recoverable_signature_parse_compact(context, internal_recoverable_signature, recoverable_signature, recid)
-        return nil unless result
+        return nil unless result == 1
 
         internal_pubkey = FFI::MemoryPointer.new(:uchar, 64)
         result = secp256k1_ecdsa_recover(context, internal_pubkey, internal_recoverable_signature, msg32)
-        return nil unless result
+        return nil unless result == 1
 
         pubkey, pubkey_len = FFI::MemoryPointer.new(:uchar, 65), FFI::MemoryPointer.new(:uint64).put_uint64(0, 65)
         result = secp256k1_ec_pubkey_serialize(context, pubkey, pubkey_len, internal_pubkey, flag)
-        raise "error serialize pubkey" unless result || pubkey_len.read_uint64 > 0
+        raise "error serialize pubkey" unless (result == 1) || pubkey_len.read_uint64 > 0
 
         pubkey.read_string(pubkey_len.read_uint64)
       end
