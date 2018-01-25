@@ -195,6 +195,10 @@ describe 'Bitcoin::Script' do
         "1F2Nnyn7niMcheiYhkHrkc18aDxEkFowy5"
       Script.new(SCRIPT[5]).get_address.should ==
         "3FDuvkgzsW7LpzL9RBjtjvL7bFXCEeZ7xi"
+      Script.new(SCRIPT[7]).get_address.should ==
+        "bc1qrcs9z5wfpstyw5mr6ydhhrprtnmv0454y6laym"
+      Script.new(SCRIPT[8]).get_address.should ==
+        "bc1qt5d4dd3aw98whe2zxz2jtayykl5ada5xkdupkmmpa7f96ekk76sqvmrunq"
     end
 
     it "#get_addresses" do
