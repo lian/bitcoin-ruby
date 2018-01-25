@@ -566,6 +566,61 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     }.should == [ 5000000000, 5000000000, 2500000000, 2500000000, 1250000000, 19531250 ]
   end
 
+  # Port of Bitcoin Core test vectors.
+  # https://github.com/bitcoin/bitcoin/blob/595a7bab23bc21049526229054ea1fff1a29c0bf/src/test/base58_tests.cpp#L139
+  it "valid address JSON tests" do
+    restore_network = Bitcoin.network_name
+
+    test_cases = JSON.parse(fixtures_file('base58_keys_valid.json'))
+    test_cases.each do |test_case|
+      # Single element arrays in tests are comments.
+      next if test_case.length == 1
+
+      address = test_case[0]
+      script = test_case[1].htb
+      is_privkey = test_case[2].fetch('isPrivkey')
+      is_swapcase_valid = test_case[2].fetch('tryCaseFlip', false)
+
+      Bitcoin.network =
+        case test_case[2].fetch('chain').to_sym
+        when :main then :bitcoin
+        when :test then :testnet3
+        when :regtest then :regtest
+        end
+
+      # This spec only tests address generation, not base58 private key encoding
+      next if is_privkey
+
+      computed_script = Bitcoin::Script.to_address_script(address)
+      computed_script.should == script
+
+      Bitcoin.valid_address?(address.swapcase).should == is_swapcase_valid
+
+      computed_address = Bitcoin::Script.new(script).get_address
+      computed_address.should == address
+    end
+
+    Bitcoin.network = restore_network
+  end
+
+  # Port of Bitcoin Core test vectors.
+  # https://github.com/bitcoin/bitcoin/blob/595a7bab23bc21049526229054ea1fff1a29c0bf/src/test/base58_tests.cpp#L179
+  it "invalid address JSON tests" do
+    restore_network = Bitcoin.network_name
+
+    test_cases = JSON.parse(fixtures_file('base58_keys_invalid.json'))
+    test_cases.each do |test_case|
+      address = test_case[0]
+
+      %i(bitcoin testnet3 regtest).each do |network_name|
+        Bitcoin.network = network_name
+
+        Bitcoin.valid_address?(address).should == false
+      end
+    end
+
+    Bitcoin.network = restore_network
+  end
 end
 
 
