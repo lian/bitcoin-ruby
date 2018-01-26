@@ -4,21 +4,12 @@ This is a ruby library for interacting with the bitcoin protocol/network.
 
 Some of the main features are:
 
+* Bitcoin::Key provides a high-level API for creating and handling keys/addresses
 * Bitcoin::Util provides the basic bitcoin utility functions for base58, ECC, etc.
 * Bitcoin::Protocol can parse/create all protocol messages
 * Bitcoin::Script implementation, create/run scripts and verify signatures
-* Bitcoin::Key provides a high-level API for creating and handling keys/addresses
 * Bitcoin::Builder provides a high-level API for creating transactions (and blocks)
 * Bitcoin::Litecoin implements all the litecoin-specific differences
-
-== Related Projects
-
-* toshi[https://github.com/coinbase/toshi]
-* bitcoin-ruby-blockchain[http://github.com/mhanne/bitcoin-ruby-blockchain]
-* bitcoin-ruby-node[http://github.com/mhanne/bitcoin-ruby-node]
-* bitcoin-ruby-wallet[http://github.com/mhanne/bitcoin-ruby-wallet]
-* bitcoin-ruby-gui[http://github.com/mhanne/bitcoin-ruby-gui]
-* namecoin-ruby[http://github.com/mhanne/namecoin-ruby]
 
 == Compatible with...
 
@@ -30,13 +21,9 @@ Some of the main features are:
 
 == Installation
 
-We assume you already have a ruby 1.9 or 2.0 compatible interpreter and rubygems environment.
-
- git clone https://github.com/lian/bitcoin-ruby.git; cd bitcoin-ruby
-
-if you want to have it available system-wide, just build the gem and install it:
-
- gem build bitcoin-ruby.gemspec && gem install bitcoin-ruby-0.0.11.gem
+ gem install bitcoin-ruby
+ # OR
+ git clone https://github.com/lian/bitcoin-ruby.git; cd bitcoin-ruby; bundle install
 
 Note that some aspects of the library (such as networking, storage, etc.) need
 additional dependencies which are not specified in the gemspec. The core requirements are
@@ -58,18 +45,13 @@ see EXAMPLES.
 
 Generate a Bitcoin::Key
 
- key = Bitcoin::generate_key
- key #=> [<privkey>, <pubkey>]
-
-Get the address from a public key
-
- address = Bitcoin::pubkey_to_address(key[1])
- address #=> <bitcoin address>
-
-Check if an address is valid
-
- Bitcoin::valid_address?(address) #=> true
-
+ key = Bitcoin::Key.generate
+ key.priv
+ key.pub
+ key.addr
+ sig = key.sign("data")
+ key.verify("data", sig)
+ recovered_key = Bitcoin::Key.from_base58(key.to_base58)
 
 === Blocks / Transactions parsing
 
