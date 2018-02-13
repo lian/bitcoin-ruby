@@ -192,6 +192,14 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     Bitcoin.address_type("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4").should == :witness_v0_keyhash
     Bitcoin.address_type("bc1qw508d6qejxtdg4y5r3zarvayr0c5xw7kv8f3t4").should == nil
     Bitcoin.address_type("bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3").should == :witness_v0_scripthash
+
+    # address_type recognizes Litecoin addresses encoded with the legacy P2SH version byte
+    Bitcoin.network = :litecoin
+    Bitcoin.address_type("3CkxTG25waxsmd13FFgRChPuGYba3ar36B").should == :p2sh
+    Bitcoin.address_type("MJy6m9S3thpJa8GwM8fm2LeJbFC22w18Vx").should == :p2sh
+    Bitcoin.address_type("2MyLngQnhzjzatKsB7XfHYoP9e2XUXSiBMM").should == nil
+
+    Bitcoin.network = :bitcoin
   end
 
   it 'Bitcoin#checksum' do

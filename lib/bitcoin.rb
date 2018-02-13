@@ -99,10 +99,16 @@ module Bitcoin
 
       hex = decode_base58(address) rescue nil
       if hex && hex.bytesize == 50 && address_checksum?(address)
+        # Litecoin updates the P2SH version byte, and this method should recognize both.
+        p2sh_versions = [p2sh_version]
+        if Bitcoin.network[:legacy_p2sh_versions]
+          p2sh_versions += Bitcoin.network[:legacy_p2sh_versions]
+        end
+
         case hex[0...2]
         when address_version
           return :hash160
-        when p2sh_version
+        when *p2sh_versions
           return :p2sh
         end
       end
@@ -727,6 +733,7 @@ module Bitcoin
       message_magic: "Litecoin Signed Message:\n",
       address_version: "30",
       p2sh_version: "32",
+      legacy_p2sh_versions: ["05"],
       privkey_version: "b0",
       bech32_hrp: "ltc",
       extended_privkey_version: "019d9cfe",
@@ -778,6 +785,7 @@ module Bitcoin
       magic_head: "\xfd\xd2\xc8\xf1",
       address_version: "6f",
       p2sh_version: "3a",
+      legacy_p2sh_versions: nil,
       privkey_version: "ef",
       bech32_hrp: "tltc",
       extended_privkey_version: "0436ef7d",
