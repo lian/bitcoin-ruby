@@ -83,7 +83,7 @@ module Bitcoin
 
     # get type of given +address+.
     def address_type(address)
-      segwit_decoded = decode_segwit_address(address)
+      segwit_decoded = decode_segwit_address(address) rescue nil
       if segwit_decoded
         witness_version, witness_program_hex = segwit_decoded
         witness_program = [witness_program_hex].pack("H*")
