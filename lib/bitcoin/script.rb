@@ -734,7 +734,7 @@ class Bitcoin::Script
 
     if is_witness_v0_keyhash? || is_witness_v0_scripthash?
       program_hex = chunks[1].unpack("H*").first
-      return Bitcoin.encode_segwit_address(0, program_hex)
+      return [Bitcoin.encode_segwit_address(0, program_hex)]
     end
 
     []

@@ -207,6 +207,8 @@ describe 'Bitcoin::Script' do
       Script.new(SCRIPT[3]).get_addresses
         .should == ["1JiaVc3N3U3CwwcLtzNX1Q4eYfeYxVjtuj",
         "19Fm2gY7qDTXriNTEhFY2wjxbHna3Gvenk", "1B6k6g1d2L975i7beAbiBRxfBWhxomPxvy"]
+      Script.new(SCRIPT[7]).get_addresses.
+        should == ["bc1qrcs9z5wfpstyw5mr6ydhhrprtnmv0454y6laym"]
     end
 
     it "should get op_return data" do
