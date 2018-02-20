@@ -14,3 +14,4 @@ spec/bitcoin/fixtures/fake_chain
 .rbx/
 /vendor
 .ruby-version
+.idea
