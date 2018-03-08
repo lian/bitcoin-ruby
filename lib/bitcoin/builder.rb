@@ -303,8 +303,13 @@ module Bitcoin
               @tx.in[i].script_sig = get_script_sig(inc, hash_type)
             end
             # double-check that the script_sig is valid to spend the given prev_script
-            if @prev_script && !inc.prev_out_forkid && !@tx.verify_input_signature(i, @prev_script)
-              raise "Signature error"
+            if @prev_script && !inc.prev_out_forkid
+              verified = if script.is_witness_v0_keyhash?
+                @tx.verify_witness_input_signature(i, @prev_script, inc.value)
+              else
+                @tx.verify_input_signature(i, @prev_script)
+              end
+              raise "Signature error" unless verified
             end
           elsif inc.has_multiple_keys?
             raise "Keys missing for multisig signing"
