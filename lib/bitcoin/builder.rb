@@ -299,6 +299,9 @@ module Bitcoin
             if script.is_witness_v0_keyhash? # for p2wpkh
               @tx.in[i].script_witness.stack << inc.sign(@sig_hash) + [Script::SIGHASH_TYPE[:all]].pack("C")
               @tx.in[i].script_witness.stack << inc.key.pub.htb
+
+              redeem_script = inc.instance_eval { @redeem_script }
+              @tx.in[i].script_sig = Bitcoin::Script.pack_pushdata(redeem_script) if redeem_script
             else
               @tx.in[i].script_sig = get_script_sig(inc, hash_type)
             end

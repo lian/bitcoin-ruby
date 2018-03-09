@@ -102,6 +102,7 @@ describe "Bitcoin::Builder" do
       end
     end
     tx.verify_witness_input_signature(0, script_pubkey, 600000000).should == true
+    tx.in[0].script_sig.should == ''
   end
 
   it "should failure to build tx with p2wpkh signatures due to inconsistency of key" do
@@ -115,6 +116,21 @@ describe "Bitcoin::Builder" do
         end
       end
     end.should.raise
+  end
+
+  it "should build p2sh transaction with p2wpkh signatures" do
+    key = Bitcoin::Key.new('619c335025c7f4012e556c2a58b2506e30b8511b53ade95ea316fd8c3286feb9')
+    witness_prog = '00141d0f172a0ecb48aee1be1f2687d2963ae33f71a1'.htb
+    script_pubkey = Bitcoin::Script.to_p2sh_script('bdbb096c26dd64dca06d0fbe8bb5e990ac3cdb42')
+    tx = build_tx do |t|
+      t.input do |i|
+        i.prev_out SecureRandom.hex(32), 0, script_pubkey, 600000000
+        i.redeem_script witness_prog
+        i.signature_key key
+      end
+    end
+    tx.verify_witness_input_signature(0, witness_prog, 600000000).should == true
+    tx.in[0].script_sig.should == Bitcoin::Script.pack_pushdata(witness_prog)
   end
 
   it "should allow txin.prev_out as tx or hash" do
