@@ -163,6 +163,10 @@ describe 'Bitcoin Address/Hash160/PubKey' do
       success = false if Bitcoin.valid_address?(addr[0]) != true
     }
     success.should == true
+
+    Bitcoin::network = :bitcoin_cash
+    Bitcoin.valid_address?("1D3KpY5kXnYhTbdCbZ9kXb2ZY7ZapD85cW").should == true
+    Bitcoin.valid_address?("mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt").should == false
   end
 
   it 'validate bitcoin public key' do
@@ -339,7 +343,7 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     Bitcoin.hash_mrkl_tree(["aa", "bb", "cc"]).last.should !=
       Bitcoin.hash_mrkl_tree(["aa", "bb", "cc", "cc"]).last
   end
-  
+
   it 'return a value even if a merkle branch is empty' do
     branch = []
     mrkl_index = 0
@@ -530,7 +534,7 @@ describe 'Bitcoin Address/Hash160/PubKey' do
     prev_block_bits = 0x1a05db8b
     last_retarget_time = 1348092851
     new_difficulty = Bitcoin.block_new_target(prev_height, prev_block_time, prev_block_bits, last_retarget_time)
-    
+
     Bitcoin.decode_compact_bits(new_difficulty.should) == Bitcoin.decode_compact_bits(0x1a057e08)
   end
 
