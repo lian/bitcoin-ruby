@@ -66,7 +66,10 @@ module Bitcoin
       def to_hash(options = {})
         h = { 'value' => "%.8f" % (@value / 100000000.0),
           'scriptPubKey' => parsed_script.to_string }
-        h["address"] = parsed_script.get_address  if parsed_script.is_hash160? && options[:with_address]
+        if options[:with_address]
+          addrs = parsed_script.get_addresses
+          h['address'] = addrs.first if addrs.size == 1
+        end
         h
       end
 
