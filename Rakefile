@@ -3,6 +3,10 @@ begin
 rescue LoadError
 end
 
+# libsecp256k1 repository URL
+LIBSECP256K1_REPO = 'https://github.com/bitcoin-core/secp256k1/'.freeze
+# Folder into which libsecp256k1 repository is cloned
+LIBSECP256K1_PATH = 'secp256k1'.freeze
 
 PROJECT_SPECS = ( FileList['spec/bitcoin/bitcoin_spec.rb'] +
                   FileList['spec/bitcoin/protocol/*_spec.rb'] +
@@ -24,8 +28,14 @@ task :bacon do
 
   specs = PROJECT_SPECS
   unless ENV["SECP256K1_LIB_PATH"]
-    # skip when missing secp256k1 shared lib
-    specs.delete_if{|i| ['secp256k1_spec.rb', 'bip143_spec.rb'].include?(File.basename(i))}
+    if File.exist?('secp256k1.so')
+      ENV['SECP256K1_LIB_PATH'] = File.join(Dir.pwd, 'secp256k1.so')
+    else
+      puts 'WARNING: Skipping tests that required libsecp256k1. Run ' \
+           '`rake build_libsecp256k1` to build.'
+      # skip when missing secp256k1 shared lib
+      specs.delete_if{|i| ['secp256k1_spec.rb', 'bip143_spec.rb'].include?(File.basename(i))}
+    end
   end
 
   # E.g. SPEC=specs/bitcoin/script/ to run script-related specs only.
@@ -92,6 +102,34 @@ task :bacon do
   exit 1 if some_failed
 end
 
+desc 'Compiles the libsecp256k1 library'
+task :build_libsecp256k1, [:force] do |_, args|
+  # Commit hash for libsecp256k1 from May 31, 2018.
+  COMMIT_HASH = '1e6f1f5ad5e7f1e3ef79313ec02023902bf8175c'.freeze
+
+  force = args[:force]
+
+  if Dir.exists?(LIBSECP256K1_PATH) && !force
+    puts "ERROR: Folder #{LIBSECP256K1_PATH} already exists, run with " \
+         "[force:true] to force cloning and building anyways."
+    exit 1
+  end
+
+  sh "rm -rf #{LIBSECP256K1_PATH}"
+  sh "git clone #{LIBSECP256K1_REPO}"
+  Dir.chdir(LIBSECP256K1_PATH) do
+    sh "git checkout #{COMMIT_HASH}"
+    sh './autogen.sh'
+    sh './configure --enable-module-recovery --with-pic'
+    sh 'make libsecp256k1.la'
+  end
+
+  libfile = 'libsecp256k1.so.0.0.0'
+  # Handle macOS libraries being different from Linux libraries
+  libfile = 'libsecp256k1.0.dylib' unless RUBY_PLATFORM.match(/darwin/).nil?
+  sh "cp #{LIBSECP256K1_PATH}/.libs/#{libfile} secp256k1.so"
+  sh "rm -rf #{LIBSECP256K1_PATH}"
+end
 
 desc 'Generate RDoc documentation'
 task :rdoc do
