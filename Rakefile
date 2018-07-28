@@ -3,6 +3,15 @@ begin
 rescue LoadError
 end
 
+begin
+  require 'rspec/core/rake_task'
+
+  RSpec::Core::RakeTask.new(:rspec) do |t|
+    t.rspec_opts = '--pattern spec-rspec/\*\*\{,/\*/\*\*\}/\*_spec.rb --default-path spec-rspec'
+  end
+rescue LoadError
+end
+
 # libsecp256k1 repository URL
 LIBSECP256K1_REPO = 'https://github.com/bitcoin-core/secp256k1/'.freeze
 # Folder into which libsecp256k1 repository is cloned

@@ -97,8 +97,9 @@ module Bitcoin
     end
 
     def self.init
+      @loaded ||= false
       return if @loaded
-      lib_path = [ ENV['SECP256K1_LIB_PATH'], 'vendor/bitcoin/src/secp256k1/.libs/libsecp256k1.so' ].find{|f| File.exists?(f.to_s) }
+      lib_path = [ ENV['SECP256K1_LIB_PATH'], 'vendor/bitcoin/src/secp256k1/.libs/libsecp256k1.so' ].find{|f| File.exist?(f.to_s) }
       ffi_load_functions(lib_path)
       @loaded = true
     end

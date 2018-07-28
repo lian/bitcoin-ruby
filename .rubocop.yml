@@ -1,0 +1,16 @@
+AllCops:
+  Exclude:
+    - 'Gemfile'
+
+Metrics/LineLength:
+  Max: 100
+
+Metrics/MethodLength:
+  Max: 80
+
+Metrics/BlockLength:
+  Max: 50
+  Exclude:
+    - 'spec/**/*'
+    - 'db/migrations/**/*'
+    - 'tasks/**/*'

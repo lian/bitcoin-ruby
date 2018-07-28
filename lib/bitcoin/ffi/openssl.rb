@@ -193,7 +193,7 @@ module OpenSSL_EC
     EC_GROUP_get_curve_GFp(group, field, nil, nil, nil)
 
     if BN_cmp(x, field) >= 0
-      [r, s, order, x, field].each{|i| BN_free(i) }
+      [r, s, order, x, field].each{|item| BN_free(item) }
       EC_KEY_free(eckey)
       return nil
     end
@@ -217,8 +217,8 @@ module OpenSSL_EC
     EC_KEY_set_public_key(eckey, big_q)
     BN_CTX_free(ctx)
 
-    [r, s, order, x, field, e, zero, rr, sor, eor].each{|i| BN_free(i) }
-    [big_r, big_q].each{|i| EC_POINT_free(i) }
+    [r, s, order, x, field, e, zero, rr, sor, eor].each{|item| BN_free(item) }
+    [big_r, big_q].each{|item| EC_POINT_free(item) }
 
     length = i2o_ECPublicKey(eckey, nil)
     buf = FFI::MemoryPointer.new(:uint8, length)
@@ -330,7 +330,7 @@ module OpenSSL_EC
     return false if version < 27 or version > 34
 
     compressed = (version >= 31) ? (version -= 4; true) : false
-    pubkey = recover_public_key_from_signature(msg32.read_string(32), signature, version-27, compressed)
+    recover_public_key_from_signature(msg32.read_string(32), signature, version-27, compressed)
   end
 
   # lifted from https://github.com/GemHQ/money-tree
@@ -346,7 +346,7 @@ module OpenSSL_EC
     point_1_pt = EC_POINT_hex2point(group, point_1_hex, nil, nil)
 
     sum_point = EC_POINT_new(group)
-    success = EC_POINT_add(group, sum_point, point_0_pt, point_1_pt, nil)
+    EC_POINT_add(group, sum_point, point_0_pt, point_1_pt, nil)
     hex = EC_POINT_point2hex(group, sum_point, POINT_CONVERSION_UNCOMPRESSED, nil)
     EC_KEY_free(eckey)
     EC_POINT_free(sum_point)
@@ -377,6 +377,7 @@ module OpenSSL_EC
   end
 
   def self.init_ffi_ssl
+    @ssl_loaded ||= false
     return if @ssl_loaded
     SSL_library_init()
     ERR_load_crypto_strings()
