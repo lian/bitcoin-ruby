@@ -16,6 +16,20 @@ PROJECT_SPECS = ( FileList['spec/bitcoin/bitcoin_spec.rb'] +
 
 RUBY = 'ruby' unless defined?(RUBY)
 
+# Attempts to configure the path to libsecp256k1.
+#
+# @return [Bool] true if the library was found and configured, false otherwise.
+def configure_libsecp256k1
+  return true if ENV["SECP256K1_LIB_PATH"]
+
+  if File.exist?('secp256k1.so')
+    ENV['SECP256K1_LIB_PATH'] = File.join(Dir.pwd, 'secp256k1.so')
+    return true
+  end
+
+  false
+end
+
 task :default => :bacon
 #
 # test runner
@@ -27,19 +41,19 @@ task :bacon do
   require 'matrix'
 
   specs = PROJECT_SPECS
-  unless ENV["SECP256K1_LIB_PATH"]
-    if File.exist?('secp256k1.so')
-      ENV['SECP256K1_LIB_PATH'] = File.join(Dir.pwd, 'secp256k1.so')
-    else
-      puts 'WARNING: Skipping tests that required libsecp256k1. Run ' \
-           '`rake build_libsecp256k1` to build.'
-      # skip when missing secp256k1 shared lib
-      specs.delete_if{|i| ['secp256k1_spec.rb', 'bip143_spec.rb'].include?(File.basename(i))}
+
+  if !configure_libsecp256k1
+    puts 'WARNING: Skipping tests that required libsecp256k1. Run ' \
+         '`rake build_libsecp256k1` to build.'
+
+    specs.delete_if do |spec|
+      ['secp256k1_spec.rb', 'bip143_spec.rb'].include?(File.basename(spec))
     end
   end
 
   # E.g. SPEC=specs/bitcoin/script/ to run script-related specs only.
-  if spec_mask = ENV["SPEC"]
+  spec_mask = ENV["SPEC"]
+  if !spec_mask.nil?
     specs.delete_if{|s| !s[spec_mask] }
   end
 
@@ -139,12 +153,19 @@ end
 
 desc 'Generate test coverage report'
 task :coverage do
+  if !configure_libsecp256k1
+    puts 'ERROR: Skipping code coverage tests since required library '\
+         'libsecp256k1 was not found. Run `rake build_libsecp256k1` to build.'
+    exit 1
+  end
+
   begin
     require 'simplecov'
   rescue LoadError
     puts "Simplecov not found. Run `gem install simplecov` to install it."
     exit
   end
+
   sh "bacon", *PROJECT_SPECS
   system('open coverage/index.html') if RUBY_PLATFORM.include? 'darwin'
 end

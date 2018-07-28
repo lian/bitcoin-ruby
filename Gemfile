@@ -1,15 +1,15 @@
 source "https://rubygems.org"
 
-# Specify your gem's dependencies in bitcoin-ruby.gemspec
 gemspec
 
-group :development do
-  gem 'eventmachine'
-  gem 'ffi'
-  gem 'scrypt'
-  gem 'minitest'
+group :test do
+  gem 'rake', '~> 12.3.1'
+  gem 'bacon', '~> 1.2.0'
+  gem 'simplecov', '~> 0.16.1'
+  gem 'minitest', '~> 5.11.3'
+end
 
-  gem "rake", ">= 0.8.0"
-  gem 'bacon', '>= 1.2.0'
-  #gem 'simplecov', require: false
+group :development do
+  gem 'pry', '~> 0.11.3'
+  gem 'pry-byebug', '~> 3.6.0'
 end

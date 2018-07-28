@@ -11,6 +11,10 @@ describe 'Bitcoin::Protocol::Parser (version)' do
     end
   end
 
+  before do
+    Bitcoin.network = :bitcoin
+  end
+
   it 'parses version packets' do
     pkt = Bitcoin::Protocol.pkt("version",
       ["60ea00000100000000000000b3c1424f00000000010000000000000000000000000000000000ffff7f000001e1ca010000000000000000000000000000000000ffff7f000001479d9525d0c7b30688ae122f626974636f696e2d71743a302e362e302f82b60000"].pack("H*"))
