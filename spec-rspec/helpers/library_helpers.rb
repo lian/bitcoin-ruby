@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+# Helpers for external library dependencies.
 module LibraryHelpers
   LIBSECP256K1_ENVVAR = 'SECP256K1_LIB_PATH'
 

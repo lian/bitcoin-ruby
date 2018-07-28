@@ -11,6 +11,9 @@ Metrics/MethodLength:
 Metrics/BlockLength:
   Max: 50
   Exclude:
-    - 'spec/**/*'
+    - 'spec-rspec/**/*'
     - 'db/migrations/**/*'
     - 'tasks/**/*'
+
+Style/UnpackFirst:
+  Enabled: false
