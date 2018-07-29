@@ -616,12 +616,12 @@ class Bitcoin::Script
 
   # Verify the script is only pushing data onto the stack
   def is_push_only?(script_data=nil)
-    check_pushes(push_only=true, canonical_only=false, (script_data||@input_script))
+    check_pushes(true, false, (script_data||@input_script))
   end
 
   # Make sure opcodes used to push data match their intended length ranges
   def pushes_are_canonical?(script_data=nil)
-    check_pushes(push_only=false, canonical_only=true, (script_data||@raw))
+    check_pushes(false, true, (script_data||@raw))
   end
 
   def check_pushes(push_only=true, canonical_only=false, buf)
@@ -1531,11 +1531,6 @@ class Bitcoin::Script
   def op_checkmultisigverify(check_callback, opts={})
     op_checkmultisig(check_callback, opts)
     op_verify
-  end
-
-  # op_eval: https://en.bitcoin.it/wiki/BIP_0012
-  #   the BIP was never accepted and must be handled as old OP_NOP1
-  def op_nop1
   end
 
   OPCODES_METHOD = Hash[*instance_methods.grep(/^op_/).map{|m|
