@@ -37,7 +37,7 @@ module Bitcoin
       end
 
       def parse_addr(payload)
-        count, payload = Protocol.unpack_var_int(payload)
+        _, payload = Protocol.unpack_var_int(payload)
         payload.each_byte.each_slice(30) do |i|
           @h.on_addr(Addr.new(i.pack("C*"))) rescue parse_error(:addr, i.pack("C*"))
         end
@@ -49,7 +49,7 @@ module Bitcoin
         count = Protocol.unpack_var_int_from_io(buf)
         headers = count.times.map{
           break if buf.eof?
-          b = Block.new; b.parse_data_from_io(buf, header_only=true); b
+          b = Block.new; b.parse_data_from_io(buf, true); b
         }
         @h.on_headers(headers)
       end
@@ -57,7 +57,7 @@ module Bitcoin
       def parse_mrkle_block(payload)
         return unless @h.respond_to?(:on_mrkle_block)
         b = Block.new
-        b.parse_data_from_io(payload, header_only= :filtered)
+        b.parse_data_from_io(payload, :filtered)
         @h.on_mrkle_block(b)
       end
 
@@ -65,7 +65,7 @@ module Bitcoin
         version, payload = payload.unpack('Va*')
         count,   payload = Protocol.unpack_var_int(payload)
         buf,     payload = payload.unpack("a#{count*32}a*")
-        hashes    = buf.each_byte.each_slice(32).map{|i| hash = i.reverse.pack("C32").hth }
+        hashes    = buf.each_byte.each_slice(32).map{|i| i.reverse.pack("C32").hth }
         stop_hash = payload[0..32].reverse_hth
         [version, hashes, stop_hash]
       end
@@ -122,7 +122,7 @@ module Bitcoin
 
       def handle_notfound_reply(payload)
         return unless @h.respond_to?(:on_notfound)
-        count, payload = Protocol.unpack_var_int(payload)
+        _, payload = Protocol.unpack_var_int(payload)
         payload.each_byte.each_slice(36) do |i|
           hash = i[4..-1].reverse.pack("C32")
           case i[0]
@@ -181,10 +181,10 @@ module Bitcoin
         end
       end
 
-      def parse_error *err
+      def parse_error(*err)
         @stats['total_errors'] += 1
         return unless @h.respond_to?(:on_error)
-        @h.on_error *err
+        @h.on_error(*err)
       end
 
     end # Parser

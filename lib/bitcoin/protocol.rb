@@ -62,7 +62,7 @@ module Bitcoin
 
     def self.unpack_var_string(payload)
       size, payload = unpack_var_int(payload)
-      size > 0 ? (string, payload = payload.unpack("a#{size}a*")) : [nil, payload]
+      size > 0 ? (_, payload = payload.unpack("a#{size}a*")) : [nil, payload]
     end
 
     def self.unpack_var_string_from_io(buf)
@@ -114,7 +114,11 @@ module Bitcoin
       length   = [payload.bytesize].pack("V")
       checksum = Digest::SHA256.digest(Digest::SHA256.digest(payload))[0...4]
       pkt      = "".force_encoding(BINARY)
-      pkt << Bitcoin.network[:magic_head].force_encoding(BINARY) << cmd.force_encoding(BINARY) << length << checksum << payload.force_encoding(BINARY)
+      pkt << Bitcoin.network[:magic_head].force_encoding(BINARY)
+      pkt << cmd.force_encoding(BINARY)
+      pkt << length
+      pkt << checksum
+      pkt << payload.dup.force_encoding(BINARY)
     end
 
     def self.version_pkt(from_id, from=nil, to=nil, last_block=nil, time=nil, user_agent=nil, version=nil)
