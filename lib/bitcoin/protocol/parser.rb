@@ -12,8 +12,6 @@ module Bitcoin
         @stats = { 'total_packets' => 0, 'total_bytes' => 0, 'total_errors' => 0 }
       end
 
-      def log; @log ||= Bitcoin::Logger.create("parser"); end
-
       # handles inv/getdata packets
       def parse_inv(payload, type=:put)
         count, payload = Protocol.unpack_var_int(payload)
@@ -174,11 +172,12 @@ module Bitcoin
       end
 
       def handle_stream_error(type, msg)
+        # TODO: replace by writing a real logger/exception handler
         case type
         when :close
-          log.debug {"closing packet stream (#{msg})"}
+          puts "closing packet stream (#{msg})"
         else
-          log.debug { [type, msg] }
+          puts [type, msg].inspect
         end
       end
 

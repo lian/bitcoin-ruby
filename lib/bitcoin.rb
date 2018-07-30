@@ -14,7 +14,6 @@ module Bitcoin
   autoload :P,          'bitcoin/protocol'
   autoload :Script,     'bitcoin/script'
   autoload :VERSION,    'bitcoin/version'
-  autoload :Logger,     'bitcoin/logger'
   autoload :Key,        'bitcoin/key'
   autoload :ExtKey,     'bitcoin/ext_key'
   autoload :ExtPubkey,  'bitcoin/ext_key'
