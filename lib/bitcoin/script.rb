@@ -550,7 +550,8 @@ class Bitcoin::Script
 
   # is this a :script_hash (pay-to-script-hash/p2sh) script?
   def is_pay_to_script_hash?
-    return false  if @inner_p2sh
+    @inner_p2sh ||= false
+    return false if @inner_p2sh
     if @previous_output_script
       chunks = Bitcoin::Script.new(@previous_output_script).chunks
       chunks.size == 3 &&

@@ -7,7 +7,7 @@ module FixtureHelpers
   # @param relative_path [String] relative path to fixture.
   # @return [String] path to fixture corresponding to relative_path.
   def fixtures_path(relative_path)
-    File.join(File.dirname(__FILE__), 'fixtures', relative_path)
+    File.join(File.dirname(__FILE__), '..', 'fixtures', relative_path)
   end
 
   # Return the binary contents of the given file.

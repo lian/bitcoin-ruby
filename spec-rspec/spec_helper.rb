@@ -2,6 +2,9 @@
 
 require_relative '../lib/bitcoin'
 
+# Used for loading some fixtures
+require 'json'
+
 # Require all test helper files.
 Dir['./spec-rspec/helpers/**/*.rb'].sort.each { |file| require file }
 
@@ -80,4 +83,9 @@ RSpec.configure do |config|
 
   # Include fixture helpers in all tests
   config.include FixtureHelpers
+
+  # Clear the network back to bitcoin mainnet before each test
+  config.before(:each) do
+    Bitcoin.network = :bitcoin
+  end
 end

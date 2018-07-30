@@ -67,6 +67,11 @@ module Bitcoin
       true
     rescue OpenSSL::PKey::EC::Point::Error
       false
+    rescue OpenSSL::BNError
+      # Occasionally, a malformed value will fail hex decoding completely and
+      # instead of raising an `OpenSSL::PKey::EC::Point::Error` will raise this
+      # error. We capture this failure mode here as well.
+      false
     end
 
     # get hash160 for given +address+. returns nil if address is invalid.
@@ -560,11 +565,11 @@ module Bitcoin
   end
 
   def self.network_name
-    @network
+    @network ||= nil
   end
 
   def self.network_project
-    @network_project
+    @network_project ||= nil
   end
 
   def self.network=(name)

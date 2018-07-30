@@ -17,8 +17,7 @@ LIBSECP256K1_REPO = 'https://github.com/bitcoin-core/secp256k1/'.freeze
 # Folder into which libsecp256k1 repository is cloned
 LIBSECP256K1_PATH = 'secp256k1'.freeze
 
-PROJECT_SPECS = ( FileList['spec/bitcoin/bitcoin_spec.rb'] +
-                  FileList['spec/bitcoin/protocol/*_spec.rb'] +
+PROJECT_SPECS = ( FileList['spec/bitcoin/protocol/*_spec.rb'] +
                   FileList['spec/bitcoin/script/*_spec.rb'] +
                   FileList['spec/bitcoin/trezor/*_spec.rb'] +
                   FileList['spec/bitcoin/*_spec.rb'] ).uniq
