@@ -577,7 +577,7 @@ module Bitcoin
     @network
   end
 
-  [:bitcoin, :namecoin, :litecoin, :dogecoin, :dogecoin_testnet].each do |n|
+  [:bitcoin, :bitcoin_cash, :namecoin, :litecoin, :dogecoin, :dogecoin_testnet].each do |n|
     instance_eval "def #{n}?; network_project == :#{n}; end"
   end
 
@@ -725,6 +725,38 @@ module Bitcoin
         250000 => "0000000005910c146e4e8d71e8aa6617393738a9794b43cf113076dbaf08460b",
       }
     })
+
+  NETWORKS[:bitcoin_cash] = NETWORKS[:bitcoin].merge({
+    project: :bitcoin_cash,
+    magic_head: "\xE3\xE1\xF3\xE8",
+    protocol_version: 70015,
+    dns_seeds: [
+      'seed.bitcoinabc.org',
+      'seed-abc.bitcoinforks.org',
+      'seed.bitprim.org',
+      'seed.deadalnix.me',
+      'seeder.criptolayer.net'
+    ]
+  })
+
+  NETWORKS[:bitcoin_cash_testnet3] = NETWORKS[:testnet3].merge({
+    project: :bitcoin_cash,
+    magic_head: "\xF4\xE5\xF3\xF4",
+    protocol_version: 70015,
+    dns_seeds: [
+      'testnet-seed.bitcoinabc.org',
+      'testnet-seed-abc.bitcoinforks.org',
+      'testnet-seed.bitprim.org',
+      'testnet-seed.deadalnix.me',
+      'testnet-seeder.criptolayer.net'
+    ]
+  })
+
+  NETWORKS[:bitcoin_cash_regtest] = NETWORKS[:regtest].merge({
+    project: :bitcoin_cash,
+    magic_head: "\xDA\xB5\xBF\xFA",
+    protocol_version: 70015
+  })
 
   NETWORKS[:litecoin] = NETWORKS[:bitcoin].merge({
       project: :litecoin,
