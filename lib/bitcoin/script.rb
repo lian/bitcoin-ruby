@@ -258,7 +258,7 @@ class Bitcoin::Script
     (chunks || @chunks).each.with_index{|i,idx|
       string << " " unless idx == 0
       string << case i
-      when Fixnum
+      when Bitcoin::Integer
         if opcode = OPCODES_PARSE_BINARY[i]
           opcode
         else
@@ -276,9 +276,10 @@ class Bitcoin::Script
   end
 
   def to_binary(chunks=nil)
+
     (chunks || @chunks).map{|chunk|
       case chunk
-      when Fixnum; [chunk].pack("C*")
+      when Bitcoin::Integer; [chunk].pack("C*")
       when String; self.class.pack_pushdata(chunk)
       end
     }.join
@@ -317,7 +318,7 @@ class Bitcoin::Script
   # Adds opcode (OP_0, OP_1, ... OP_CHECKSIG etc.)
   # Returns self.
   def append_opcode(opcode)
-    raise "Opcode should be a Fixnum" if !opcode.is_a?(Fixnum)
+    raise "Opcode should be an integer" if !opcode.is_a?(Bitcoin::Integer)
     if opcode >= OP_0 && opcode <= 0xff
       @chunks << opcode
     else
@@ -417,7 +418,7 @@ class Bitcoin::Script
         end
       end
 
-      buf << if i.is_a?(Fixnum)
+      buf << if i.is_a?(Bitcoin::Integer)
                i < 256 ? [i].pack("C") : [OpenSSL::BN.new(i.to_s,10).to_hex].pack("H*")
              else
                i
@@ -432,6 +433,7 @@ class Bitcoin::Script
 
   # run the script. +check_callback+ is called for OP_CHECKSIG operations
   def run(block_timestamp=Time.now.to_i, opts={}, &check_callback)
+    @parse_invalid ||= false
     return false if @parse_invalid
 
     #p [to_string, block_timestamp, is_p2sh?]
@@ -452,7 +454,7 @@ class Bitcoin::Script
       #p [@stack, @do_exec]
 
       case chunk
-      when Fixnum
+      when Bitcoin::Integer
         if DISABLED_OPCODES.include?(chunk)
           @script_invalid = true
           @debug << "DISABLED_#{OPCODES[chunk]}"
@@ -591,7 +593,7 @@ class Bitcoin::Script
 
   # is this a multisig script
   def is_multisig?
-    return false  if @chunks.size < 4 || !@chunks[-2].is_a?(Fixnum)
+    return false  if @chunks.size < 4 || !@chunks[-2].is_a?(Bitcoin::Integer)
     @chunks[-1] == OP_CHECKMULTISIG and get_multisig_pubkeys.all?{|c| c.is_a?(String) }
   end
 
@@ -931,7 +933,7 @@ class Bitcoin::Script
       elsif chunk == OP_CHECKMULTISIG || chunk == OP_CHECKMULTISIGVERIFY
         # Accurate mode counts exact number of pubkeys required (not signatures, but pubkeys!). Only used in P2SH scripts.
         # Inaccurate mode counts every multisig as 20 signatures.
-        if is_accurate && last_opcode && last_opcode.is_a?(Fixnum) && last_opcode >= OP_1 && last_opcode <= OP_16
+        if is_accurate && last_opcode && last_opcode.is_a?(Bitcoin::Integer) && last_opcode >= OP_1 && last_opcode <= OP_16
           count += ::Bitcoin::Script.decode_OP_N(last_opcode)
         else
           count += 20
@@ -957,7 +959,7 @@ class Bitcoin::Script
     data = nil
     @chunks.each do |chunk|
       case chunk
-      when Fixnum
+      when Bitcoin::Integer
         data = ""
         return 0 if chunk > OP_16
       when String
@@ -975,7 +977,7 @@ class Bitcoin::Script
     if opcode == OP_0
       return 0
     end
-    if opcode.is_a?(Fixnum) && opcode >= OP_1 && opcode <= OP_16
+    if opcode.is_a?(Bitcoin::Integer) && opcode >= OP_1 && opcode <= OP_16
       return opcode - (OP_1 - 1);
     else
       nil

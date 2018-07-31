@@ -74,6 +74,10 @@ module Bitcoin
 
       # create the block according to values specified via DSL.
       def block target
+        @version ||= nil
+        @mrkl_root ||= nil
+        @time ||= nil
+
         @block.ver = @version || 1
         @block.prev_block = @prev_block.htb.reverse
         @block.mrkl_root = @mrkl_root
@@ -354,12 +358,14 @@ module Bitcoin
     #
     # If you want to spend a multisig output, just provide an array of keys to #signature_key.
     class TxInBuilder
-      attr_reader :prev_tx, :prev_script, :redeem_script, :key, :coinbase_data, :prev_out_value, :prev_out_forkid
+      attr_reader :prev_tx, :prev_script, :key, :coinbase_data, :prev_out_forkid
 
       def initialize
         @txin = P::TxIn.new
         @prev_out_hash = "\x00" * 32
         @prev_out_index = 0
+        @redeem_script = nil
+        @key = nil
       end
 
       # Previous transaction that contains the output we want to use.
@@ -392,7 +398,7 @@ module Bitcoin
       end
 
       # Previous output's +value+. Needed when only spend segwit utxo.
-      def prev_out_value value
+      def prev_out_value(value)
         @prev_out_value = value
       end
 
@@ -402,7 +408,7 @@ module Bitcoin
 
       # Redeem script for P2SH output. To spend from a P2SH output, you need to provide
       # the script with a hash matching the P2SH address.
-      def redeem_script script
+      def redeem_script(script)
         @redeem_script = script
       end
 
@@ -427,6 +433,7 @@ module Bitcoin
 
       # Create the txin according to specified values
       def txin
+        @sequence ||= nil
         @txin.prev_out = @prev_out_hash
         @txin.prev_out_index = @prev_out_index
         @txin.sequence = @sequence || "\xff\xff\xff\xff"

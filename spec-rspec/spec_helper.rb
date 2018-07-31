@@ -83,6 +83,8 @@ RSpec.configure do |config|
 
   # Include fixture helpers in all tests
   config.include FixtureHelpers
+  config.include BlockHelpers
+  config.include Bitcoin::Builder
 
   # Clear the network back to bitcoin mainnet before each test
   config.before(:each) do

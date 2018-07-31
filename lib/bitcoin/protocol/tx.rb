@@ -469,8 +469,8 @@ module Bitcoin
 
       DEFAULT_BLOCK_PRIORITY_SIZE = 27000
 
-      def minimum_relay_fee; calculate_minimum_fee(allow_free=true, :relay); end
-      def minimum_block_fee; calculate_minimum_fee(allow_free=true, :block); end
+      def minimum_relay_fee; calculate_minimum_fee(true, :relay); end
+      def minimum_block_fee; calculate_minimum_fee(true, :block); end
 
       def calculate_minimum_fee(allow_free=true, mode=:block)
         # Base fee is either nMinTxFee or nMinRelayTxFee

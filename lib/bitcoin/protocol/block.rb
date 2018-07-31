@@ -111,7 +111,7 @@ module Bitcoin
           return buf if buf.eof?
 
           t = Tx.new(nil)
-          payload = t.parse_data_from_io(buf)
+          t.parse_data_from_io(buf)
           @tx << t
         }
 
@@ -161,6 +161,7 @@ module Bitcoin
 
       # convert to raw binary format
       def to_payload
+        @aux_pow ||= nil
         head = [@ver, @prev_block_hash, @mrkl_root, @time, @bits, @nonce].pack("Va32a32VVV")
         head << @aux_pow.to_payload  if @aux_pow
         return head if @tx.size == 0

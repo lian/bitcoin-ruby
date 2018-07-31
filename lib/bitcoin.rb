@@ -7,6 +7,20 @@ require 'openssl'
 require 'securerandom'
 
 module Bitcoin
+  # Determine the integer class to use. In older versions of ruby (< 2.4.0) the
+  # integer class is called Fixnum. In newer version (>= 2.4.0) Fixnum was
+  # deprecated in favor of a unification of Fixnum and BigInteger named Integer.
+  # Since this project strivers for backwards-compatability, we determine the
+  # appropriate class to use at initialization.
+  # 
+  # This avoids annoying deprecation warnings on newer versions for ourselves
+  # and library consumers.
+  Integer =
+    if Gem::Version.new(RUBY_VERSION) >= Gem::Version.new('2.4.0')
+      Integer
+    else
+      Fixnum
+    end
 
   autoload :Bech32,     'bitcoin/bech32'
   autoload :Connection, 'bitcoin/connection'
@@ -259,7 +273,7 @@ module Bitcoin
 
     def decode_target(target_bits)
       case target_bits
-      when Fixnum
+      when Bitcoin::Integer
         [ decode_compact_bits(target_bits).to_i(16), target_bits ]
       when String
         [ target_bits.to_i(16), encode_compact_bits(target_bits) ]
