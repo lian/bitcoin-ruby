@@ -161,6 +161,7 @@ class Bitcoin::Script
   attr_reader :raw, :chunks, :debug, :stack
 
   # create a new script. +bytes+ is typically input_script + output_script
+
   def initialize(input_script, previous_output_script=nil)
     @raw_byte_sizes = [input_script.bytesize, previous_output_script ? previous_output_script.bytesize : 0]
     @input_script, @previous_output_script = input_script, previous_output_script
@@ -182,6 +183,7 @@ class Bitcoin::Script
     @stack, @stack_alt, @exec_stack = [], [], []
     @last_codeseparator_index = 0
     @do_exec = true
+    @inner_p2sh = nil
   end
 
   class ::String
