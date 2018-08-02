@@ -165,6 +165,8 @@ class Bitcoin::Script
   def initialize(input_script, previous_output_script=nil)
     @raw_byte_sizes = [input_script.bytesize, previous_output_script ? previous_output_script.bytesize : 0]
     @input_script, @previous_output_script = input_script, previous_output_script
+    @parse_invalid = nil
+    @inner_p2sh = nil
 
     @raw = if @previous_output_script
              @input_script + [ Bitcoin::Script::OP_CODESEPARATOR ].pack("C") + @previous_output_script
@@ -183,7 +185,6 @@ class Bitcoin::Script
     @stack, @stack_alt, @exec_stack = [], [], []
     @last_codeseparator_index = 0
     @do_exec = true
-    @inner_p2sh = nil
   end
 
   class ::String
@@ -435,7 +436,6 @@ class Bitcoin::Script
 
   # run the script. +check_callback+ is called for OP_CHECKSIG operations
   def run(block_timestamp=Time.now.to_i, opts={}, &check_callback)
-    @parse_invalid ||= false
     return false if @parse_invalid
 
     #p [to_string, block_timestamp, is_p2sh?]

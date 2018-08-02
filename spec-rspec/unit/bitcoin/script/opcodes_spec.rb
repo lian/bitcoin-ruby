@@ -14,7 +14,7 @@ describe Bitcoin::Script do
 
   let(:script) { Bitcoin::Script.new('') }
 
-  # Invokes the given operation a script returning the final stack.
+  # Invoke the given operation on the initial stack provided.
   #
   # @param operation [String,Symbol] name of the operation to be performed.
   # @param stack [Array<String>] stack state prior to operation.
@@ -25,7 +25,7 @@ describe Bitcoin::Script do
     script.stack
   end
 
-  # Run the script defined by the given string and check if result matches hash.
+  # Run a script and check if result matches the hash provided.
   #
   # @param string [String] text script to be run.
   # @param hash [String] data expected to have been signed by key.
