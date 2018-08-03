@@ -2,7 +2,6 @@
 
 module Bitcoin
   module Protocol
-
     # Auxiliary Proof-of-Work for merge-mined blockchains
     # See https://en.bitcoin.it/wiki/Merged_mining_specification.
     #
@@ -20,7 +19,6 @@ module Bitcoin
     #
     # TODO: decode merged-mining data from +coinbase_tx+
     class AuxPow
-
       # Coinbase transaction of the parent block, linking to the child block
       attr_accessor :coinbase_tx
 
@@ -43,7 +41,7 @@ module Bitcoin
       attr_accessor :parent_block
 
       def initialize(data)
-        parse_data (data) if data
+        parse_data data if data
       end
 
       def parse_data(data)
@@ -58,42 +56,43 @@ module Bitcoin
 
         @block_hash = data.read(32)
         coinbase_branch_count = P.unpack_var_int_from_io(data)
+
         @coinbase_branch = []
-        coinbase_branch_count.times{
+        coinbase_branch_count.times do
           break if data.eof?
           @coinbase_branch << data.read(32).reverse.hth
-        }
-        @coinbase_index = data.read(4).unpack("I")[0]
+        end
+
+        @coinbase_index = data.read(4).unpack('I')[0]
 
         @chain_branch = []
         chain_branch_count = P.unpack_var_int_from_io(data)
-        chain_branch_count.times{
+        chain_branch_count.times do
           break if data.eof?
           @chain_branch << data.read(32).reverse.hth
-        }
+        end
 
-        @chain_index = data.read(4).unpack("I")[0]
+        @chain_index = data.read(4).unpack('I')[0]
         block = data.read(80)
         @parent_block = P::Block.new(block)
 
         data
       end
 
-
       def to_payload
         payload = @coinbase_tx.to_payload
         payload << @block_hash
         payload << P.pack_var_int(@coinbase_branch.count)
         payload << @coinbase_branch.map(&:htb).map(&:reverse).join
-        payload << [@coinbase_index].pack("I")
+        payload << [@coinbase_index].pack('I')
         payload << P.pack_var_int(@chain_branch.count)
         payload << @chain_branch.map(&:htb).map(&:reverse).join
-        payload << [@chain_index].pack("I")
+        payload << [@chain_index].pack('I')
         payload << @parent_block.to_payload
         payload
       end
 
-      def self.from_hash h
+      def self.from_hash(h)
         aux_pow = new(nil)
         aux_pow.instance_eval do
           @coinbase_tx = P::Tx.from_hash(h['coinbase_tx'])
@@ -116,8 +115,6 @@ module Bitcoin
           'chain_index' => @chain_index,
           'parent_block' => @parent_block.to_hash }
       end
-
     end
-
   end
 end

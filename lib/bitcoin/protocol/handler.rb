@@ -2,7 +2,7 @@
 
 module Bitcoin
   module Protocol
-
+    # https://en.bitcoin.it/wiki/Protocol_documentation#Message_types
     class Handler
       def on_inv_transaction(hash)
         p ['inv transaction', hash.hth]
@@ -29,15 +29,13 @@ module Bitcoin
       end
 
       def on_block(block)
-        #p ['block', block]
+        # p ['block', block]
         puts block.to_json
       end
 
       def on_error(message, payload)
         p ['error', message, payload]
       end
-
     end
-
   end
 end
