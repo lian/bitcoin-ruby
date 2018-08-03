@@ -86,7 +86,7 @@ module Bitcoin
         payload.each_byte.each_slice(30) do |i|
           begin
             @h.on_addr(Addr.new(i.pack('C*')))
-          rescue
+          rescue StandardError
             parse_error(:addr, i.pack('C*'))
           end
         end
@@ -206,6 +206,6 @@ module Bitcoin
         return unless @h.respond_to?(:on_error)
         @h.on_error(*err)
       end
-    end # Parser
+    end
   end
 end

@@ -2,13 +2,14 @@
 
 module Bitcoin
   module Protocol
-
+    # TxIn section of https://en.bitcoin.it/wiki/Protocol_documentation#tx
     class TxIn
-
       # previous output hash
       attr_accessor :prev_out_hash
-      alias :prev_out :prev_out_hash
-      def prev_out=(hash); @prev_out_hash = hash; end
+      alias prev_out prev_out_hash
+      def prev_out=(hash)
+        @prev_out_hash = hash
+      end
 
       # previous output index
       attr_accessor :prev_out_index
@@ -24,17 +25,17 @@ module Bitcoin
       # segregated witness
       attr_accessor :script_witness
 
-      alias :script   :script_sig
-      alias :script_length  :script_sig_length
+      alias script script_sig
+      alias script_length script_sig_length
 
       # sequence
       attr_accessor :sequence
 
-      DEFAULT_SEQUENCE = "\xff\xff\xff\xff"
-      NULL_HASH = "\x00"*32
+      DEFAULT_SEQUENCE = "\xff\xff\xff\xff".freeze
+      NULL_HASH = "\x00" * 32
       COINBASE_INDEX = 0xffffffff
 
-      def initialize *args
+      def initialize(*args)
         @prev_out_hash, @prev_out_index, @script_sig_length,
         @script_sig, @sequence = *args
         @script_sig_length ||= 0
@@ -49,13 +50,18 @@ module Bitcoin
           @prev_out_index == other.prev_out_index &&
           @script_sig == other.script_sig &&
           @sequence == other.sequence
-      rescue
+      rescue StandardError
         false
       end
-      
+
+      def is_final? # rubocop:disable Naming/PredicateName
+        warn '[DEPRECATION] `TxIn.is_final?` is deprecated. Use `final?` instead.'
+        final?
+      end
+
       # returns true if the sequence number is final (DEFAULT_SEQUENCE)
-      def is_final?
-        self.sequence == DEFAULT_SEQUENCE
+      def final?
+        sequence == DEFAULT_SEQUENCE
       end
 
       # parse raw binary data for transaction input
@@ -66,11 +72,13 @@ module Bitcoin
       end
 
       def self.from_io(buf)
-        txin = new; txin.parse_data_from_io(buf); txin
+        txin = new
+        txin.parse_data_from_io(buf)
+        txin
       end
 
       def parse_data_from_io(buf)
-        @prev_out_hash, @prev_out_index = buf.read(36).unpack("a32V")
+        @prev_out_hash, @prev_out_index = buf.read(36).unpack('a32V')
         @script_sig_length = Protocol.unpack_var_int_from_io(buf)
         @script_sig = buf.read(@script_sig_length)
         @sequence = buf.read(4)
@@ -80,40 +88,39 @@ module Bitcoin
         @parsed_script ||= Bitcoin::Script.new(script_sig)
       end
 
-      def to_payload(script=@script_sig, sequence=@sequence)
-        [@prev_out_hash, @prev_out_index].pack("a32V") << Protocol.pack_var_int(script.bytesize) << script << (sequence || DEFAULT_SEQUENCE)
+      def to_payload(script = @script_sig, sequence = @sequence)
+        [@prev_out_hash, @prev_out_index].pack('a32V') << Protocol.pack_var_int(script.bytesize) \
+                                                       << script << (sequence || DEFAULT_SEQUENCE)
       end
 
-      def to_hash(options = {})
-        t = { 'prev_out'  => { 'hash' => @prev_out_hash.reverse_hth, 'n' => @prev_out_index } }
+      def to_hash(_options = {})
+        t = { 'prev_out' => { 'hash' => @prev_out_hash.reverse_hth, 'n' => @prev_out_index } }
         if coinbase?
-          t['coinbase']  = @script_sig.unpack("H*")[0]
+          t['coinbase']  = @script_sig.unpack('H*')[0]
         else # coinbase tx
           t['scriptSig'] = Bitcoin::Script.new(@script_sig).to_string
         end
-        t['sequence']  = @sequence.unpack("V")[0] unless @sequence == "\xff\xff\xff\xff"
-        t['witness'] = @script_witness.stack.map{|s|s.bth} unless @script_witness.empty?
+        t['sequence'] = @sequence.unpack('V')[0] unless @sequence == "\xff\xff\xff\xff"
+        t['witness'] = @script_witness.stack.map(&:bth) unless @script_witness.empty?
         t
       end
 
       def self.from_hash(input)
         previous_hash         = input['previous_transaction_hash'] || input['prev_out']['hash']
         previous_output_index = input['output_index'] || input['prev_out']['n']
-        txin = TxIn.new([ previous_hash ].pack('H*').reverse, previous_output_index)
-        if input['coinbase']
-          txin.script_sig = [ input['coinbase'] ].pack("H*")
-        else
-          txin.script_sig = Script.binary_from_string(input['scriptSig'] || input['script'])
-        end
-        if input['witness']
-          input['witness'].each {|w| txin.script_witness.stack << w.htb}
-        end
-        txin.sequence = [ input['sequence'] || 0xffffffff ].pack("V")
+        txin = TxIn.new([previous_hash].pack('H*').reverse, previous_output_index)
+        txin.script_sig = if input['coinbase']
+                            [input['coinbase']].pack('H*')
+                          else
+                            Script.binary_from_string(input['scriptSig'] || input['script'])
+                          end
+        input['witness'].each { |w| txin.script_witness.stack << w.htb } if input['witness']
+        txin.sequence = [input['sequence'] || 0xffffffff].pack('V')
         txin
       end
 
       def self.from_hex_hash(hash, index)
-        TxIn.new([hash].pack("H*").reverse, index, 0)
+        TxIn.new([hash].pack('H*').reverse, index, 0)
       end
 
       # previous output in hex
@@ -131,13 +138,11 @@ module Bitcoin
         @script_sig_length = script_sig.bytesize
         @script_sig = script_sig
       end
-      alias :script= :script_sig=
+      alias script= script_sig=
 
       def add_signature_pubkey_script(sig, pubkey_hex)
-        self.script = Bitcoin::Script.to_signature_pubkey_script(sig, [pubkey_hex].pack("H*"))
+        self.script = Bitcoin::Script.to_signature_pubkey_script(sig, [pubkey_hex].pack('H*'))
       end
-
     end
-
   end
 end
