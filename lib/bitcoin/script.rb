@@ -167,6 +167,7 @@ class Bitcoin::Script
     @input_script, @previous_output_script = input_script, previous_output_script
     @parse_invalid = nil
     @inner_p2sh = nil
+    @script_codeseparator_index = nil
 
     @raw = if @previous_output_script
              @input_script + [ Bitcoin::Script::OP_CODESEPARATOR ].pack("C") + @previous_output_script
