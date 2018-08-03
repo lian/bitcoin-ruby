@@ -2,11 +2,8 @@ AllCops:
   Exclude:
     - 'Gemfile'
 
-Metrics/LineLength:
+Metrics/AbcSize:
   Max: 100
-
-Metrics/MethodLength:
-  Max: 80
 
 Metrics/BlockLength:
   Max: 50
@@ -14,6 +11,33 @@ Metrics/BlockLength:
     - 'spec/**/*'
     - 'db/migrations/**/*'
     - 'tasks/**/*'
+
+Metrics/ClassLength:
+  Max: 500
+
+Metrics/CyclomaticComplexity:
+  Max: 10
+
+Metrics/LineLength:
+  Max: 100
+
+Metrics/MethodLength:
+  Max: 80
+
+Metrics/PerceivedComplexity:
+  Max: 10
+
+Naming/UncommunicativeMethodParamName:
+  Enabled: False
+
+Style/FrozenStringLiteralComment:
+  Enabled: False
+
+Style/NumericPredicate:
+  Enabled: false
+
+Style/SafeNavigation:
+  Enabled: false
 
 Style/UnpackFirst:
   Enabled: false
