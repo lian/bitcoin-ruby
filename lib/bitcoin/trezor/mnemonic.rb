@@ -20,6 +20,7 @@ module Bitcoin
       end
 
       def self.wordlist
+        @wordlist ||= nil
         return @wordlist if @wordlist
         @wordlist = WORDLIST_ENGLISH.split(/[ \n]/).map{|i| i.strip }
         if @wordlist.size != (radix=2048)
