@@ -86,7 +86,7 @@ module Bitcoin
       new_key.depth = depth + 1
       new_key.number = number
       new_key.parent_fingerprint = fingerprint
-      if number > (2**31 -1)
+      if number > (2**31 - 1)
         data = [0x00].pack('C') << priv_key.priv.htb << [number].pack('N')
       else
         data = priv_key.pub.htb << [number].pack('N')
@@ -164,7 +164,7 @@ module Bitcoin
       new_key.depth = depth + 1
       new_key.number = number
       new_key.parent_fingerprint = fingerprint
-      raise 'hardened key is not support' if number > (2**31 -1)
+      raise 'hardened key is not support' if number > (2**31 - 1)
       data = pub.htb << [number].pack('N')
       l = Bitcoin.hmac_sha512(chain_code, data)
       left = OpenSSL::BN.from_hex(l[0..31].bth)

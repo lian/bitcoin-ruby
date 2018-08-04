@@ -8,3 +8,4 @@ script:
   - bundle exec rake build_libsecp256k1
   - bundle exec rake bacon
   - bundle exec rake rspec
+  - bundle exec rake coin_spec[dogecoin]

@@ -7,7 +7,11 @@ begin
   require 'rspec/core/rake_task'
 
   RSpec::Core::RakeTask.new(:rspec) do |t|
-    t.rspec_opts = '--pattern spec-rspec/\*\*\{,/\*/\*\*\}/\*_spec.rb --default-path spec-rspec'
+    t.rspec_opts = '--pattern spec-rspec/\*\*\{,/\*/\*\*\}/\*_spec.rb --exclude spec-rspec/unit/integrations/* --default-path spec-rspec'
+  end
+
+  RSpec::Core::RakeTask.new(:coin_spec, :coin) do |t, args|
+    t.rspec_opts = "--pattern spec-rspec/unit/integrations/#{args[:coin]}_spec.rb --default-path spec-rspec"
   end
 rescue LoadError
 end

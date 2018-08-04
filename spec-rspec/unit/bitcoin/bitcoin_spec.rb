@@ -4,6 +4,8 @@ require 'pry'
 require 'spec_helper'
 
 describe Bitcoin do
+  before { Bitcoin.network = :bitcoin }
+
   describe '.hash160' do
     it 'produces the expected public key hash' do
       # 65 bytes (8 bit version + 512 bits) pubkey in hex (130 bytes)
