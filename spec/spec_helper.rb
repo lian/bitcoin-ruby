@@ -4,9 +4,25 @@ require_relative '../lib/bitcoin'
 
 # Used for loading some fixtures
 require 'json'
+# Code coverage generation
+require 'simplecov'
+
+SimpleCov.start do
+  add_group('Bitcoin') do |file|
+    ['bitcoin.rb', 'opcodes.rb', 'script.rb', 'key.rb'].include?(
+      file.filename.split('/').last
+    )
+  end
+  add_group 'Protocol', 'lib/bitcoin/protocol'
+  add_group('Utilities') do |file|
+    ['logger.rb', 'openssl.rb'].include?(
+      file.filename.split('/').last
+    )
+  end
+end
 
 # Require all test helper files.
-Dir['./spec-rspec/helpers/**/*.rb'].sort.each { |file| require file }
+Dir['./spec/helpers/**/*.rb'].sort.each { |file| require file }
 
 # Configure external libraries
 LibraryHelpers.configure_libsecp256k1

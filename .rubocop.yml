@@ -11,7 +11,7 @@ Metrics/MethodLength:
 Metrics/BlockLength:
   Max: 50
   Exclude:
-    - 'spec-rspec/**/*'
+    - 'spec/**/*'
     - 'db/migrations/**/*'
     - 'tasks/**/*'
 
