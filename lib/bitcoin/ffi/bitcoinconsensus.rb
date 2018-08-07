@@ -2,11 +2,10 @@
 
 require 'ffi'
 
-# binding for src/.libs/bitcoinconsensus.so (https://github.com/bitcoin/bitcoin)
-# tag: v0.11.0
-# commit: d26f951802c762de04fb68e1a112d611929920ba
-
 module Bitcoin
+  # binding for src/.libs/bitcoinconsensus.so (https://github.com/bitcoin/bitcoin)
+  # tag: v0.11.0
+  # commit: d26f951802c762de04fb68e1a112d611929920ba
   module BitcoinConsensus
     extend FFI::Library
 
@@ -21,10 +20,10 @@ module Bitcoin
     SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_NOPS = (1 << 7)
     SCRIPT_VERIFY_CLEANSTACK = (1 << 8)
 
-    ERR_CODES = { 0 => :ok, 1 => :tx_index, 2 => :tx_size_mismatch, 3 => :tx_deserialize }
+    ERR_CODES = { 0 => :ok, 1 => :tx_index, 2 => :tx_size_mismatch, 3 => :tx_deserialize }.freeze
 
     def self.ffi_load_functions(file)
-      class_eval <<-RUBY
+      class_eval <<-RUBY # rubocop:disable Style/EvalWithLocation
         ffi_lib [ %[#{file}] ]
         attach_function :bitcoinconsensus_version, [], :uint
 
@@ -36,7 +35,9 @@ module Bitcoin
     end
 
     def self.lib_available?
-      @__lib_path ||= [ ENV['BITCOINCONSENSUS_LIB_PATH'], 'vendor/bitcoin/src/.libs/libbitcoinconsensus.so' ].find{|f| File.exists?(f.to_s) }
+      @__lib_path ||= [ # rubocop:disable Naming/MemoizedInstanceVariableName
+        ENV['BITCOINCONSENSUS_LIB_PATH'], 'vendor/bitcoin/src/.libs/libbitcoinconsensus.so'
+      ].find { |f| File.exist?(f.to_s) }
     end
 
     def self.init
@@ -55,21 +56,24 @@ module Bitcoin
     def self.verify_script(input_index, script_pubkey, tx_payload, script_flags)
       init
 
-      scriptPubKey = FFI::MemoryPointer.new(:uchar, script_pubkey.bytesize).put_bytes(0, script_pubkey)
-      txTo = FFI::MemoryPointer.new(:uchar, tx_payload.bytesize).put_bytes(0, tx_payload)
+      script_pub_key = FFI::MemoryPointer.new(
+        :uchar, script_pubkey.bytesize
+      ).put_bytes(0, script_pubkey)
+      tx_to = FFI::MemoryPointer.new(:uchar, tx_payload.bytesize).put_bytes(0, tx_payload)
       error_ret = FFI::MemoryPointer.new(:uint)
 
-      ret = bitcoinconsensus_verify_script(scriptPubKey, scriptPubKey.size, txTo, txTo.size, input_index, script_flags, error_ret)
+      ret = bitcoinconsensus_verify_script(
+        script_pub_key, script_pub_key.size, tx_to, tx_to.size, input_index, script_flags, error_ret
+      )
 
       case ret
       when 0
         false
       when 1
-        (ERR_CODES[error_ret.read_int] == :ok) ? true : false
+        ERR_CODES[error_ret.read_int] == :ok
       else
-        raise "error invalid result"
+        raise 'error invalid result'
       end
     end
-
   end
 end
