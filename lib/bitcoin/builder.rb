@@ -50,23 +50,17 @@ module Bitcoin
       end
 
       # specify block version. this is usually not necessary. defaults to 1.
-      def version(v)
-        warn '[DEPRECATION] `BlockBuilder.version` is deprecated. ' \
-             'Use .version= instead.'
+      def version(v) # rubocop:disable Style/TrivialAccessors
         @version = v
       end
 
       # set the hash of the previous block.
-      def prev_block(hash)
-        warn '[DEPRECATION] `BlockBuilder.prev_block` is deprecated. ' \
-             'Use .prev_block= instead.'
+      def prev_block(hash) # rubocop:disable Style/TrivialAccessors
         @prev_block = hash
       end
 
       # set the block timestamp (defaults to current time).
-      def time(time)
-        warn '[DEPRECATION] `BlockBuilder.time` is deprecated. ' \
-             'Use .time= instead.'
+      def time(time) # rubocop:disable Style/TrivialAccessors
         @time = time
       end
 
