@@ -1,9 +1,10 @@
 module Bitcoin
+  # https://github.com/bitcoin/bips/blob/master/bip-0037.mediawiki
   class BloomFilter
     SEED_SHIFT = 0xfba4c795
-    BIT_MASK = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80]
+    BIT_MASK = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80].freeze
 
-    MAX_FILTER_SIZE = 36000
+    MAX_FILTER_SIZE = 36_000
     MAX_HASH_FUNCS = 50
 
     # flags for filterload message
@@ -53,8 +54,8 @@ module Bitcoin
 
       # using #ceil instead of #floor may be better, but it's bitcoinj's way
 
-      calc_m = (-Math.log(fp_rate) * elements / ln2 / ln2 / 8).floor;
-      @filter_size = [1, [calc_m, MAX_FILTER_SIZE].min].max;
+      calc_m = (-Math.log(fp_rate) * elements / ln2 / ln2 / 8).floor
+      @filter_size = [1, [calc_m, MAX_FILTER_SIZE].min].max
       @filter = "\x00" * @filter_size
 
       calc_k = (@filter_size * 8 * ln2 / elements).floor
@@ -62,7 +63,7 @@ module Bitcoin
     end
 
     def rotate_left32(x, r)
-      return (x << r) | (x >> (32 - r))
+      (x << r) | (x >> (32 - r))
     end
 
     #
@@ -80,13 +81,15 @@ module Bitcoin
       # body
       while i < num_blocks
         k1 = (object[i] & 0xFF) |
-            ((object[i + 1] & 0xFF) << 8) |
-            ((object[i + 2] & 0xFF) << 16) |
-            ((object[i + 3] & 0xFF) << 24)
+             ((object[i + 1] & 0xFF) << 8) |
+             ((object[i + 2] & 0xFF) << 16) |
+             ((object[i + 3] & 0xFF) << 24)
 
-        k1 *= c1; k1 &= 0xffffffff
+        k1 *= c1
+        k1 &= 0xffffffff
         k1 = rotate_left32(k1, 15)
-        k1 *= c2; k1 &= 0xffffffff
+        k1 *= c2
+        k1 &= 0xffffffff
 
         h1 ^= k1
         h1 = rotate_left32(h1, 13)
@@ -97,29 +100,29 @@ module Bitcoin
 
       k1 = 0
       flg = object.length & 3
-      if flg >= 3
-        k1 ^= (object[num_blocks + 2] & 0xff) << 16
-      end
-      if flg >= 2
-        k1 ^= (object[num_blocks + 1] & 0xff) << 8
-      end
+      k1 ^= (object[num_blocks + 2] & 0xff) << 16 if flg >= 3
+      k1 ^= (object[num_blocks + 1] & 0xff) << 8 if flg >= 2
       if flg >= 1
         k1 ^= (object[num_blocks] & 0xff)
-        k1 *= c1; k1 &= 0xffffffff
+        k1 *= c1
+        k1 &= 0xffffffff
         k1 = rotate_left32(k1, 15)
-        k1 *= c2; k1 &= 0xffffffff
+        k1 *= c2
+        k1 &= 0xffffffff
         h1 ^= k1
       end
 
       # finalization
       h1 ^= object.length
       h1 ^= h1 >> 16
-      h1 *= 0x85ebca6b; h1 &= 0xffffffff
+      h1 *= 0x85ebca6b
+      h1 &= 0xffffffff
       h1 ^= h1 >> 13
-      h1 *= 0xc2b2ae35; h1 &= 0xffffffff
+      h1 *= 0xc2b2ae35
+      h1 &= 0xffffffff
       h1 ^= h1 >> 16
 
-      return (h1 & 0xffffffff) % (@filter_size * 8)
+      (h1 & 0xffffffff) % (@filter_size * 8)
     end
   end
 end
