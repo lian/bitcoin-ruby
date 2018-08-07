@@ -1,15 +1,13 @@
 # encoding: ascii-8bit
 
 module Bitcoin
-
   # Optional DSL to help create blocks and transactions.
   #
   # see also BlockBuilder, TxBuilder, TxInBuilder, TxOutBuilder, ScriptBuilder
   module Builder
-
     # build a Bitcoin::Protocol::Block matching the given +target+.
     # see BlockBuilder for details.
-    def build_block(target = "00".ljust(64, 'f'))
+    def build_block(target = '00'.ljust(64, 'f'))
       c = BlockBuilder.new
       yield c
       c.block(target)
@@ -17,7 +15,7 @@ module Bitcoin
 
     # build a Bitcoin::Protocol::Tx.
     # see TxBuilder for details.
-    def build_tx opts = {}
+    def build_tx(opts = {})
       c = TxBuilder.new
       yield c
       c.tx opts
@@ -45,35 +43,46 @@ module Bitcoin
     #
     # See Bitcoin::Builder::TxBuilder for details on building transactions.
     class BlockBuilder
+      attr_writer :prev_block, :time, :version
 
       def initialize
         @block = P::Block.new(nil)
       end
 
       # specify block version. this is usually not necessary. defaults to 1.
-      def version v
+      def version(v)
+        warn '[DEPRECATION] `BlockBuilder.version` is deprecated. ' \
+             'Use .version= instead.'
         @version = v
       end
 
       # set the hash of the previous block.
-      def prev_block hash
+      def prev_block(hash)
+        warn '[DEPRECATION] `BlockBuilder.prev_block` is deprecated. ' \
+             'Use .prev_block= instead.'
         @prev_block = hash
       end
 
       # set the block timestamp (defaults to current time).
-      def time time
+      def time(time)
+        warn '[DEPRECATION] `BlockBuilder.time` is deprecated. ' \
+             'Use .time= instead.'
         @time = time
       end
 
       # add transactions to the block (see TxBuilder).
-      def tx tx = nil
-        tx ||= ( c = TxBuilder.new; yield c; c.tx )
+      def tx(tx = nil)
+        tx ||= begin
+          c = TxBuilder.new
+          yield c
+          c.tx
+        end
         @block.tx << tx
         tx
       end
 
       # create the block according to values specified via DSL.
-      def block target
+      def block(target)
         @version ||= nil
         @mrkl_root ||= nil
         @time ||= nil
@@ -86,33 +95,31 @@ module Bitcoin
         @block.mrkl_root = Bitcoin.hash_mrkl_tree(@block.tx.map(&:hash)).last.htb.reverse
         find_hash(target)
         block = P::Block.new(@block.to_payload)
-        raise "Payload Error"  unless block.to_payload == @block.to_payload
+        raise 'Payload Error' unless block.to_payload == @block.to_payload
         block
       end
 
       private
 
       # increment nonce/time to find a block hash matching the +target+.
-      def find_hash target
+      def find_hash(target)
         @block.bits = Bitcoin.encode_compact_bits(target)
         t = Time.now
         @block.recalc_block_hash
         until @block.hash.to_i(16) < target.to_i(16)
           @block.nonce += 1
           @block.recalc_block_hash
-          if @block.nonce == 100000
-            if t
-              tt = 1 / ((Time.now - t) / 100000) / 1000
-              print "\r%.2f khash/s" % tt
-            end
-            t = Time.now
-            @block.time = Time.now.to_i
-            @block.nonce = 0
-            $stdout.flush
+          next unless @block.nonce == 100_000
+          if t
+            tt = 1 / ((Time.now - t) / 100_000) / 1000
+            print format("\r%.2f khash/s", tt)
           end
+          t = Time.now
+          @block.time = Time.now.to_i
+          @block.nonce = 0
+          $stdout.flush
         end
       end
-
     end
 
     # DSL to create Bitcoin::Protocol::Tx used by Builder#build_tx.
@@ -133,20 +140,21 @@ module Bitcoin
     #
     # See TxInBuilder and TxOutBuilder for details on how to build in/outputs.
     class TxBuilder
-
       def initialize
         @tx = P::Tx.new(nil)
-        @tx.ver, @tx.lock_time = 1, 0
-        @ins, @outs = [], []
+        @tx.ver = 1
+        @tx.lock_time = 0
+        @ins = []
+        @outs = []
       end
 
       # specify tx version. this is usually not necessary. defaults to 1.
-      def version n
+      def version(n)
         @tx.ver = n
       end
 
       # specify tx lock_time. this is usually not necessary. defaults to 0.
-      def lock_time n
+      def lock_time(n)
         @tx.lock_time = n
       end
 
@@ -158,10 +166,10 @@ module Bitcoin
       end
 
       # add an output to the transaction (see TxOutBuilder).
-      def output value = nil, recipient = nil, type = :address
+      def output(value = nil, recipient = nil, type = :address)
         c = TxOutBuilder.new
         c.value(value)  if value
-        c.to(recipient, type)  if recipient
+        c.to(recipient, type) if recipient
         yield c  if block_given?
         @outs << c
       end
@@ -176,14 +184,15 @@ module Bitcoin
       # to the given address. The :leave_fee option can be used in this
       # case to specify a tx fee that should be left unclaimed by the
       # change output.
-      def tx opts = {}
+      # rubocop:disable CyclomaticComplexity,PerceivedComplexity
+      def tx(opts = {})
         return @tx  if @tx.hash
 
         if opts[:change_address] && !opts[:input_value]
           raise "Must give 'input_value' when auto-generating change output!"
         end
-        @ins.each {|i| @tx.add_in(i.txin) }
-        @outs.each {|o| @tx.add_out(o.txout) }
+        @ins.each { |i| @tx.add_in(i.txin) }
+        @outs.each { |o| @tx.add_out(o.txout) }
         if opts[:change_address]
           output_value = @tx.out.map(&:value).inject(:+) || 0
           change_value = opts[:input_value] - output_value
@@ -206,7 +215,7 @@ module Bitcoin
         end
 
         # run our tx through an encode/decode cycle to make sure that the binary format is sane
-        raise "Payload Error"  unless P::Tx.new(@tx.to_witness_payload).to_payload == @tx.to_payload
+        raise 'Payload Error' unless P::Tx.new(@tx.to_witness_payload).to_payload == @tx.to_payload
         @tx.instance_eval do
           @payload = to_payload
           @hash = hash_from_payload(@payload)
@@ -214,38 +223,44 @@ module Bitcoin
 
         @tx
       end
+      # rubocop:enable CyclomaticComplexity,PerceivedComplexity
 
       # coinbase inputs don't need to be signed, they only include the given +coinbase_data+
-      def include_coinbase_data i, inc
-        script_sig = [inc.coinbase_data].pack("H*")
+      def include_coinbase_data(i, inc)
+        script_sig = [inc.coinbase_data].pack('H*')
         @tx.in[i].script_sig_length = script_sig.bytesize
         @tx.in[i].script_sig = script_sig
       end
 
       def sig_hash_and_all_keys_exist?(inc, sig_script)
-        return false unless @sig_hash && inc.has_keys?
+        return false unless @sig_hash && inc.keys?
         script = Bitcoin::Script.new(sig_script)
-        return true if script.is_hash160? || script.is_pubkey? || script.is_witness_v0_keyhash? || (Bitcoin.namecoin? && script.is_namecoin?)
+        return true if script.is_hash160? ||
+                       script.is_pubkey? ||
+                       script.is_witness_v0_keyhash? ||
+                       (Bitcoin.namecoin? && script.is_namecoin?)
         if script.is_multisig?
-          return inc.has_multiple_keys? && inc.key.size >= script.get_signatures_required
+          return inc.multiple_keys? && inc.key.size >= script.get_signatures_required
         end
-        raise "Script type must be hash160, pubkey, p2wpkh or multisig"
+        raise 'Script type must be hash160, pubkey, p2wpkh or multisig'
       end
 
       def add_empty_script_sig_to_input(i)
         @tx.in[i].script_sig_length = 0
-        @tx.in[i].script_sig = ""
+        @tx.in[i].script_sig = ''
         # add the sig_hash that needs to be signed, so it can be passed on to a signing device
         @tx.in[i].sig_hash = @sig_hash
-        # add the address the sig_hash needs to be signed with as a convenience for the signing device
-        @tx.in[i].sig_address = Script.new(@prev_script).get_address  if @prev_script
+        # add the address the sig_hash needs to be signed with as a convenience for the
+        # signing device
+        @tx.in[i].sig_address = Script.new(@prev_script).get_address if @prev_script
       end
 
       def get_script_sig(inc, hash_type)
-        if inc.has_multiple_keys?
+        if inc.multiple_keys?
           # multiple keys given, generate signature for each one
           sigs = inc.sign(@sig_hash)
-          if redeem_script = inc.instance_eval { @redeem_script }
+          redeem_script = inc.instance_eval { @redeem_script }
+          if redeem_script
             # when a redeem_script was specified, assume we spend a p2sh multisig script
             script_sig = Script.to_p2sh_multisig_script_sig(redeem_script, sigs)
           else
@@ -255,81 +270,80 @@ module Bitcoin
         else
           # only one key given, generate signature and script_sig
           sig = inc.sign(@sig_hash)
-          script_sig = Script.to_signature_pubkey_script(sig, [inc.key.pub].pack("H*"), hash_type)
+          script_sig = Script.to_signature_pubkey_script(sig, [inc.key.pub].pack('H*'), hash_type)
         end
-        return script_sig
+        script_sig
       end
 
       # Sign input number +i+ with data from given +inc+ object (a TxInBuilder).
-      def sign_input i, inc
-        if @tx.in[i].coinbase?
-          include_coinbase_data(i, inc)
+      # rubocop:disable CyclomaticComplexity,PerceivedComplexity
+      def sign_input(i, inc)
+        return include_coinbase_data(i, inc) if @tx.in[i].coinbase?
+        @prev_script = inc.instance_variable_get(:@prev_out_script)
+
+        # get the signature script; use +redeem_script+ if given
+        # (indicates spending a p2sh output), otherwise use the prev_script
+        sig_script = inc.instance_eval { @redeem_script }
+        sig_script ||= @prev_script
+
+        hash_type = if inc.prev_out_forkid
+                      Script::SIGHASH_TYPE[:all] | Script::SIGHASH_TYPE[:forkid]
+                    else
+                      Script::SIGHASH_TYPE[:all]
+                    end
+
+        # when a sig_script was found, generate the sig_hash to be signed
+        if sig_script
+          script = Script.new(sig_script)
+          @sig_hash = if script.is_witness_v0_keyhash?
+                        @tx.signature_hash_for_witness_input(i, sig_script, inc.value)
+                      elsif inc.prev_out_forkid
+                        @tx.signature_hash_for_input(
+                          i,
+                          sig_script,
+                          hash_type,
+                          inc.value,
+                          inc.prev_out_forkid
+                        )
+                      else
+                        @tx.signature_hash_for_input(i, sig_script)
+                      end
+        end
+
+        # when there is a sig_hash and one or more signature_keys were specified
+        if sig_hash_and_all_keys_exist?(inc, sig_script)
+          # add the script_sig to the txin
+          if script.is_witness_v0_keyhash? # for p2wpkh
+            @tx.in[i].script_witness.stack << inc.sign(@sig_hash) + \
+                                              [Script::SIGHASH_TYPE[:all]].pack('C')
+            @tx.in[i].script_witness.stack << inc.key.pub.htb
+
+            redeem_script = inc.instance_eval { @redeem_script }
+            @tx.in[i].script_sig = Bitcoin::Script.pack_pushdata(redeem_script) if redeem_script
+          else
+            @tx.in[i].script_sig = get_script_sig(inc, hash_type)
+          end
+          # double-check that the script_sig is valid to spend the given prev_script
+          if @prev_script && !inc.prev_out_forkid
+            verified = if script.is_witness_v0_keyhash?
+                         @tx.verify_witness_input_signature(i, @prev_script, inc.value)
+                       else
+                         @tx.verify_input_signature(i, @prev_script)
+                       end
+            raise 'Signature error' unless verified
+          end
+        elsif inc.multiple_keys?
+          raise 'Keys missing for multisig signing'
         else
-          @prev_script = inc.instance_variable_get(:@prev_out_script)
-
-          # get the signature script; use +redeem_script+ if given
-          # (indicates spending a p2sh output), otherwise use the prev_script
-          sig_script = inc.instance_eval { @redeem_script }
-          sig_script ||= @prev_script
-
-          hash_type = if inc.prev_out_forkid
-            Script::SIGHASH_TYPE[:all] | Script::SIGHASH_TYPE[:forkid]
-          else
-            Script::SIGHASH_TYPE[:all]
-          end
-
-          # when a sig_script was found, generate the sig_hash to be signed
-          if sig_script
-            script = Script.new(sig_script)
-            if script.is_witness_v0_keyhash?
-              @sig_hash = @tx.signature_hash_for_witness_input(i, sig_script, inc.value)
-            else
-              @sig_hash = if inc.prev_out_forkid
-                @tx.signature_hash_for_input(
-                  i,
-                  sig_script,
-                  hash_type,
-                  inc.value,
-                  inc.prev_out_forkid)
-              else
-                @tx.signature_hash_for_input(i, sig_script)
-              end
-            end
-          end
-
-          # when there is a sig_hash and one or more signature_keys were specified
-          if sig_hash_and_all_keys_exist?(inc, sig_script)
-            # add the script_sig to the txin
-            if script.is_witness_v0_keyhash? # for p2wpkh
-              @tx.in[i].script_witness.stack << inc.sign(@sig_hash) + [Script::SIGHASH_TYPE[:all]].pack("C")
-              @tx.in[i].script_witness.stack << inc.key.pub.htb
-
-              redeem_script = inc.instance_eval { @redeem_script }
-              @tx.in[i].script_sig = Bitcoin::Script.pack_pushdata(redeem_script) if redeem_script
-            else
-              @tx.in[i].script_sig = get_script_sig(inc, hash_type)
-            end
-            # double-check that the script_sig is valid to spend the given prev_script
-            if @prev_script && !inc.prev_out_forkid
-              verified = if script.is_witness_v0_keyhash?
-                @tx.verify_witness_input_signature(i, @prev_script, inc.value)
-              else
-                @tx.verify_input_signature(i, @prev_script)
-              end
-              raise "Signature error" unless verified
-            end
-          elsif inc.has_multiple_keys?
-            raise "Keys missing for multisig signing"
-          else
-            # no sig_hash, add an empty script_sig.
-            add_empty_script_sig_to_input(i)
-          end
+          # no sig_hash, add an empty script_sig.
+          add_empty_script_sig_to_input(i)
         end
       end
+      # rubocop:enable CyclomaticComplexity,PerceivedComplexity
 
       # Randomize the outputs using SecureRandom
       def randomize_outputs
-        @outs.sort_by!{ SecureRandom.random_bytes(4).unpack("I")[0] }
+        @outs.sort_by! { SecureRandom.random_bytes(4).unpack('I')[0] }
       end
     end
 
@@ -358,7 +372,8 @@ module Bitcoin
     #
     # If you want to spend a multisig output, just provide an array of keys to #signature_key.
     class TxInBuilder
-      attr_reader :prev_tx, :prev_script, :key, :coinbase_data, :prev_out_forkid
+      attr_reader :coinbase_data, :key, :prev_out_forkid, :prev_script, :prev_tx
+      attr_writer :prev_out_script, :prev_out_value, :redeem_script, :sequence
 
       def initialize
         @txin = P::TxIn.new
@@ -372,33 +387,37 @@ module Bitcoin
       # You can either pass the transaction, or just the tx hash.
       # If you pass only the hash, you need to pass the previous outputs
       # +script+ separately if you want the txin to be signed.
-      def prev_out tx, idx = nil, script = nil, prev_value = nil, prev_forkid = nil
+      def prev_out(tx, idx = nil, script = nil, prev_value = nil, prev_forkid = nil)
         @prev_out_forkid = prev_forkid
         if tx.is_a?(Bitcoin::P::Tx)
           @prev_tx = tx
           @prev_out_hash = tx.binary_hash
-          @prev_out_script = tx.out[idx].pk_script  if idx
+          @prev_out_script = tx.out[idx].pk_script if idx
         else
           @prev_out_hash = tx.htb.reverse
         end
-        @prev_out_script = script  if script
-        @prev_out_index = idx  if idx
+        @prev_out_script = script if script
+        @prev_out_index = idx if idx
         @prev_out_value = prev_value if prev_value
       end
 
       # Index of the output in the #prev_out transaction.
-      def prev_out_index i
+      def prev_out_index(i)
         @prev_out_index = i
-        @prev_out_script = @prev_tx.out[i].pk_script  if @prev_tx
+        @prev_out_script = @prev_tx.out[i].pk_script if @prev_tx
       end
 
       # Previous output's +pk_script+. Needed when only the tx hash is specified as #prev_out.
-      def prev_out_script script
+      def prev_out_script(script)
+        warn '[DEPRECATION] `TxInBuilder.prev_out_script` is deprecated. ' \
+             'Use .prev_out_script= instead.'
         @prev_out_script = script
       end
 
       # Previous output's +value+. Needed when only spend segwit utxo.
       def prev_out_value(value)
+        warn '[DEPRECATION] `TxInBuilder.prev_out_value` is deprecated. ' \
+             'Use .prev_out_value= instead.'
         @prev_out_value = value
       end
 
@@ -409,26 +428,29 @@ module Bitcoin
       # Redeem script for P2SH output. To spend from a P2SH output, you need to provide
       # the script with a hash matching the P2SH address.
       def redeem_script(script)
+        warn '[DEPRECATION] `TxInBuilder.redeem_script` is deprecated. ' \
+             'Use .redeem_script= instead.'
         @redeem_script = script
       end
 
       # Specify sequence. This is usually not needed.
-      def sequence s
+      def sequence(s)
+        warn '[DEPRECATION] `TxInBuilder.sequence` is deprecated. Use .sequence= instead.'
         @sequence = s
       end
 
       # Bitcoin::Key used to sign the signature_hash for the input.
       # see Bitcoin::Script.signature_hash_for_input and Bitcoin::Key.sign.
-      def signature_key key
+      def signature_key(key)
         @key = key
       end
 
       # Specify that this is a coinbase input. Optionally set +data+.
       # If this is set, no other options need to be given.
-      def coinbase data = nil
+      def coinbase(data = nil)
         @coinbase_data = data || OpenSSL::Random.random_bytes(32)
         @prev_out_hash = "\x00" * 32
-        @prev_out_index = 4294967295
+        @prev_out_index = 4_294_967_295
       end
 
       # Create the txin according to specified values
@@ -440,21 +462,38 @@ module Bitcoin
         @txin
       end
 
-      def has_multiple_keys?
+      def multiple_keys?
         @key.is_a?(Array)
       end
 
-      def has_keys?
-        @key && (has_multiple_keys? ? @key.all?(&:priv) : @key.priv)
+      def has_multiple_keys? # rubocop:disable Naming/PredicateName
+        warn '[DEPRECATION] `TxInBuilder.has_multiple_keys?` is deprecated. ' \
+             'Use `multiple_keys?` instaed.'
+        multiple_keys?
       end
 
-      def is_witness_v0_keyhash?
+      def keys?
+        @key && (multiple_keys? ? @key.all?(&:priv) : @key.priv)
+      end
+
+      def has_keys? # rubocop:disable Naming/PredicateName
+        warn '[DEPRECATION] `TxInBuilder.has_keys?` is deprecated. Use `keys?` instead.'
+        keys?
+      end
+
+      def witness_v0_keyhash?
         @prev_out_script && Script.new(@prev_out_script).is_witness_v0_keyhash?
       end
 
+      def is_witness_v0_keyhash? # rubocop:disable Naming/PredicateName
+        warn '[DEPRECATION] `TxInBuilder.is_witness_v0_keyhash?` is deprecated. ' \
+             'Use `witness_v0_keyhash?` instead.'
+        witness_v0_keyhash?
+      end
+
       def sign(sig_hash)
-        if has_multiple_keys?
-          @key.map {|k| k.sign(sig_hash) }
+        if multiple_keys?
+          @key.map { |k| k.sign(sig_hash) }
         else
           @key.sign(sig_hash)
         end
@@ -472,14 +511,14 @@ module Bitcoin
 
       # Script type (:pubkey, :address/hash160, :multisig).
       # Defaults to :address.
-      def type type
+      def type(type)
         @type = type.to_sym
       end
 
       # Recipient(s) of the script.
       # Depending on the #type, this should be an address, a hash160 pubkey,
       # or an array of multisig pubkeys.
-      def recipient *data
+      def recipient(*data)
         @script, @redeem_script = *Script.send("to_#{@type}_script", *data)
       end
     end
@@ -505,23 +544,24 @@ module Bitcoin
       end
 
       # Set output value (in base units / "satoshis")
-      def value value
+      def value(value)
         @txout.value = value
       end
 
       # Set recipient address and script type (defaults to :address).
-      def to recipient, type = :address
-        @txout.pk_script, @txout.redeem_script = *Bitcoin::Script.send("to_#{type}_script", *recipient)
+      def to(recipient, type = :address)
+        @txout.pk_script, @txout.redeem_script = *Bitcoin::Script.send(
+          "to_#{type}_script", *recipient
+        )
       end
 
       # Add a script to the output (see ScriptBuilder).
-      def script &block
+      def script
         c = ScriptBuilder.new
         yield c
-        @txout.pk_script, @txout.redeem_script = c.script, c.redeem_script
+        @txout.pk_script = c.script
+        @txout.redeem_script = c.redeem_script
       end
-
     end
-
   end
 end
