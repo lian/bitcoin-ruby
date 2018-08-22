@@ -41,7 +41,6 @@ describe Bitcoin::Script do
   # @param keys [Array<Bitcoin::Key>] key pairs for unlocking funds.
   # @return [Array] previous transaction, transaction, redeem script, and sig
   #   hash.
-  # rubocop:disable Metrics/AbcSize
   def build_p2sh_multisig_tx(num_to_unlock, *keys)
     redeem_script = Bitcoin::Script.to_multisig_script(
       num_to_unlock, *keys.map(&:pub)
@@ -70,7 +69,6 @@ describe Bitcoin::Script do
 
     [prev_tx, tx, redeem_script, sig_hash]
   end
-  # rubocop:enable Metrics/AbcSize
 
   describe 'serialization' do
     it '#to_string' do

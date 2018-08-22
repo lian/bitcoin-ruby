@@ -31,17 +31,17 @@ describe 'Bitcoin::Protocol::TxIn' do
 
   it 'should be final only when sequence == 0xffffffff' do
     txin = Bitcoin::Protocol::TxIn.new
-    expect(txin.is_final?).to be true
+    expect(txin.final?).to be true
     expect(txin.sequence)
       .to eq(Bitcoin::Protocol::TxIn::DEFAULT_SEQUENCE)
 
     txin.sequence = "\x01\x00\x00\x00"
-    expect(txin.is_final?).to be false
+    expect(txin.final?).to be false
 
     txin.sequence = "\x00\x00\x00\x00"
-    expect(txin.is_final?).to be false
+    expect(txin.final?).to be false
 
     txin.sequence = "\xff\xff\xff\xff"
-    expect(txin.is_final?).to be true
+    expect(txin.final?).to be true
   end
 end

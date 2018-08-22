@@ -528,7 +528,7 @@ module Bitcoin
         lock_threshold = lock_time < Bitcoin::LOCKTIME_THRESHOLD ? block_height : block_time
         return true if lock_time < lock_threshold
 
-        inputs.each { |input| return false unless input.is_final? }
+        inputs.each { |input| return false unless input.final? }
 
         true
       end

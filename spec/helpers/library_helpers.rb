@@ -2,7 +2,7 @@
 
 # Helpers for external library dependencies.
 module LibraryHelpers
-  LIBSECP256K1_ENVVAR = 'SECP256K1_LIB_PATH'
+  LIBSECP256K1_ENVVAR = 'SECP256K1_LIB_PATH'.freeze
 
   # Help configure path to libsecp256k1. Automatically handles setting path to
   # build output if present.

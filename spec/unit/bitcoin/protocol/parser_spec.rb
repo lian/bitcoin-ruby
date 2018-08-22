@@ -33,7 +33,15 @@ describe Bitcoin::Protocol::Parser do
   end
 
   it 'should count total packets and bytes' do
-    parser = described_class.new
+    expect(handler)
+      .to receive(:on_inv_transaction)
+      .and_return([pkt[29..60].reverse])
+    expect(handler)
+      .to receive(:on_inv_transaction)
+      .and_return([pkt[-32..-1].reverse])
+
+    parser = described_class.new(handler)
+
     parser.parse pkt
     expect(parser.stats)
       .to eq('total_packets' => 1,
@@ -50,7 +58,11 @@ describe Bitcoin::Protocol::Parser do
   end
 
   it 'should count total errors' do
-    parser = described_class.new
+    expect(handler)
+      .to receive(:on_error)
+      .with(:unknown_packet, %w[foo 626172])
+
+    parser = described_class.new(handler)
     parser.process_pkt('foo', 'bar')
     expect(parser.stats['total_errors']).to eq(1)
   end

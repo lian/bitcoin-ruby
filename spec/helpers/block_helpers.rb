@@ -25,7 +25,7 @@ module BlockHelpers
     per_dust_fee: false
   }
 
-  # rubocop:disable Metrics/AbcSize, Metrics/ParameterLists
+  # rubocop:disable Metrics/ParameterLists
   def create_block(prev,
                    store = true,
                    transaction = [],
@@ -54,5 +54,5 @@ module BlockHelpers
     @store.store_block(block) if !@store.nil? && store
     block
   end
-  # rubocop:enable Metrics/AbcSize, Metrics/ParameterLists
+  # rubocop:enable Metrics/ParameterLists
 end

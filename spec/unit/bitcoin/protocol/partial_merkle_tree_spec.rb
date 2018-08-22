@@ -19,7 +19,7 @@ describe 'Bitcoin::Protocol::PartialMerkleTree' do
     ].map(&:htb)
 
     tree = Bitcoin::Protocol::PartialMerkleTree.new(12, hashes, 'ff1a'.htb)
-    tree.set_value
+    tree.assign_value
 
     tx_hashes = Set.new(tree.tx_hashes)
     # following 6 are leaves (tx_hash) of merkle tree

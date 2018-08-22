@@ -45,6 +45,8 @@ describe 'Bitcoin.network' do
       parser2 = Bitcoin::Protocol::Parser.new(handler2)
 
       Bitcoin.network = :testnet
+      expect(parser2)
+        .to receive(:handle_stream_error).with(:close, 'head_magic not found')
       expect(parser2.parse(pkt)).to be_empty
       expect(handler2.inv).to be_nil
 

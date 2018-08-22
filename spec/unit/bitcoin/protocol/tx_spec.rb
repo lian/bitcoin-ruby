@@ -1063,17 +1063,17 @@ describe Bitcoin::Protocol::Tx do
     expect(tx.legacy_sigops_count).to eq(20 + 1 + 20 + 1)
   end
 
-  describe 'Tx - is_final?' do
+  describe 'Tx - final?' do
     it 'should be final if lock_time == 0' do
       tx = Bitcoin::Protocol::Tx.new
       tx.lock_time = 0
-      expect(tx.is_final?(0, 0)).to be true
+      expect(tx.final?(0, 0)).to be true
 
       # even if has non-final input:
       txin = Bitcoin::Protocol::TxIn.new
       txin.sequence = "\x01\x00\x00\x00"
       tx.add_in(txin)
-      expect(tx.is_final?(0, 0)).to be true
+      expect(tx.final?(0, 0)).to be true
     end
 
     it 'should be final if lock_time is below block_height' do
@@ -1083,11 +1083,11 @@ describe Bitcoin::Protocol::Tx do
       tx.add_in(txin)
       tx.lock_time = 6543
 
-      expect(tx.is_final?(6000, 0)).to be false
+      expect(tx.final?(6000, 0)).to be false
       # when equal to block height, still not final
-      expect(tx.is_final?(6543, 0)).to be false
-      expect(tx.is_final?(6544, 0)).to be true
-      expect(tx.is_final?(9999, 0)).to be true
+      expect(tx.final?(6543, 0)).to be false
+      expect(tx.final?(6544, 0)).to be true
+      expect(tx.final?(9999, 0)).to be true
     end
 
     it 'should be final if lock_time is below timestamp' do
@@ -1099,16 +1099,16 @@ describe Bitcoin::Protocol::Tx do
       txin.sequence = "\x01\x00\x00\x00"
       tx.add_in(txin)
       tx.lock_time = Bitcoin::LOCKTIME_THRESHOLD # when equal, interpreted as threshold
-      expect(tx.is_final?(0, Bitcoin::LOCKTIME_THRESHOLD - 1)).to be false
+      expect(tx.final?(0, Bitcoin::LOCKTIME_THRESHOLD - 1)).to be false
       # when equal to timestamp, still not final
-      expect(tx.is_final?(0, Bitcoin::LOCKTIME_THRESHOLD)).to be false
-      expect(tx.is_final?(0, Bitcoin::LOCKTIME_THRESHOLD + 1)).to be true
+      expect(tx.final?(0, Bitcoin::LOCKTIME_THRESHOLD)).to be false
+      expect(tx.final?(0, Bitcoin::LOCKTIME_THRESHOLD + 1)).to be true
 
       tx.lock_time = Bitcoin::LOCKTIME_THRESHOLD + 666
-      expect(tx.is_final?(0, Bitcoin::LOCKTIME_THRESHOLD + 1)).to be false
+      expect(tx.final?(0, Bitcoin::LOCKTIME_THRESHOLD + 1)).to be false
       # when equal to timestamp, still not final
-      expect(tx.is_final?(0, Bitcoin::LOCKTIME_THRESHOLD + 666)).to be false
-      expect(tx.is_final?(0, Bitcoin::LOCKTIME_THRESHOLD + 667)).to be true
+      expect(tx.final?(0, Bitcoin::LOCKTIME_THRESHOLD + 666)).to be false
+      expect(tx.final?(0, Bitcoin::LOCKTIME_THRESHOLD + 667)).to be true
     end
 
     it 'should be final if all inputs are finalized regardless of lock_time' do
@@ -1121,20 +1121,20 @@ describe Bitcoin::Protocol::Tx do
       tx.add_in(txin)
 
       tx.lock_time = 6543
-      expect(tx.is_final?(6000, 0)).to be true
-      expect(tx.is_final?(6543, 0)).to be true
-      expect(tx.is_final?(6544, 0)).to be true
-      expect(tx.is_final?(9999, 0)).to be true
+      expect(tx.final?(6000, 0)).to be true
+      expect(tx.final?(6543, 0)).to be true
+      expect(tx.final?(6544, 0)).to be true
+      expect(tx.final?(9999, 0)).to be true
 
       tx.lock_time = Bitcoin::LOCKTIME_THRESHOLD
-      expect(tx.is_final?(0, Bitcoin::LOCKTIME_THRESHOLD - 1)).to be true
-      expect(tx.is_final?(0, Bitcoin::LOCKTIME_THRESHOLD)).to be true
-      expect(tx.is_final?(0, Bitcoin::LOCKTIME_THRESHOLD + 1)).to be true
+      expect(tx.final?(0, Bitcoin::LOCKTIME_THRESHOLD - 1)).to be true
+      expect(tx.final?(0, Bitcoin::LOCKTIME_THRESHOLD)).to be true
+      expect(tx.final?(0, Bitcoin::LOCKTIME_THRESHOLD + 1)).to be true
 
       tx.lock_time = Bitcoin::LOCKTIME_THRESHOLD + 666
-      expect(tx.is_final?(0, Bitcoin::LOCKTIME_THRESHOLD + 1)).to be true
-      expect(tx.is_final?(0, Bitcoin::LOCKTIME_THRESHOLD + 666)).to be true
-      expect(tx.is_final?(0, Bitcoin::LOCKTIME_THRESHOLD + 667)).to be true
+      expect(tx.final?(0, Bitcoin::LOCKTIME_THRESHOLD + 1)).to be true
+      expect(tx.final?(0, Bitcoin::LOCKTIME_THRESHOLD + 666)).to be true
+      expect(tx.final?(0, Bitcoin::LOCKTIME_THRESHOLD + 667)).to be true
     end
   end
 
@@ -1383,7 +1383,7 @@ describe Bitcoin::Protocol::Tx do
   end
 
   describe 'verify_input_signature' do
-    # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+    # rubocop:disable Metrics/CyclomaticComplexity
     def parse_script(script_str)
       script = Bitcoin::Script.new('')
 
@@ -1391,9 +1391,7 @@ describe Bitcoin::Protocol::Tx do
       # on Ruby versions < 2.3. If we ever drop support for these then it can be
       # fixed
 
-      # rubocop:disable Performance/UnfreezeString
       buf = ''.dup
-      # rubocop:enable Performance/UnfreezeString
 
       script_str.split.each do |token|
         opcode = Bitcoin::Script::OPCODES_PARSE_STRING[token] ||
@@ -1443,7 +1441,7 @@ describe Bitcoin::Protocol::Tx do
         end
       end
     end
-    # rubocop:enable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+    # rubocop:enable Metrics/CyclomaticComplexity
 
     it 'script JSON tests' do
       test_cases = JSON.parse(fixtures_file('script_tests.json'))
@@ -1463,7 +1461,7 @@ describe Bitcoin::Protocol::Tx do
         # NOTE: Need to use `match` instead of `match?` because Ruby < 2.4 does
         # not support the latter function.
 
-        # rubocop:disable Performance/RedundantMatch,Performance/RegexpMatch
+        # rubocop:disable Performance/RedundantMatch
         if test_case[0].match(
           /CHECKLOCKTIMEVERIFY|CHECKSEQUENCEVERIFY|RESERVED|0x50|VERIF|VERNOTIF/
         )
@@ -1475,7 +1473,7 @@ describe Bitcoin::Protocol::Tx do
         )
           next
         end
-        # rubocop:enable Performance/RedundantMatch,Performance/RegexpMatch
+        # rubocop:enable Performance/RedundantMatch
 
         script_sig = parse_script(test_case[0])
         script_pubkey = parse_script(test_case[1])
