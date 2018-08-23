@@ -402,16 +402,12 @@ module Bitcoin
       end
 
       # Previous output's +pk_script+. Needed when only the tx hash is specified as #prev_out.
-      def prev_out_script(script)
-        warn '[DEPRECATION] `TxInBuilder.prev_out_script` is deprecated. ' \
-             'Use .prev_out_script= instead.'
+      def prev_out_script(script) # rubocop:disable Style/TrivialAccessors
         @prev_out_script = script
       end
 
       # Previous output's +value+. Needed when only spend segwit utxo.
-      def prev_out_value(value)
-        warn '[DEPRECATION] `TxInBuilder.prev_out_value` is deprecated. ' \
-             'Use .prev_out_value= instead.'
+      def prev_out_value(value) # rubocop:disable Style/TrivialAccessors
         @prev_out_value = value
       end
 
@@ -421,15 +417,12 @@ module Bitcoin
 
       # Redeem script for P2SH output. To spend from a P2SH output, you need to provide
       # the script with a hash matching the P2SH address.
-      def redeem_script(script)
-        warn '[DEPRECATION] `TxInBuilder.redeem_script` is deprecated. ' \
-             'Use .redeem_script= instead.'
+      def redeem_script(script) # rubocop:disable Style/TrivialAccessors
         @redeem_script = script
       end
 
       # Specify sequence. This is usually not needed.
-      def sequence(s)
-        warn '[DEPRECATION] `TxInBuilder.sequence` is deprecated. Use .sequence= instead.'
+      def sequence(s) # rubocop:disable Style/TrivialAccessors
         @sequence = s
       end
 
