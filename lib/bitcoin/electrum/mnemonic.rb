@@ -3,7 +3,7 @@
 # ruby version of: https://github.com/spesmilo/electrum/blob/master/lib/mnemonic.py
 class Mnemonic
   # list of words from http://en.wiktionary.org/wiki/Wiktionary:Frequency_lists/Contemporary_poetry
-  Words = <<-TEXT.split
+  WORDS = <<-TEXT.split
     like just love know never want time out there make look eye down only think
     heart back then into about more away still them take thing even through long always
     world too friend tell try hand thought over here other need smile again much cry
@@ -115,7 +115,7 @@ class Mnemonic
     thigh throne total unseen weapon weary
   TEXT
 
-  def self.encode(hex, words = Words)
+  def self.encode(hex, words = WORDS)
     n = words.size
     [hex].pack('H*').unpack('N*').map do |x|
       w1 = x % n
@@ -125,7 +125,7 @@ class Mnemonic
     end.flatten
   end
 
-  def self.decode(word_list, words = Words)
+  def self.decode(word_list, words = WORDS)
     n = words.size
     word_list.each_slice(3).map do |three_words|
       w1, w2, w3 = three_words.map { |word| words.index(word) % n }

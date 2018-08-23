@@ -5,7 +5,7 @@ require 'ffi'
 module Bitcoin
   # autoload when you need to re-generate a public_key from only its private_key.
   # ported from: https://github.com/sipa/bitcoin/blob/2d40fe4da9ea82af4b652b691a4185431d6e47a8/key.h
-  module OpenSSL_EC # rubocop:disable Style/ClassAndModuleCamelCase
+  module OpenSSL_EC # rubocop:disable Naming/ClassAndModuleCamelCase
     extend FFI::Library
     if FFI::Platform.windows?
       ffi_lib 'libeay32', 'ssleay32'
@@ -13,7 +13,7 @@ module Bitcoin
       ffi_lib ['libssl.so.1.0.0', 'ssl']
     end
 
-    NID_secp256k1 = 714 # rubocop:disable Style/ConstantName
+    NID_secp256k1 = 714 # rubocop:disable Naming/ConstantName
     POINT_CONVERSION_COMPRESSED = 2
     POINT_CONVERSION_UNCOMPRESSED = 4
 
@@ -71,7 +71,7 @@ module Bitcoin
     attach_function :i2d_ECDSA_SIG, %i[pointer pointer], :int
     attach_function :OPENSSL_free, :CRYPTO_free, [:pointer], :void
 
-    def self.BN_num_bytes(ptr) # rubocop:disable Style/MethodName
+    def self.BN_num_bytes(ptr) # rubocop:disable Naming/MethodName
       (BN_num_bits(ptr) + 7) / 8
     end
 

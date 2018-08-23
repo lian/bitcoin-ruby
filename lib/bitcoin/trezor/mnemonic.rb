@@ -17,7 +17,8 @@ module Bitcoin
       def self.generate(strength_bits = 256)
         if (strength_bits % 32) > 0
           raise ArgumentError, format(
-            'Strength should be divisible by 32, but it is not (%d)', strength_bits
+            'Strength should be divisible by 32, but it is not (%<strength_bits>d)',
+            strength_bits: strength_bits
           )
         end
         data = SecureRandom.random_bytes((strength_bits / 8).floor)
@@ -30,7 +31,8 @@ module Bitcoin
         @wordlist = WORDLIST_ENGLISH.split(/[ \n]/).map(&:strip).reject(&:empty?)
         if @wordlist.size != (radix = 2048)
           raise ArgumentError, format(
-            'Wordlist should contain %d words, but it contains %d words.', radix, wordlist.size
+            'Wordlist should contain %<radix>d words, but it contains %<count>d words.',
+            radix: radix, count: wordlist.size
           )
         end
         @wordlist
@@ -40,7 +42,8 @@ module Bitcoin
         if (data.bytesize % 4) > 0
           raise ArgumentError, format(
             'Data length in bits should be divisible by 32, ' \
-            'but it is not (%d bytes = %d bits).', data.bytesize, data.bytesize * 8
+            'but it is not (%<count>d bytes = %<bits_count>d bits).',
+            count: data.bytesize, bits_count: data.bytesize * 8
           )
         end
         b = data.unpack('B*')[0] +
