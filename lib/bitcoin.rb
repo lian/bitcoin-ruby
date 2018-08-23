@@ -671,7 +671,6 @@ module Bitcoin
       ],
       genesis_hash: "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
       proof_of_work_limit: 0x1d00ffff,
-      alert_pubkeys: ["04fc9702847840aaf195de8442ebecedf5b095cdbb9bc716bda9110971b28a49e0ead8564ff0db22209e0374782c093bb899692d524e9d6a6956e7c5ecbcd68284"],
       known_nodes: [
         'relay.eligius.st',
         'mining.bitcoin.cz',
@@ -710,7 +709,6 @@ module Bitcoin
       dns_seeds: [ ],
       genesis_hash: "00000007199508e34a9ff81e6ec0c477a4cccff2a4767a8eee39c11db367b008",
       proof_of_work_limit: 0x1d07fff8,
-      alert_pubkeys: ["04302390343f91cc401d56d68b123028bf52e5fca1939df127f63c6467cdf9c8e2c14b61104cf817d0b780da337893ecc4aaff1309e536162dabbdb45200ca2b0a"],
       known_nodes: [],
       checkpoints: {},
     })
@@ -775,7 +773,6 @@ module Bitcoin
       ],
       genesis_hash: "12a765e31ffd4059bada1e25190f6e98c99d9714d334efa41a195a7e7e04bfe2",
       proof_of_work_limit: 0x1e0fffff,
-      alert_pubkeys: ["040184710fa689ad5023690c80f3a49c8f13f8d45b8c857fbcbc8bc4a8e4d3eb4b10f4d4604fa08dce601aaf0f470216fe1b51850b4acf21b179c45070ac7b03a9"],
       known_nodes: [],
       checkpoints: {
              1 => "80ca095ed10b02e53d769eb6eaf92cd04e9e0759e5be4a8477b42911ba49c78f",
@@ -815,7 +812,6 @@ module Bitcoin
         "dnsseed-testnet.thrasher.io",
       ],
       genesis_hash: "4966625a4b2851d9fdee139e56211a0d88575f59ed816ff5e6a63deb4e3e29a0",
-      alert_pubkeys: ["04302390343f91cc401d56d68b123028bf52e5fca1939df127f63c6467cdf9c8e2c14b61104cf817d0b780da337893ecc4aaff1309e536162dabbdb45200ca2b0a"],
       known_nodes: [],
       checkpoints: {
         546 => "bf434a4c665307f52a041ee40faa7bf56284c5f3b5d11bf6182aba537961f86c",
@@ -854,7 +850,6 @@ module Bitcoin
       ],
       genesis_hash: "1a91e3dace36e2be3bf030a65679fe821aa1d6ef92e7c9902eb318182c355691",
       proof_of_work_limit: 0x1e0fffff,
-      alert_pubkeys: [],
       known_nodes: [
         "daemons.chain.so",
         "bootstrap.chain.so",
@@ -912,7 +907,6 @@ module Bitcoin
       ],
       genesis_hash: "bb0a78264637406b6360aad926284d544d7049f45189db5664f3c4d07350559e",
       proof_of_work_limit: 0x1e0fffff,
-      alert_pubkeys: [],
       known_nodes: [
         "localhost",
         "testnets.chain.so",

@@ -106,8 +106,7 @@ module Bitcoin
       end
 
       def parse_alert(payload)
-        return unless @h.respond_to?(:on_alert)
-        @h.on_alert Bitcoin::Protocol::Alert.parse(payload)
+        # nop (https://github.com/lian/bitcoin-ruby/issues/268)
       end
 
       def parse_getblocks(payload)
