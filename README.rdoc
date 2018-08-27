@@ -29,7 +29,7 @@ Note that some aspects of the library (such as networking, storage, etc.) need
 additional dependencies which are not specified in the gemspec. The core requirements are
 intentionally kept to a minimum, so nobody has to install unneeded dependencies.
 
-* +bacon+ to run the specs
+* +rspec+ to run the specs
 * +scrypt+ to use a much faster scrypt hash implementation for Litecoin
 
 If you would like to install using Bundler, put it in your Gemfile and run bundle install
@@ -169,15 +169,28 @@ The specs are also a good place to see how something works.
 
 == Specs
 
-The specs can be run with
+Specs require libsecp256k1 in order to be fully run. Therefore, the first step
+in running the specs is to build this library if you haven't already:
 
- rake bacon
+  rake build_libsecp256k1
+
+The majority of specs can be run with
+
+ rake rspec
 
 or, if you want to run a single spec
 
- ruby spec/bitcoin/bitcoin_spec.rb
+ bundle exec rspec spec/bitcoin/bitcoin_spec.rb
 
 If you make changes to the code or add functionality, please also add specs.
+
+To run specs for changes that monkey patch significant functionality, you
+should run the specs individually. For example, to run the Dogecoin specs:
+
+  rake coin_spec[dogecoin]
+
+If support is added for any new coins a corresponding coin spec should also be
+added to test specific functionality of that coin.
 
 == Development
 
