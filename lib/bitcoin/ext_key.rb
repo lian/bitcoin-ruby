@@ -1,17 +1,16 @@
 # encoding: ascii-8bit
 
+# BIP32 Extended private key
 module Bitcoin
-
   def self.hmac_sha512(key, data)
     OpenSSL::HMAC.digest(OpenSSL::Digest.new('SHA512'), key, data)
   end
 
   # Integers modulo the order of the curve(secp256k1)
-  CURVE_ORDER = 115792089237316195423570985008687907852837564279074904382605163141518161494337
+  CURVE_ORDER = 115_792_089_237_316_195_423_570_985_008_687_907_852_837_564_279_074_904_382_605_163_141_518_161_494_337 # rubocop:disable Metrics/LineLength
 
   # BIP32 Extended private key
   class ExtKey
-
     attr_accessor :depth
     attr_accessor :number
     attr_accessor :chain_code
@@ -45,7 +44,12 @@ module Bitcoin
 
     # serialize extended private key
     def to_payload
-      Bitcoin.network[:extended_privkey_version].htb << [depth].pack('C') << parent_fingerprint.htb << [number].pack('N') << chain_code << [0x00].pack('C') << priv_key.priv.htb
+      Bitcoin.network[:extended_privkey_version].htb << [depth].pack('C') \
+                                                     << parent_fingerprint.htb \
+                                                     << [number].pack('N') \
+                                                     << chain_code \
+                                                     << [0x00].pack('C') \
+                                                     << priv_key.priv.htb
     end
 
     # Base58 encoded extended private key
@@ -86,11 +90,11 @@ module Bitcoin
       new_key.depth = depth + 1
       new_key.number = number
       new_key.parent_fingerprint = fingerprint
-      if number > (2**31 - 1)
-        data = [0x00].pack('C') << priv_key.priv.htb << [number].pack('N')
-      else
-        data = priv_key.pub.htb << [number].pack('N')
-      end
+      data = if number > (2**31 - 1)
+               [0x00].pack('C') << priv_key.priv.htb << [number].pack('N')
+             else
+               priv_key.pub.htb << [number].pack('N')
+             end
       l = Bitcoin.hmac_sha512(chain_code, data)
       left = OpenSSL::BN.from_hex(l[0..31].bth).to_i
       raise 'invalid key' if left >= CURVE_ORDER
@@ -114,7 +118,6 @@ module Bitcoin
       key.priv_key = Bitcoin::Key.new(data.read(32).bth)
       key
     end
-
   end
 
   # BIP-32 Extended public key
@@ -127,7 +130,11 @@ module Bitcoin
 
     # serialize extended pubkey
     def to_payload
-      Bitcoin.network[:extended_pubkey_version].htb << [depth].pack('C') << parent_fingerprint.htb << [number].pack('N') << chain_code << pub.htb
+      Bitcoin.network[:extended_pubkey_version].htb << [depth].pack('C') \
+                                                    << parent_fingerprint.htb \
+                                                    << [number].pack('N') \
+                                                    << chain_code \
+                                                    << pub.htb
     end
 
     # get public key(hex)
@@ -183,9 +190,10 @@ module Bitcoin
       key.parent_fingerprint = data.read(4).bth
       key.number = data.read(4).unpack('N').first
       key.chain_code = data.read(32)
-      key.pub_key = OpenSSL::PKey::EC::Point.from_hex(Bitcoin.bitcoin_elliptic_curve.group, data.read(33).bth)
+      key.pub_key = OpenSSL::PKey::EC::Point.from_hex(
+        Bitcoin.bitcoin_elliptic_curve.group, data.read(33).bth
+      )
       key
     end
   end
-
 end
