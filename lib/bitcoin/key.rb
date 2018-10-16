@@ -1,10 +1,8 @@
 # encoding: ascii-8bit
 
 module Bitcoin
-
   # Elliptic Curve key as used in bitcoin.
   class Key
-
     attr_reader :key
 
     MIN_PRIV_KEY_MOD_ORDER = 0x01
@@ -13,8 +11,10 @@ module Bitcoin
 
     # Generate a new keypair.
     #  Bitcoin::Key.generate
-    def self.generate(opts={compressed: true})
-      k = new(nil, nil, opts); k.generate; k
+    def self.generate(opts = { compressed: true })
+      k = new(nil, nil, opts)
+      k.generate
+      k
     end
 
     # Import private key from base58 fromat as described in
@@ -25,25 +25,25 @@ module Bitcoin
       hex = Bitcoin.decode_base58(str)
       compressed = hex.size == 76
       version, key, flag, checksum = hex.unpack("a2a64a#{compressed ? 2 : 0}a8")
-      raise "Invalid version"   unless version == Bitcoin.network[:privkey_version]
-      raise "Invalid checksum"  unless Bitcoin.checksum(version + key + flag) == checksum
-      key = new(key, nil, compressed)
+      raise 'Invalid version'   unless version == Bitcoin.network[:privkey_version]
+      raise 'Invalid checksum'  unless Bitcoin.checksum(version + key + flag) == checksum
+      new(key, nil, compressed)
     end
 
     def ==(other)
-      self.priv == other.priv
+      priv == other.priv
     end
 
     # Create a new key with given +privkey+ and +pubkey+.
     #  Bitcoin::Key.new
     #  Bitcoin::Key.new(privkey)
     #  Bitcoin::Key.new(nil, pubkey)
-    def initialize(privkey = nil, pubkey = nil, opts={compressed: true})
+    def initialize(privkey = nil, pubkey = nil, opts = { compressed: true })
       compressed = opts.is_a?(Hash) ? opts.fetch(:compressed, true) : opts
       @key = Bitcoin.bitcoin_elliptic_curve
-      @pubkey_compressed = pubkey ? self.class.is_compressed_pubkey?(pubkey) : compressed
+      @pubkey_compressed = pubkey ? self.class.compressed_pubkey?(pubkey) : compressed
       set_priv(privkey)  if privkey
-      set_pub(pubkey, @pubkey_compressed)  if pubkey
+      set_pub(pubkey, @pubkey_compressed) if pubkey
     end
 
     # Generate new priv/pub key.
@@ -53,12 +53,12 @@ module Bitcoin
 
     # Get the private key (in hex).
     def priv
-      return nil  unless @key.private_key
+      return nil unless @key.private_key
       @key.private_key.to_hex.rjust(64, '0')
     end
 
     # Set the private key to +priv+ (in hex).
-    def priv= priv
+    def priv=(priv)
       set_priv(priv)
       regenerate_pubkey
     end
@@ -89,7 +89,7 @@ module Bitcoin
     end
 
     # Set the public key (in hex).
-    def pub= pub
+    def pub=(pub)
       set_pub(pub)
     end
 
@@ -123,7 +123,6 @@ module Bitcoin
       end
     end
 
-
     def sign_message(message)
       Bitcoin.sign_message(priv, pub, message)['signature']
     end
@@ -150,16 +149,23 @@ module Bitcoin
     # expecting! Otherwise you are merely checking that *someone* validly
     # signed the data.
     def self.recover_compact_signature_to_key(data, signature_base64)
-      signature = signature_base64.unpack("m0")[0]
+      signature = signature_base64.unpack('m0')[0]
       return nil if signature.size != 65
 
       version = signature.unpack('C')[0]
-      return nil if version < 27 or version > 34
- 
-      compressed = (version >= 31) ? (version -= 4; true) : false
+      return nil if (version < 27) || (version > 34)
+
+      compressed = if version >= 31
+                     version -= 4
+                     true
+                   else
+                     false
+                   end
 
       hash = Bitcoin.bitcoin_signed_message_hash(data)
-      pub_hex = Bitcoin::OpenSSL_EC.recover_public_key_from_signature(hash, signature, version-27, compressed)
+      pub_hex = Bitcoin::OpenSSL_EC.recover_public_key_from_signature(
+        hash, signature, version - 27, compressed
+      )
       return nil unless pub_hex
 
       Key.new(nil, pub_hex)
@@ -169,35 +175,38 @@ module Bitcoin
     # See also Key.from_base58
     def to_base58
       data = Bitcoin.network[:privkey_version] + priv
-      data += "01"  if @pubkey_compressed
-      hex  = data + Bitcoin.checksum(data)
-      Bitcoin.int_to_base58( hex.to_i(16) )
+      data += '01'  if @pubkey_compressed
+      hex = data + Bitcoin.checksum(data)
+      Bitcoin.int_to_base58(hex.to_i(16))
     end
-
 
     # Export private key to bip38 (non-ec-multiply) format as described in
     # https://github.com/bitcoin/bips/blob/master/bip-0038.mediawiki
     # See also Key.from_bip38
     def to_bip38(passphrase)
       flagbyte = compressed ? "\xe0" : "\xc0"
-      addresshash = Digest::SHA256.digest( Digest::SHA256.digest( self.addr ) )[0...4]
+      addresshash = Digest::SHA256.digest(Digest::SHA256.digest(addr))[0...4]
 
       require 'scrypt' unless defined?(::SCrypt::Engine)
-      buf = SCrypt::Engine.__sc_crypt(passphrase, addresshash, 16384, 8, 8, 64)
-      derivedhalf1, derivedhalf2 = buf[0...32], buf[32..-1]
+      buf = SCrypt::Engine.__sc_crypt(passphrase, addresshash, 16_384, 8, 8, 64)
+      derivedhalf1 = buf[0...32]
+      derivedhalf2 = buf[32..-1]
 
-      aes = proc{|k,a,b|
-        cipher = OpenSSL::Cipher::AES.new(256, :ECB); cipher.encrypt; cipher.padding = 0; cipher.key = k
-        cipher.update [ (a.to_i(16) ^ b.unpack("H*")[0].to_i(16)).to_s(16).rjust(32, '0') ].pack("H*")
+      aes = proc { |k, a, b|
+        cipher = OpenSSL::Cipher::AES.new(256, :ECB)
+        cipher.encrypt
+        cipher.padding = 0
+        cipher.key = k
+        cipher.update [(a.to_i(16) ^ b.unpack('H*')[0].to_i(16)).to_s(16).rjust(32, '0')].pack('H*')
       }
 
-      encryptedhalf1 = aes.call(derivedhalf2, self.priv[0...32], derivedhalf1[0...16])
-      encryptedhalf2 = aes.call(derivedhalf2, self.priv[32..-1], derivedhalf1[16..-1])
+      encryptedhalf1 = aes.call(derivedhalf2, priv[0...32], derivedhalf1[0...16])
+      encryptedhalf2 = aes.call(derivedhalf2, priv[32..-1], derivedhalf1[16..-1])
 
       encrypted_privkey = "\x01\x42" + flagbyte + addresshash + encryptedhalf1 + encryptedhalf2
-      encrypted_privkey += Digest::SHA256.digest( Digest::SHA256.digest( encrypted_privkey ) )[0...4]
+      encrypted_privkey += Digest::SHA256.digest(Digest::SHA256.digest(encrypted_privkey))[0...4]
 
-      encrypted_privkey = Bitcoin.encode_base58( encrypted_privkey.unpack("H*")[0] )
+      Bitcoin.encode_base58(encrypted_privkey.unpack('H*')[0])
     end
 
     # Import private key from bip38 (non-ec-multiply) fromat as described in
@@ -205,18 +214,28 @@ module Bitcoin
     # See also #to_bip38
     def self.from_bip38(encrypted_privkey, passphrase)
       version, flagbyte, addresshash, encryptedhalf1, encryptedhalf2, checksum =
-        [ Bitcoin.decode_base58(encrypted_privkey) ].pack("H*").unpack("a2aa4a16a16a4")
-      compressed = (flagbyte == "\xe0") ? true : false
+        [Bitcoin.decode_base58(encrypted_privkey)].pack('H*').unpack('a2aa4a16a16a4')
+      compressed = flagbyte == "\xe0"
 
-      raise "Invalid version"   unless version == "\x01\x42"
-      raise "Invalid checksum"  unless Digest::SHA256.digest(Digest::SHA256.digest(version + flagbyte + addresshash + encryptedhalf1 + encryptedhalf2))[0...4] == checksum
+      raise 'Invalid version' unless version == "\x01\x42"
+
+      computed_checksum = Digest::SHA256.digest(
+        Digest::SHA256.digest(
+          version + flagbyte + addresshash + encryptedhalf1 + encryptedhalf2
+        )
+      )[0...4]
+      raise 'Invalid checksum' unless computed_checksum == checksum
 
       require 'scrypt' unless defined?(::SCrypt::Engine)
-      buf = SCrypt::Engine.__sc_crypt(passphrase, addresshash, 16384, 8, 8, 64)
-      derivedhalf1, derivedhalf2 = buf[0...32], buf[32..-1]
+      buf = SCrypt::Engine.__sc_crypt(passphrase, addresshash, 16_384, 8, 8, 64)
+      derivedhalf1 = buf[0...32]
+      derivedhalf2 = buf[32..-1]
 
-      aes = proc{|k,a|
-        cipher = OpenSSL::Cipher::AES.new(256, :ECB); cipher.decrypt; cipher.padding = 0; cipher.key = k
+      aes = proc { |k, a|
+        cipher = OpenSSL::Cipher::AES.new(256, :ECB)
+        cipher.decrypt
+        cipher.padding = 0
+        cipher.key = k
         cipher.update(a)
       }
 
@@ -224,11 +243,13 @@ module Bitcoin
       decryptedhalf1 = aes.call(derivedhalf2, encryptedhalf1)
 
       priv = decryptedhalf1 + decryptedhalf2
-      priv = (priv.unpack("H*")[0].to_i(16) ^ derivedhalf1.unpack("H*")[0].to_i(16)).to_s(16).rjust(64, '0')
+      priv = (
+        priv.unpack('H*')[0].to_i(16) ^ derivedhalf1.unpack('H*')[0].to_i(16)
+      ).to_s(16).rjust(64, '0')
       key = Bitcoin::Key.new(priv, nil, compressed)
 
-      if Digest::SHA256.digest( Digest::SHA256.digest( key.addr ) )[0...4] != addresshash
-        raise "Invalid addresshash! Password is likely incorrect."
+      if Digest::SHA256.digest(Digest::SHA256.digest(key.addr))[0...4] != addresshash
+        raise 'Invalid addresshash! Password is likely incorrect.'
       end
 
       key
@@ -237,17 +258,28 @@ module Bitcoin
     # Import private key from warp fromat as described in
     # https://github.com/keybase/warpwallet
     # https://keybase.io/warp/
-    def self.from_warp(passphrase, salt="", compressed=false)
+    def self.from_warp(passphrase, salt = '', compressed = false)
       require 'scrypt' unless defined?(::SCrypt::Engine)
-      s1 = SCrypt::Engine.scrypt(passphrase+"\x01", salt+"\x01", 2**18, 8, 1, 32)
-      s2 = OpenSSL::PKCS5.pbkdf2_hmac(passphrase+"\x02", salt+"\x02", 2**16, 32, OpenSSL::Digest::SHA256.new)
-      s3 = s1.bytes.zip(s2.bytes).map{|a,b| a ^ b }.pack("C*")
+      s1 = SCrypt::Engine.scrypt(passphrase + "\x01", salt + "\x01", 2**18, 8, 1, 32)
+      s2 = OpenSSL::PKCS5.pbkdf2_hmac(
+        passphrase + "\x02", salt + "\x02", 2**16, 32, OpenSSL::Digest::SHA256.new
+      )
+      s3 = s1.bytes.zip(s2.bytes).map { |a, b| a ^ b }.pack('C*')
 
-      key = Bitcoin::Key.new(s3.unpack("H*")[0], nil, compressed)
+      key = Bitcoin::Key.new(s3.unpack('H*')[0], nil, compressed)
       # [key.addr, key.to_base58, [s1,s2,s3].map{|i| i.unpack("H*")[0] }, compressed]
       key
     end
 
+    def self.compressed_pubkey?(pub)
+      %w[02 03].include?(pub[0..1])
+    end
+
+    def self.is_compressed_pubkey?(pub) # rubocop:disable Naming/PredicateName
+      warn '[DEPRECATION] `Key.is_compressed_pubkey?` is deprecated. ' \
+           'Use `compressed_pubkey? instead.'
+      compressed_pubkey?(pub)
+    end
 
     protected
 
@@ -258,23 +290,18 @@ module Bitcoin
     end
 
     # Set +priv+ as the new private key (converting from hex).
-    def set_priv(priv)
+    def set_priv(priv) # rubocop:disable Naming/AccessorMethodName
       value = priv.to_i(16)
-      raise 'private key is not on curve' unless MIN_PRIV_KEY_MOD_ORDER <= value && value <= MAX_PRIV_KEY_MOD_ORDER
+      unless MIN_PRIV_KEY_MOD_ORDER <= value && value <= MAX_PRIV_KEY_MOD_ORDER
+        raise 'private key is not on curve'
+      end
       @key.private_key = OpenSSL::BN.from_hex(priv)
     end
 
     # Set +pub+ as the new public key (converting from hex).
     def set_pub(pub, compressed = nil)
-      @pubkey_compressed = compressed == nil ? self.class.is_compressed_pubkey?(pub) : compressed
+      @pubkey_compressed = compressed.nil? ? self.class.compressed_pubkey?(pub) : compressed
       @key.public_key = OpenSSL::PKey::EC::Point.from_hex(@key.group, pub)
     end
-
-    def self.is_compressed_pubkey?(pub)
-      ["02","03"].include?(pub[0..1])
-    end
-
   end
-
 end
-
