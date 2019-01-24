@@ -609,6 +609,12 @@ describe Bitcoin::Script do
       expect(Bitcoin::Script.to_p2sh_script(hash160))
         .to eq(Bitcoin::Script.from_string("OP_HASH160 #{hash160} OP_EQUAL").raw)
     end
+
+    it 'should generate a custom script' do
+      script = '6a0400004b5014000000004269747072696d0000000000000f4240'
+      expect(Bitcoin::Script.to_custom_script(script))
+        .to eq('6a0400004b5014000000004269747072696d0000000000000f4240'.htb)
+    end
   end
 
   describe 'generate script sigs' do

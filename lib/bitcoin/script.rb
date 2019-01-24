@@ -833,6 +833,15 @@ class Bitcoin::Script
     return buf + pack_pushdata( [data].pack("H*") )
   end
 
+  # Sometimes you might want to include a script with a custom stack
+  def self.to_custom_script(data = nil)
+    if data
+      [data].pack("H*")
+    else
+      [OP_NOP].pack("C")
+    end
+  end
+
   # generate input script sig spending a pubkey output with given +signature+ and +pubkey+.
   # returns a raw binary script sig of the form:
   #  <signature> [<pubkey>]
