@@ -426,6 +426,28 @@ describe Bitcoin do
         ).to be_nil
       end
     end
+
+    context 'zcash' do
+      before {
+        Bitcoin::NETWORKS[:zcash] = Bitcoin::NETWORKS[:bitcoin].merge(
+          project: :zcash,
+          address_version: '1cb8',
+          p2sh_version: '1cbd',
+        )
+        Bitcoin.network = :zcash
+      }
+
+      it 'works for a hash160 address' do
+        expect(Bitcoin.address_type('t1KBT8oCGAfisNNWnSD3h7TSsZ7qKah935g'))
+          .to eq(:hash160)
+      end
+
+      it 'is nil for invalid addresses' do
+        expect(
+          Bitcoin.address_type('2MyLngQnhzjzatKsB7XfHYoP9e2XUXSiBMM')
+        ).to be_nil
+      end
+    end
   end
 
   describe '.checksum' do

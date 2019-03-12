@@ -47,6 +47,7 @@ module Bitcoin
   module Util
 
     def address_version; Bitcoin.network[:address_version]; end
+    def version_bytes; address_version.size / 2; end
     def p2sh_version; Bitcoin.network[:p2sh_version]; end
 
     # hash160 is a 20 bytes (160bits) rmd610-sha256 hexdigest.
@@ -65,7 +66,7 @@ module Bitcoin
     def base58_checksum?(base58)
       hex = decode_base58(base58) rescue nil
       return false unless hex
-      checksum( hex[0...42] ) == hex[-8..-1]
+      checksum(hex[0...(version_bytes + 20) * 2]) == hex[-8..-1]
     end
     alias :address_checksum? :base58_checksum?
 
@@ -95,7 +96,9 @@ module Bitcoin
         _, witness_program_hex = decode_segwit_address(address)
         witness_program_hex
       when :hash160, :p2sh
-        decode_base58(address)[2...42]
+        start_idx = version_bytes * 2
+        stop_idx = start_idx + 40 # 20 bytes (2 chars per byte)
+        decode_base58(address)[start_idx...stop_idx]
       end
     end
 
@@ -116,14 +119,16 @@ module Bitcoin
       end
 
       hex = decode_base58(address) rescue nil
-      if hex && hex.bytesize == 50 && address_checksum?(address)
+
+      target_size = (version_bytes + 20 + 4) * 2 # version_bytes + 20 bytes hash + 4 bytes checksum
+      if hex && hex.bytesize == target_size && address_checksum?(address)
         # Litecoin updates the P2SH version byte, and this method should recognize both.
         p2sh_versions = [p2sh_version]
         if Bitcoin.network[:legacy_p2sh_versions]
           p2sh_versions += Bitcoin.network[:legacy_p2sh_versions]
         end
 
-        case hex[0...2]
+        case hex[0...(version_bytes * 2)]
         when address_version
           return :hash160
         when *p2sh_versions
