@@ -772,82 +772,63 @@ describe Bitcoin do
       end
     end
 
-    describe '.der_to_private_key' do
-      it 'extracts the private key from uncompressed DER format' do
-        der =
-          '308201130201010420a29fe0f28b2936dbc89f889f74cd1f0662d18a873ac15d6c' \
-          'd417b808db1ccd0aa081a53081a2020101302c06072a8648ce3d0101022100ffff' \
-          'fffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f300604' \
-          '010004010704410479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959' \
-          'f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47' \
-          'd08ffb10d4b8022100fffffffffffffffffffffffffffffffebaaedce6af48a03b' \
-          'bfd25e8cd0364141020101a14403420004768cfc6c44b927b0e69e9dd343e96132' \
-          'f7cd1d360d8cb8d65c83d89d7beaceadfd19918e076606a099344156acdb026b10' \
-          '65a958e39f098cfd0a34dd976291d6'
+    describe 'signing and verifying messages' do
+      context 'testnet' do
+        before { Bitcoin.network = :testnet3 }
 
-        expect(
-          Bitcoin::OpenSSL_EC.der_to_private_key(der)
-        ).to eq('a29fe0f28b2936dbc89f889f74cd1f0662d18a873ac15d6cd417b808db1ccd0a')
+        it 'verifies the signature of a testnet address' do
+          expect(
+            Bitcoin.verify_message(
+              'mwPVMbZQgkpwJJt2YP3sLSgbEBQw3FWZSc',
+              'H5GER0Nz+L7TPZMQzXtv0hnLSsyfPok9lkdHIv01vksREpEpOhTPTonU1xvy' \
+              'PAOIIKhU3++Ol+LaWKWmsfyxDXk=',
+              'A' * 500
+            )
+          ).to be true
+        end
       end
 
-      describe 'signing and verifying messages' do
-        context 'testnet' do
-          before { Bitcoin.network = :testnet3 }
-
-          it 'verifies the signature of a testnet address' do
-            expect(
-              Bitcoin.verify_message(
-                'mwPVMbZQgkpwJJt2YP3sLSgbEBQw3FWZSc',
-                'H5GER0Nz+L7TPZMQzXtv0hnLSsyfPok9lkdHIv01vksREpEpOhTPTonU1xvy' \
-                'PAOIIKhU3++Ol+LaWKWmsfyxDXk=',
-                'A' * 500
-              )
-            ).to be true
-          end
+      context 'mainnet' do
+        before { Bitcoin.network = :bitcoin }
+        let(:address_and_keys1) do
+          %w[
+            1QFqqMUD55ZV3PJEJZtaKCsQmjLT6JkjvJ
+            12b004fff7f4b69ef8650e767f18f11ede158148b425660723b9f9a66e61f747
+            040b4c866585dd868a9d62348a9cd008d6a312937048fff31670e7e920cfc7a7 \
+            447b5f0bba9e01e6fe4735c8383e6e7a3347a0fd72381b8f797a19f694054e5a69
+          ]
+        end
+        let(:address_and_keys2) do
+          %w[
+            1NoJrossxPBKfCHuJXT4HadJrXRE9Fxiqs
+            12b004fff7f4b69ef8650e767f18f11ede158148b425660723b9f9a66e61f747
+            030b4c866585dd868a9d62348a9cd008d6a312937048fff31670e7e920cfc7a744
+          ]
         end
 
-        context 'mainnet' do
-          before { Bitcoin.network = :bitcoin }
-          let(:address_and_keys1) do
-            %w[
-              1QFqqMUD55ZV3PJEJZtaKCsQmjLT6JkjvJ
-              12b004fff7f4b69ef8650e767f18f11ede158148b425660723b9f9a66e61f747
-              040b4c866585dd868a9d62348a9cd008d6a312937048fff31670e7e920cfc7a7 \
-              447b5f0bba9e01e6fe4735c8383e6e7a3347a0fd72381b8f797a19f694054e5a69
-            ]
-          end
-          let(:address_and_keys2) do
-            %w[
-              1NoJrossxPBKfCHuJXT4HadJrXRE9Fxiqs
-              12b004fff7f4b69ef8650e767f18f11ede158148b425660723b9f9a66e61f747
-              030b4c866585dd868a9d62348a9cd008d6a312937048fff31670e7e920cfc7a744
-            ]
-          end
-
-          it 'successfully signs and verifies the message' do
-            [address_and_keys1, address_and_keys2].each do |_addr, privkey, _pubkey|
-              key = Bitcoin.open_key(privkey)
-              16.times.each do |count|
-                signature = Bitcoin.sign_message(
-                  key.private_key_hex,
-                  key.public_key_hex,
-                  format('Very secret message %<count>d: 11', count: count)
+        it 'successfully signs and verifies the message' do
+          [address_and_keys1, address_and_keys2].each do |_addr, privkey, _pubkey|
+            key = Bitcoin.open_key(privkey)
+            16.times.each do |count|
+              signature = Bitcoin.sign_message(
+                key.private_key_hex,
+                key.public_key_hex,
+                format('Very secret message %<count>d: 11', count: count)
+              )
+              expect(
+                Bitcoin.verify_message(
+                  signature['address'],
+                  'invalid-signature',
+                  signature['message']
                 )
-                expect(
-                  Bitcoin.verify_message(
-                    signature['address'],
-                    'invalid-signature',
-                    signature['message']
-                  )
-                ).to be false
-                expect(
-                  Bitcoin.verify_message(
-                    signature['address'],
-                    signature['signature'],
-                    signature['message']
-                  )
-                ).to be true
-              end
+              ).to be false
+              expect(
+                Bitcoin.verify_message(
+                  signature['address'],
+                  signature['signature'],
+                  signature['message']
+                )
+              ).to be true
             end
           end
         end

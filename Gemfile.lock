@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    bitcoin-ruby (0.0.18)
+    bitcoin-ruby (0.0.20)
       eventmachine
       ffi
       scrypt
@@ -82,4 +82,4 @@ DEPENDENCIES
   simplecov (~> 0.16.1)
 
 BUNDLED WITH
-   1.16.2
+   1.17.3

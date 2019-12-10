@@ -10,16 +10,68 @@ module Bitcoin
     if FFI::Platform.windows?
       ffi_lib 'libeay32', 'ssleay32'
     else
-      ffi_lib ['libssl.so.1.0.0', 'ssl']
+      ffi_lib [
+        'libssl.so.1.1.0', 'libssl.so.1.1',
+        'libssl.so.1.0.0', 'libssl.so.10',
+        'ssl'
+      ]
     end
 
     NID_secp256k1 = 714 # rubocop:disable Naming/ConstantName
     POINT_CONVERSION_COMPRESSED = 2
     POINT_CONVERSION_UNCOMPRESSED = 4
 
-    attach_function :SSL_library_init, [], :int
-    attach_function :ERR_load_crypto_strings, [], :void
-    attach_function :SSL_load_error_strings, [], :void
+    # OpenSSL 1.1.0 version as a numerical version value as defined in:
+    # https://www.openssl.org/docs/man1.1.0/man3/OpenSSL_version.html
+    VERSION_1_1_0_NUM = 0x10100000
+
+    # OpenSSL 1.1.0 engine constants, taken from:
+    # https://github.com/openssl/openssl/blob/2be8c56a39b0ec2ec5af6ceaf729df154d784a43/include/openssl/crypto.h
+    OPENSSL_INIT_ENGINE_RDRAND = 0x00000200
+    OPENSSL_INIT_ENGINE_DYNAMIC = 0x00000400
+    OPENSSL_INIT_ENGINE_CRYPTODEV = 0x00001000
+    OPENSSL_INIT_ENGINE_CAPI = 0x00002000
+    OPENSSL_INIT_ENGINE_PADLOCK = 0x00004000
+    OPENSSL_INIT_ENGINE_ALL_BUILTIN = (
+      OPENSSL_INIT_ENGINE_RDRAND |
+      OPENSSL_INIT_ENGINE_DYNAMIC |
+      OPENSSL_INIT_ENGINE_CRYPTODEV |
+      OPENSSL_INIT_ENGINE_CAPI |
+      OPENSSL_INIT_ENGINE_PADLOCK
+    )
+
+    # OpenSSL 1.1.0 load strings constant, taken from:
+    # https://github.com/openssl/openssl/blob/c162c126be342b8cd97996346598ecf7db56130f/include/openssl/ssl.h
+    OPENSSL_INIT_LOAD_SSL_STRINGS = 0x00200000
+
+    # This is the very first function we need to use to determine what version
+    # of OpenSSL we are interacting with.
+    begin
+      attach_function :OpenSSL_version_num, [], :ulong
+    rescue FFI::NotFoundError
+      attach_function :SSLeay, [], :long
+    end
+
+    # Returns the version of SSL present.
+    #
+    # @return [Integer] version number as an integer.
+    def self.version
+      if self.respond_to?(:OpenSSL_version_num)
+        OpenSSL_version_num()
+      else
+        SSLeay()
+      end
+    end
+
+    if version >= VERSION_1_1_0_NUM
+      # Initialization procedure for the library was changed in OpenSSL 1.1.0
+      attach_function :OPENSSL_init_ssl, [:uint64, :pointer], :int
+    else
+      attach_function :SSL_library_init, [], :int
+      attach_function :ERR_load_crypto_strings, [], :void
+      attach_function :SSL_load_error_strings, [], :void
+    end
+
     attach_function :RAND_poll, [], :int
 
     attach_function :BN_CTX_free, [:pointer], :int
@@ -28,7 +80,6 @@ module Bitcoin
     attach_function :BN_bin2bn, %i[pointer int pointer], :pointer
     attach_function :BN_bn2bin, %i[pointer pointer], :int
     attach_function :BN_cmp, %i[pointer pointer], :int
-    attach_function :BN_copy, %i[pointer pointer], :pointer
     attach_function :BN_dup, [:pointer], :pointer
     attach_function :BN_free, [:pointer], :int
     attach_function :BN_mod_inverse, %i[pointer pointer pointer pointer], :pointer
@@ -51,22 +102,17 @@ module Bitcoin
     attach_function :EC_KEY_set_private_key, %i[pointer pointer], :int
     attach_function :EC_KEY_set_public_key,  %i[pointer pointer], :int
     attach_function :EC_POINT_free, [:pointer], :int
-    attach_function :EC_POINT_is_at_infinity, %i[pointer pointer], :int
     attach_function :EC_POINT_mul, %i[pointer pointer pointer pointer pointer pointer], :int
     attach_function :EC_POINT_new, [:pointer], :pointer
     attach_function :EC_POINT_set_compressed_coordinates_GFp,
                     %i[pointer pointer pointer int pointer], :int
-    attach_function :d2i_ECPrivateKey, %i[pointer pointer long], :pointer
-    attach_function :i2d_ECPrivateKey, %i[pointer pointer], :int
     attach_function :i2o_ECPublicKey, %i[pointer pointer], :uint
-    attach_function :EC_KEY_check_key, [:pointer], :uint
     attach_function :ECDSA_do_sign, %i[pointer uint pointer], :pointer
     attach_function :BN_num_bits, [:pointer], :int
     attach_function :ECDSA_SIG_free, [:pointer], :void
     attach_function :EC_POINT_add, %i[pointer pointer pointer pointer pointer], :int
     attach_function :EC_POINT_point2hex, %i[pointer pointer int pointer], :string
     attach_function :EC_POINT_hex2point, %i[pointer string pointer pointer], :pointer
-    attach_function :ECDSA_SIG_new, [], :pointer
     attach_function :d2i_ECDSA_SIG, %i[pointer pointer long], :pointer
     attach_function :i2d_ECDSA_SIG, %i[pointer pointer], :int
     attach_function :OPENSSL_free, :CRYPTO_free, [:pointer], :void
@@ -82,68 +128,17 @@ module Bitcoin
       private_key = [private_key].pack('H*') if private_key.bytesize >= (32 * 2)
       private_key_hex = private_key.unpack('H*')[0]
 
-      # private_key = FFI::MemoryPointer.new(:uint8, private_key.bytesize)
-      #                .put_bytes(0, private_key, 0, private_key.bytesize)
-      private_key = FFI::MemoryPointer.from_string(private_key)
+      group = OpenSSL::PKey::EC::Group.new('secp256k1')
+      key = OpenSSL::PKey::EC.new(group)
+      key.private_key = OpenSSL::BN.new(private_key_hex, 16)
+      key.public_key = group.generator.mul(key.private_key)
 
-      init_ffi_ssl
-      eckey = EC_KEY_new_by_curve_name(NID_secp256k1)
-      # priv_key = BN_bin2bn(private_key, private_key.size, BN_new())
-      priv_key = BN_bin2bn(private_key, private_key.size - 1, BN_new())
-
-      group = EC_KEY_get0_group(eckey)
-      order = BN_new()
-      ctx = BN_CTX_new()
-      EC_GROUP_get_order(group, order, ctx)
-
-      pub_key = EC_POINT_new(group)
-      EC_POINT_mul(group, pub_key, priv_key, nil, nil, ctx)
-      EC_KEY_set_private_key(eckey, priv_key)
-      EC_KEY_set_public_key(eckey, pub_key)
-
-      BN_free(order)
-      BN_CTX_free(ctx)
-      EC_POINT_free(pub_key)
-      BN_free(priv_key)
-
-      length = i2d_ECPrivateKey(eckey, nil)
-      buf = FFI::MemoryPointer.new(:uint8, length)
-      ptr = FFI::MemoryPointer.new(:pointer).put_pointer(0, buf)
-      priv_hex = if i2d_ECPrivateKey(eckey, ptr) == length
-                   size = buf.get_array_of_uint8(8, 1)[0]
-                   buf.get_array_of_uint8(9, size).pack('C*').rjust(32, "\x00").unpack('H*')[0]
-                   # der_to_private_key( ptr.read_pointer.read_string(length).unpack("H*")[0] )
-                 end
-
+      priv_hex = key.private_key.to_bn.to_s(16).downcase.rjust(64, '0')
       if priv_hex != private_key_hex
         raise 'regenerated wrong private_key, raise here before generating a faulty public_key too!'
       end
 
-      length = i2o_ECPublicKey(eckey, nil)
-      buf = FFI::MemoryPointer.new(:uint8, length)
-      ptr = FFI::MemoryPointer.new(:pointer).put_pointer(0, buf)
-      pub_hex = buf.read_string(length).unpack('H*')[0] if i2o_ECPublicKey(eckey, ptr) == length
-
-      EC_KEY_free(eckey)
-
-      [priv_hex, pub_hex]
-    end
-
-    # extract private key from uncompressed DER format
-    def self.der_to_private_key(der_hex)
-      init_ffi_ssl
-      # k  = EC_KEY_new_by_curve_name(NID_secp256k1)
-      # kp = FFI::MemoryPointer.new(:pointer).put_pointer(0, eckey)
-
-      buf = FFI::MemoryPointer.from_string([der_hex].pack('H*'))
-      ptr = FFI::MemoryPointer.new(:pointer).put_pointer(0, buf)
-
-      # ec_key = d2i_ECPrivateKey(kp, ptr, buf.size-1)
-      ec_key = d2i_ECPrivateKey(nil, ptr, buf.size - 1)
-      return nil if ec_key.null?
-      bn = EC_KEY_get0_private_key(ec_key)
-      BN_bn2bin(bn, buf)
-      buf.read_string(32).unpack('H*')[0]
+      [priv_hex, key.public_key.to_bn.to_s(16).downcase]
     end
 
     # Given the components of a signature and a selector value, recover and
@@ -395,9 +390,18 @@ module Bitcoin
     def self.init_ffi_ssl
       @ssl_loaded ||= false
       return if @ssl_loaded
-      SSL_library_init()
-      ERR_load_crypto_strings()
-      SSL_load_error_strings()
+
+      if version >= VERSION_1_1_0_NUM
+        OPENSSL_init_ssl(
+          OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_ENGINE_ALL_BUILTIN,
+          nil
+        )
+      else
+        SSL_library_init()
+        ERR_load_crypto_strings()
+        SSL_load_error_strings()
+      end
+
       RAND_poll()
       @ssl_loaded = true
     end

@@ -1,9 +1,8 @@
 language: ruby
 rvm:
-  - 2.2.9
-  - 2.3.6
-  - 2.4.3
-  - 2.5.1
+  - 2.4.9
+  - 2.5.7
+  - 2.6.5
 script:
   - bundle exec rake build_libsecp256k1
   - bundle exec rake rspec

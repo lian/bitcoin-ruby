@@ -13,11 +13,9 @@ Some of the main features are:
 
 == Compatible with...
 
-* ruby 1.9.3
-* ruby 2.0.0
-* ruby 2.1.2
-* ruby 2.2.0
-* ruby 2.2.2
+* ruby 2.4.x
+* ruby 2.5.x
+* ruby 2.6.x
 
 == Installation
 
