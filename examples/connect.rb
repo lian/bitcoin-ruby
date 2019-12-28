@@ -17,6 +17,10 @@ class RawJSON_Connection < Bitcoin::Connection
     # puts tx.to_json
   end
 
+  def on_ping(*args, &push)
+    p args
+  end
+
   def on_block(block)
     p ['block', block.hash, Time.now]
     # puts block.to_json
