@@ -451,15 +451,34 @@ module Bitcoin
         h
       end
 
-      # generates rawblock json as seen in the block explorer.
+      # <b>DEPRECATED:</b> This method will removed in a future release.
       def to_json(options = { space: '' }, *_a)
+        warn "[DEPRECATION] Bitcoin::Protocol::Tx#to_json is deprecated and will be removed in a future release."
         JSON.pretty_generate(to_hash(options), options)
       end
 
-      # write json representation to a file
-      # (see also #to_json)
+      # <b>DEPRECATED:</b> This method will removed in a future release.
       def to_json_file(path)
+        warn "[DEPRECATION] Bitcoin::Protocol::Tx#to_json_file is deprecated and will be removed in a future release."
         File.open(path, 'wb') { |f| f.print to_json; }
+      end
+
+      # <b>DEPRECATED:</b> This method will removed in a future release.
+      def self.from_json(json_string)
+        warn "[DEPRECATION] Bitcoin::Protocol::Tx#from_json is deprecated and will be removed in a future release."
+        from_hash(JSON.parse(json_string))
+      end
+
+      # <b>DEPRECATED:</b> This method will removed in a future release.
+      def self.binary_from_json(json_string)
+        warn "[DEPRECATION] Bitcoin::Protocol::Tx#binary_from_json is deprecated and will be removed in a future release."
+        from_json(json_string).to_payload
+      end
+
+      # <b>DEPRECATED:</b> This method will removed in a future release.
+      def self.from_json_file(path)
+        warn "[DEPRECATION] Bitcoin::Protocol::Tx#from_json_file is deprecated and will be removed in a future release."
+        from_json(Bitcoin::Protocol.read_binary_file(path))
       end
 
       # parse ruby hash (see also #to_hash)
@@ -487,24 +506,9 @@ module Bitcoin
         tx.to_payload
       end
 
-      # parse json representation
-      def self.from_json(json_string)
-        from_hash(JSON.parse(json_string))
-      end
-
-      # convert json representation to raw binary
-      def self.binary_from_json(json_string)
-        from_json(json_string).to_payload
-      end
-
       # read binary block from a file
       def self.from_file(path)
         new(Bitcoin::Protocol.read_binary_file(path))
-      end
-
-      # read json block from a file
-      def self.from_json_file(path)
-        from_json(Bitcoin::Protocol.read_binary_file(path))
       end
 
       def size
