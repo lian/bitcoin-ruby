@@ -983,8 +983,8 @@ module Bitcoin
       privkey_version: "ef",
     })
 
-  # from https://github.com/cryptocoinjs/coininfo/blob/master/lib/coins/mona.js
-  # and  https://github.com/fuyuton/bitcoin-php/blob/1.0/src/Network/Networks/Monacoin.php
+  # https://github.com/cryptocoinjs/coininfo/blob/master/lib/coins/mona.js
+  # https://github.com/fuyuton/bitcoin-php/blob/1.0/src/Network/Networks/Monacoin.php
   NETWORKS[:monacoin] = NETWORKS[:bitcoin].merge({
       project: :monacoin,
       genesis_hash: "ff9f1c0116d19de7c9963845e129f9ed1bfc0b376eb54fd7afa42e0d418c8bb6",
@@ -1007,6 +1007,11 @@ module Bitcoin
       p2sh_version: "37", #scripthash
       legacy_p2sh_versions: ["05"], #scripthash2
       #}
+      #https://github.com/kyuupichan/electrumx/commit/ecad494f282e3f845f91deb6f5b68bfe2fe1e45e
+      #tx_count: 2568580,
+      #tx_count_height: 1029766,
+      #tx_per_block: 2,
+      #reorg_limit: 1000,
     })
 
   NETWORKS[:monacoin_testnet] = NETWORKS[:bitcoin].merge({
