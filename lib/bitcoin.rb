@@ -36,7 +36,6 @@ module Bitcoin
 
   autoload :Dogecoin,   'bitcoin/dogecoin'
   autoload :Litecoin,   'bitcoin/litecoin'
-  autoload :Monacoin,   'bitcoin/monacoin'
 
   autoload :ContractHash,   'bitcoin/contracthash'
 
@@ -597,13 +596,12 @@ module Bitcoin
     @network_options = nil # clear cached parameters
     @network = name.to_sym
     @network_project = network[:project] rescue nil
-    #Monacoin.load  if monacoin? #|| monacoin_testnet?
     Dogecoin.load  if dogecoin? || dogecoin_testnet?
     Namecoin.load  if namecoin? && defined?(Namecoin)
     @network
   end
 
-  [:bitcoin, :namecoin, :litecoin, :dogecoin, :dogecoin_testnet, :monacoin].each do |n|
+  [:bitcoin, :namecoin, :litecoin, :dogecoin, :dogecoin_testnet, :monacoin, :monacoin_testnet].each do |n|
     instance_eval "def #{n}?; network_project == :#{n}; end"
   end
 
@@ -1009,9 +1007,6 @@ module Bitcoin
       p2sh_version: "37", #scripthash
       legacy_p2sh_versions: ["05"], #scripthash2
       #}
-
-      dust: CENT / 10,
-      per_dust_fee: true,
     })
 
   NETWORKS[:monacoin_testnet] = NETWORKS[:bitcoin].merge({
@@ -1031,9 +1026,6 @@ module Bitcoin
       address_version: "6f", #public
       p2sh_version: "75", #scripthash
       legacy_p2sh_versions: ["c4"], #scripthash2
-
-      dust: CENT / 10,
-      per_dust_fee: true,
     })
 
 end
