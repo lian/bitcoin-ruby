@@ -601,7 +601,7 @@ module Bitcoin
     @network
   end
 
-  [:bitcoin, :namecoin, :litecoin, :dogecoin, :dogecoin_testnet].each do |n|
+  [:bitcoin, :namecoin, :litecoin, :dogecoin, :dogecoin_testnet, :monacoin, :monacoin_testnet].each do |n|
     instance_eval "def #{n}?; network_project == :#{n}; end"
   end
 
@@ -981,6 +981,52 @@ module Bitcoin
       checkpoints: { },
       address_versions: { pubkey_hash: "6f", script_hash: "c4" },
       privkey_version: "ef",
+    })
+
+  # https://gist.github.com/wakiyamap/821bccb262f34ce417c0b7abee5369cf
+  # https://github.com/cryptocoinjs/coininfo/blob/master/lib/coins/mona.js
+  # https://github.com/fuyuton/bitcoin-php/blob/1.0/src/Network/Networks/Monacoin.php
+  NETWORKS[:monacoin] = NETWORKS[:bitcoin].merge({
+      project: :monacoin,
+      genesis_hash: "ff9f1c0116d19de7c9963845e129f9ed1bfc0b376eb54fd7afa42e0d418c8bb6",
+      default_port: 9401,
+      magic_head: "\xdb\xb6\xc0\xfb",
+      message_magic: "", #message prefix
+      bech32_hrp: "mona",
+      dns_seeds: [
+        "dnsseed.monacoin.org",
+      ],
+      #coininfo.js versions{
+        #bip32{
+      extended_privkey_version: "0488ade4",
+      extended_pubkey_version: "0488b21e",
+        #}
+      bip44: 22,
+      privkey_version: "b0", #private
+      legacy_privkey_version: ["b2"], #private2 // old wif
+      address_version: "32", #address_P2PKH
+      p2sh_version: "37", #scripthash
+      legacy_p2sh_versions: ["05"], #scripthash2
+      #}
+    })
+
+  NETWORKS[:monacoin_testnet] = NETWORKS[:bitcoin].merge({
+      project: :monacoin,
+      genesis_hash: "a2b106ceba3be0c6d097b2a6a6aacf9d638ba8258ae478158f449c321061e0b2",
+      default_port: 19403,
+      magic_head: "\xf1\xc8\xd2\xfd",
+      message_magic: "", #message prefix
+      bech32_hrp: "tmona",
+      dns_seeds: [
+        "dnsseed.monacoin.org",
+      ],
+      extended_privkey_version: "04358394",
+      extended_pubkey_version: "043587cf",
+      bip44: 1,
+      privkey_version: "ef", #private
+      address_version: "6f", #public
+      p2sh_version: "75", #scripthash
+      legacy_p2sh_versions: ["c4"], #scripthash2
     })
 
 end
