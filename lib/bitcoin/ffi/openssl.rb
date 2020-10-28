@@ -9,6 +9,8 @@ module Bitcoin
     extend FFI::Library
     if FFI::Platform.windows?
       ffi_lib 'libeay32', 'ssleay32'
+    elsif FFI::Platform::mac?
+      ffi_lib Dir.glob("/usr/local/Cellar/openssl@1.1/**/*libssl.dylib")
     else
       ffi_lib [
         'libssl.so.1.1.0', 'libssl.so.1.1',
