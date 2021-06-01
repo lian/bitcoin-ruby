@@ -9,6 +9,7 @@ group :test do
   gem 'rubocop', '~> 0.58.2'
   gem 'simplecov', '~> 0.16.1'
   gem 'minitest', '~> 5.11.3'
+  gem 'scanf'
 end
 
 group :development do

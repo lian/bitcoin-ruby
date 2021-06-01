@@ -58,6 +58,7 @@ GEM
       ruby-progressbar (~> 1.7)
       unicode-display_width (~> 1.0, >= 1.0.1)
     ruby-progressbar (1.9.0)
+    scanf (1.0.0)
     scrypt (3.0.5)
       ffi-compiler (>= 1.0, < 2.0)
     simplecov (0.16.1)
@@ -79,6 +80,7 @@ DEPENDENCIES
   rake (~> 12.3.1)
   rspec (~> 3.7.0)
   rubocop (~> 0.58.2)
+  scanf
   simplecov (~> 0.16.1)
 
 BUNDLED WITH
