@@ -2,7 +2,7 @@ require 'bundler/gem_tasks'
 require 'rspec/core/rake_task'
 
 # libsecp256k1 repository URL
-LIBSECP256K1_REPO = 'https://github.com/bitcoin-core/secp256k1/'.freeze
+LIBSECP256K1_REPO = 'https://github.com/bitcoin-core/secp256k1.git'.freeze
 # Folder into which libsecp256k1 repository is cloned
 LIBSECP256K1_PATH = 'secp256k1'.freeze
 
@@ -34,8 +34,8 @@ end
 
 desc 'Compiles the libsecp256k1 library'
 task :build_libsecp256k1, [:force] do |_, args|
-  # Commit hash for libsecp256k1 from May 31, 2018.
-  COMMIT_HASH = '1e6f1f5ad5e7f1e3ef79313ec02023902bf8175c'.freeze
+  # Commit hash for libsecp256k1 from March 31, 2021.
+  COMMIT_HASH = '50f33677122fed79dedb05e8046b2fea93496201'.freeze
 
   force = args[:force]
 
