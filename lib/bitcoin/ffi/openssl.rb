@@ -1,5 +1,6 @@
 # encoding: ascii-8bit
 
+require 'openssl'
 require 'ffi'
 
 module Bitcoin
@@ -7,16 +8,9 @@ module Bitcoin
   # ported from: https://github.com/sipa/bitcoin/blob/2d40fe4da9ea82af4b652b691a4185431d6e47a8/key.h
   module OpenSSL_EC # rubocop:disable Naming/ClassAndModuleCamelCase
     extend FFI::Library
-    if FFI::Platform.windows?
-      ffi_lib 'libeay32', 'ssleay32'
-    else
-      ffi_lib [
-        FFI::CURRENT_PROCESS,
-        'libssl.so.1.1.0', 'libssl.so.1.1',
-        'libssl.so.1.0.0', 'libssl.so.10',
-        'ssl'
-      ]
-    end
+
+    # Use the library loaded by the extension require above.
+    ffi_lib FFI::CURRENT_PROCESS
 
     NID_secp256k1 = 714 # rubocop:disable Naming/ConstantName
     POINT_CONVERSION_COMPRESSED = 2
