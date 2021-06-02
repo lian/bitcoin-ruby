@@ -11,6 +11,7 @@ module Bitcoin
       ffi_lib 'libeay32', 'ssleay32'
     else
       ffi_lib [
+        FFI::CURRENT_PROCESS,
         'libssl.so.1.1.0', 'libssl.so.1.1',
         'libssl.so.1.0.0', 'libssl.so.10',
         'ssl'
@@ -20,10 +21,6 @@ module Bitcoin
     NID_secp256k1 = 714 # rubocop:disable Naming/ConstantName
     POINT_CONVERSION_COMPRESSED = 2
     POINT_CONVERSION_UNCOMPRESSED = 4
-
-    # OpenSSL 1.1.0 version as a numerical version value as defined in:
-    # https://www.openssl.org/docs/man1.1.0/man3/OpenSSL_version.html
-    VERSION_1_1_0_NUM = 0x10100000
 
     # OpenSSL 1.1.0 engine constants, taken from:
     # https://github.com/openssl/openssl/blob/2be8c56a39b0ec2ec5af6ceaf729df154d784a43/include/openssl/crypto.h
@@ -52,21 +49,10 @@ module Bitcoin
       attach_function :SSLeay, [], :long
     end
 
-    # Returns the version of SSL present.
-    #
-    # @return [Integer] version number as an integer.
-    def self.version
-      if self.respond_to?(:OpenSSL_version_num)
-        OpenSSL_version_num()
-      else
-        SSLeay()
-      end
-    end
-
-    if version >= VERSION_1_1_0_NUM
+    begin
       # Initialization procedure for the library was changed in OpenSSL 1.1.0
       attach_function :OPENSSL_init_ssl, [:uint64, :pointer], :int
-    else
+    rescue FFI::NotFoundError
       attach_function :SSL_library_init, [], :int
       attach_function :ERR_load_crypto_strings, [], :void
       attach_function :SSL_load_error_strings, [], :void
@@ -391,7 +377,7 @@ module Bitcoin
       @ssl_loaded ||= false
       return if @ssl_loaded
 
-      if version >= VERSION_1_1_0_NUM
+      if self.method_defined?(:OPENSSL_init_ssl)
         OPENSSL_init_ssl(
           OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_ENGINE_ALL_BUILTIN,
           nil
