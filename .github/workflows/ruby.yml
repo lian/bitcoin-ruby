@@ -15,18 +15,16 @@ on:
 
 jobs:
   test:
-
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
+
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, ubuntu-18.04, macos-10.15]
         ruby-version: ['2.6', '2.7', '3.0']
 
     steps:
     - uses: actions/checkout@v2
-    - name: Brew automake
-      run: brew install automake
-      if: matrix.os == 'macos-latest'
     - name: Set up Ruby
     # To automatically get bug fixes and new Ruby versions for ruby/setup-ruby,
     # change this to (see https://github.com/ruby/setup-ruby#versioning):
@@ -35,6 +33,9 @@ jobs:
       with:
         ruby-version: ${{ matrix.ruby-version }}
         bundler-cache: true # runs 'bundle install' and caches installed gems automatically
+    - name: Brew automake
+      run: brew install automake
+      if: startsWith(matrix.os, 'macOS')
     - name: Build secp256k1
       run: bundle exec rake build_libsecp256k1
     - name: Run tests
