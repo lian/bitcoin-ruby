@@ -805,7 +805,7 @@ class Bitcoin::Script
     case Bitcoin.address_type(address)
     when :hash160; to_hash160_script(hash160)
     when :p2sh;    to_p2sh_script(hash160)
-    when :witness_v0_keyhash, :witness_v0_scripthash
+    when :witness_v0_keyhash, :witness_v0_scripthash, :witness_v1_keyhash, :witness_v1_scripthash
       witness_version, witness_program_hex = Bitcoin.decode_segwit_address(address)
       to_witness_script(witness_version, witness_program_hex)
     end

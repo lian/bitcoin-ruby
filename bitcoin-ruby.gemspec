@@ -22,6 +22,7 @@ Gem::Specification.new do |s|
   s.required_rubygems_version = ">= 2.6.13"
 
   s.add_runtime_dependency 'ffi'
+  s.add_runtime_dependency 'bech32'
   s.add_runtime_dependency 'scrypt' # required by Litecoin
   s.add_runtime_dependency 'eventmachine' # required for connection code
 end

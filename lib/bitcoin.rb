@@ -5,6 +5,7 @@ require 'digest/sha2'
 require 'digest/rmd160'
 require 'openssl'
 require 'securerandom'
+require 'bech32'
 
 module Bitcoin
   # Determine the integer class to use. In older versions of ruby (< 2.4.0) the
@@ -104,18 +105,15 @@ module Bitcoin
 
     # get type of given +address+.
     def address_type(address)
-      segwit_decoded = decode_segwit_address(address) rescue nil
-      if segwit_decoded
-        witness_version, witness_program_hex = segwit_decoded
-        witness_program = [witness_program_hex].pack("H*")
+      segwit_addr = ::Bech32::SegwitAddr.new(address) rescue nil
 
-        if witness_version == 0 && witness_program.bytesize == 20
-          return :witness_v0_keyhash
-        end
-
-        if witness_version == 0 && witness_program.bytesize == 32
-          return :witness_v0_scripthash
-        end
+      if segwit_addr
+        return {
+          [0, 20] => :witness_v0_keyhash,
+          [0, 32] => :witness_v0_scripthash,
+          [1, 20] => :witness_v1_keyhash,
+          [1, 32] => :witness_v1_scripthash
+        }[[segwit_addr.ver, segwit_addr.prog.size]]
       end
 
       hex = decode_base58(address) rescue nil
@@ -188,7 +186,7 @@ module Bitcoin
       hrp = Bitcoin.network[:bech32_hrp]
       return nil if hrp.nil?
 
-      actual_hrp, data  = Bitcoin::Bech32.decode(address)
+      actual_hrp, data  = ::Bech32.decode(address)
 
       return nil if actual_hrp.nil?
       length = data.size
