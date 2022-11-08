@@ -23,6 +23,7 @@ class Bitcoin::Script
   OP_14          = 0x5e
   OP_15          = 0x5f
   OP_16          = 0x60
+  OP_PUSHBYTES_20 = 0x14
 
   OP_PUSHDATA0   = 0
   OP_PUSHDATA1   = 76
