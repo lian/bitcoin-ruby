@@ -12,7 +12,7 @@ module Bitcoin
   # deprecated in favor of a unification of Fixnum and BigInteger named Integer.
   # Since this project strivers for backwards-compatability, we determine the
   # appropriate class to use at initialization.
-  # 
+  #
   # This avoids annoying deprecation warnings on newer versions for ourselves
   # and library consumers.
   Integer =
@@ -29,6 +29,7 @@ module Bitcoin
   autoload :Script,     'bitcoin/script'
   autoload :VERSION,    'bitcoin/version'
   autoload :Key,        'bitcoin/key'
+  autoload :PKeyEC,        'bitcoin/pkey_ec'
   autoload :ExtKey,     'bitcoin/ext_key'
   autoload :ExtPubkey,  'bitcoin/ext_key'
   autoload :Builder,    'bitcoin/builder'
@@ -38,6 +39,7 @@ module Bitcoin
   autoload :Litecoin,   'bitcoin/litecoin'
 
   autoload :ContractHash,   'bitcoin/contracthash'
+
 
   module Trezor
     autoload :Mnemonic,   'bitcoin/trezor/mnemonic'
@@ -286,11 +288,11 @@ module Bitcoin
     end
 
     def bitcoin_elliptic_curve
-      ::OpenSSL::PKey::EC.new("secp256k1")
+      Bitcoin::PKeyEC.new
     end
 
     def generate_key
-      key = bitcoin_elliptic_curve.generate_key
+      key = Bitcoin::PKeyEC.generate_key
       inspect_key( key )
     end
 
@@ -409,9 +411,11 @@ module Bitcoin
     def open_key(private_key, public_key=nil)
       key  = bitcoin_elliptic_curve
       key.private_key = ::OpenSSL::BN.from_hex(private_key)
-      public_key = regenerate_public_key(private_key) unless public_key
-      key.public_key  = ::OpenSSL::PKey::EC::Point.from_hex(key.group, public_key)
       key
+    end
+
+    def group
+      OpenSSL::PKey::EC::Group.new('secp256k1')
     end
 
     def regenerate_public_key(private_key)
@@ -439,6 +443,7 @@ module Bitcoin
       return false unless valid_address?(address)
       return false unless signature
       return false unless signature.bytesize == 65
+
       hash = bitcoin_signed_message_hash(message)
       pubkey = OpenSSL_EC.recover_compact(hash, signature)
       pubkey_to_address(pubkey) == address if pubkey

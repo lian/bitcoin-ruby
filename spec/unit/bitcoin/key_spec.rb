@@ -359,16 +359,73 @@ describe Bitcoin::Key do
       Bitcoin::Key.new(
         'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141'
       )
-    end.to raise_error(RuntimeError, 'private key is not on curve')
+    end.to raise_error(ArgumentError, 'Private key value is not within valid range (must be between 1 and n-1 where n is the order of the secp256k1 curve)')
 
     expect do
-      Bitcoin::Key.new('00')
-    end.to raise_error(RuntimeError, 'private key is not on curve')
+      Bitcoin::Key.new('0000000000000000000000000000000000000000000000000000000000000000')
+    end.to raise_error(ArgumentError, 'Private key value is not within valid range (must be between 1 and n-1 where n is the order of the secp256k1 curve)')
 
     Bitcoin::Key.new(
       'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140'
     )
-    Bitcoin::Key.new('01')
+    Bitcoin::Key.new('0000000000000000000000000000000000000000000000000000000000000001')
+  end
+
+  describe 'private key validation' do
+    it 'should reject non-hexadecimal strings' do
+      ['doudou', 'hello', 'xyz123', 'test!@#', 'gggggg'].each do |invalid_input|
+        expect do
+          Bitcoin::Key.new(invalid_input)
+        end.to raise_error(ArgumentError, /must be a valid hexadecimal string/)
+      end
+    end
+
+    it 'should reject private keys with invalid length' do
+      # Too short
+      expect do
+        Bitcoin::Key.new('00ff')
+      end.to raise_error(ArgumentError, 'Private key must be exactly 64 hex characters (got 4)')
+      
+      expect do
+        Bitcoin::Key.new('0' * 63)
+      end.to raise_error(ArgumentError, 'Private key must be exactly 64 hex characters (got 63)')
+      
+      # Too long
+      expect do
+        Bitcoin::Key.new('0' * 65)
+      end.to raise_error(ArgumentError, 'Private key must be exactly 64 hex characters (got 65)')
+    end
+
+    it 'should reject empty or whitespace-only strings' do
+      ['', '   ', "\n", "\t"].each do |invalid_input|
+        expect do
+          Bitcoin::Key.new(invalid_input)
+        end.to raise_error(ArgumentError)
+      end
+    end
+
+    it 'should accept valid 64-character hex strings' do
+      valid_keys = [
+        '0000000000000000000000000000000000000000000000000000000000000001',
+        '5e104fee0f23f6a6a5f0f30db5de3b6f01dac6bb9adf5a8db5dea29f4c2c8912',
+        'fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140'
+      ]
+      
+      valid_keys.each do |key|
+        k = Bitcoin::Key.new(key)
+        expect(k.priv).to eq(key.downcase)
+      end
+    end
+
+    it 'should handle uppercase hex characters' do
+      k = Bitcoin::Key.new('ABCDEF1234567890' * 4)
+      expect(k.priv).to eq('abcdef1234567890' * 4)
+    end
+
+    it 'should strip leading/trailing whitespace' do
+      k = Bitcoin::Key.new('  0000000000000000000000000000000000000000000000000000000000000001  ')
+      expect(k.priv).to eq('0000000000000000000000000000000000000000000000000000000000000001')
+    end
   end
 
   describe 'Bitcoin::OpenSSL_EC' do

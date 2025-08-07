@@ -129,11 +129,23 @@ module Bitcoin
       private_key_hex = private_key.unpack('H*')[0]
 
       group = OpenSSL::PKey::EC::Group.new('secp256k1')
-      key = OpenSSL::PKey::EC.new(group)
-      key.private_key = OpenSSL::BN.new(private_key_hex, 16)
-      key.public_key = group.generator.mul(key.private_key)
-
-      priv_hex = key.private_key.to_bn.to_s(16).downcase.rjust(64, '0')
+      private_key_bn = OpenSSL::BN.new(private_key_hex, 16)
+      
+      # Generate public key point by multiplying generator with private key
+      public_key_point = group.generator.mul(private_key_bn)
+      
+      # Create ASN1 structure for EC key
+      asn1 = OpenSSL::ASN1::Sequence([
+        OpenSSL::ASN1::Integer.new(1),
+        OpenSSL::ASN1::OctetString(private_key_bn.to_s(2)),
+        OpenSSL::ASN1::ObjectId('secp256k1', 0, :EXPLICIT),
+        OpenSSL::ASN1::BitString(public_key_point.to_octet_string(:uncompressed), 1, :EXPLICIT)
+      ])
+      
+      key = OpenSSL::PKey::EC.new(asn1.to_der)
+      
+      # Verify the private key was generated correctly
+      priv_hex = key.private_key.to_s(16).downcase.rjust(64, '0')
       if priv_hex != private_key_hex
         raise 'regenerated wrong private_key, raise here before generating a faulty public_key too!'
       end

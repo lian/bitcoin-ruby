@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'pry'
+require 'debug'
 require 'spec_helper'
 
 describe Bitcoin do
@@ -973,14 +973,16 @@ describe Bitcoin do
 
   describe 'bitcoin base58 test vectors' do
     # Port of Bitcoin Core test vectors.
-    # https://github.com/bitcoin/bitcoin/blob/595a7bab23bc21049526229054ea1fff1a29c0bf/src/test/base58_tests.cpp#L139
+    # https://github.com/bitcoin/bitcoin/blob/master/src/test/base58_tests.cpp
     let(:valid_base58_keys) do
-      JSON.parse(fixtures_file('base58_keys_valid.json'))
+      path = File.join(File.dirname(__FILE__), '../../fixtures/base58_keys_valid.json')
+      JSON.parse(File.read(path))
     end
     # Port of Bitcoin Core test vectors.
-    # https://github.com/bitcoin/bitcoin/blob/595a7bab23bc21049526229054ea1fff1a29c0bf/src/test/base58_tests.cpp#L179
+    # https://github.com/bitcoin/bitcoin/blob/master/src/test/base58_tests.cpp
     let(:invalid_base58_keys) do
-      JSON.parse(fixtures_file('base58_keys_invalid.json'))
+      path = File.join(File.dirname(__FILE__), '../../fixtures/base58_keys_invalid.json')
+      JSON.parse(File.read(path))
     end
 
     it 'passes the valid keys cases' do
@@ -1014,8 +1016,7 @@ describe Bitcoin do
     end
 
     it 'fails the invalid keys cases' do
-      test_cases = JSON.parse(fixtures_file('base58_keys_invalid.json'))
-      test_cases.each do |test_case|
+      invalid_base58_keys.each do |test_case|
         address = test_case[0]
 
         %i[bitcoin testnet3 regtest].each do |network_name|

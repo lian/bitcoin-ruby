@@ -1,0 +1,26 @@
+{
+  "name": "Ruby Bitcoin Development",
+  "dockerFile": "Dockerfile",
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "Shopify.ruby-lsp"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "ruby.useBundler": true,
+        "ruby.useLanguageServer": true,
+        "ruby.lint": {
+          "rubocop": true
+        }
+      }
+    }
+  },
+  "forwardPorts": [],
+  "postCreateCommand": "bundle install",
+  "remoteUser": "vscode"
+}

@@ -48,7 +48,7 @@ module Bitcoin
 
     # Generate new priv/pub key.
     def generate
-      @key.generate_key
+      @key = Bitcoin::PKeyEC.generate_key
     end
 
     # Get the private key (in hex).
@@ -155,7 +155,7 @@ module Bitcoin
 
       version = signature.unpack('C')[0]
       return nil if version < 27 or version > 34
- 
+
       compressed = (version >= 31) ? (version -= 4; true) : false
 
       hash = Bitcoin.bitcoin_signed_message_hash(data)
@@ -183,7 +183,7 @@ module Bitcoin
       addresshash = Digest::SHA256.digest( Digest::SHA256.digest( self.addr ) )[0...4]
 
       require 'scrypt' unless defined?(::SCrypt::Engine)
-      buf = SCrypt::Engine.__sc_crypt(passphrase, addresshash, 16384, 8, 8, 64)
+      buf = SCrypt::Engine.scrypt(passphrase, addresshash, 16384, 8, 8, 64)
       derivedhalf1, derivedhalf2 = buf[0...32], buf[32..-1]
 
       aes = proc{|k,a,b|
@@ -212,7 +212,7 @@ module Bitcoin
       raise "Invalid checksum"  unless Digest::SHA256.digest(Digest::SHA256.digest(version + flagbyte + addresshash + encryptedhalf1 + encryptedhalf2))[0...4] == checksum
 
       require 'scrypt' unless defined?(::SCrypt::Engine)
-      buf = SCrypt::Engine.__sc_crypt(passphrase, addresshash, 16384, 8, 8, 64)
+      buf = SCrypt::Engine.scrypt(passphrase, addresshash, 16384, 8, 8, 64)
       derivedhalf1, derivedhalf2 = buf[0...32], buf[32..-1]
 
       aes = proc{|k,a|
@@ -259,8 +259,24 @@ module Bitcoin
 
     # Set +priv+ as the new private key (converting from hex).
     def set_priv(priv)
+      # Convert to string and strip whitespace
+      priv = priv.to_s.strip
+      
+      # Validate hex string format
+      unless priv.match?(/\A[0-9a-fA-F]+\z/)
+        raise ArgumentError, "Private key must be a valid hexadecimal string, got: #{priv.inspect}"
+      end
+      
+      # Validate length (64 hex chars = 32 bytes)
+      unless priv.length == 64
+        raise ArgumentError, "Private key must be exactly 64 hex characters (got #{priv.length})"
+      end
+      
       value = priv.to_i(16)
-      raise 'private key is not on curve' unless MIN_PRIV_KEY_MOD_ORDER <= value && value <= MAX_PRIV_KEY_MOD_ORDER
+      unless MIN_PRIV_KEY_MOD_ORDER <= value && value <= MAX_PRIV_KEY_MOD_ORDER
+        raise ArgumentError, 'Private key value is not within valid range (must be between 1 and n-1 where n is the order of the secp256k1 curve)'
+      end
+      
       @key.private_key = OpenSSL::BN.from_hex(priv)
     end
 

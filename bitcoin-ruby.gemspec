@@ -24,4 +24,8 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'ffi'
   s.add_runtime_dependency 'scrypt' # required by Litecoin
   s.add_runtime_dependency 'eventmachine' # required for connection code
+
+  # Add development dependencies
+  s.add_development_dependency 'rspec', '~> 3.12'
+  s.add_development_dependency 'debug'
 end

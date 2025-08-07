@@ -7,6 +7,7 @@ require 'json'
 # Code coverage generation
 require 'simplecov'
 
+require 'debug'
 SimpleCov.start do
   add_group('Bitcoin') do |file|
     ['bitcoin.rb', 'opcodes.rb', 'script.rb', 'key.rb'].include?(
